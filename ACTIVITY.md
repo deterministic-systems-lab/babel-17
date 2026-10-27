@@ -322,3 +322,27 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the implements list names D45.
 - **Suite:** `reject/E-TYPE-002-duplicate-spec.b17` was added. Its specs `max_of` and `larger` normalize to the same bytes, and each def would verify on its own.
 - **Next:** the hasher will be built on the parser from branch `wp2-syntax` once that merges.
+
+## 2026-10-27 · WP2 begins: the B17-0 parser and canonical printer
+- **Added:** `b17c/syntax.py`, standard library only (D19):
+  - `parse(text)` takes str or UTF-8 bytes and returns an S-expression tree (`Form`, `Sym`, `Int`, `Str`). Source positions are kept but don't count toward equality. Any input that isn't a term of §2's grammar, or that breaks §2's name, integer or string rules, fails with `E-PARSE-001`, a line and column, and a one-line reason.
+  - `canonical(tree)` returns canonical bytes (D47).
+  - `uv run --no-project b17c/syntax.py FILE` prints FILE's canonical bytes, or `FILE:LINE:COL: E-PARSE-001: reason` on stderr with exit status 1.
+- **Scope:** grammar and lexical rules only. Types, ownership, name resolution and uniqueness are WP3's. D45 and D46's hasher comes next, on this parser.
+- **Suite result:** the 20 accept programs and 29 of the 30 reject programs parse, including D45's new `E-TYPE-002-duplicate-spec`, and each round-trips: `parse(canonical(t)) == t`, and canonicalization is idempotent. `E-PARSE-001-while-without-decreases` fails with `E-PARSE-001` at 17:9, the first statement where the `decreases` should be. No suite label disagreed with the parser.
+- **Proposed D47–D54** for what §2 leaves ambiguous or unsaid, taking the stricter reading each time:
+  - D47: canonical layout;
+  - D48: whitespace and comments;
+  - D49: whitespace between siblings;
+  - D50: control characters in strings;
+  - D51: grammar words as names are `E-PARSE-001`, and core library names are `E-TYPE-002`;
+  - D52: effect order;
+  - D53: non-canonical integers and `(neg INT)`;
+  - D54: empty optional clauses.
+
+  The parser already implements all eight. If the owner rejects one, the parser changes with it. They were drafted as D45–D52 on the branch and renumbered when D45 and D46 (hashing) were accepted first.
+- **Tooling:** uv 0.13.6 was installed with Astral's installer into `~/.local/bin`, because `brew install uv` needs the Xcode command line tools to build `pkgconf`.
+- **Interfaces touched:** 1 (the grammar), as an implementation of the Draft. `docs/b17-0.md` and `suite/` are unchanged.
+- **Proofs and tests added:** `b17c/test_syntax.py` covers the suite round trip, an exact canonical golden, whitespace layouts, and negative cases for every rule above. It also checks that the reserved words equal the words of §2's grammar block. Mutating any of six checks in the parser makes it fail.
+- **Left admitted:** none.
+- **Not yet done:** the rest of WP2: D45 and D46's hashes and their golden file, then typed edits. WP3's checker for §3–§9.
