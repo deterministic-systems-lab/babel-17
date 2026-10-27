@@ -185,7 +185,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **WP13:** classifying a spec diff takes implication proofs (WP5).
 - **Touches:** Work packages; Specification layer.
 
-## D22 · Definitions get separate spec and implementation hashes · Accepted
+## D22 · Definitions get separate spec and implementation hashes · Accepted (refined by D45)
 - **Date:** 2026-10-26
 - **Decision:**
   - **Hashes:** each definition has a spec hash, covering its signature, contracts, effects and cost, and an implementation hash, covering its body plus its own spec hash.
@@ -391,7 +391,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** So far the labels have been checked only by review. A checker that runs the suite is their first mechanical test, and freezing before it would turn every mislabel it finds into a superseding decision.
 - **Touches:** WP1a; WP2; WP3; WP15; D16; D21 (WP2, WP3 and WP15 depend on WP1a's draft, not its freeze); `docs/b17-0.md`; `suite/README.md`.
 
-## D45 · What a B17-0 hash covers · Proposed (refines D22)
+## D45 · What a B17-0 hash covers · Accepted (refines D22)
 - **Date:** 2026-10-27
 - **Decision:** D22 applied to B17-0's four item kinds.
   - **Spec and def:** the spec hash covers the `spec` item. The implementation hash covers the spec hash and the `def` item.
@@ -422,7 +422,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The duplicate rule:** references by spec hash are what keep a body edit from rehashing every caller (D22). The price is that a spec hash must name one def per module.
 - **Touches:** D22; interface 1; WP2; WP3; WP16; `docs/b17-0.md` §2, §9; `suite/`.
 
-## D46 · B17-0 hash format · Proposed
+## D46 · B17-0 hash format · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - **Function:** SHA-256, as the design spec's interface 1 already says.

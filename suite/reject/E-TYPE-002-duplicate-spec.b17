@@ -1,0 +1,21 @@
+(module duplicate_spec
+  (header
+    (purpose "Two specs identical up to names can't share a module (D45).")
+    (invariants "Each result is at least both inputs and equals one of them.")
+    (failures "None."))
+  (spec max_of
+    (params (a i64) (b i64))
+    (returns (m i64))
+    (ensures (>= m a) (>= m b) (or (== m a) (== m b)))
+    (effects))
+  (def max_of
+    (body
+      (if (>= a b) (return a) (return b))))
+  (spec larger
+    (params (x i64) (y i64))
+    (returns (r i64))
+    (ensures (>= r x) (>= r y) (or (== r x) (== r y)))
+    (effects))
+  (def larger
+    (body
+      (if (> y x) (return y) (return x)))))

@@ -313,3 +313,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - ghost-fns have one hash, which wasn't marked as refining D22.
   - **Second pass:** the duplicate check was circular, using hashes that only exist after tier 0 passes, so it now computes provisional hashes. Codex confirmed the other fixes and the worked `abs` and `fib` examples.
 - **On acceptance:** edit `docs/b17-0.md` §2 and the §9 table, and add a duplicate-spec reject program to the suite.
+
+## 2026-10-27 · D45 and D46 accepted
+- **Owner decision:** accepted both. D22 is marked "refined by D45".
+- **`docs/b17-0.md`:**
+  - §2 now says D45 hashes canonical bytes after replacing names;
+  - §9's `E-TYPE-002` row adds a spec identical to another up to names;
+  - the implements list names D45.
+- **Suite:** `reject/E-TYPE-002-duplicate-spec.b17` was added. Its specs `max_of` and `larger` normalize to the same bytes, and each def would verify on its own.
+- **Next:** the hasher will be built on the parser from branch `wp2-syntax` once that merges.
