@@ -437,8 +437,9 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - D58: the quantifier range rule, and unknown clauses;
   - D59: fuel and call-depth limits.
 
-  The brief numbered them from D55, but the hasher's merge took D55 first.
+  The brief numbered them from D55, but D55, the nesting cap, was taken first.
 - **Interfaces touched:** 10, defined at version 0.1, Draft. `docs/b17-0.md` and `suite/` are unchanged.
 - **Proofs and tests added:** `b17c/test_interp.py`, and `parse_expr` cases in `b17c/test_syntax.py`.
 - **Left admitted:** none.
+- **Second review (Codex, `gpt-5.6-sol`)** found one defect, now fixed with a test: checking evaluated a call's measure before its `requires`, against D57. A ghost-fn whose measure is costly or undefined outside its `requires` then hit `limit` instead of `PRE`. A caller's measure is now evaluated only once its `requires` hold, or when a recursive call inside them first needs it. No other defects were found in §8's semantics, value semantics, D56–D59, the tests or `parse_expr`.
 - **Not yet done:** WP7's differential tests against emitted Rust, which interface 10 is shaped for; WP16's witness examples; WP3's checker, without which the interpreter trusts that its input passes tier 0.

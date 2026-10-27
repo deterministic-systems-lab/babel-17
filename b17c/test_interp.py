@@ -345,6 +345,10 @@ ordered = module("(spec f (params (s (ref (slice i64)))) (returns (r i64)) (requ
                  "(def f (decreases (idx s 5)) (body (return 0)))")
 assert at_entry(go(ordered, (), check=True))
 assert is_contract(go(ordered, (1,), check=True), "BOUNDS").clause.item == "def f"
+# ...so a measure that is costly or undefined outside the requires is never evaluated first.
+costly = module('(ghost-fn g ((n int)) int (requires false) (decreases (len (seq-build 1000000 (fn (i) i)))) (body 0))',
+                "(spec f (params) (returns (r i64)) (ensures (== (g 0) 0)) (effects))", "(def f (body (return 0)))")
+assert is_contract(go(costly, check=True), "PRE")
 # A recursive call inside a ghost-fn's own requires is a recursive call too.
 loops = f("(x i64)", "(r i64)", "(return x)", clauses="(ensures (g x))",
           extra=["(ghost-fn g ((n int)) bool (requires (or (<= n 0) (g n))) (decreases n) (body true))"])

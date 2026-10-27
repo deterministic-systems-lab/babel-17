@@ -31,6 +31,7 @@ class _Unknown:
 
 
 UNKNOWN = _Unknown()  # a quantifier whose range can't be read off its guard, and what it touches (D58)
+_PENDING = object()  # a call's measure, until its requires hold or a recursive call needs it (D57)
 
 
 @dataclass(frozen=True)
@@ -489,9 +490,7 @@ class _Run:
         if len(self.frames) >= self.depth:
             raise _Stop(Limit("depth", self.p.node(site)))
         caller = self.frames[-1] if self.frames else None
-        frame = [fn, None]
-        if self.check and fn.decreases is not None:
-            frame[1] = self.quiet(fn.decreases, env)  # for recursive calls in the requires
+        frame = [fn, _PENDING if self.check and fn.decreases is not None else None, env]
         self.frames.append(frame)
         if not self.check:
             return True
@@ -504,15 +503,22 @@ class _Run:
             elif not v:
                 raise _Stop(Contract("PRE", self.p.node(e), self.p.node(site), f"{_print(e)} is false"))
         if fn.decreases is not None:
-            if frame[1] is None:  # undefined or unknown before the requires held; now for real
+            if frame[1] is None or frame[1] is _PENDING:  # unneeded, or undefined, before the requires held
                 m = self.ghost(fn.decreases, env)
                 if m is UNKNOWN:
                     self.note("TERM", fn.decreases, site)
                 else:
                     frame[1] = m
             if caller is not None and caller[0] is fn:
-                self.term(fn, frame[1], caller[1], site)
+                self.term(fn, frame[1], self.old(caller), site)
         return True
+
+    def old(self, frame):
+        """A caller's measure, evaluated quietly when a recursive call inside its requires first
+        needs it, so a measure defined only under the requires is never evaluated early (D57)."""
+        if frame[1] is _PENDING:
+            frame[1] = self.quiet(frame[0].decreases, frame[2])
+        return frame[1]
 
     def term(self, fn, m, old, site):
         """At a recursive call: 0 <= m < old, each half checked where its values are known (D57)."""
@@ -799,7 +805,7 @@ class _Run:
                 if m is UNKNOWN:
                     self.note("TERM", fn.decreases, x)
                 else:
-                    self.term(fn, m, caller[1], x)
+                    self.term(fn, m, self.old(caller), x)
             return self.memo[key]
         depth = len(self.frames)
         self.active.add(key)
