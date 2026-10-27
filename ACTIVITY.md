@@ -231,3 +231,56 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** the quota case in `test_harness.py`, and the well-formedness check in `check-tasks`.
 - **Left admitted:** none.
+
+## 2026-10-27 · Owner accepts D33–D43; the B17-0 accept/reject suite
+- **Owner:** "I accept the decisions." D33–D43 are Accepted. D29's status now notes that D35 supersedes its capacity clause. The owner left the choice of harder tasks to Claude.
+- **Built:** `suite/`, with:
+  - **20 accept programs:** the seed tasks ported to B17-0. `merge_sorted` is §1's worked example, unchanged.
+  - **29 reject programs,** covering every tier 0 code and every `E-PROOF-*` family. Each has exactly one error, whose code starts the filename.
+- **Clarified in `docs/b17-0.md`:** writing the suite exposed rules that two checkers could read differently. Interface 6 is still Draft, so these are refinements, not new decisions.
+  - **Names:**
+    - result names are scoped to `ensures`, since the worked example's local `out` broke §2 as written;
+    - binders are scoped to their bodies;
+    - items may refer to one another in any order, or mutual recursion would read as an undefined name.
+  - **Goals:**
+    - clauses are checked in order, each assuming the ones before;
+    - every goal is assumed once generated, so each reject program reports one code;
+    - a loop forgets only what its body changes.
+  - **Codes:** a tier 0 code table adds `E-PARSE-001`, `E-TYPE-001`, `E-TYPE-002`, `E-GHOST-002`, `E-GHOST-003` and `E-TERM-001`.
+  - **Core library:** `sorted` is now defined, and `in_i64` is added.
+  - **Porting ranges (§10):** a task requires its results, and every value its ghost definitions compute on the way to them, to fit in i64. `(<= n 92)` states the same range for `fib`, but a proof from it has to evaluate fib(92).
+- **Reviewed by Codex (`gpt-5.6-sol`):** it checked all 49 files and found 4 label problems and 4 ambiguities. All are fixed:
+  - **Background facts:** §9 said "such as", so an accept verdict depended on the checker. The facts are now listed exhaustively, including the multiset effect of `set-idx`, which the in-place sorts need.
+  - **Lemma calls:** their arguments are checked in ghost context.
+  - **Lengths:** they are bounded by 2^63, and growing past that is an allocation failure.
+  - **Slice results:** a spec that declares one is `E-OWN-002`.
+  - **Bounds reject:** it needed a non-empty input, so that only one bounds goal fails.
+- **Correction:** the B17-0 draft entry above called the document interface 1 (the semantics). It defines interface 6 (core terms) and the B17-0 part of interface 1 (the grammar).
+- **Interfaces touched:** 1 and 6, both still Draft.
+- **Proofs and tests added:** the suite. It is checked by review only until WP3 runs it.
+- **Left admitted:** none.
+- **Not yet done:** D42's Dafny side, which gives the seed tasks in `gym/tasks/` the ported ranges. It is due when the M3 task set is built.
+
+## 2026-10-27 · Grok joins the harness; the vericoding hard set
+- **Grok setup:**
+  - **Upgrade:** the CLI went from 0.2.112 to 1.0.70 via Homebrew, because the server rejected versions below 1.0.13.
+  - **Isolation:**
+    - **User config:** headless `grok` loads `~/.claude`: `CLAUDE.md`, 57 skills, 4 plugins with prompt-injecting hooks, and an MCP server. It ignores its own `GROK_CLAUDE_*_ENABLED` opt-outs. The harness therefore runs it with `HOME=/var/empty`, while `GROK_HOME` keeps the login.
+    - **Tools:** `--tools ""` and `--tools none` remove nothing, so all 24 client tools are disallowed by name.
+    - **X search:** it runs server-side and can't be removed. Streaming JSON reports each use as a `tool_call` event, which `calls_using_tools` counts.
+    - **`--verbatim`:** keeps Dafny's `@` from being read as a file mention.
+    - **Checked:** Grok's own session record shows a 4,159-byte system prompt and no tools.
+  - **Served model:** `grok-4.7` at high effort, reported as `grok-4.7-build`.
+  - **Speed:** on `algoveri/gcd` it reasoned past the 15-minute call limit, twice. At medium effort it took 10.5 minutes and 52k reasoning tokens. The call limit is now 30 minutes for every CLI.
+- **Hard tasks:** class-based AlgoVeri is out. B17-0 has no classes (§11), and M3 needs tasks both languages can express. Instead, `gym/import_vericoding.py` selects from vericoding (MIT, commit `387cd6999679`), using its published results for nine 2025 models:
+  - **Selected:** Dafny tasks with one method, no vericoding QA issue, and only int, nat, bool, `seq<int>` and `array<int>`. Each was solved by at least one model but by at most a quarter of them. 47 tasks qualify.
+  - **Kept:** the solving model's code is the reference solution, and a task is kept only if that solution passes this harness as is. 31 are kept.
+  - **Dropped (16):**
+    - 13 are rejected: most of these solutions run a spec function that is now ghost, and 2 of the specs are ill-formed;
+    - 1 fails to verify under Dafny 4.11;
+    - 1 runs out of resource;
+    - 1 uses a banned construct.
+- **`check-tasks`:** it now also rejects a reference solution that uses a banned construct.
+- **Runs started:**
+  - `20261027T161708Z-grok`: the seed tasks, 3 samples.
+  - `20261027T161710Z-claude-codex-grok`: the 96-task hard set (AlgoVeri with ghost preambles, plus vericoding), 1 sample. Claude and Codex are re-run because the AlgoVeri preambles changed.
