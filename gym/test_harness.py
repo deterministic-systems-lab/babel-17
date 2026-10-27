@@ -7,7 +7,15 @@ assert h.param_names("a: array<int>, m: map<int, int>, ghost g: nat") == ["a", "
 assert h.violations("// we never assume\nmethod M() {}") == []
 assert h.violations("method M() { assume false; }") == ["assume"]
 assert h.violations("lemma {:axiom} L() ensures false") == ["{:axiom}"]
+assert h.violations("@Axiom\nlemma L() ensures false") == ["@Axiom"]
+assert h.violations("method {:verify false} M() {}") == ["{:verify}"]
 assert h.violations("method M() decreases * {}") == ["decreases *"]
+# A "//" inside a string must not hide the code after it; nor may a verbatim string.
+assert h.violations('method M() { var s := "//"; assume false; }') == ["assume"]
+assert h.violations('method M() { var s := @"\\"; assume false; var t := ""; }') == ["assume"]
+# Allowed attributes, comments and old@label are fine.
+assert h.violations("lemma {:induction xs} L(xs: seq<int>) {} // {:axiom} @Axiom\n"
+                    "method M() { label L: assert old@L(true); }") == []
 assert h.extract_code("x\n```dafny\nA\n```\ny\n```dafny\nB\n```") == "B"
 assert h.extract_code("no code here") is None
 

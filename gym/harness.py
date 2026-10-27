@@ -50,7 +50,6 @@ CLIS = {
 CALL_TIMEOUT, RETRY_WAITS = 900, [60, 120, 240, 480, 960, 1800]
 FEEDBACK_CHARS = 6000
 
-PROMPT_VERSION = 1
 TASK_PROMPT = """Write Dafny {dafny_version} code that verifies with no errors.
 
 Implement this method. Keep its name, parameters, return values and contracts as shown:
@@ -61,7 +60,7 @@ Implement this method. Keep its name, parameters, return values and contracts as
 {preamble_block}
 Rules:
 - You may add loop invariants, assertions, decreases clauses, and helper lemmas, predicates, functions and methods. Every helper needs a body.
-- Not allowed: assume, expect, {{:axiom}}, {{:verify false}}, {{:extern}}, {{:only}}, {{:resource_limit}}, decreases *, include.
+- Not allowed: assume, expect, decreases *, include, and attributes other than {{:trigger}}, {{:induction}}, {{:fuel}}, {{:opaque}}, {{:isolate_assertions}}, {{:split_here}}, {{:focus}}, {{:vcs_split_on_every_assert}} and {{:tailrecursion}}.
 - Your code is checked by appending the definitions above and a method {name}_Check that calls {name} under the contracts shown.
 - Answer directly without using tools. Reply with your complete code in one ```dafny block.
 """
@@ -86,12 +85,16 @@ The check failed:
 Reply with the complete corrected code in one ```dafny block.
 """
 
-BANNED = {
-    "assume": r"\bassume\b", "expect": r"\bexpect\b", "{:axiom}": r"\{:\s*axiom\b",
-    "{:verify false}": r"\{:\s*verify\s+false", "{:extern}": r"\{:\s*extern\b",
-    "{:only}": r"\{:\s*only\b", "{:resource_limit}": r"\{:\s*resource_limit\b",
-    "decreases *": r"\bdecreases\s*\*", "include": r"^\s*include\b",
-}
+BANNED = {"assume": r"\bassume\b", "expect": r"\bexpect\b", "decreases *": r"\bdecreases\s*\*",
+          "include": r"^\s*include\b"}
+# Attributes are allow-listed: both syntaxes ({:axiom}, @Axiom) can switch off checking,
+# and Dafny keeps adding new ones.
+SAFE_ATTRIBUTES = {"trigger", "induction", "fuel", "opaque", "isolate_assertions", "split_here",
+                   "focus", "vcs_split_on_every_assert", "tailrecursion",
+                   "IsolateAssertions", "Fuel", "Induction", "TailRecursion"}
+# One pass, leftmost match first, so "//" inside a string is a string, not a comment.
+# Verbatim strings (@"...", with "" as the escape) come before ordinary ones.
+TOKEN = re.compile(r'//[^\n]*|/\*.*?\*/|@"(?:""|[^"])*"|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])\'|.', re.S)
 AXIOM_WARNING = re.compile(r"has no \{:axiom\} annotation|bodyless")
 
 
@@ -134,8 +137,11 @@ def load_tasks(only=None):
 
 
 def violations(code):
-    bare = re.sub(r"//[^\n]*|/\*.*?\*/", "", code, flags=re.S)
-    return [k for k, rx in BANNED.items() if re.search(rx, bare, re.M)]
+    bare = "".join(" " if t[:2] in ("//", "/*") or t[:1] == '"' or t[:2] == '@"' or (t[:1] == "'" and len(t) > 1)
+                   else t for t in TOKEN.findall(code))
+    found = [k for k, rx in BANNED.items() if re.search(rx, bare, re.M)]
+    attrs = re.findall(r"\{:\s*(\w+)|(?<![\w@])@\s*([A-Za-z]\w*)", bare)
+    return found + sorted({f"{{:{a}}}" if a else f"@{b}" for a, b in attrs if (a or b) not in SAFE_ATTRIBUTES})
 
 
 def verify(task, code):
@@ -191,7 +197,7 @@ def parse_reply(cli, stdout):
     u = {k: sum(x.get(k, 0) for x in usage) for k in usage[0]} if usage else {}
     return dict(text=texts[-1], model="gpt-5.6-sol",
                 tokens_in=u.get("input_tokens", 0),
-                tokens_out=u.get("output_tokens", 0) + u.get("reasoning_output_tokens", 0),
+                tokens_out=u.get("output_tokens", 0),  # already includes reasoning_output_tokens
                 tool_items=sum(i.get("type") not in ("agent_message", "reasoning") for i in items),
                 usage=u)
 
@@ -206,11 +212,11 @@ def call_cli(cli, prompt):
                                    cwd=d, timeout=CALL_TIMEOUT)
                 if p.returncode != 0:
                     raise RuntimeError(f"exit {p.returncode}: {(p.stderr or p.stdout)[-500:]}")
-                return dict(parse_reply(cli, p.stdout), retries=len(errors), errors=errors)
+                return dict(parse_reply(cli, p.stdout), errors=errors)
             except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
                 errors.append(str(e)[-500:])
         if wait is None:
-            return dict(error=errors[-1], retries=len(errors), errors=errors)
+            return dict(error=errors[-1], errors=errors)
         time.sleep(wait)
 
 
@@ -233,7 +239,7 @@ def run_attempt(task, cli, sample, max_iters, dafny_version, log):
                    cli=cli, sample=sample, iter=it, prompt_sha=sha(prompt))
         if "error" in reply:
             log(dict(rec, stage="infra_error", final=True, error=reply["error"],
-                     retries=reply["retries"], errors=reply["errors"]))
+                     errors=reply["errors"]))
             return
         new = extract_code(reply["text"])
         if new is None:
@@ -246,7 +252,7 @@ def run_attempt(task, cli, sample, max_iters, dafny_version, log):
         done = stage == "verified" or it == max_iters
         log(dict(rec, stage=stage, final=done, seconds=round(time.time() - start, 1),
                  model=reply["model"], tokens_in=reply["tokens_in"], tokens_out=reply["tokens_out"],
-                 tool_items=reply["tool_items"], retries=reply["retries"], errors=reply["errors"],
+                 tool_items=reply["tool_items"], errors=reply["errors"],
                  usage=reply["usage"], code=new, feedback=None if stage == "verified" else feedback,
                  response=reply["text"]))
         if done:
@@ -292,7 +298,7 @@ def cmd_run(args):
         meta = dict(run_id=run_id, started=datetime.now(timezone.utc).isoformat(),
                     git_commit=git, git_dirty=dirty, samples=args.samples, max_iters=args.max_iters,
                     tasks=[t["id"] for t in tasks], task_sha={t["id"]: sha(json.dumps(t, sort_keys=True)) for t in tasks},
-                    prompt_version=PROMPT_VERSION, prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT),
+                    prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT),
                     dafny=dafny_version, z3=tool_version(["z3", "--version"]), dafny_args=DAFNY,
                     clis={c: dict(cmd=CLIS[c], version=tool_version([CLIS[c][0], "--version"])) for c in clis})
         (run_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
