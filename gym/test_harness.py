@@ -1,0 +1,37 @@
+"""Self-check for the harness's verdict logic: uv run gym/test_harness.py"""
+from pathlib import Path
+
+import harness as h
+
+assert h.param_names("a: array<int>, m: map<int, int>, ghost g: nat") == ["a", "m", "g"]
+assert h.violations("// we never assume\nmethod M() {}") == []
+assert h.violations("method M() { assume false; }") == ["assume"]
+assert h.violations("lemma {:axiom} L() ensures false") == ["{:axiom}"]
+assert h.violations("method M() decreases * {}") == ["decreases *"]
+assert h.extract_code("x\n```dafny\nA\n```\ny\n```dafny\nB\n```") == "B"
+assert h.extract_code("no code here") is None
+
+abs_task = h.load_task(h.TASKS / "abs.dfy")
+assert abs_task["check"].startswith("method Abs_Check(x: int) returns (y: int)")
+assert abs_task["check"].rstrip().endswith("y := Abs(x);\n}")
+
+cases = {
+    "verified": abs_task["solution"],
+    "proof_failed": "method Abs(x: int) returns (y: int) ensures y >= 0 ensures y == x || y == -x { y := x; }",
+    # Weakened contract: Abs itself verifies, but Abs_Check can't prove the frozen ensures.
+    "proof_failed ": "method Abs(x: int) returns (y: int) ensures y == x || y == -x { y := x; }",
+    "axiom": "lemma Magic(x: int) ensures x >= 0\n"
+             "method Abs(x: int) returns (y: int) ensures y >= 0 ensures y == x || y == -x { Magic(x); y := x; }",
+    "rejected": "method Abs(x: int) returns (y: int) { y := ; }",
+}
+for want, code in cases.items():
+    got, out = h.verify(abs_task, code)
+    assert got == want.strip(), (want, got, out)
+
+# An exhausted resource budget must not count as verified.
+merge = h.load_task(h.TASKS / "merge_sorted.dfy")
+h.DAFNY[h.DAFNY.index("--resource-limit") + 1] = "1000000"
+got, out = h.verify(merge, merge["solution"])
+assert got == "out_of_resource", (got, out)
+
+print("harness self-check passed")
