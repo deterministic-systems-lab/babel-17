@@ -88,3 +88,50 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - D15–D32. D11 is superseded by D18.
   - Activity entries may name the models that did each piece of work.
 - **Next:** WP17, the baseline harness on stock Dafny. Dafny is being installed via Homebrew.
+
+## 2026-10-27 · WP17 baseline harness: done
+- **WP advanced:** WP17 (D28), done.
+- **Built:**
+  - `gym/harness.py`, with four commands: `check-tasks`, `run`, `reverify` and `summary`.
+  - `gym/test_harness.py`, a self-check.
+  - 20 seed tasks in `gym/tasks/*.dfy` (8 easy, 8 medium, 4 hard), each with a hidden reference solution.
+- **Setup:**
+  - **Verifier:** Dafny 4.11.0 on Z3 5.3.2 (Homebrew), with a limit of 100M Z3 resource units on one core.
+  - **Claude:** `claude-opus-5-5` via `claude -p`, at high effort, with no tools, user hooks, plugins or MCP servers.
+  - **Codex:** `gpt-5.6-sol` via `codex exec`, at high reasoning, with the user config ignored and the shell disabled.
+  - **Loop:** up to 8 stateless rounds. Each round carries the task, the previous code and Dafny's raw output.
+- **Done-when evidence:**
+  - **`check-tasks`:** all 20 reference solutions verify, and an empty body fails all 20.
+  - **Run `20261027T034550Z-claude-codex`:** both CLIs verified 60/60 attempts.
+
+    | CLI | Mean rounds | Tokens per verified task |
+    |---|---|---|
+    | Claude | 1.00 | 3,814 |
+    | Codex | 1.17 | 16,570 |
+  - **Run `20261027T035814Z-claude-codex`:** both CLIs again verified 60/60. Pass rates differ by 0 points, against a tolerance of 15.
+
+    | CLI | Mean rounds | Tokens per verified task |
+    |---|---|---|
+    | Claude | 1.00 | 3,797 |
+    | Codex | 1.08 | 15,132 |
+  - **`reverify`:** 130/130 and 125/125 recorded verdicts reproduced exactly.
+- **Fixed during review, before any real run:** the review was Codex plus a self-review. Fixes:
+  - attributes are allow-listed, after `@Axiom lemma` verified a body-less assumption cleanly;
+  - an out-of-resource result was counted as verified;
+  - `"//"` inside a string hid the code after it from the scanner;
+  - tasks could be solved by calling the spec's own function, so preambles are now `ghost`;
+  - Codex's token count included its reasoning tokens twice;
+  - resume could mix configurations.
+- **Findings:**
+  - **Ceiling:** the seed tasks are textbook problems, and both models saturate them, so they can't tell languages apart. The M3 experiment needs harder, less familiar tasks (WP10).
+  - **CLI overhead dominates tokens:** Codex adds about 13k prompt tokens per call and Claude about 3k. Compare token costs within a CLI, not across CLIs.
+  - **First design signal for B17-0:** in 6 of 6 first attempts at `reverse`, Codex wrote `seq(|a|, i => a[|a| - 1 - i])`. Dafny can't see that `i < |a|` inside the lambda, so the proof fails. A comprehension whose index is typed `i < n` would make this correct by construction.
+- **Interfaces touched:** none of 1–11. The task file format and the run record format are internal to WP17.
+- **Proofs and tests added:** `test_harness.py` and `check-tasks`.
+- **Left admitted:** none.
+- **Known limits,** marked with `ponytail:` comments:
+  - one resource limit for all tasks;
+  - nested comments and identifiers like `x'a'` can be falsely flagged, never falsely passed;
+  - a flat 15-point rerun tolerance, to be replaced by a paired bootstrap for M3;
+  - one process per run ID.
+- **Next on the critical path (D21):** WP1a (B17-0 core semantics) and WP2 (canonical form).
