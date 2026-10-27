@@ -298,3 +298,18 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Owner decision:** `docs/b17-0.md` and `suite/` stay at version 0.1, Draft, until WP3's checker agrees with the suite's tier 0 labels, rather than freezing now. Recorded as D44, accepted.
 - **Updated:** D21's status notes the amendment, and the b17-0 status line and the suite README state the freeze condition.
 - **Grok seed run finished:** `20261027T161708Z-grok` verified 60 of 60 attempts, in 1.18 iterations on average, with no tool calls and no infrastructure errors. `reverify` reproduced all 71 recorded verdicts. The analysis comes with the hard run's entry.
+
+## 2026-10-27 · B17-0 hashing proposed (D45, D46)
+- **Why now:** WP2 is done when parse-print round-trips hold on every node and content hashes match across machines. A separate session is building the parser and canonical printer on branch `wp2-syntax`. D22 sets what a hash must achieve, but not B17-0's exact bytes.
+- **Proposed:** D45 says what each item kind hashes, and D46 gives the format and its tests.
+- **Checked by Codex** (`gpt-5.6-sol`), twice:
+  - **First pass, 7 defects, all fixed:**
+    - defs implementing identical specs were indistinguishable to their callers, so D45 now rejects duplicate specs;
+    - uses of binders weren't said to be replaced;
+    - numbering's start, and the numbering inside lemma proofs, were unspecified;
+    - the text form of a reference hash was unspecified;
+    - preimage boundaries and line endings were unspecified;
+    - `docs/b17-0.md` §2 says raw canonical bytes are hashed;
+    - ghost-fns have one hash, which wasn't marked as refining D22.
+  - **Second pass:** the duplicate check was circular, using hashes that only exist after tier 0 passes, so it now computes provisional hashes. Codex confirmed the other fixes and the worked `abs` and `fib` examples.
+- **On acceptance:** edit `docs/b17-0.md` §2 and the §9 table, and add a duplicate-spec reject program to the suite.
