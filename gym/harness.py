@@ -14,6 +14,7 @@ Dafny's line numbers match the code the agent wrote.
 An attempt is one task, one CLI and one sample: up to --max-iters rounds of
 generate, check, and feed the verifier's output back. Every round is a fresh,
 stateless call carrying the task, the previous code and the stock Dafny output.
+Run one process per run ID; resume assumes nothing else is writing to it.
 """
 import argparse
 import concurrent.futures as cf
@@ -95,8 +96,9 @@ SAFE_ATTRIBUTES = {"trigger", "induction", "fuel", "opaque", "isolate_assertions
                    "IsolateAssertions", "Fuel", "Induction", "TailRecursion"}
 # One pass, leftmost match first, so "//" inside a string is a string, not a comment.
 # Verbatim strings (@"...", with "" as the escape) come before ordinary ones.
-# ponytail: block comments don't nest here, so text inside a nested comment can be
-# falsely flagged (never falsely passed); track comment depth if that ever bites.
+# ponytail: block comments don't nest here, and an identifier like x'a' can look like a
+# char literal, so some legal code is falsely flagged (never falsely passed); a real
+# Dafny lexer fixes both if that ever bites.
 TOKEN = re.compile(r'//[^\n]*|/\*.*?\*/|@"(?:""|[^"])*"|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])\'|.', re.S)
 AXIOM_WARNING = re.compile(r"has no \{:axiom\} annotation|bodyless")
 
@@ -274,7 +276,8 @@ def settings(tasks, dafny_version):
     return dict(tasks=[t["id"] for t in tasks],
                 task_sha={t["id"]: sha(json.dumps(t, sort_keys=True)) for t in tasks},
                 prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT),
-                dafny=dafny_version, dafny_args=DAFNY)
+                dafny=dafny_version, dafny_args=DAFNY, z3=tool_version(["z3", "--version"]),
+                harness_sha=sha(Path(__file__).read_text()))
 
 
 def sample_key(r):
@@ -318,7 +321,7 @@ def cmd_run(args):
         git = tool_version(["git", "-C", str(GYM), "rev-parse", "HEAD"])
         dirty = bool(tool_version(["git", "-C", str(GYM), "status", "--porcelain"]))
         meta = dict(run_id=run_id, started=datetime.now(timezone.utc).isoformat(),
-                    git_commit=git, git_dirty=dirty, z3=tool_version(["z3", "--version"]), **setup)
+                    git_commit=git, git_dirty=dirty, **setup)
         (run_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     done = {sample_key(r) for r in read_records(run_dir) if r.get("final") and r["stage"] != "infra_error"}
     todo = [(t, c, s) for t in tasks for c in clis for s in range(1, args.samples + 1)
@@ -345,7 +348,8 @@ def cmd_reverify(args):
     meta = json.loads((RUNS / args.run_id / "meta.json").read_text())
     tasks = {t["id"]: t for t in load_tasks(meta["tasks"])}
     now = settings(list(tasks.values()), tool_version(["dafny", "--version"]))
-    changed = [k for k in now if k != "prompt_sha" and meta.get(k) != now[k]]
+    # Verdict changes from a harness edit show up as mismatches below, so its hash isn't required.
+    changed = [k for k in now if k not in ("prompt_sha", "harness_sha") and meta.get(k) != now[k]]
     if changed:
         sys.exit(f"can't reverify {args.run_id}: {', '.join(changed)} changed since the run")
     recs = [r for r in read_records(RUNS / args.run_id)
@@ -363,7 +367,9 @@ def summarize(run_id):
     recs = read_records(RUNS / run_id)
     # The latest final record per (task, cli, sample) decides it; every call made for a
     # decided sample counts toward tokens, including attempts a crash abandoned.
-    finals = {sample_key(r): r for r in recs if r.get("final")}
+    # Real verdicts sort after infra errors, so a real verdict wins, as it does for resume.
+    finals = {sample_key(r): r for r in sorted((r for r in recs if r.get("final")),
+                                                key=lambda r: r["stage"] != "infra_error")}
     stats = {}
     for cli in sorted({r["cli"] for r in finals.values()}):
         done = [r for r in finals.values() if r["cli"] == cli and r["stage"] != "infra_error"]
