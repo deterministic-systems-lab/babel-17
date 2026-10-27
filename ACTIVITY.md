@@ -53,4 +53,25 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **State:** nothing is built yet.
   - **Installed:** uv, node, clang, codex, claude.
   - **Not installed:** Dafny, Z3, Rust, Lean.
+
+## 2026-10-26 · Decision log review
+- **Review:** before publication, Codex (`gpt-5.6-sol`) checked `DECISIONS.md` against the spec, read-only. It confirmed that D1–D11 match the spec's Decision log.
+- **Revised before publication:**
+  - **Overclaims removed:**
+    - D17: Dafny does report per-assertion status, and an oracle gap now gets triaged rather than called a bug outright.
+    - D18: `rustc` doesn't check that lowering preserves meaning, and Verus can't verify arbitrary Rust.
+    - D24: the claim about the state of proof reconstruction is narrowed.
+    - D30: the contradiction about which cost bounds get proven is fixed.
+  - **Errors fixed:**
+    - D29: `Vec::with_capacity` guarantees *at least* the requested capacity.
+    - D22: the proof-cache key now covers the solver and prelude configuration.
+    - D23: cross-platform determinism now needs per-platform solver builds and a golden-verdict suite.
+  - **Contradictions resolved:**
+    - D24: solver-trusted results get their own level, L3-S, instead of counting as L3.
+    - D19: D10 is deferred rather than scoped, since a Python prototype can't meet it.
+    - D16: WP1 splits into WP1a (now) and WP1b (later), because WP2 and WP3 depended on it.
+    - D21: the critical path is now computed from the dependency table.
+  - **Gaps filled:**
+    - D28: WP17, the baseline harness, gets an owner.
+    - D27: interfaces for interpreter traces and canonical solver queries are added, and interfaces for Phase 3 and later are dropped until that work starts.
 - **Awaiting the owner:** D15–D32.

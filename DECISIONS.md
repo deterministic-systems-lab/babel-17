@@ -1,6 +1,6 @@
 # Babel-17 decision log
 
-Every design decision, in order. The log is append-only. To change a decision, add a new entry that supersedes it. Never edit an old entry except its status.
+Every design decision, in order. A proposed entry may be revised until the owner decides it. After that the entry is frozen: to change an accepted or rejected decision, add a new entry that supersedes it, and edit the old entry only to update its status.
 
 **Statuses:**
 - **Proposed:** awaiting the owner.
@@ -57,7 +57,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** Imports resolve only to hashes already in the lockfile.
 - **Touches:** Interop, packages and the trusted base.
 
-## D10 · One static binary or WASM build, no other compiler · Proposed (scoped by D19)
+## D10 · One static binary or WASM build, no other compiler · Proposed (deferred by D19)
 - **Date:** 2026-10-26 (spec v0.1)
 - **Decision:** The toolchain installs as one static binary or a WASM build, with no other compiler.
 - **Touches:** Standard library and tooling.
@@ -91,18 +91,23 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The owner asked for both logs in the repo. Keeping one authoritative copy stops the spec and the repo from drifting apart, and git gives history and review.
 - **Touches:** How to use this spec; Decision log.
 
-## D16 · The Lean soundness proof moves after the Phase 2 gate · Proposed
+
+## D16 · WP1 splits, and the Lean proof moves after the Phase 2 gate · Proposed
 - **Date:** 2026-10-26
-- **Decision:** Phase 0's gate becomes three things for B17-0 (D20): written typing rules and semantics, a reference interpreter that executes them (WP15, D28), and an accept/reject suite for the type checker. Mechanizing the semantics in Lean and proving type soundness, which is WP1 as written, moves to after the Phase 2 gate. D3 stands; only its timing changes.
-- **Why:** As written, WP1 puts years of research ahead of any evidence, and all five reviewers recommended deferring it. The kernel checks proofs after the fact and never changes what an agent writes, so building it first can't change what the experiments measure.
+- **Decision:** WP1 splits in two:
+  - **WP1a, core semantics (Phase 0):** written typing rules and operational semantics for B17-0 (D20), plus a type checker and an accept/reject suite. The reference interpreter (WP15, D28) executes these semantics, and conformance tests keep the checker and the interpreter agreeing with them.
+  - **WP1b, Lean mechanization and kernel (after the Phase 2 gate):** the semantics mechanized in Lean 4, type soundness proven, and the kernel checker built.
+
+  Phase 0's gate becomes WP1a's done-when: the accept/reject suite and the conformance tests pass. WP2 and WP3 depend on WP1a. D3 stands; only its timing changes.
+- **Why:** Comparable efforts took several people several years (RustBelt, CakeML), and WP1 as written covers a larger type system than either. Deferring it is a scheduling choice. Until the kernel exists, verdicts rest on the solver (D24). The kernel's later job is to catch the rare goal a solver wrongly accepts. Building it first would delay every experiment without changing what agents write.
 - **Touches:** Roadmap (Phase 0 gate); WP1; WP2; WP3; D3.
 
 ## D17 · b17c generates its own proof goals and sends them to Z3 · Proposed
 - **Date:** 2026-10-26
 - **Decision:** `b17c` turns programs and contracts into solver queries itself and sends them to Z3, with cvc5 optional later. Babel-17 never translates to Dafny. Dafny serves two other roles:
   - **Baseline:** the comparison language for experiments.
-  - **Development oracle:** every seed task also exists in Dafny. A task Dafny proves and `b17c` doesn't is filed as a bug in our encoding.
-- **Why:** The diagnostic schema needs four things that can't be recovered from Dafny's output: the goal in normal form, dependent goals, the budget spent per goal, and typed repairs. Owning goal generation also brings three gains:
+  - **Development oracle:** every seed task also exists in Dafny. When Dafny proves a task and `b17c` doesn't, the gap is triaged as one of: a bug in our encoding, a missing lemma, a budget too small, or a real difference between the two versions of the task.
+- **Why:** Dafny reports status and resource use per assertion. It doesn't report the goal in normal form or which goals depend on it, and its source positions map back to node IDs only indirectly. The diagnostic schema needs all of these. Owning goal generation also brings three gains:
   - **Simpler encoding:** ownership lets the solver see plain values instead of a modelled heap. Verus reports speedups over Dafny-style encodings this way (from memory; not yet verified).
   - **Stability:** one goal per query with minimal context targets the brittleness the Mariposa study measured.
   - **A path to D6:** generated goals can later be exported to Lean as theorems.
@@ -110,25 +115,25 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   The cost is roughly two to three times the work of translating to Dafny. Early versions will also be more brittle than Dafny on quantifier-heavy specs.
 - **Touches:** Verification model; WP5; WP6; Roadmap (Phase 1, "SMT verification").
 
-## D18 · Phase 1 emits Rust · Proposed (answers D11)
+## D18 · Phase 1 emits safe Rust · Proposed (answers D11)
 - **Date:** 2026-10-26
-- **Decision:** The Phase 1 backend (WP7) emits Rust.
-- **Why:** Rust gives three things:
-  - **An independent check:** until the kernel exists, Babel-17's ownership checker is new and unverified, and `rustc` re-checks the ownership and type safety of every emitted program on its own. That catches bugs in our checker for free, applying "everything outside the kernel is checked" before there is a kernel.
-  - **A direct type mapping:** `&[T]` and `Vec<T>` map straight onto Rust.
-  - **WASM:** `wasm32` is a standard target.
+- **Decision:** The Phase 1 backend (WP7) emits safe Rust:
+  - every emitted crate carries `#![forbid(unsafe_code)]`;
+  - arithmetic is explicitly checked;
+  - differential tests against the reference interpreter (WP15) check that lowering preserves meaning.
 
-  C was the alternative, and `clang` is already installed. It would rest all memory safety on our checker alone, and the emitter would have to avoid C's undefined behaviour, such as signed overflow and strict aliasing. Verus can be added later as a second verifier over the same output if a cross-check is wanted. The cost is a rustup install of about 1 GB, needed only when WP7 starts.
-- **Touches:** D11; WP7; WP9; Roadmap (Phase 1 gate).
+  Bounds checks stay in Phase 1 output. Removing them using proven facts is the native backend's job (WP12).
+- **Why:** `rustc` independently re-checks the ownership and type safety of every emitted program. It doesn't check Babel-17's contracts, or whether lowering preserved meaning; the differential tests cover that. What it does catch is a bug in our ownership checker or lowering that would otherwise produce unsafe code, while there is still no kernel. Babel-17's `&[T]` and `Vec<T>` also map directly onto Rust, and `wasm32` is a standard target.
 
-## D19 · The toolchain is a Python prototype until Phase 3 · Proposed (scopes D10)
+  C was the alternative, and `clang` is already installed. It would rest all memory safety on our own checker, and the emitter would have to avoid C's undefined behaviour, such as signed overflow and strict aliasing.
+
+  Verus checks only its own subset, and only with specs attached, so plain emitted Rust isn't enough for it. A separate backend that also emits Verus specs could be added later as a cross-check. The cost of Rust is a rustup install of about 1 GB, needed only when WP7 starts.
+- **Touches:** D11; WP7; WP9; WP12; Roadmap (Phase 1 gate).
+
+## D19 · The toolchain is a Python prototype until Phase 3 · Proposed (defers D10)
 - **Date:** 2026-10-26
-- **Decision:** `b17c` is written in Python and run with uv through the Phase 2 gate. A Rust rewrite opens Phase 3. Until then:
-  - D10 covers `b17c verify` and `b17c check` only.
-  - `b17c build` may require `rustc` (D18), and the trusted base report names that toolchain.
-
-  The rewrite is accepted when it reproduces the prototype's canonical bytes, hashes, verdicts and diagnostic codes on the benchmark corpus.
-- **Why:** Z3's Python bindings are its most mature, and the gym is Python anyway. Until Phase 3 there is one user on one machine. D10 exists to protect outside users, who don't exist yet, and it can't hold while Phase 1 emits Rust or C.
+- **Decision:** `b17c` is written in Python and run with uv through the Phase 2 gate. D10 is deferred until a Rust rewrite opens Phase 3. Until then, `b17c` needs Python and uv, `b17c build` needs `rustc` (D18), and the trusted base report names those toolchains. The rewrite is accepted when it reproduces the prototype's canonical bytes, hashes, verdicts and diagnostic codes on the benchmark corpus.
+- **Why:** Z3's Python bindings are its most mature, and the gym is Python anyway. Until Phase 3 there is one user on one machine. D10 exists to protect outside users, who don't exist yet, and no Python prototype can meet it.
 - **Touches:** D10; WP9; Standard library and tooling (Distribution).
 
 ## D20 · The first subset is B17-0 · Proposed
@@ -139,18 +144,36 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Contracts:** `requires`, `ensures` and ghost spec functions.
   - **Effects:** a flat set of `alloc`, `panic` and `io`.
 
-  Type parameters are instantiated at integers only, so the worked example runs with `T = int`. The rest of the Type system waits for evidence.
-- **Why:** This is enough to express the worked example and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
+  Effects say what a function may do, not how much. Allocation amounts are bounds under D30. Type parameters are instantiated at integers only. The rest of the Type system waits for evidence.
+- **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · WP4 splits in two · Proposed
+## D21 · Work package dependencies are rewired · Proposed
 - **Date:** 2026-10-26
-- **Decision:**
-  - **WP4a, the spec language:** depends on WP3 and comes before WP5.
-  - **WP4b, the spec workbench:** depends on WP4a and WP5, and comes after.
-  - WP5 depends on WP4a.
-  - The critical path to the Phase 2 gate becomes WP2, WP3, WP4a, WP5, WP8, WP10, WP4b, WP11.
-- **Why:** Vacuity checks, witnesses and mutant rejection all run on the verifier, so as written WP4 and WP5 depend on each other. WP8 joins the critical path because under D8 the manual is the agents' only teacher.
+- **Decision:** WP4 splits:
+  - **WP4a, the spec language:** depends on WP3.
+  - **WP4b, the spec workbench:** depends on WP4a, WP5 and WP15.
+
+  Dependencies that change, including those of the WPs added in D16 and D28:
+
+  | WP | Depends on |
+  |---|---|
+  | WP2 | WP1a |
+  | WP3 | WP1a, WP2 |
+  | WP5 | WP3, WP4a, WP16 |
+  | WP6 | WP3, WP4a, WP5 |
+  | WP7 | WP3, WP15 |
+  | WP8 | WP3, WP5, WP6 |
+  | WP10 | WP4a, WP5 |
+  | WP11 | WP5, WP6, WP7, WP8, WP10, WP17 |
+  | WP13 | WP2, WP5 |
+
+  WP8's examples must pass `b17c check`, and they also run through WP7 once it exists. The critical path is computed from the Depends-on column rather than written by hand. To the Phase 2 gate it runs WP1a, WP2, WP3, WP4a, WP16, WP5, WP6, WP8, WP11.
+- **Why:**
+  - **WP4 and WP5:** vacuity checks, witnesses and mutant rejection all run on the verifier, so as written WP4 and WP5 depend on each other.
+  - **WP11:** the differential and performance rewards run emitted code (WP7), and the in-context baseline needs the manual (WP8, D8).
+  - **WP8:** the manual documents error codes from WP5 and WP6.
+  - **WP13:** classifying a spec diff takes implication proofs (WP5).
 - **Touches:** Work packages; Specification layer.
 
 ## D22 · Definitions get separate spec and implementation hashes · Proposed
@@ -160,37 +183,41 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **References:** bodies refer to callees by spec hash.
   - **What's left out:** the definition's own name is excluded from the hash, and local binders are de Bruijn-indexed.
   - **Recursion:** mutually recursive definitions hash as one group, and each member is addressed as (group hash, index).
+  - **Tagging:** every hash carries a prefix for its kind (spec, implementation or group) and a format version.
   - **Node IDs:** a node ID is a stable definition ID assigned at creation plus a child-index path. Labels like `loop0` and abbreviated hashes are for display only.
-  - **Proof cache:** the key is the implementation hash plus the spec hashes of its dependencies.
+  - **Proof cache:** the key covers the implementation hash, the spec hashes of its dependencies, the canonical query (interface 11, D27), and the full verification configuration. That configuration is the `b17c` and prelude versions, the solver hash and options, and the seeds and budget.
 - **Why:** As written, the identity scheme breaks in four ways:
   - one body edit rehashes every transitive caller;
   - recursion makes hashes circular;
   - renaming a definition changes its hash, contradicting "renames never break references";
   - node IDs built from hashes can't survive edits.
+
+  A cache key without the verification configuration would reuse verdicts after a solver or prelude change.
 - **Touches:** Program representation; Interfaces 1 and 3; Verification model (incremental and cached); D2.
 
 ## D23 · What a verdict means · Proposed (refines D7)
 - **Date:** 2026-10-26
-- **Decision:** A goal passes when it's proven under the canonical seed and under N shuffled seeds. N and the resource budget live in the manifest. The solver binary's hash, its version and every option are pinned and recorded in the trusted base report, and solving is single-threaded.
-- **Why:** Z3's resource count is reproducible only with the same binary and options, and shuffling seeds changes solver behaviour. "Same verdict on any machine" therefore needs a pinned solver and a defined verdict.
+- **Decision:** A goal passes when it's proven under the canonical seed and under N shuffled seeds. N and the resource budget live in the manifest. Solving is single-threaded, and the solver's version and every option are pinned. Each supported platform gets its own pinned solver build, whose hash goes in the trusted base report. A golden-verdict suite runs on every supported platform, and a platform is supported only while its verdicts match.
+- **Why:** Z3's resource count is reproducible only with the same binary and options, binaries differ by platform, and shuffling seeds changes solver behaviour. "Same verdict on any machine" therefore needs a defined verdict and checked agreement between platforms.
 - **Touches:** Design principles (Determinism); Verification model; D7.
 
-## D24 · Solver-trusted goals are allowed until the kernel exists · Proposed (refines D6)
+## D24 · Solver-trusted results get their own level until the kernel exists · Proposed (refines D6)
 - **Date:** 2026-10-26
 - **Decision:** Until the kernel exists:
-  - An L3 module may contain solver-trusted goals, each listed by node ID in the trusted base report.
-  - Gym rewards of 0.80 and above count solver-trusted goals as discharged, and the report says so.
+  - **Levels:** a module whose goals are all discharged, some only by the solver, is reported as **L3-S**, not L3. L3 requires every goal to be kernel-checked.
+  - **The report:** the trusted base report lists each solver-trusted goal by node ID.
+  - **The gym:** solver-discharged goals earn the 0.80 reward tier, recorded as provisional. The anti-hacking rule "the kernel, not the solver, signs the final verdict" is suspended.
 
   Release builds always reject `admit` and `assume`, whatever the manifest says.
-- **Why:** No kernel pipeline today can rebuild proofs over sequences or multisets, and the worked example needs both, so `solver_trusted: 0` can't be reached before the kernel exists. Listing each goal keeps the trust story honest.
-- **Touches:** Verification model; Training environment (reward table); Interfaces 4 and 5; D6.
+- **Why:** Reviewers report that known SMT-to-kernel proof reconstruction, lean-smt for one, doesn't yet cover sequences or multisets, and the worked example needs both (not yet verified). L3 means "full functional correctness proven". A separate label keeps that meaning honest while the kernel is missing.
+- **Touches:** Verification model (levels); Training environment (reward table, anti-hacking rules); Interfaces 4 and 5; D6.
 
 ## D25 · The trusted base report lists goals instead of counting them · Proposed
 - **Date:** 2026-10-26
 - **Decision:** WP5 owns the report, and WP7 adds the backend fields. The report:
   - lists axioms and solver-trusted, admitted and brittle goals by node ID;
   - records the input and lockfile hashes;
-  - records the `b17c`, verifier and solver versions, the backend toolchain (D18) and the target triple;
+  - records the `b17c`, prelude and solver versions, the solver hash (D23), the backend toolchain (D18) and the target triple;
   - gives a verification level per module.
 - **Why:** Counts can't tell apart two builds with different admitted goals. The fields come from WP5 and WP4, not WP7. And the example's `x86_64-sysv` doesn't describe an arm64 Mac.
 - **Touches:** Interfaces 5; Interop, packages and the trusted base; WP5; WP7.
@@ -201,39 +228,40 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Phase 1 already needs verification levels, `allow_admit`, budgets (D23) and dependency pins, but WP13 is a Phase 3 package.
 - **Touches:** Interfaces 4; WP2; WP13; D9.
 
-## D27 · The missing interfaces are added, and all interfaces are versioned · Proposed
+## D27 · Interfaces needed before the Phase 2 gate are added, and all interfaces are versioned · Proposed
 - **Date:** 2026-10-26
-- **Decision:** Five interfaces are added:
+- **Decision:** Six interfaces are added:
 
   | Interface | Contents | Owner |
   |---|---|---|
-  | 6 | Core terms and certificates | WP1 |
-  | 7 | Fact-preserving IR | WP3 |
-  | 8 | Lockfile and capability grants | WP2 |
-  | 9 | Query protocol | WP6 |
-  | 10 | Spec signatures and spec challenges | WP4b |
+  | 6 | Core terms | WP1a |
+  | 7 | Lockfile and capability grants | WP2 |
+  | 8 | Query protocol, with result schemas for the five queries | WP6 |
+  | 9 | Spec signatures and spec challenges | WP4b |
+  | 10 | Interpreter traces | WP15 |
+  | 11 | Canonical solver queries: the SMT-LIB form of each goal | WP5 |
 
-  Every interface carries a version and a status of Draft or Frozen.
-- **Why:** Work packages may only exchange the artifacts listed in Interfaces, but these five pass between packages without being defined. "Start once frozen" can't be checked without a status.
+  Every interface carries a version and a status of Draft or Frozen. Interfaces for the fact-preserving IR and for kernel certificates are added when WP12 and WP1b start.
+- **Why:** Work packages may only exchange the artifacts listed in Interfaces, but these six pass between pre-gate packages without being defined. "Start once frozen" can't be checked without a status. The later interfaces would only be guesses today.
 - **Touches:** Interfaces; How to use this spec; Work packages.
 
 ## D28 · Unowned work gets owners · Proposed
 - **Date:** 2026-10-26
 - **Decision:**
-  - **WP15, the reference interpreter (Phase 0):** it also serves `simulate`, witness examples and WP7's differential tests.
-  - **WP16, the core spec library:** `sorted`, `multiset`, `take`, `last`, and `Ord` with its laws.
+  - **WP15, the reference interpreter (Phase 0):** depends on WP1a and WP2. Done when it passes WP1a's conformance tests. It also serves `simulate`, witness examples and WP7's differential tests.
+  - **WP16, the core spec library:** depends on WP4a. It holds `sorted`, `multiset`, `take`, `last`, and integer order with its laws. Done when every entry passes vacuity checks and has witness examples.
+  - **WP17, the baseline harness:** no dependencies. It holds the frozen task set, CLI adapters for `claude -p` and `codex exec`, prompts, recorded model and CLI versions, metrics, a retry and rate-limit policy, and reproducible result files. Done when the seed tasks run on stock Dafny for both CLIs and a rerun reproduces the verdicts. It becomes the core of WP11.
   - **Signing** moves into WP4b.
   - **`b17c view` and `b17c prof`** are deferred.
-- **Why:** The done-when tests of WP5, WP6 and WP7 depend on this work, and no package owns it.
+- **Why:** The done-when tests of WP5, WP6, WP7 and WP11 depend on this work, and no package owns it.
 - **Touches:** Work packages.
 
-## D29 · The worked example is corrected · Proposed
+## D29 · The worked example is corrected and specialized to integers · Proposed
 - **Date:** 2026-10-26
-- **Decision:** In `merge_sorted`:
-  - require `T: Copy`;
-  - give `Ord` stated laws (total and transitive) and a pure, terminating comparison;
-  - require that `len(a) + len(b)` fits, or declare a `panic` effect;
-  - add `capacity(out) == len(a) + len(b)` as a loop invariant;
+- **Decision:** For B17-0, `merge_sorted` takes `&[int]` and returns `Vec<int>`. The generic version returns when generics do, and it requires `T: Copy` and an `Ord` with stated laws (total and transitive) and a pure, terminating comparison. Both versions also make these changes:
+  - require that `len(a) + len(b)` fits in the index type;
+  - state that allocation failure aborts, as in Rust, and list it under the header's failures;
+  - add `capacity(out) >= len(a) + len(b)` as a loop invariant;
   - state in the core semantics that `and` and `or` short-circuit;
   - narrow "nothing aliases" to "`out` aliases neither input";
   - drop the vectorization claim.
@@ -241,15 +269,18 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Ownership:** it moves a `T` out of a shared borrow, which the spec's own ownership rules reject.
   - **Order laws:** the else branch and sortedness need laws that `Ord` doesn't state.
   - **Failures:** the header's "failures: None" ignores overflow and allocation failure.
-  - **Reallocation:** "push never reallocates" is unproven without the capacity invariant.
+  - **Reallocation:** "push never reallocates" is unproven without the capacity invariant. Capacity is at least the requested amount, as with Rust's `Vec::with_capacity`, not exactly it.
   - **Index safety:** it relies on short-circuit evaluation the semantics never states.
   - **Vectorization:** the merge's data-dependent branch blocks it.
 - **Touches:** Worked example; Type system; WP4 and WP5 done-when tests.
 
-## D30 · Cost proofs and information-flow labels are deferred · Proposed
+## D30 · Asymptotic cost proofs and information-flow labels are deferred · Proposed
 - **Date:** 2026-10-26
-- **Decision:** Before the Phase 2 gate, `cost` clauses are parsed and measured but not proven. Bounds are stated as counts, such as "at most `len(a) + len(b)` comparisons", and proved with ghost counters where needed. Information-flow labels are deferred.
-- **Why:** No existing tool proves big-O bounds for generic imperative code. Noninterference needs relational verification or a proven-sound type system.
+- **Decision:** Before the Phase 2 gate, `b17c` doesn't verify asymptotic bounds such as `O(n log n)`.
+  - **Allowed:** specs may state exact operation or allocation counts, such as "at most `len(a) + len(b)` comparisons", and agents prove them with ghost counters.
+  - **Not proven:** asymptotic `cost` clauses are parsed and measured only.
+  - **Information-flow labels:** deferred.
+- **Why:** Proving asymptotic bounds for imperative code with arbitrary comparisons is still research-grade; RAML-style analysis targets functional code. Noninterference needs relational verification or a proven-sound type system.
 - **Touches:** Type system; Specification layer (resource contracts); Worked example (`cost`).
 
 ## D31 · The Phase 2 gate also compares against a model trained on Dafny · Proposed
@@ -260,6 +291,6 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 
 ## D32 · Success-metric baselines are re-measured on our own harness · Proposed
 - **Date:** 2026-10-26
-- **Decision:** The Success metrics baselines are re-measured on our own harness, on the same tasks with current models (D13), rather than quoted from papers.
+- **Decision:** The Success metrics baselines are re-measured on our own harness (WP17), on the same tasks with current models (D13), rather than quoted from papers.
 - **Why:** Reviewers report two problems with the quoted figures, neither verified yet. The vericoding figures (82/44/27%) count a task as solved if any model solved it; the best single model scores about 67.5/30.9/17.9%. And 2026 agentic Dafny results exceed 90% on DafnyBench. Measuring on our own harness settles the question either way.
 - **Touches:** Success metrics.
