@@ -391,29 +391,48 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** So far the labels have been checked only by review. A checker that runs the suite is their first mechanical test, and freezing before it would turn every mislabel it finds into a superseding decision.
 - **Touches:** WP1a; WP2; WP3; WP15; D16; D21 (WP2, WP3 and WP15 depend on WP1a's draft, not its freeze); `docs/b17-0.md`; `suite/README.md`.
 
-## D45 · What a B17-0 hash covers · Proposed
+## D45 · What a B17-0 hash covers · Proposed (refines D22)
 - **Date:** 2026-10-27
-- **Decision:** D22 applied to B17-0's four item kinds. Hashes are defined only for programs that pass tier 0.
+- **Decision:** D22 applied to B17-0's four item kinds.
   - **Spec and def:** the spec hash covers the `spec` item. The implementation hash covers the spec hash and the `def` item.
   - **Lemma:** its statement is a spec and its proof an implementation. The spec hash covers the lemma without its `decreases` and `body`. The implementation hash covers the spec hash and `(lemma _ (decreases e)? (body stmt*))`.
-  - **Ghost-fn:** a ghost-fn's body is its meaning, so it has one hash, a spec hash, covering the whole item. Editing a ghost-fn rehashes every spec that mentions it, so their definitions and callers are verified again.
-  - **References:** a reference to another item (a ghost-fn call, or a `call` of a spec or lemma) is replaced by that item's spec hash. An item's own name is replaced by `_` wherever it appears, so a recursive ghost-fn needs no hash of itself. B17-0 rejects mutual recursion (`E-TERM-002`), so D22's recursion groups don't arise yet.
-  - **Binders:** every binder (a parameter, a result, a local, or a `forall`, `exists` or `fn` variable) is replaced by `$k`, where k counts binder occurrences in order through the definition: the spec, then the def. These are de Bruijn levels rather than indices. With no shadowing (D41) they identify the same terms, and they need no scope depth.
-  - **Hashed bytes:** the item's canonical bytes (§2) after these replacements. `_`, `$k` and hashes can't be names, so no replacement collides with a name.
+  - **Ghost-fn:** a ghost-fn's body is its meaning, so it has only a spec hash, covering the whole item. This refines D22, which gives every definition two hashes. Editing a ghost-fn rehashes every spec that mentions it, so their definitions and callers are verified again.
+  - **References:** every use of another item's name (a ghost-fn call, or a `call` of a spec or lemma) is replaced by that item's spec hash in D46's text form. An item's own name is replaced by `_` wherever it appears, so a recursive ghost-fn needs no hash of itself. B17-0 rejects mutual recursion (`E-TERM-002`), so D22's recursion groups don't arise yet.
+  - **Binders:** parameters, results, locals and `forall`, `exists` and `fn` variables are numbered from 0, in the order they occur in a preorder, left-to-right walk of the definition (the spec then the def, or the whole lemma).
+    - Each binder, and every use that resolves to it under §2's scoping, is replaced by `$k`. That includes plain names, `borrow`, and the targets of `set`, `set-idx`, `push` and `ghost-set`.
+    - A lemma's proof keeps the whole lemma's numbers, so its first local comes after the statement's binders.
+    - These are de Bruijn levels rather than indices. With no shadowing (D41) they identify the same terms, and they need no scope depth.
+  - **Hashed bytes:** the item's canonical bytes (§2) after these replacements, with no line ending. `_`, `$k` and hashes can't be names, so no replacement collides with a name.
+  - **Example:** the suite's `abs` hashes these two lines:
+    - `(spec _ (params ($0 i64)) (returns ($1 i64)) (requires (> $0 -9223372036854775808)) (ensures (>= $1 0) (or (== $1 $0) (== $1 (neg $0)))) (effects))`
+    - `(def _ (body (if (< $0 0) (return (neg $0)) (return $0))))`
+
+    `fib`'s ghost-fn hashes `(ghost-fn _ (($0 int)) int (requires (>= $0 0)) (decreases $0) (body (if (< $0 2) $0 (+ (_ (- $0 1)) (_ (- $0 2))))))`.
+  - **One spec per spec hash:** tier 0's last check computes spec hashes and rejects two specs in one module with the same one (`E-TYPE-002`). Otherwise two defs that implement identical specs would be indistinguishable to their callers' implementation hashes. Lemmas and ghost-fns may coincide: a ghost-fn's hash already covers its body, and which proof of a lemma is used doesn't change any meaning. Hashes are defined only for programs that pass tier 0.
   - **Left out:** the module name and the header. B17-0 has no module hashes, since nothing imports a module yet (D9, D26).
   - **Core library:** `sorted` and `in_i64` (§9) are ordinary ghost-fns in a prelude module that `b17c` ships, and references to them hash like any other. `sorted` is §9's text. `in_i64` is `(ghost-fn in_i64 ((x int)) bool (body (and (<= -9223372036854775808 x) (< x 9223372036854775808))))`.
-- **Why:** D22 fixes the properties a hash must have, but not B17-0's bytes, and WP2 is done only when "content hashes match across machines". Splitting lemmas like specs means a proof edit doesn't re-verify the definitions that use the lemma. Hashing the core library like user code avoids a format change when WP16 grows it.
-- **Touches:** D22; interface 1; WP2; WP16; `docs/b17-0.md` §2, §9.
+  - **`docs/b17-0.md`:**
+    - §2's "Canonical bytes put each item on one line, and they are what D22 hashes" ends instead "and D45 hashes them after replacing names";
+    - §9's `E-TYPE-002` row gains "or a spec identical to another up to names";
+    - the suite gains a reject program for it.
+- **Why:**
+  - **Exact bytes:** D22 fixes the properties a hash must have, but not B17-0's bytes, and WP2 is done only when "content hashes match across machines".
+  - **Lemmas:** splitting them like specs means a proof edit doesn't re-verify the definitions that use the lemma.
+  - **Core library:** hashing it like user code avoids a format change when WP16 grows it.
+  - **The duplicate rule:** references by spec hash are what keep a body edit from rehashing every caller (D22). The price is that a spec hash must name one def per module.
+- **Touches:** D22; interface 1; WP2; WP3; WP16; `docs/b17-0.md` §2, §9; `suite/`.
 
 ## D46 · B17-0 hash format · Proposed
 - **Date:** 2026-10-27
 - **Decision:**
   - **Function:** SHA-256, as the design spec's interface 1 already says.
-  - **Text form:** the kind and format version, a colon, then 64 lowercase hex digits: `spec0:…` or `impl0:…`. B17-0 is format version 0.
-  - **Preimage:** the same prefix, then D45's hashed bytes in UTF-8. An implementation hash puts its spec hash's text form and one space between the prefix and the bytes.
+  - **Text form:** `spec0:` or `impl0:` (kind, format version, colon) followed by 64 lowercase hex digits. Every hash written anywhere uses this form, including D45's replaced references. B17-0 is format version 0.
+  - **Preimages:** `‖` is concatenation, the prefixes and hash text are ASCII, and D45's hashed bytes are UTF-8.
+    - spec hash = SHA-256(`spec0:` ‖ hashed bytes of the spec part)
+    - implementation hash = SHA-256(`impl0:` ‖ spec hash text ‖ one space ‖ hashed bytes of the implementation part)
   - **Check:** a golden file lists the hashes of every item in `suite/accept/`, and a test recomputes it, so any machine that reproduces the file matches. The test also checks that:
     - renaming a local or an item leaves every hash unchanged;
-    - a body edit changes only that definition's implementation hash;
+    - editing a def's body or a lemma's proof changes only that definition's implementation hash;
     - editing a ghost-fn changes the spec hash of every spec that mentions it.
-- **Why:** The prefix is the kind and version tag D22 asks for. Putting it in the preimage also keeps a spec hash from ever equalling an implementation hash. The invariance checks turn D22's failure cases into tests.
+- **Why:** The prefix is the kind and version tag D22 asks for. Putting it in the preimage also keeps a spec hash from ever equalling an implementation hash. The checks turn D22's failure cases into tests.
 - **Touches:** D22; interface 1; WP2.
