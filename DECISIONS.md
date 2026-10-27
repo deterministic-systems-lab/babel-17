@@ -390,3 +390,30 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - `E-PROOF-*` labels and the proof goals of accept programs stay checked by review until WP5's verifier exists. They don't hold up the freeze.
 - **Why:** So far the labels have been checked only by review. A checker that runs the suite is their first mechanical test, and freezing before it would turn every mislabel it finds into a superseding decision.
 - **Touches:** WP1a; WP2; WP3; WP15; D16; D21 (WP2, WP3 and WP15 depend on WP1a's draft, not its freeze); `docs/b17-0.md`; `suite/README.md`.
+
+## D45 · What a B17-0 hash covers · Proposed
+- **Date:** 2026-10-27
+- **Decision:** D22 applied to B17-0's four item kinds. Hashes are defined only for programs that pass tier 0.
+  - **Spec and def:** the spec hash covers the `spec` item. The implementation hash covers the spec hash and the `def` item.
+  - **Lemma:** its statement is a spec and its proof an implementation. The spec hash covers the lemma without its `decreases` and `body`. The implementation hash covers the spec hash and `(lemma _ (decreases e)? (body stmt*))`.
+  - **Ghost-fn:** a ghost-fn's body is its meaning, so it has one hash, a spec hash, covering the whole item. Editing a ghost-fn rehashes every spec that mentions it, so their definitions and callers are verified again.
+  - **References:** a reference to another item (a ghost-fn call, or a `call` of a spec or lemma) is replaced by that item's spec hash. An item's own name is replaced by `_` wherever it appears, so a recursive ghost-fn needs no hash of itself. B17-0 rejects mutual recursion (`E-TERM-002`), so D22's recursion groups don't arise yet.
+  - **Binders:** every binder (a parameter, a result, a local, or a `forall`, `exists` or `fn` variable) is replaced by `$k`, where k counts binder occurrences in order through the definition: the spec, then the def. These are de Bruijn levels rather than indices. With no shadowing (D41) they identify the same terms, and they need no scope depth.
+  - **Hashed bytes:** the item's canonical bytes (§2) after these replacements. `_`, `$k` and hashes can't be names, so no replacement collides with a name.
+  - **Left out:** the module name and the header. B17-0 has no module hashes, since nothing imports a module yet (D9, D26).
+  - **Core library:** `sorted` and `in_i64` (§9) are ordinary ghost-fns in a prelude module that `b17c` ships, and references to them hash like any other. `sorted` is §9's text. `in_i64` is `(ghost-fn in_i64 ((x int)) bool (body (and (<= -9223372036854775808 x) (< x 9223372036854775808))))`.
+- **Why:** D22 fixes the properties a hash must have, but not B17-0's bytes, and WP2 is done only when "content hashes match across machines". Splitting lemmas like specs means a proof edit doesn't re-verify the definitions that use the lemma. Hashing the core library like user code avoids a format change when WP16 grows it.
+- **Touches:** D22; interface 1; WP2; WP16; `docs/b17-0.md` §2, §9.
+
+## D46 · B17-0 hash format · Proposed
+- **Date:** 2026-10-27
+- **Decision:**
+  - **Function:** SHA-256, as the design spec's interface 1 already says.
+  - **Text form:** the kind and format version, a colon, then 64 lowercase hex digits: `spec0:…` or `impl0:…`. B17-0 is format version 0.
+  - **Preimage:** the same prefix, then D45's hashed bytes in UTF-8. An implementation hash puts its spec hash's text form and one space between the prefix and the bytes.
+  - **Check:** a golden file lists the hashes of every item in `suite/accept/`, and a test recomputes it, so any machine that reproduces the file matches. The test also checks that:
+    - renaming a local or an item leaves every hash unchanged;
+    - a body edit changes only that definition's implementation hash;
+    - editing a ghost-fn changes the spec hash of every spec that mentions it.
+- **Why:** The prefix is the kind and version tag D22 asks for. Putting it in the preimage also keeps a spec hash from ever equalling an implementation hash. The invariance checks turn D22's failure cases into tests.
+- **Touches:** D22; interface 1; WP2.
