@@ -148,7 +148,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · Work package dependencies are rewired · Accepted
+## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44)
 - **Date:** 2026-10-26
 - **Decision:** WP4 splits:
   - **WP4a, the spec language:** depends on WP3.
@@ -381,3 +381,12 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - A result list isn't a value, so B17-0 still has no tuples.
 - **Why:** Owned-in, owned-out algorithms that also compute something need it. `partition`, which returns its vector and a boundary, is the seed example.
 - **Touches:** `docs/b17-0.md` §2, §7, §8.
+
+## D44 · WP1a freezes when WP3's checker agrees with the suite · Accepted
+- **Date:** 2026-10-27
+- **Decision:**
+  - `docs/b17-0.md` and `suite/` stay at version 0.1, Draft. They freeze, completing WP1a, once WP3's checker agrees with every tier 0 label in the suite: each accept program passes tier 0, and each reject program with a tier 0 code fails with exactly that code.
+  - WP2, WP3 and WP15 start from the draft. If building them shows the draft is wrong, a new decision fixes the draft before the freeze.
+  - `E-PROOF-*` labels and the proof goals of accept programs stay checked by review until WP5's verifier exists. They don't hold up the freeze.
+- **Why:** So far the labels have been checked only by review. A checker that runs the suite is their first mechanical test, and freezing before it would turn every mislabel it finds into a superseding decision.
+- **Touches:** WP1a; WP2; WP3; WP15; D16; D21 (WP2, WP3 and WP15 depend on WP1a's draft, not its freeze); `docs/b17-0.md`; `suite/README.md`.

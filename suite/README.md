@@ -33,4 +33,4 @@ Seed tasks over Dafny's unbounded `int` gained ranges under D42 and §10's rule:
 
 ## Checking until b17c exists
 
-No checker exists yet, so the labels were checked by review: by the author, and by an independent model reading the suite against `docs/b17-0.md`. WP3 replaces review with execution.
+No checker exists yet, so the labels were checked by review: by the author, and by an independent model reading the suite against `docs/b17-0.md`. WP3 replaces review with execution. The suite and `docs/b17-0.md` freeze once its checker agrees with every tier 0 label (D44). `E-PROOF-*` labels and the proof goals of accept programs wait for WP5's verifier.

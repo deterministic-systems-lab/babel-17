@@ -293,3 +293,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the hard run `20261027T161710Z-claude-codex-grok` was stopped after 10 minutes and deleted, along with its orphaned model calls;
   - its replacement, `20261027T162910Z-claude-codex-grok`, covers 93 tasks (65 AlgoVeri and 28 vericoding);
   - the Grok seed run `20261027T161708Z-grok` continues, since its tasks are unaffected.
+
+## 2026-10-27 · WP1a's freeze waits for WP3 (D44)
+- **Owner decision:** `docs/b17-0.md` and `suite/` stay at version 0.1, Draft, until WP3's checker agrees with the suite's tier 0 labels, rather than freezing now. Recorded as D44, accepted.
+- **Updated:** D21's status notes the amendment, and the b17-0 status line and the suite README state the freeze condition.
+- **Grok seed run finished:** `20261027T161708Z-grok` verified 60 of 60 attempts, in 1.18 iterations on average, with no tool calls and no infrastructure errors. `reverify` reproduced all 71 recorded verdicts. The analysis comes with the hard run's entry.
