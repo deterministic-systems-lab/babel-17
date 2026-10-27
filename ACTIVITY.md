@@ -371,3 +371,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
 ## 2026-10-27 · Hasher review: clean
 - **Codex** (`gpt-5.6-sol`) reviewed `040d891` against D45, D46 and §2 and found no defects. It walked every production, probed a result and a def local sharing a name, sibling quantifiers sharing a name, and lemma-proof numbering, and confirmed that the duplicate-spec reject fails for the intended reason.
+
+## 2026-10-27 · D47–D55 accepted
+- **Owner decision:** accepted all nine of the parser's readings of §2.
+- **`docs/b17-0.md`, still a v0.1 Draft:**
+  - §2's canonical rules now give the layout (D47), effect order (D52), `-0` and empty optional clauses (D54);
+  - a new "Reading" block lists what parses (D48–D50, D53–D55);
+  - the Names list makes grammar words `E-PARSE-001` and core library names `E-TYPE-002` (D51);
+  - §9's `E-PARSE-001` and `E-TYPE-002` rows match;
+  - the implements list names D47–D55.
+- **Code:** unchanged. `b17c/syntax.py` already implements all nine, and both self-checks pass.

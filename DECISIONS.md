@@ -437,7 +437,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The prefix is the kind and version tag D22 asks for. Putting it in the preimage also keeps a spec hash from ever equalling an implementation hash. The checks turn D22's failure cases into tests.
 - **Touches:** D22; interface 1; WP2.
 
-## D47 · Canonical bytes: the module line holds the header, and no newline ends them · Proposed
+## D47 · Canonical bytes: the module line holds the header, and no newline ends them · Accepted
 - **Date:** 2026-10-27
 - **Decision:** §2 says canonical bytes put each item on one line, but not where the module line, the header and the closing paren go, or whether a newline ends the bytes. Canonical bytes are:
   - line 1: `(module NAME (header (purpose STR) (invariants STR) (failures STR))`;
@@ -448,7 +448,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The header isn't an item, and keeping it on the module's line makes the first line identify the module and its signed prose. "No trailing whitespace" read strictly excludes a final newline. D45 hashes items without the module's name, header or line endings, so this layout changes no hash; it fixes the bytes `b17c` prints and the round-trip tests compare.
 - **Touches:** WP2; D45; `docs/b17-0.md` §2.
 
-## D48 · Only four whitespace characters, and no comments · Proposed
+## D48 · Only four whitespace characters, and no comments · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - Tokens are separated by space, tab, line feed and carriage return. Any other character, including a byte-order mark or a non-ASCII space, is an error outside strings.
@@ -457,13 +457,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §2 doesn't define whitespace or comments. Comments would be dropped by canonicalization, so they'd be lost on every round trip, and agents get nothing from them that the header doesn't give.
 - **Touches:** WP2; `docs/b17-0.md` §2.
 
-## D49 · Adjacent list elements need whitespace between them · Proposed
+## D49 · Adjacent list elements need whitespace between them · Accepted
 - **Date:** 2026-10-27
 - **Decision:** Two adjacent elements of a list must be separated by whitespace, so `(return(+ x 1))`, `(a)(b)` and `(purpose"p")` are E-PARSE-001. Whitespace after `(` and before `)` stays optional.
 - **Why:** §2's canonical form always has a space there, and the stricter reading accepts only layouts that differ from canonical bytes in the amount of whitespace, never in whether it's there.
 - **Touches:** WP2; `docs/b17-0.md` §2.
 
-## D50 · Strings hold no control characters · Proposed
+## D50 · Strings hold no control characters · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - A string may not contain U+0000–U+001F or U+007F, so a raw newline or tab inside a string is E-PARSE-001.
@@ -472,7 +472,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Canonical bytes put each item on one line (§2), which a raw newline inside a string would break, and with only two escapes there's no other way to write one.
 - **Touches:** WP2; `docs/b17-0.md` §2.
 
-## D51 · A grammar word used as a name is a parse error · Proposed
+## D51 · A grammar word used as a name is a parse error · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - Every word in §2's grammar, from `module` to `occurrences`, plus the atoms `bool`, `i64`, `int`, `alloc`, `panic`, `io`, `true`, `false`, `and` and `or`, is E-PARSE-001 wherever the grammar requires a NAME.
@@ -481,13 +481,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §2 says these words are reserved, while §9's table lists "reserved" under E-TYPE-002. A parser can't tell `(len e)` from a ghost-fn call `(NAME e*)` unless `len` is reserved, so grammar words have to be rejected while parsing. Core library names need name resolution, which is WP3's job.
 - **Touches:** WP2; WP3; `docs/b17-0.md` §2, §9's tier 0 table.
 
-## D52 · Effects are listed once each, in grammar order · Proposed
+## D52 · Effects are listed once each, in grammar order · Accepted
 - **Date:** 2026-10-27
 - **Decision:** In `(effects EFF*)`, effects appear at most once each, in the order `alloc`, `panic`, `io`. `(effects io alloc)` and `(effects alloc alloc)` are E-PARSE-001.
 - **Why:** An effect list is a set. §2's "children in grammar order" read strictly gives each set exactly one spelling, so its spec hash (D45) doesn't depend on how it was written.
 - **Touches:** WP2; D45; `docs/b17-0.md` §2.
 
-## D53 · Integer literals: only canonical ones parse, at any size · Proposed
+## D53 · Integer literals: only canonical ones parse, at any size · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - Non-canonical integers are E-PARSE-001: a leading zero (`007`), a `+` sign (`+1`), `-0`, and `(neg INT)` for any literal INT, including `(neg -5)`. §2 calls these not canonical but doesn't say whether they parse; they don't.
@@ -495,13 +495,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** If non-canonical input parsed, one program would have several spellings, and canonical bytes would have to rewrite literals. Rejecting it means canonicalization only ever changes whitespace. Ghost integers are unbounded (D34), so rejecting large literals while parsing would wrongly reject valid ghost code. D45's `in_i64` already needs one: it writes 2^63 as `9223372036854775808`.
 - **Touches:** WP2; WP3; D34; D45; `docs/b17-0.md` §2.
 
-## D54 · An optional clause is never empty · Proposed
+## D54 · An optional clause is never empty · Accepted
 - **Date:** 2026-10-27
 - **Decision:** `(requires)` and `(ensures)` with no expressions are E-PARSE-001 in a `spec` or `lemma`. When there's nothing to state, the clause is omitted. The required clauses `(params)`, `(returns)` and `(effects)`, and a lemma's or def's `(body)`, may still be empty. A ghost-fn's `(body e)` holds exactly one expression.
 - **Why:** As written, `(requires e*)?` allows both an empty clause and a missing one, so one spec would have two canonical forms and two spec hashes (D45). The suite uses neither empty form.
 - **Touches:** WP2; D45; `docs/b17-0.md` §2.
 
-## D55 · Terms nest at most 128 deep · Proposed
+## D55 · Terms nest at most 128 deep · Accepted
 - **Date:** 2026-10-27
 - **Decision:** A module whose lists nest more than 128 deep, counting the module itself, is E-PARSE-001. Integer literals have no digit limit (D53).
 - **Why:** §2 sets no limit, so the parser's real limit was Python's recursion depth, which varies by platform and by caller. A program could then parse, hash or print on one machine and fail on another, which D46's "hashes match across machines" rules out. A fixed limit makes every machine accept the same programs. 128 leaves room for the recursive printer, checker, hasher and tree comparison; at 253 levels, comparing two trees already overflowed. The deepest suite program nests 13 deep. Found by Codex's review of the parser.
