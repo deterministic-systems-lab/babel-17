@@ -443,3 +443,37 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Left admitted:** none.
 - **Second review (Codex, `gpt-5.6-sol`)** found one defect, now fixed with a test: checking evaluated a call's measure before its `requires`, against D57. A ghost-fn whose measure is costly or undefined outside its `requires` then hit `limit` instead of `PRE`. A caller's measure is now evaluated only once its `requires` hold, or when a recursive call inside them first needs it. No other defects were found in §8's semantics, value semantics, D56–D59, the tests or `parse_expr`.
 - **Not yet done:** WP7's differential tests against emitted Rust, which interface 10 is shaped for; WP16's witness examples; WP3's checker, without which the interpreter trusts that its input passes tier 0.
+## 2026-10-27 · WP5 spike: the suite's proof labels checked with Z3
+- **Why:** under D44, WP1a freezes once WP3's checker agrees with the suite. A checker can't test the proof labels:
+  - that accept programs prove without hints, using §9's facts alone;
+  - that each `E-PROOF-*` program fails exactly its labelled goal.
+
+  Until now, both had been checked only by review.
+- **Built:** `b17c/goals.py`, a spike. It generates §7 and §9's goals for well-typed programs and runs each as its own Z3 5.3.2 query.
+  - It isn't WP5: it does no type checking, and its encoding is one guess at interface 11.
+  - It's on branch `wp5-goals-spike`, because main now accepts changes only through reviewed pull requests.
+- **Result:**
+
+  | Set | Result |
+  |---|---|
+  | Accept, every goal proved | 16 of 20 (406 goals) |
+  | Accept, one overflow goal not proved | `fib`, `power`, `sum`, `prefix_sums` |
+  | `E-PROOF-*`, failing exactly their labelled family | 9 of 9 |
+
+  - **No vacuous proofs:** none of the 406 accept goals has contradictory assumptions, as far as Z3 can tell within the budget.
+  - **Speed and stability:** the whole run takes 46 s under a 10M-unit budget per goal, and repeats exactly.
+- **Findings:**
+  - **The porting rule (§10, D42) needs a hint in 4 programs.**
+    - The overflow goal at a loop step needs the range precondition at the next index, a term the program never mentions before the step.
+    - Stating the range per step proves all four with no hint. Proposed as D56.
+  - **The encoding matters more than the facts.**
+    - Z3's own sequence theory timed out on 9 accept programs. The same §9 facts as axioms of an uninterpreted sequence sort prove them in milliseconds.
+    - Division by a variable stalls Z3 unless it's encoded through D37's truncation facts.
+    - Wall-clock limits made verdicts depend on load.
+    - Proposed as D57.
+  - **Failing goals come back `unknown`, never `sat`.** With quantified axioms, Z3 can't build a counterexample, so WP6's `counterexample` field will usually be empty for these goals. Each failing goal also costs the whole budget.
+- **Not yet:**
+  - D23's shuffled-seed runs;
+  - checking the spike against the interpreter's traces, once WP15 lands.
+
+  Codex is reviewing the spike for soundness.

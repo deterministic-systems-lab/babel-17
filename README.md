@@ -22,6 +22,8 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Typed edits and the lockfile remain. |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Next, on top of the parser. |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces) and D56–D59 are proposed. |
+| WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)). It checks the suite's proof labels: 16 of 20 accept programs prove, and all 9 proof rejects fail as labelled (D56, D57). |
+| WP15 | Reference interpreter | In progress. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
 
 `b17c`, the toolchain, is a Python prototype until Phase 3 (D19). Phase 1 compiles to safe Rust (D18), and the solver is Z3, driven by goals `b17c` generates itself (D17).
@@ -68,6 +70,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/core.b17`](b17c/core.b17) | The core library prelude: `sorted` and `in_i64` |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
 | [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59) |
+| [`b17c/goals.py`](b17c/goals.py) | Spike: proof goals for the suite, checked with Z3 (§9) |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 65 from AlgoVeri, 28 from vericoding |
 | [`gym/runs/`](gym/runs/) | One directory per run: `meta.json` holds the configuration and fingerprints, and `attempts.jsonl` every round of every attempt |
