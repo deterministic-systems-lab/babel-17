@@ -74,4 +74,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Gaps filled:**
     - D28: WP17, the baseline harness, gets an owner.
     - D27: interfaces for interpreter traces and canonical solver queries are added, and interfaces for Phase 3 and later are dropped until that work starts.
+- **Re-check:** a second Codex pass reviewed the fixes and found five more problems, all fixed:
+  - **D16:** the claim that a kernel can't change what agents write was still there. It's now framed as a scheduling tradeoff.
+  - **D16, D21, D28:** two dependency loops. WP1a's done-when needed WP15, and WP16's done-when needed the verifier. Each now has a done-when it can meet on its own.
+  - **D21:** WP11 was missing its dependency on WP4b, for vacuity-checked tasks.
+  - **D18:** differential tests sample inputs; they don't prove that lowering preserves meaning.
+  - **D28:** WP17 now requires exact verdicts on recorded outputs, and only statistical agreement on reruns, since hosted models don't produce the same output twice.
 - **Awaiting the owner:** D15–D32.

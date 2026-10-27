@@ -95,11 +95,11 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 ## D16 · WP1 splits, and the Lean proof moves after the Phase 2 gate · Proposed
 - **Date:** 2026-10-26
 - **Decision:** WP1 splits in two:
-  - **WP1a, core semantics (Phase 0):** written typing rules and operational semantics for B17-0 (D20), plus a type checker and an accept/reject suite. The reference interpreter (WP15, D28) executes these semantics, and conformance tests keep the checker and the interpreter agreeing with them.
+  - **WP1a, core semantics (Phase 0):** written typing rules and operational semantics for B17-0 (D20), the core-term interface (interface 6, D27), and an accept/reject suite of programs labelled with their expected verdicts. Done when all three are frozen.
   - **WP1b, Lean mechanization and kernel (after the Phase 2 gate):** the semantics mechanized in Lean 4, type soundness proven, and the kernel checker built.
 
-  Phase 0's gate becomes WP1a's done-when: the accept/reject suite and the conformance tests pass. WP2 and WP3 depend on WP1a. D3 stands; only its timing changes.
-- **Why:** Comparable efforts took several people several years (RustBelt, CakeML), and WP1 as written covers a larger type system than either. Deferring it is a scheduling choice. Until the kernel exists, verdicts rest on the solver (D24). The kernel's later job is to catch the rare goal a solver wrongly accepts. Building it first would delay every experiment without changing what agents write.
+  WP3's type checker must pass the accept/reject suite, and the reference interpreter (WP15, D28) must pass conformance tests derived from the semantics. Phase 0's gate becomes three things: WP1a frozen, WP2's round-trip tests passing, and WP15 passing its conformance tests. D3 stands; only its timing changes.
+- **Why:** This is a scheduling tradeoff. Experiments start much earlier. The price is that, until the kernel exists, verdicts, rewards and repairs rest on the solver (D24), and a later kernel may reject results the solver accepted. Comparable mechanized-soundness efforts took several people several years (RustBelt, CakeML).
 - **Touches:** Roadmap (Phase 0 gate); WP1; WP2; WP3; D3.
 
 ## D17 · b17c generates its own proof goals and sends them to Z3 · Proposed
@@ -120,10 +120,10 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** The Phase 1 backend (WP7) emits safe Rust:
   - every emitted crate carries `#![forbid(unsafe_code)]`;
   - arithmetic is explicitly checked;
-  - differential tests against the reference interpreter (WP15) check that lowering preserves meaning.
+  - differential tests against the reference interpreter (WP15) catch lowering errors on sampled inputs. Establishing that lowering preserves meaning is the job of translation validation (WP12).
 
   Bounds checks stay in Phase 1 output. Removing them using proven facts is the native backend's job (WP12).
-- **Why:** `rustc` independently re-checks the ownership and type safety of every emitted program. It doesn't check Babel-17's contracts, or whether lowering preserved meaning; the differential tests cover that. What it does catch is a bug in our ownership checker or lowering that would otherwise produce unsafe code, while there is still no kernel. Babel-17's `&[T]` and `Vec<T>` also map directly onto Rust, and `wasm32` is a standard target.
+- **Why:** `rustc` independently re-checks the ownership and type safety of every emitted program. It doesn't check Babel-17's contracts, or whether lowering preserved meaning. What it does catch is a bug in our ownership checker or lowering that would otherwise produce unsafe code, while there is still no kernel. Babel-17's `&[T]` and `Vec<T>` also map directly onto Rust, and `wasm32` is a standard target.
 
   C was the alternative, and `clang` is already installed. It would rest all memory safety on our own checker, and the emitter would have to avoid C's undefined behaviour, such as signed overflow and strict aliasing.
 
@@ -154,24 +154,33 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **WP4a, the spec language:** depends on WP3.
   - **WP4b, the spec workbench:** depends on WP4a, WP5 and WP15.
 
-  Dependencies that change, including those of the WPs added in D16 and D28:
+  The full pre-gate dependency table, including the WPs added in D16 and D28:
 
   | WP | Depends on |
   |---|---|
+  | WP1a | — |
   | WP2 | WP1a |
   | WP3 | WP1a, WP2 |
+  | WP4a | WP3 |
+  | WP4b | WP4a, WP5, WP15 |
   | WP5 | WP3, WP4a, WP16 |
   | WP6 | WP3, WP4a, WP5 |
   | WP7 | WP3, WP15 |
   | WP8 | WP3, WP5, WP6 |
   | WP10 | WP4a, WP5 |
-  | WP11 | WP5, WP6, WP7, WP8, WP10, WP17 |
+  | WP11 | WP4b, WP5, WP6, WP7, WP8, WP10, WP17 |
   | WP13 | WP2, WP5 |
+  | WP15 | WP1a, WP2 |
+  | WP16 | WP4a, WP15 |
+  | WP17 | — |
 
-  WP8's examples must pass `b17c check`, and they also run through WP7 once it exists. The critical path is computed from the Depends-on column rather than written by hand. To the Phase 2 gate it runs WP1a, WP2, WP3, WP4a, WP16, WP5, WP6, WP8, WP11.
+  WP8's examples must pass `b17c check`, and they also run through WP7 once it exists. The critical path is computed from this table rather than written by hand. To the Phase 2 gate it runs WP1a, WP2, WP3, WP4a, WP16, WP5, WP6, WP8, WP11. WP4b, WP10 and WP15 are each one step off it.
 - **Why:**
   - **WP4 and WP5:** vacuity checks, witnesses and mutant rejection all run on the verifier, so as written WP4 and WP5 depend on each other.
-  - **WP11:** the differential and performance rewards run emitted code (WP7), and the in-context baseline needs the manual (WP8, D8).
+  - **WP11:**
+    - the differential and performance rewards run emitted code (WP7);
+    - the in-context baseline needs the manual (WP8, D8);
+    - tasks enter the curriculum only after vacuity checks (WP4b).
   - **WP8:** the manual documents error codes from WP5 and WP6.
   - **WP13:** classifying a spec diff takes implication proofs (WP5).
 - **Touches:** Work packages; Specification layer.
@@ -249,8 +258,12 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-10-26
 - **Decision:**
   - **WP15, the reference interpreter (Phase 0):** depends on WP1a and WP2. Done when it passes WP1a's conformance tests. It also serves `simulate`, witness examples and WP7's differential tests.
-  - **WP16, the core spec library:** depends on WP4a. It holds `sorted`, `multiset`, `take`, `last`, and integer order with its laws. Done when every entry passes vacuity checks and has witness examples.
-  - **WP17, the baseline harness:** no dependencies. It holds the frozen task set, CLI adapters for `claude -p` and `codex exec`, prompts, recorded model and CLI versions, metrics, a retry and rate-limit policy, and reproducible result files. Done when the seed tasks run on stock Dafny for both CLIs and a rerun reproduces the verdicts. It becomes the core of WP11.
+  - **WP16, the core spec library:** depends on WP4a and WP15. It holds `sorted`, `multiset`, `take`, `last`, and integer order with its laws. Done when every entry has witness examples that the reference interpreter confirms. Vacuity checks on these entries run later, in WP4b.
+  - **WP17, the baseline harness:** no dependencies. It holds the frozen task set, CLI adapters for `claude -p` and `codex exec`, prompts, recorded model and CLI versions, metrics, a retry and rate-limit policy, and result files that record every agent output. Done when the seed tasks run on stock Dafny through both CLIs and two checks pass:
+    - re-verifying the recorded outputs reproduces their verdicts exactly;
+    - a fresh rerun lands within a stated tolerance of the original pass rates, since hosted models don't produce the same output twice.
+
+    It becomes the core of WP11.
   - **Signing** moves into WP4b.
   - **`b17c view` and `b17c prof`** are deferred.
 - **Why:** The done-when tests of WP5, WP6, WP7 and WP11 depend on this work, and no package owns it.
