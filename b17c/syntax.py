@@ -6,7 +6,8 @@ prints FILE's canonical bytes, or `FILE:LINE:COL: E-PARSE-001: reason` on stderr
 and exits 1.
 
 parse() checks only §2's grammar and its lexical rules: names, integers, strings.
-Name resolution, uniqueness, types and the rest of §3-§9 belong to WP3.
+Name resolution, uniqueness, types and the rest of §3-§9 belong to WP3. parse_expr()
+reads a single expression, such as the interpreter's command-line arguments.
 """
 import bisect
 import re
@@ -74,15 +75,26 @@ class ParseError(Exception):
 
 def parse(text):
     """Parse a B17-0 module from str or UTF-8 bytes into a tree of Form, Sym, Int and Str."""
+    tree = _read(_decode(text))
+    _module(tree)
+    return tree
+
+
+def parse_expr(text):
+    """Parse one B17-0 expression, such as `5` or `(seq-lit 1 2 3)`, from str or UTF-8 bytes."""
+    tree = _read(_decode(text), expr=True)
+    _expr(tree)
+    return tree
+
+
+def _decode(text):
     if isinstance(text, bytes):
         try:
-            text = text.decode("utf-8")
+            return text.decode("utf-8")
         except UnicodeDecodeError as e:
             good = text[:e.start].decode("utf-8")
             raise ParseError(_Lines(good).at(len(good)), "input is not valid UTF-8") from None
-    tree = _read(text)
-    _module(tree)
-    return tree
+    return text
 
 
 def canonical(tree):
@@ -117,7 +129,9 @@ class _Lines:
         return line, i - self.starts[line - 1] + 1
 
 
-def _read(text):
+def _read(text, expr=False):
+    """The one term in text: a module, or with expr=True, any expression, including an atom."""
+    what = "expression" if expr else "module"
     lines = _Lines(text)
     at = lines.at
     stack = []        # (position, items) of each open paren
@@ -137,7 +151,7 @@ def _read(text):
             node = Form(tuple(items), start, at(i))
             i += 1
         elif result is not None:
-            raise ParseError(at(i), "text after the module")
+            raise ParseError(at(i), f"text after the {what}")
         elif not separated:
             raise ParseError(at(i), "missing whitespace between list elements")
         elif c == "(":
@@ -147,7 +161,7 @@ def _read(text):
             i += 1
             separated = True
             continue
-        elif not stack:
+        elif not stack and not expr:
             raise ParseError(at(i), "expected '(' to open the module")
         elif c == '"':
             node, i = _string(text, i, at)
@@ -165,7 +179,7 @@ def _read(text):
     if stack:
         raise ParseError(stack[-1][0], "unclosed '('")
     if result is None:
-        raise ParseError(at(n), "empty input: expected a module")
+        raise ParseError(at(n), f"empty input: expected {'an' if expr else 'a'} {what}")
     return result
 
 
