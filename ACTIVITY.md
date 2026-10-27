@@ -368,3 +368,6 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - Breaking how references are replaced makes the test fail.
 - **Observed:** `sum_of` in `sum` and in `prefix_sums` gets the same hash, so identical definitions in different modules share one identity.
 - **WP2 status:** both done-when tests now run: parse-print round trips, and hashes reproduced from a golden file. A second platform (Linux) hasn't reproduced the file yet. Typed edits (interface 2) and the lockfile (interface 7) remain.
+
+## 2026-10-27 · Hasher review: clean
+- **Codex** (`gpt-5.6-sol`) reviewed `040d891` against D45, D46 and §2 and found no defects. It walked every production, probed a result and a def local sharing a name, sibling quantifiers sharing a name, and lemma-proof numbering, and confirmed that the duplicate-spec reject fails for the intended reason.
