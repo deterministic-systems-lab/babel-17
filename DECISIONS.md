@@ -477,6 +477,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:**
   - Every word in §2's grammar, from `module` to `occurrences`, plus the atoms `bool`, `i64`, `int`, `alloc`, `panic`, `io`, `true`, `false`, `and` and `or`, is E-PARSE-001 wherever the grammar requires a NAME.
   - The core library's names, `sorted` and `in_i64`, are reserved too (§9), but they lex as names because they're called as ghost-fns. Declaring one is E-TYPE-002, checked by WP3.
+  - On acceptance, §9's `E-TYPE-002` row reads "reserved" as the core library's names only.
 - **Why:** §2 says these words are reserved, while §9's table lists "reserved" under E-TYPE-002. A parser can't tell `(len e)` from a ghost-fn call `(NAME e*)` unless `len` is reserved, so grammar words have to be rejected while parsing. Core library names need name resolution, which is WP3's job.
 - **Touches:** WP2; WP3; `docs/b17-0.md` §2, §9's tier 0 table.
 
@@ -496,6 +497,12 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 
 ## D54 · An optional clause is never empty · Proposed
 - **Date:** 2026-10-27
-- **Decision:** `(requires)` and `(ensures)` with no expressions are E-PARSE-001 in a `spec` or `lemma`. When there's nothing to state, the clause is omitted. The required clauses `(params)`, `(returns)`, `(effects)` and `(body)` may still be empty.
+- **Decision:** `(requires)` and `(ensures)` with no expressions are E-PARSE-001 in a `spec` or `lemma`. When there's nothing to state, the clause is omitted. The required clauses `(params)`, `(returns)` and `(effects)`, and a lemma's or def's `(body)`, may still be empty. A ghost-fn's `(body e)` holds exactly one expression.
 - **Why:** As written, `(requires e*)?` allows both an empty clause and a missing one, so one spec would have two canonical forms and two spec hashes (D45). The suite uses neither empty form.
 - **Touches:** WP2; D45; `docs/b17-0.md` §2.
+
+## D55 · Terms nest at most 128 deep · Proposed
+- **Date:** 2026-10-27
+- **Decision:** A module whose lists nest more than 128 deep, counting the module itself, is E-PARSE-001. Integer literals have no digit limit (D53).
+- **Why:** §2 sets no limit, so the parser's real limit was Python's recursion depth, which varies by platform and by caller. A program could then parse, hash or print on one machine and fail on another, which D46's "hashes match across machines" rules out. A fixed limit makes every machine accept the same programs. 128 leaves room for the recursive printer, checker, hasher and tree comparison; at 253 levels, comparing two trees already overflowed. The deepest suite program nests 13 deep. Found by Codex's review of the parser.
+- **Touches:** WP2; D46; `docs/b17-0.md` §2.

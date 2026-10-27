@@ -34,6 +34,8 @@ KEYWORDS = {
     "occurrences", "and", "or",
 }
 EFFECTS = ["alloc", "panic", "io"]  # D52: listed in this order, each at most once
+MAX_DEPTH = 128  # D55: the same on every machine, and well inside Python's recursion limit
+sys.set_int_max_str_digits(0)  # D53: integer literals have no size limit
 
 
 @dataclass(frozen=True)
@@ -79,10 +81,7 @@ def parse(text):
             good = text[:e.start].decode("utf-8")
             raise ParseError(_Lines(good).at(len(good)), "input is not valid UTF-8") from None
     tree = _read(text)
-    try:
-        _module(tree)
-    except RecursionError:
-        raise ParseError(tree.pos, "terms are nested too deeply") from None
+    _module(tree)
     return tree
 
 
@@ -142,6 +141,8 @@ def _read(text):
         elif not separated:
             raise ParseError(at(i), "missing whitespace between list elements")
         elif c == "(":
+            if len(stack) == MAX_DEPTH:
+                raise ParseError(at(i), f"lists nest more than {MAX_DEPTH} deep")
             stack.append((at(i), []))
             i += 1
             separated = True

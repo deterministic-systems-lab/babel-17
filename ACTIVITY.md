@@ -346,3 +346,25 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** `b17c/test_syntax.py` covers the suite round trip, an exact canonical golden, whitespace layouts, and negative cases for every rule above. It also checks that the reserved words equal the words of §2's grammar block. Mutating any of six checks in the parser makes it fail.
 - **Left admitted:** none.
 - **Not yet done:** the rest of WP2: D45 and D46's hashes and their golden file, then typed edits. WP3's checker for §3–§9.
+
+## 2026-10-27 · Parser merged and reviewed; the hasher completes WP2's hash half
+- **Merged:** branch `wp2-syntax` (`1ef7d70`) fast-forwarded into main once its self-check passed and all 50 suite files behaved as labelled.
+- **Codex review of the parser** (`gpt-5.6-sol`) found 4 issues, all fixed:
+  - **Large integers:** a literal over 4,300 digits crashed on Python's digit limit, against D53. The limit is now off.
+  - **Nesting:** acceptance depended on Python's recursion depth, which varies by machine. Proposed D55 caps nesting at 128 levels, and the recursion handler that depended on it is gone.
+  - **D54:** it said every `(body)` may be empty, but a ghost-fn's holds one expression. The text now says so.
+  - **D51:** the proposal now says how §9's `E-TYPE-002` row changes if it's accepted.
+- **Added the hasher:**
+  - `b17c/hashing.py` implements D45 and D46.
+  - `b17c/core.b17` is the core library prelude (`sorted`, `in_i64`).
+  - `b17c/hashes.txt` is the golden file: 27 items across the 20 accept programs.
+  - `b17c/test_hashing.py` checks:
+    - the golden file;
+    - D45's worked `abs` and `fib` bytes through D46's preimages;
+    - that renames change no hash (three programs, covering locals, results, quantifier binders and items);
+    - that body edits and lemma-proof edits change only their own implementation hash;
+    - that a ghost-fn edit reaches the specs that mention it;
+    - that the duplicate-spec reject fails with `E-TYPE-002`, and mutual recursion with `E-TERM-002`.
+  - Breaking how references are replaced makes the test fail.
+- **Observed:** `sum_of` in `sum` and in `prefix_sums` gets the same hash, so identical definitions in different modules share one identity.
+- **WP2 status:** both done-when tests now run: parse-print round trips, and hashes reproduced from a golden file. A second platform (Linux) hasn't reproduced the file yet. Typed edits (interface 2) and the lockfile (interface 7) remain.

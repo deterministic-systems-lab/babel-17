@@ -132,4 +132,13 @@ bad("(module", "(x) (module", "(module", "text after the module")
 assert error("").reason.startswith("empty input")
 assert error(b"(module m \xff)").reason == "input is not valid UTF-8"
 
+# D55: lists nest at most 128 deep, counting the module, and the deepest legal term still prints.
+HEAD = '(module m (header (purpose "p") (invariants "i") (failures "f")) (ghost-fn f () bool (body '
+deep = lambda n: HEAD + "(not " * n + "true" + ")" * n + ")))"
+assert s.parse(s.canonical(s.parse(deep(125)))) == s.parse(deep(125))
+assert error(deep(126)).reason == "lists nest more than 128 deep"
+# D53: integer literals of any size.
+big = int("1" * 5000)
+assert s.canonical(s.parse(HEAD.replace("bool", "int") + f"{big})))")).endswith(f"{big})))".encode())
+
 print("syntax self-check passed")

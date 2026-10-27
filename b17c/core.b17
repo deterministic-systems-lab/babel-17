@@ -1,0 +1,9 @@
+(module core
+  (header
+    (purpose "The core library: ghost-fns in scope in every B17-0 module (docs/b17-0.md §9, D45).")
+    (invariants "Every definition is total on its parameter types.")
+    (failures "None. Ghost-fns never run."))
+  (ghost-fn sorted ((s (seq int))) bool
+    (body (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i j)) (< j (len s))) (<= (idx s i) (idx s j))))))
+  (ghost-fn in_i64 ((x int)) bool
+    (body (and (<= -9223372036854775808 x) (< x 9223372036854775808)))))
