@@ -408,7 +408,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
     - `(def _ (body (if (< $0 0) (return (neg $0)) (return $0))))`
 
     `fib`'s ghost-fn hashes `(ghost-fn _ (($0 int)) int (requires (>= $0 0)) (decreases $0) (body (if (< $0 2) $0 (+ (_ (- $0 1)) (_ (- $0 2))))))`.
-  - **One spec per spec hash:** tier 0's last check computes spec hashes and rejects two specs in one module with the same one (`E-TYPE-002`). Otherwise two defs that implement identical specs would be indistinguishable to their callers' implementation hashes. Lemmas and ghost-fns may coincide: a ghost-fn's hash already covers its body, and which proof of a lemma is used doesn't change any meaning. Hashes are defined only for programs that pass tier 0.
+  - **One spec per spec hash:** once every other tier 0 check passes, a last check computes provisional spec hashes and rejects two specs in one module with the same one (`E-TYPE-002`). Otherwise two defs that implement identical specs would be indistinguishable to their callers' implementation hashes. Lemmas and ghost-fns may coincide: a ghost-fn's hash already covers its body, and which proof of a lemma is used doesn't change any meaning. A program's hashes are defined only once it passes tier 0, including this check.
   - **Left out:** the module name and the header. B17-0 has no module hashes, since nothing imports a module yet (D9, D26).
   - **Core library:** `sorted` and `in_i64` (§9) are ordinary ghost-fns in a prelude module that `b17c` ships, and references to them hash like any other. `sorted` is §9's text. `in_i64` is `(ghost-fn in_i64 ((x int)) bool (body (and (<= -9223372036854775808 x) (< x 9223372036854775808))))`.
   - **`docs/b17-0.md`:**
