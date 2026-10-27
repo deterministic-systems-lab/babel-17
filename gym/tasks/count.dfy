@@ -1,7 +1,7 @@
 // intent: Count how many times x occurs in a sequence.
 // difficulty: easy
 //== preamble
-function Count(s: seq<int>, x: int): nat
+ghost function Count(s: seq<int>, x: int): nat
 {
   if |s| == 0 then 0 else Count(s[..|s| - 1], x) + (if s[|s| - 1] == x then 1 else 0)
 }

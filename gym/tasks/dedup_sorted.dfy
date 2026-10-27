@@ -1,12 +1,12 @@
 // intent: Remove duplicates from a sorted sequence, keeping one copy of each value.
 // difficulty: hard
 //== preamble
-predicate Sorted(s: seq<int>)
+ghost predicate Sorted(s: seq<int>)
 {
   forall i, j :: 0 <= i < j < |s| ==> s[i] <= s[j]
 }
 
-predicate StrictlySorted(s: seq<int>)
+ghost predicate StrictlySorted(s: seq<int>)
 {
   forall i, j :: 0 <= i < j < |s| ==> s[i] < s[j]
 }

@@ -1,7 +1,7 @@
 // intent: Merge two sorted sequences into one sorted sequence holding every element of both, duplicates kept.
 // difficulty: hard
 //== preamble
-predicate Sorted(s: seq<int>)
+ghost predicate Sorted(s: seq<int>)
 {
   forall i, j :: 0 <= i < j < |s| ==> s[i] <= s[j]
 }

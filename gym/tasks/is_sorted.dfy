@@ -1,7 +1,7 @@
 // intent: Report whether a sequence is in non-decreasing order.
 // difficulty: medium
 //== preamble
-predicate Sorted(s: seq<int>)
+ghost predicate Sorted(s: seq<int>)
 {
   forall i, j :: 0 <= i < j < |s| ==> s[i] <= s[j]
 }

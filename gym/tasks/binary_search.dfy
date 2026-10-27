@@ -1,7 +1,7 @@
-// intent: Find key in a sorted sequence in logarithmic steps; return its index, or -1 if absent.
+// intent: Find key in a sorted sequence; return its index, or -1 if absent.
 // difficulty: medium
 //== preamble
-predicate Sorted(s: seq<int>)
+ghost predicate Sorted(s: seq<int>)
 {
   forall i, j :: 0 <= i < j < |s| ==> s[i] <= s[j]
 }

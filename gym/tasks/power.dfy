@@ -1,7 +1,7 @@
-// intent: Compute b raised to the power e with a loop.
+// intent: Compute b raised to the power e.
 // difficulty: medium
 //== preamble
-function Pow(b: int, e: nat): int
+ghost function Pow(b: int, e: nat): int
 {
   if e == 0 then 1 else b * Pow(b, e - 1)
 }

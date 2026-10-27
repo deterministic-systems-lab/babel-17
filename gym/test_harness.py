@@ -36,6 +36,11 @@ for want, code in cases.items():
     got, out = h.verify(abs_task, code)
     assert got == want.strip(), (want, got, out)
 
+# Preamble definitions are ghost, so calling the spec function isn't an implementation.
+fib = h.load_task(h.TASKS / "fib.dfy")
+got, out = h.verify(fib, "method FibIter(n: nat) returns (f: nat) ensures f == Fib(n) { return Fib(n); }")
+assert got == "rejected", (got, out)
+
 # An exhausted resource budget must not count as verified.
 merge = h.load_task(h.TASKS / "merge_sorted.dfy")
 h.DAFNY[h.DAFNY.index("--resource-limit") + 1] = "1000000"

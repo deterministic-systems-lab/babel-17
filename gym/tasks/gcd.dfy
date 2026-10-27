@@ -1,7 +1,7 @@
-// intent: Compute the greatest common divisor of two natural numbers with a loop.
+// intent: Compute the greatest common divisor of two natural numbers.
 // difficulty: medium
 //== preamble
-function Gcd(a: nat, b: nat): nat
+ghost function Gcd(a: nat, b: nat): nat
   decreases b
 {
   if b == 0 then a else Gcd(b, a % b)

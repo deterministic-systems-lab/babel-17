@@ -1,0 +1,75 @@
+{
+  "run_id": "smoke",
+  "started": "2026-10-27T03:32:52.900705+00:00",
+  "git_commit": "30021ba3bfa75a6fb5034532cded81732214064c",
+  "git_dirty": false,
+  "samples": 1,
+  "max_iters": 3,
+  "tasks": [
+    "abs",
+    "merge_sorted"
+  ],
+  "task_sha": {
+    "abs": "492955556a2016039a9c8f1dada57085a0c3f95c5de110e347f13d867a370da1",
+    "merge_sorted": "10489eb909b27f7d649c5a950840b9e6cda22ce5ba9c1c4810a5a884ccefce2a"
+  },
+  "prompt_version": 1,
+  "prompt_sha": "6e52db587ac903d616a99dba50d3a35bd8704c1803f33d8636078e70ff580dc3",
+  "dafny": "4.11.0",
+  "z3": "Z3 version 5.3.2 - 64 bit",
+  "dafny_args": [
+    "dafny",
+    "verify",
+    "--cores",
+    "1",
+    "--resource-limit",
+    "100000000",
+    "--verification-time-limit",
+    "0"
+  ],
+  "clis": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--model",
+        "opus",
+        "--effort",
+        "high",
+        "--tools",
+        "",
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--output-format",
+        "json"
+      ],
+      "version": "2.1.308 (Claude Code)"
+    },
+    "codex": {
+      "cmd": [
+        "codex",
+        "exec",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--ignore-rules",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "-m",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "-s",
+        "read-only",
+        "--skip-git-repo-check",
+        "--json",
+        "-"
+      ],
+      "version": "codex-cli 0.145.0"
+    }
+  }
+}

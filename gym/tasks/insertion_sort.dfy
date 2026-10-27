@@ -1,7 +1,7 @@
 // intent: Sort an array in place, keeping exactly the same elements.
 // difficulty: hard
 //== preamble
-predicate Sorted(s: seq<int>)
+ghost predicate Sorted(s: seq<int>)
 {
   forall i, j :: 0 <= i < j < |s| ==> s[i] <= s[j]
 }

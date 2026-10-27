@@ -1,7 +1,7 @@
-// intent: Compute the nth Fibonacci number with a loop.
+// intent: Compute the nth Fibonacci number.
 // difficulty: medium
 //== preamble
-function Fib(n: nat): nat
+ghost function Fib(n: nat): nat
 {
   if n < 2 then n else Fib(n - 1) + Fib(n - 2)
 }

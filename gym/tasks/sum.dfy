@@ -1,7 +1,7 @@
 // intent: Add up the elements of a sequence.
 // difficulty: easy
 //== preamble
-function Sum(s: seq<int>): int
+ghost function Sum(s: seq<int>): int
 {
   if |s| == 0 then 0 else Sum(s[..|s| - 1]) + s[|s| - 1]
 }
