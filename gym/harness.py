@@ -348,13 +348,16 @@ def read_records(run_dir):
 
 
 def cmd_check_tasks(args):
-    """Every reference solution verifies; an empty body is a proof failure (not vacuously
+    """No preamble or reference solution uses a banned construct; every reference solution
+    verifies; an empty body is a proof failure (not vacuously
     true); an assume-false body verifies (the frozen preamble and contracts are well-formed,
     so the task is solvable in principle). Imported tasks with no solution skip the first."""
     bad = 0
     for t in load_tasks(args.tasks):
-        banned = violations(t["solution"])
-        ok, out = (("banned", ", ".join(banned)) if banned else verify(t, t["solution"])) if t["solution"] else ("none", "")
+        # A frozen preamble with assume or {:axiom} hands every solution an unproved fact.
+        banned = violations(t["preamble"]) + violations(t["solution"])
+        ok, out = (("banned", ", ".join(banned)) if banned else
+                   verify(t, t["solution"]) if t["solution"] else ("none", ""))
         stub, stub_out = verify(t, t["signature"] + "\n{\n}")
         wf, wf_out = verify(t, t["signature"] + "\n{\n  assume {:axiom} false;\n}")
         fine = ok in ("verified", "none") and stub == "proof_failed" and wf == "verified"

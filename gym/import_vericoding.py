@@ -4,10 +4,12 @@
     uv run gym/import_vericoding.py <dir>
 
 Selection uses vericoding's own results (nine 2025 models): Dafny tasks with one method,
-no vericoding QA issue, and only types B17-0 can also express (int, nat, bool, seq<int>,
-array<int>), solved by at least one model but by at most a quarter of them. The solving
+no vericoding QA issue, and only types B17-0 can also express (int, nat and bool, sequences
+and arrays of those, and ghost multisets), solved by at least one model but by at most a
+quarter of them. The solving
 model's code becomes the reference solution. A task is kept only if that solution passes
-this harness as is: no banned construct, and verified under our Dafny with ghost preambles.
+this harness as is: no banned construct in it or in the frozen preamble (some preambles hold
+helper methods whose body is `assume false`), and verified under our Dafny with ghost preambles.
 """
 import csv
 import json
@@ -60,13 +62,14 @@ def main(src):
             f" solved by {k} of {len(by)} models\n"
             f"//== preamble\n{preamble}\n//== signature\n{t['vc-spec'].strip()}\n//== solution\n{solution}\n")
         task = harness.load_task(path)
-        stage = "banned" if harness.violations(solution) else harness.verify(task, solution)[0]
+        stage = ("banned" if harness.violations(preamble) + harness.violations(solution)
+                 else harness.verify(task, solution)[0])
         if stage != "verified":
             path.unlink()
             dropped.append(f"{t['id']} ({stage})")
             continue
         ported += 1
-    print(f"ported {ported}; dropped {len(dropped)} whose reference solution fails here: {', '.join(dropped)}")
+    print(f"ported {ported}; dropped {len(dropped)} that fail here: {', '.join(dropped)}")
 
 
 if __name__ == "__main__":
