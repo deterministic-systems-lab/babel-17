@@ -307,3 +307,77 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** The Success metrics baselines are re-measured on our own harness (WP17), on the same tasks with current models (D13), rather than quoted from papers.
 - **Why:** Reviewers report two problems with the quoted figures, neither verified yet. The vericoding figures (82/44/27%) count a task as solved if any model solved it; the best single model scores about 67.5/30.9/17.9%. And 2026 agentic Dafny results exceed 90% on DafnyBench. Measuring on our own harness settles the question either way.
 - **Touches:** Success metrics.
+
+## D33 · B17-0's canonical form is also its core language · Proposed
+- **Date:** 2026-10-27
+- **Decision:** In B17-0, the canonical S-expression form is the core language, so there is no separate surface syntax to elaborate. WP3 is a checker, not an elaborator, until a richer surface exists.
+- **Why:** One representation means one parser, one printer and one thing to hash (D22). An elaborator earns its place only once there is something to elaborate.
+- **Touches:** Program representation; Interfaces 1 and 6; WP2; WP3; `docs/b17-0.md` §2.
+
+## D34 · Runtime integers are i64, with every range proven · Proposed
+- **Date:** 2026-10-27
+- **Decision:** Runtime integers are `i64`, and every arithmetic result's range is a proof goal. Ghost integers are unbounded `int`. `i64 <: int` holds in ghost context only, and runtime code has no implicit conversions.
+- **Why:** This matches safe Rust (D18) and the "checked integers" of D20, and it keeps contracts mathematical.
+- **Touches:** Type system (numeric domains); `docs/b17-0.md` §3, §4, §7.
+
+## D35 · No vector capacity in B17-0 · Proposed (supersedes D29's capacity clause only)
+- **Date:** 2026-10-27
+- **Decision:** B17-0 has no vector capacity. D29's `capacity(out) >= len(a) + len(b)` invariant waits for allocation bounds (D30), and `vec-with-capacity` is dropped from the subset. D29's other clauses stand.
+- **Why:** Capacity only matters for the "push never reallocates" performance claim, which needs allocation bounds that D30 defers.
+- **Touches:** D29; D30; Worked example; `docs/b17-0.md` §1, §11.
+
+## D36 · Ownership without lifetimes · Proposed
+- **Date:** 2026-10-27
+- **Decision:**
+  - Vectors are owned and move.
+  - Slices are shared borrows scoped to a single call; they can't be stored or returned.
+  - There is no `&mut`.
+  - In-place algorithms take ownership of a vector and return it.
+- **Why:** This gives aliasing freedom with no lifetimes to infer, and it lets the verifier treat every collection as a plain sequence value, which is D17's simpler-encoding gain. `rustc` re-checks all of it once Phase 1 emits Rust (D18).
+- **Touches:** Type system (ownership); `docs/b17-0.md` §5.
+
+## D37 · Division truncates toward zero · Proposed
+- **Date:** 2026-10-27
+- **Decision:** `/` and `%` truncate toward zero in both runtime and ghost context, as in Rust, rather than the Euclidean division Dafny uses. Both carry Rust's two panic cases as proof goals: a zero divisor, and −2^63 divided by −1.
+- **Why:** The meaning stays the same from contract to emitted code (D18).
+- **Touches:** `docs/b17-0.md` §7, §8.
+
+## D38 · seq-build bounds its index · Proposed
+- **Date:** 2026-10-27
+- **Decision:** `(seq-build n (fn (i) e))` checks e with `0 <= i < n` assumed.
+- **Why:** This is the first language change driven by a measured agent failure. In WP17, Codex's first attempt at `reverse` failed in 6 of 6 samples on exactly this point in Dafny.
+- **Touches:** `docs/b17-0.md` §7.
+
+## D39 · A def implements a named spec and never restates it · Proposed
+- **Date:** 2026-10-27
+- **Decision:** A `def` names the `spec` it implements and never repeats its contracts. Tasks give agents the frozen spec, so agents can't weaken contracts by construction.
+- **Why:** This replaces the generated `_Check` wrapper the Dafny harness needs, and it matches D4: people sign specs, not implementations.
+- **Touches:** Specification layer; `docs/b17-0.md` §1, §10.
+
+## D40 · Every path returns or panics · Proposed
+- **Date:** 2026-10-27
+- **Decision:** Every path through a `def` ends in `return` or `panic`, and early returns are allowed. `(return e1 ... en)`, one expression per declared result, is the only way to exit with results.
+- **Why:** "One way to say it", while still allowing the early returns agents write naturally in search loops.
+- **Touches:** `docs/b17-0.md` §7, §9.
+
+## D41 · No shadowing · Proposed
+- **Date:** 2026-10-27
+- **Decision:**
+  - Item names are unique within a module, except that a `spec` and its `def` share one name.
+  - Local names are unique within their item and never reuse an item name.
+- **Why:** This gives every name in a diagnostic exactly one meaning.
+- **Touches:** `docs/b17-0.md` §2.
+
+## D42 · Ported tasks state integer ranges, in both languages · Proposed
+- **Date:** 2026-10-27
+- **Decision:** Tasks ported to B17-0 state explicit integer ranges, and their Dafny baseline versions take the same preconditions.
+- **Why:** That keeps the two task sets aligned, so the comparison measures the language rather than different specs. The extra goals are what Bet 1 claims costs agents little.
+- **Touches:** WP10; WP17; Success metrics; `docs/b17-0.md` §10.
+
+## D43 · A spec may declare several results · Proposed
+- **Date:** 2026-10-27
+- **Decision:**
+  - A spec may declare several results, returned together by `(return e1 ... en)` and bound by `(let ((x T) ...) (call ...))`.
+  - A result list isn't a value, so B17-0 still has no tuples.
+- **Why:** Owned-in, owned-out algorithms that also compute something need it. `partition`, which returns its vector and a boundary, is the seed example.
+- **Touches:** `docs/b17-0.md` §2, §7, §8.
