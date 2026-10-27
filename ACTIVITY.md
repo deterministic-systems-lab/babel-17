@@ -284,3 +284,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Runs started:**
   - `20261027T161708Z-grok`: the seed tasks, 3 samples.
   - `20261027T161710Z-claude-codex-grok`: the 96-task hard set (AlgoVeri with ghost preambles, plus vericoding), 1 sample. Claude and Codex are re-run because the AlgoVeri preambles changed.
+
+## 2026-10-27 · The hard run restarted on 28 vericoding tasks
+- **Found by Codex** (`gpt-5.6-sol`), reviewing the Grok and vericoding changes: in three kept tasks (DD0370, DD0371, DD0423), the frozen preamble holds helper methods whose body is `assume {:axiom} false`. Each reference solution verified by calling those unproved helpers, and any agent could have done the same. `check-tasks` scanned only solutions for banned constructs, never preambles.
+- **Fixed:** `check-tasks` and the vericoding importer now reject banned constructs in preambles too. No seed or AlgoVeri preamble has any. 28 vericoding tasks remain.
+- **Also from the review:** the importer's docstring now lists the types it actually admits: sequences and arrays of int, nat and bool, plus ghost multisets.
+- **Runs:**
+  - the hard run `20261027T161710Z-claude-codex-grok` was stopped after 10 minutes and deleted, along with its orphaned model calls;
+  - its replacement, `20261027T162910Z-claude-codex-grok`, covers 93 tasks (65 AlgoVeri and 28 vericoding);
+  - the Grok seed run `20261027T161708Z-grok` continues, since its tasks are unaffected.
