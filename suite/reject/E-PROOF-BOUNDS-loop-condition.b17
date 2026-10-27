@@ -6,6 +6,7 @@
   (spec first_nonneg
     (params (a (ref (slice i64))))
     (returns (r i64))
+    (requires (> (len a) 0))
     (effects))
   (def first_nonneg
     (body
