@@ -50,8 +50,20 @@ CLIS = {
     # agy takes the prompt as an argument; "{prompt}" marks where it goes. "-high" is the effort.
     "gemini": ["agy", "-p", "{prompt}", "--model", "gemini-4-argon-high", "--output-format", "json",
                "--disable-slash-commands"],
+    # grok reads ~/.claude (CLAUDE.md, skills, plugins with hooks, MCP servers) and ignores its own
+    # opt-out env vars, so HOME is emptied; GROK_HOME keeps the login. --tools "" removes nothing,
+    # so every client tool is disallowed by name. X search is server-side and can't be removed:
+    # streaming-json reports each use as a tool_call event.
+    "grok": ["env", "HOME=/var/empty", f"GROK_HOME={Path.home() / '.grok'}", "grok", "-p", "{prompt}",
+             "--verbatim", "-m", "grok-4.7", "--reasoning-effort", "high", "--disallowed-tools",
+             "run_terminal_command,read_file,search_replace,list_dir,grep,kill_command_or_subagent,"
+             "todo_write,get_command_or_subagent_output,monitor,search_tool,use_tool,workflow,"
+             "enter_plan_mode,exit_plan_mode,ask_user_question,send_feedback,image_gen,image_edit,"
+             "image_to_video,reference_to_video,write,scheduler_create,scheduler_delete,scheduler_list",
+             "--disable-web-search", "--no-subagents", "--no-plan", "--max-turns", "1",
+             "--output-format", "streaming-json"],
 }
-CALL_TIMEOUT, RETRY_WAITS = 900, [60, 120, 240, 480, 960, 1800]
+CALL_TIMEOUT, RETRY_WAITS = 1800, [60, 120, 240, 480, 960, 1800]
 FEEDBACK_CHARS = 6000
 
 TASK_PROMPT = """Write Dafny {dafny_version} code that verifies with no errors.
@@ -225,6 +237,17 @@ def parse_reply(cli, stdout):
                     + u.get("cache_read_input_tokens", 0),
                     tokens_out=u["output_tokens"], tool_items=0, usage=u)
     events = [json.loads(line) for line in stdout.splitlines() if line.startswith("{")]
+    if cli == "grok":
+        end = next((e for e in events if e.get("type") == "end"), None)
+        if end is None:
+            raise RuntimeError(f"grok produced no end event: {stdout[-300:]}")
+        u = end["usage"]
+        return dict(text="".join(e["data"] for e in events if e.get("type") == "text"),
+                    model=",".join(end.get("modelUsage", {})),
+                    tokens_in=u["input_tokens"] + u.get("cache_read_input_tokens", 0)
+                    + u.get("cache_creation_input_tokens", 0),
+                    tokens_out=u["output_tokens"],  # already includes reasoning_tokens
+                    tool_items=sum(e.get("type") == "tool_call" for e in events), usage=u)
     items = [e["item"] for e in events if e.get("type") == "item.completed"]
     texts = [i["text"] for i in items if i.get("type") == "agent_message"]
     if not texts:
@@ -330,7 +353,8 @@ def cmd_check_tasks(args):
     so the task is solvable in principle). Imported tasks with no solution skip the first."""
     bad = 0
     for t in load_tasks(args.tasks):
-        ok, out = verify(t, t["solution"]) if t["solution"] else ("none", "")
+        banned = violations(t["solution"])
+        ok, out = (("banned", ", ".join(banned)) if banned else verify(t, t["solution"])) if t["solution"] else ("none", "")
         stub, stub_out = verify(t, t["signature"] + "\n{\n}")
         wf, wf_out = verify(t, t["signature"] + "\n{\n  assume {:axiom} false;\n}")
         fine = ok in ("verified", "none") and stub == "proof_failed" and wf == "verified"

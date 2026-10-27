@@ -21,6 +21,13 @@ BROKEN = {"polymul_karatsuba": "applies << to int; Dafny 4.11 requires a bitvect
           "matrix_multiplication": "dot_product's body fails its own well-formedness check (index out of range)"}
 
 
+def ghost(preamble):
+    """Make the frozen functions and predicates ghost, so an implementation can't run the spec.
+    A by-method declaration made ghost no longer parses, so check-tasks reports it."""
+    return re.sub(r"^(\s*(?:(?:static|opaque)\s+)*)(function|predicate)\b", r"\1ghost \2",
+                  preamble, flags=re.M)
+
+
 def section(text, name):
     m = re.search(rf"// <{name}>\n(.*?)// </{name}>", text, re.S)
     return m.group(1).strip() if m else ""
@@ -43,9 +50,7 @@ def main(src):
         # Declarations before the method (e.g. a datatype) belong with the frozen preamble.
         head, sig = spec[:spec.index("method")], spec[spec.index("method"):]
         preamble = "\n\n".join(p for p in (preamble, section(text, "helpers"), head.strip()) if p)
-        # A by-method declaration made ghost no longer parses, so check-tasks reports it.
-        preamble = re.sub(r"^(\s*(?:(?:static|opaque)\s+)*)(function|predicate)\b", r"\1ghost \2",
-                          preamble, flags=re.M)
+        preamble = ghost(preamble)
         nl = (spec_file.parent / "dafny_nl.txt").read_text().strip()
         intent = re.split(r"(?<=\.)\s", nl, maxsplit=1)[0]
         (OUT / f"{name}.dfy").write_text(
