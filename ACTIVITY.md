@@ -81,3 +81,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **D18:** differential tests sample inputs; they don't prove that lowering preserves meaning.
   - **D28:** WP17 now requires exact verdicts on recorded outputs, and only statistical agreement on reruns, since hosted models don't produce the same output twice.
 - **Awaiting the owner:** D15–D32.
+
+## 2026-10-26 · Owner accepts D15–D32, and the build starts
+- **Goal, restated by the owner:** Babel-17 is a language optimized for LLM coding. It exists to speed up development of model-generated code and to improve how that code performs.
+- **Accepted:**
+  - D15–D32. D11 is superseded by D18.
+  - Activity entries may name the models that did each piece of work.
+- **Next:** WP17, the baseline harness on stock Dafny. Dafny is being installed via Homebrew.

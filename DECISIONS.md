@@ -62,7 +62,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** The toolchain installs as one static binary or a WASM build, with no other compiler.
 - **Touches:** Standard library and tooling.
 
-## D11 · Phase 1 emits Rust or C · Open (answered by D18)
+## D11 · Phase 1 emits Rust or C · Superseded by D18
 - **Date:** 2026-10-26 (spec v0.1)
 - **Question:** From a comment on the Roadmap section: "Should Phase 1 emit Rust first (to reuse Verus and the borrow checker) or C (the F\* route)?"
 - **Touches:** Roadmap.
@@ -85,14 +85,14 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Owner's call. This answers the first question in Risks and open questions ("Is a new language needed at all?") with yes. The Phase 2 gate still governs when Phase 3 starts.
 - **Touches:** Risks and open questions; Success metrics.
 
-## D15 · This file and ACTIVITY.md are the authoritative logs · Proposed
+## D15 · This file and ACTIVITY.md are the authoritative logs · Accepted
 - **Date:** 2026-10-26
 - **Decision:** `DECISIONS.md` is the complete, authoritative decision log. `ACTIVITY.md` is the activity log and also holds the spec's handoff notes. The spec's Decision log section mirrors entries accepted here.
 - **Why:** The owner asked for both logs in the repo. Keeping one authoritative copy stops the spec and the repo from drifting apart, and git gives history and review.
 - **Touches:** How to use this spec; Decision log.
 
 
-## D16 · WP1 splits, and the Lean proof moves after the Phase 2 gate · Proposed
+## D16 · WP1 splits, and the Lean proof moves after the Phase 2 gate · Accepted
 - **Date:** 2026-10-26
 - **Decision:** WP1 splits in two:
   - **WP1a, core semantics (Phase 0):** written typing rules and operational semantics for B17-0 (D20), the core-term interface (interface 6, D27), and an accept/reject suite of programs labelled with their expected verdicts. Done when all three are frozen.
@@ -102,7 +102,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is a scheduling tradeoff. Experiments start much earlier. The price is that, until the kernel exists, verdicts, rewards and repairs rest on the solver (D24), and a later kernel may reject results the solver accepted. Comparable mechanized-soundness efforts took several people several years (RustBelt, CakeML).
 - **Touches:** Roadmap (Phase 0 gate); WP1; WP2; WP3; D3.
 
-## D17 · b17c generates its own proof goals and sends them to Z3 · Proposed
+## D17 · b17c generates its own proof goals and sends them to Z3 · Accepted
 - **Date:** 2026-10-26
 - **Decision:** `b17c` turns programs and contracts into solver queries itself and sends them to Z3, with cvc5 optional later. Babel-17 never translates to Dafny. Dafny serves two other roles:
   - **Baseline:** the comparison language for experiments.
@@ -115,7 +115,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   The cost is roughly two to three times the work of translating to Dafny. Early versions will also be more brittle than Dafny on quantifier-heavy specs.
 - **Touches:** Verification model; WP5; WP6; Roadmap (Phase 1, "SMT verification").
 
-## D18 · Phase 1 emits safe Rust · Proposed (answers D11)
+## D18 · Phase 1 emits safe Rust · Accepted (answers D11)
 - **Date:** 2026-10-26
 - **Decision:** The Phase 1 backend (WP7) emits safe Rust:
   - every emitted crate carries `#![forbid(unsafe_code)]`;
@@ -130,13 +130,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   Verus checks only its own subset, and only with specs attached, so plain emitted Rust isn't enough for it. A separate backend that also emits Verus specs could be added later as a cross-check. The cost of Rust is a rustup install of about 1 GB, needed only when WP7 starts.
 - **Touches:** D11; WP7; WP9; WP12; Roadmap (Phase 1 gate).
 
-## D19 · The toolchain is a Python prototype until Phase 3 · Proposed (defers D10)
+## D19 · The toolchain is a Python prototype until Phase 3 · Accepted (defers D10)
 - **Date:** 2026-10-26
 - **Decision:** `b17c` is written in Python and run with uv through the Phase 2 gate. D10 is deferred until a Rust rewrite opens Phase 3. Until then, `b17c` needs Python and uv, `b17c build` needs `rustc` (D18), and the trusted base report names those toolchains. The rewrite is accepted when it reproduces the prototype's canonical bytes, hashes, verdicts and diagnostic codes on the benchmark corpus.
 - **Why:** Z3's Python bindings are its most mature, and the gym is Python anyway. Until Phase 3 there is one user on one machine. D10 exists to protect outside users, who don't exist yet, and no Python prototype can meet it.
 - **Touches:** D10; WP9; Standard library and tooling (Distribution).
 
-## D20 · The first subset is B17-0 · Proposed
+## D20 · The first subset is B17-0 · Accepted
 - **Date:** 2026-10-26
 - **Decision:** B17-0 contains:
   - **Values:** checked integers, booleans, sequences, shared slices, owned vectors, mutable locals.
@@ -148,7 +148,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · Work package dependencies are rewired · Proposed
+## D21 · Work package dependencies are rewired · Accepted
 - **Date:** 2026-10-26
 - **Decision:** WP4 splits:
   - **WP4a, the spec language:** depends on WP3.
@@ -185,7 +185,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **WP13:** classifying a spec diff takes implication proofs (WP5).
 - **Touches:** Work packages; Specification layer.
 
-## D22 · Definitions get separate spec and implementation hashes · Proposed
+## D22 · Definitions get separate spec and implementation hashes · Accepted
 - **Date:** 2026-10-26
 - **Decision:**
   - **Hashes:** each definition has a spec hash, covering its signature, contracts, effects and cost, and an implementation hash, covering its body plus its own spec hash.
@@ -204,13 +204,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   A cache key without the verification configuration would reuse verdicts after a solver or prelude change.
 - **Touches:** Program representation; Interfaces 1 and 3; Verification model (incremental and cached); D2.
 
-## D23 · What a verdict means · Proposed (refines D7)
+## D23 · What a verdict means · Accepted (refines D7)
 - **Date:** 2026-10-26
 - **Decision:** A goal passes when it's proven under the canonical seed and under N shuffled seeds. N and the resource budget live in the manifest. Solving is single-threaded, and the solver's version and every option are pinned. Each supported platform gets its own pinned solver build, whose hash goes in the trusted base report. A golden-verdict suite runs on every supported platform, and a platform is supported only while its verdicts match.
 - **Why:** Z3's resource count is reproducible only with the same binary and options, binaries differ by platform, and shuffling seeds changes solver behaviour. "Same verdict on any machine" therefore needs a defined verdict and checked agreement between platforms.
 - **Touches:** Design principles (Determinism); Verification model; D7.
 
-## D24 · Solver-trusted results get their own level until the kernel exists · Proposed (refines D6)
+## D24 · Solver-trusted results get their own level until the kernel exists · Accepted (refines D6)
 - **Date:** 2026-10-26
 - **Decision:** Until the kernel exists:
   - **Levels:** a module whose goals are all discharged, some only by the solver, is reported as **L3-S**, not L3. L3 requires every goal to be kernel-checked.
@@ -221,7 +221,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Reviewers report that known SMT-to-kernel proof reconstruction, lean-smt for one, doesn't yet cover sequences or multisets, and the worked example needs both (not yet verified). L3 means "full functional correctness proven". A separate label keeps that meaning honest while the kernel is missing.
 - **Touches:** Verification model (levels); Training environment (reward table, anti-hacking rules); Interfaces 4 and 5; D6.
 
-## D25 · The trusted base report lists goals instead of counting them · Proposed
+## D25 · The trusted base report lists goals instead of counting them · Accepted
 - **Date:** 2026-10-26
 - **Decision:** WP5 owns the report, and WP7 adds the backend fields. The report:
   - lists axioms and solver-trusted, admitted and brittle goals by node ID;
@@ -231,13 +231,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Counts can't tell apart two builds with different admitted goals. The fields come from WP5 and WP4, not WP7. And the example's `x86_64-sysv` doesn't describe an arm64 Mac.
 - **Touches:** Interfaces 5; Interop, packages and the trusted base; WP5; WP7.
 
-## D26 · The manifest and lockfile move to Phase 0 · Proposed
+## D26 · The manifest and lockfile move to Phase 0 · Accepted
 - **Date:** 2026-10-26
 - **Decision:** WP2 owns the manifest and lockfile schemas. WP13 keeps the registry and spec-diff versioning.
 - **Why:** Phase 1 already needs verification levels, `allow_admit`, budgets (D23) and dependency pins, but WP13 is a Phase 3 package.
 - **Touches:** Interfaces 4; WP2; WP13; D9.
 
-## D27 · Interfaces needed before the Phase 2 gate are added, and all interfaces are versioned · Proposed
+## D27 · Interfaces needed before the Phase 2 gate are added, and all interfaces are versioned · Accepted
 - **Date:** 2026-10-26
 - **Decision:** Six interfaces are added:
 
@@ -254,7 +254,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Work packages may only exchange the artifacts listed in Interfaces, but these six pass between pre-gate packages without being defined. "Start once frozen" can't be checked without a status. The later interfaces would only be guesses today.
 - **Touches:** Interfaces; How to use this spec; Work packages.
 
-## D28 · Unowned work gets owners · Proposed
+## D28 · Unowned work gets owners · Accepted
 - **Date:** 2026-10-26
 - **Decision:**
   - **WP15, the reference interpreter (Phase 0):** depends on WP1a and WP2. Done when it passes WP1a's conformance tests. It also serves `simulate`, witness examples and WP7's differential tests.
@@ -269,7 +269,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The done-when tests of WP5, WP6, WP7 and WP11 depend on this work, and no package owns it.
 - **Touches:** Work packages.
 
-## D29 · The worked example is corrected and specialized to integers · Proposed
+## D29 · The worked example is corrected and specialized to integers · Accepted
 - **Date:** 2026-10-26
 - **Decision:** For B17-0, `merge_sorted` takes `&[int]` and returns `Vec<int>`. The generic version returns when generics do, and it requires `T: Copy` and an `Ord` with stated laws (total and transitive) and a pure, terminating comparison. Both versions also make these changes:
   - require that `len(a) + len(b)` fits in the index type;
@@ -287,7 +287,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Vectorization:** the merge's data-dependent branch blocks it.
 - **Touches:** Worked example; Type system; WP4 and WP5 done-when tests.
 
-## D30 · Asymptotic cost proofs and information-flow labels are deferred · Proposed
+## D30 · Asymptotic cost proofs and information-flow labels are deferred · Accepted
 - **Date:** 2026-10-26
 - **Decision:** Before the Phase 2 gate, `b17c` doesn't verify asymptotic bounds such as `O(n log n)`.
   - **Allowed:** specs may state exact operation or allocation counts, such as "at most `len(a) + len(b)` comparisons", and agents prove them with ghost counters.
@@ -296,13 +296,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Proving asymptotic bounds for imperative code with arbitrary comparisons is still research-grade; RAML-style analysis targets functional code. Noninterference needs relational verification or a proven-sound type system.
 - **Touches:** Type system; Specification layer (resource contracts); Worked example (`cost`).
 
-## D31 · The Phase 2 gate also compares against a model trained on Dafny · Proposed
+## D31 · The Phase 2 gate also compares against a model trained on Dafny · Accepted
 - **Date:** 2026-10-26
 - **Decision:** For the Phase 2 gate, the same base model is also trained on Dafny with equal compute. The gym-trained Babel-17 model must beat that model as well as off-the-shelf models.
 - **Why:** As drawn, the gate compares a trained model with untrained ones, so a win could come from training alone rather than from the language.
 - **Touches:** Roadmap (Phase 2 gate); WP11; Success metrics.
 
-## D32 · Success-metric baselines are re-measured on our own harness · Proposed
+## D32 · Success-metric baselines are re-measured on our own harness · Accepted
 - **Date:** 2026-10-26
 - **Decision:** The Success metrics baselines are re-measured on our own harness (WP17), on the same tasks with current models (D13), rather than quoted from papers.
 - **Why:** Reviewers report two problems with the quoted figures, neither verified yet. The vericoding figures (82/44/27%) count a task as solved if any model solved it; the best single model scores about 67.5/30.9/17.9%. And 2026 agentic Dafny results exceed 90% on DafnyBench. Measuring on our own harness settles the question either way.
