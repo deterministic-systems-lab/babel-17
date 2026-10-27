@@ -47,6 +47,9 @@ CLIS = {
               "--disable", "shell_tool", "--disable", "unified_exec", "-m", "gpt-5.6-sol",
               "-c", "model_reasoning_effort=high", "-s", "read-only", "--skip-git-repo-check",
               "--json", "-"],
+    # agy takes the prompt as an argument; "{prompt}" marks where it goes. "-high" is the effort.
+    "gemini": ["agy", "-p", "{prompt}", "--model", "gemini-4-argon-high", "--output-format", "json",
+               "--disable-slash-commands"],
 }
 CALL_TIMEOUT, RETRY_WAITS = 900, [60, 120, 240, 480, 960, 1800]
 FEEDBACK_CHARS = 6000
@@ -121,24 +124,39 @@ def param_names(params):
     return names
 
 
+def parenthesized(text, start):
+    """The text inside the parentheses opening at text[start], and the index after them."""
+    depth = 0
+    for i in range(start, len(text)):
+        depth += (text[i] == "(") - (text[i] == ")")
+        if depth == 0:
+            return text[start + 1:i], i + 1
+    raise ValueError(f"unbalanced parentheses in: {text[start:start + 80]}")
+
+
 def load_task(path):
     text = path.read_text()
     parts = re.split(r"^//== (preamble|signature|solution)\s*$", text, flags=re.M)
     sec = {k: v.strip() for k, v in zip(parts[1::2], parts[2::2])}
     meta = dict(re.findall(r"^// (\w+): (.*)$", parts[0], re.M))
     sig = sec["signature"]
-    m = re.match(r"method\s+(\w+)\s*\((.*?)\)\s*(?:returns\s*\((.*?)\))?", sig, re.S)
-    name, rets = m.group(1), param_names(m.group(3) or "")
-    call = f"{', '.join(rets)} := " if rets else ""
-    check = (f"method {name}_Check{sig[m.end(1):m.end()]}{sig[m.end():]}\n"
-             f"{{\n  {call}{name}({', '.join(param_names(m.group(2)))});\n}}")
-    return dict(id=path.stem, name=name, preamble=sec["preamble"], signature=sig,
+    m = re.match(r"method\s+(\w+)\s*(?:<[^(]*>)?\s*", sig)
+    name = m.group(1)
+    params, end = parenthesized(sig, m.end())
+    r = re.match(r"\s*returns\s*", sig[end:])
+    rets, end = parenthesized(sig, end + r.end()) if r else ("", end)
+    call = f"{', '.join(param_names(rets))} := " if rets else ""
+    check = (f"method {name}_Check{sig[m.end(1):]}\n"
+             f"{{\n  {call}{name}({', '.join(param_names(params))});\n}}")
+    return dict(id=str(path.relative_to(TASKS).with_suffix("")), name=name, preamble=sec["preamble"], signature=sig,
                 solution=sec["solution"], check=check, **meta)
 
 
 def load_tasks(only=None):
-    tasks = [load_task(p) for p in sorted(TASKS.glob("*.dfy"))]
-    return [t for t in tasks if not only or t["id"] in only]
+    tasks = [load_task(p) for p in sorted(TASKS.rglob("*.dfy"))]
+    # An entry ending in "/" selects a whole task set, e.g. "algoveri/".
+    return [t for t in tasks if not only
+            or any(t["id"] == o or (o.endswith("/") and t["id"].startswith(o)) for o in only)]
 
 
 def violations(code):
@@ -182,8 +200,21 @@ def extract_code(text):
     return None
 
 
+def model_of(cli):
+    cmd = CLIS[cli]
+    return next(cmd[i + 1] for i, a in enumerate(cmd) if a in ("-m", "--model"))
+
+
 def parse_reply(cli, stdout):
     """Normalize a CLI's output to text, token counts and raw usage."""
+    if cli == "gemini":
+        d = json.loads(stdout)
+        if d.get("status") != "SUCCESS":
+            raise RuntimeError(f"agy status {d.get('status')}: {stdout[:300]}")
+        u = d["usage"]
+        # output_tokens already includes thinking_tokens (total_tokens = input + output).
+        return dict(text=d["response"], model=model_of(cli), tokens_in=u["input_tokens"],
+                    tokens_out=u["output_tokens"], tool_items=d.get("num_turns", 1) - 1, usage=u)
     if cli == "claude":
         d = json.loads(stdout)
         if d.get("is_error"):
@@ -200,7 +231,7 @@ def parse_reply(cli, stdout):
         raise RuntimeError("codex produced no agent message")
     usage = [e["usage"] for e in events if e.get("type") == "turn.completed"]
     u = {k: sum(x.get(k, 0) for x in usage) for k in usage[0]} if usage else {}
-    return dict(text=texts[-1], model="gpt-5.6-sol",
+    return dict(text=texts[-1], model=model_of(cli),
                 tokens_in=u.get("input_tokens", 0),
                 tokens_out=u.get("output_tokens", 0),  # already includes reasoning_output_tokens
                 tool_items=sum(i.get("type") not in ("agent_message", "reasoning") for i in items),
@@ -213,7 +244,9 @@ def call_cli(cli, prompt):
     for wait in RETRY_WAITS + [None]:
         with tempfile.TemporaryDirectory() as d:
             try:
-                p = subprocess.run(CLIS[cli], input=prompt, capture_output=True, text=True,
+                as_arg = "{prompt}" in CLIS[cli]
+                p = subprocess.run([prompt if a == "{prompt}" else a for a in CLIS[cli]],
+                                   input="" if as_arg else prompt, capture_output=True, text=True,
                                    cwd=d, timeout=CALL_TIMEOUT)
                 if p.returncode != 0:
                     raise RuntimeError(f"exit {p.returncode}: {(p.stderr or p.stdout)[-500:]}")
@@ -290,16 +323,17 @@ def read_records(run_dir):
 
 
 def cmd_check_tasks(args):
-    """Every reference solution verifies, and an empty body does not."""
+    """Every reference solution verifies, and an empty body is a proof failure: not
+    vacuously true and not ill-formed. Imported tasks with no solution skip the first."""
     bad = 0
     for t in load_tasks(args.tasks):
-        ok, out = verify(t, t["solution"])
-        stub, _ = verify(t, t["signature"] + "\n{\n}")
-        fine = ok == "verified" and stub != "verified"
+        ok, out = verify(t, t["solution"]) if t["solution"] else ("none", "")
+        stub, stub_out = verify(t, t["signature"] + "\n{\n}")
+        fine = ok in ("verified", "none") and stub == "proof_failed"
         bad += not fine
-        print(f"{'ok ' if fine else 'BAD'} {t['id']:18} solution={ok:13} empty-body={stub}")
-        if ok != "verified":
-            print("    " + out.replace("\n", "\n    ")[:2000])
+        print(f"{'ok ' if fine else 'BAD'} {t['id']:34} solution={ok:13} empty-body={stub}")
+        if not fine:
+            print("    " + (out if ok not in ("verified", "none") else stub_out).replace("\n", "\n    ")[:2000])
     print(f"{bad} problem(s)")
     return 1 if bad else 0
 
@@ -386,7 +420,7 @@ def summarize(run_id):
             final_stages={s: sum(r["stage"] == s for r in done) for s in sorted({r["stage"] for r in done})},
             by_difficulty={d: f"{sum(r['stage'] == 'verified' for r in done if r.get('difficulty') == d)}"
                               f"/{sum(r.get('difficulty') == d for r in done)}"
-                           for d in ("easy", "medium", "hard")})
+                           for d in sorted({r.get("difficulty") for r in done}, key=str)})
     return stats
 
 

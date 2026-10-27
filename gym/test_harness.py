@@ -20,6 +20,11 @@ assert h.violations("lemma {:induction xs} L(xs: seq<int>) {} // {:axiom} @Axiom
 assert h.extract_code("x\n```dafny\nA\n```\ny\n```dafny\nB\n```") == "B"
 assert h.extract_code("no code here") is None
 
+# Tuple types contain parentheses and commas; the wrapper must still find the parameters.
+ac = h.load_task(h.TASKS / "algoveri/ac_automata.dfy")
+assert ac["id"] == "algoveri/ac_automata"
+assert ac["check"].rstrip().endswith("results := ac_automata_search(haystack, patterns);\n}")
+
 abs_task = h.load_task(h.TASKS / "abs.dfy")
 assert abs_task["check"].startswith("method Abs_Check(x: int) returns (y: int)")
 assert abs_task["check"].rstrip().endswith("y := Abs(x);\n}")
