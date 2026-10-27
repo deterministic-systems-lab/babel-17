@@ -6,7 +6,7 @@
 // path[0] == 0
 // path[last] == target_index
 // path[k+1] is reachable from path[k]
-predicate is_valid_jump_path(path: seq<int>, nums: seq<int>) {
+ghost predicate is_valid_jump_path(path: seq<int>, nums: seq<int>) {
     if |path| < 1 then
         false
     else

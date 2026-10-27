@@ -135,3 +135,99 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - a flat 15-point rerun tolerance, to be replaced by a paired bootstrap for M3;
   - one process per run ID.
 - **Next on the critical path (D21):** WP1a (B17-0 core semantics) and WP2 (canonical form).
+
+## 2026-10-27 · Gemini joins the harness; AlgoVeri imported
+- **Asked by the owner:** use Grok and Antigravity too ("Please do").
+- **Built:**
+  - **A `gemini` CLI in the harness:** `agy -p` running `gemini-4-argon-high`, with JSON output. agy takes the prompt as an argument rather than on stdin. Its output token count already includes thinking.
+  - **`gym/import_algoveri.py`:** ports AlgoVeri's Dafny specs (commit `8e313b0e8110`, Apache-2.0) into the task format, with the license alongside. AlgoVeri has no reference solutions, so ported tasks have none.
+  - **Signature parsing** now balances parentheses, for tuple return types.
+- **Ported:** 66 of 77 tasks. Skipped:
+  - 10 class-based tasks (heap, queue, ring buffer, stack, union-find), because the generated check wrapper calls a top-level method;
+  - `polymul_karatsuba`, which applies `<<` to an `int` and so doesn't type-check in Dafny 4.11.
+- **Run `20261027T043411Z-gemini`** (seed tasks): 60/60 verified, mean rounds 1.00, 9,013 tokens per verified task. `reverify` reproduced 60/60.
+- **Antigravity for porting:** not needed. AlgoVeri's sections are regular enough for a script. It stays in reserve for messier sources (vericoding, DafnyBench).
+- **Grok:** waits for the owner to sign in.
+
+## 2026-10-27 · B17-0 core semantics drafted (WP1a), for owner review
+- **WP advanced:** WP1a (D16, D20), in progress.
+- **Written by Claude (`claude-opus-5-5`):** `docs/b17-0.md`. It covers:
+  - the worked example (`merge_sorted`);
+  - grammar and canonical form;
+  - types;
+  - runtime and ghost contexts;
+  - ownership;
+  - effects;
+  - typing rules;
+  - semantics;
+  - proof goals;
+  - how a task is posed;
+  - what's left out;
+  - the accept/reject suite plan.
+- **Reviews and fixes:**
+  - **Codex (`gpt-5.6-sol`), full review:**
+    - `%` and `/` at MIN/−1;
+    - ghost variables used at runtime;
+    - untyped `set`;
+    - returns and panics inside loops;
+    - modular calls and lemmas;
+    - aliasing through `g(v, v)`;
+    - termination measures;
+    - effects;
+    - a name conflict;
+    - D29's precondition;
+    - `partition`;
+    - `count`, renamed `occurrences`;
+    - `neg`.
+  - **Gemini (`gemini-4-argon-high`):**
+    - aliasing through `if`;
+    - proof goals for loop conditions;
+    - signed literals;
+    - exact goals for ghost operations;
+    - core-library scope;
+    - weakest-precondition (wp) formulas written out.
+  - **Codex delta re-check:**
+    - `while` in ghost context;
+    - result lists in the semantics;
+    - left-to-right moves on `return`.
+- **Proposed:** D33–D43, in DECISIONS.md.
+- **Interfaces touched:** interface 1 (the semantics) is drafted, not frozen.
+- **Proofs and tests added:** none yet. The accept/reject suite (§12) follows acceptance.
+- **Awaiting the owner:** `docs/b17-0.md` and D33–D43.
+
+## 2026-10-27 · AlgoVeri three-way baseline
+- **Run `20261027T043958Z-claude-codex-gemini`:** 66 AlgoVeri tasks × 3 CLIs × 1 sample, up to 8 rounds, 6 jobs, from 04:40 to 14:38 UTC.
+
+  | CLI | Verified | Mean rounds | Tokens per verified task |
+  |---|---|---|---|
+  | Claude (`claude-opus-5-5`) | 64/66 | 1.41 | 27,344 |
+  | Codex (`gpt-5.6-sol`) | 60/66 | 2.05 | 62,388 |
+  | Gemini (`gemini-4-argon-high`) | 28/28 finished | 1.07 | 30,926 |
+- **Gemini ran out of quota after 28 tasks.** Antigravity returned `429 Individual quota reached … Resets in 158h`, so 38 attempts ended as infra errors (2 timeouts, 36 quota). On the 28 tasks Gemini finished, Claude and Codex also verified 28/28, so these results can't rank the three models.
+- **`reverify`:** 314/314 recorded verdicts reproduced exactly, every round that produced code (one Codex reply had none).
+- **Failures (all after 8 rounds):**
+  - **Claude:** `matrix_multiplication` and `rod_cutting` (proof failed).
+  - **Codex:**
+    - `matrix_multiplication`, `prim` and `push_relabel` (proof failed);
+    - `kruskal` and `rod_cutting` (rejected: a parse error);
+    - `edmond_karp` (out of resource).
+- **Findings:**
+  - **AlgoVeri is near the ceiling too.** About 40% was the reported figure for frontier models; here Claude verifies 97% and Codex 91%, with feedback rounds. Hard tasks for M3 must come from elsewhere, or be written (WP10).
+  - **One upstream spec is unsolvable:** `matrix_multiplication`. Its `dot_product` fails its own well-formedness check (index out of range), so no solution can verify. Both failing models spent all 8 rounds on it. `check-tasks` didn't catch this, because for a task without a solution it only required that an empty body fail, and a broken preamble also fails.
+  - **The import didn't make preamble functions ghost,** unlike the seed tasks. Re-checked with ghost preambles and no chance to repair, 17 of the 85 affected verified solutions fail (Claude 6, Codex 10, Gemini 1). Most of those declare their own helper predicate without `ghost`, which one round of feedback fixes. About 5 genuinely evaluate the spec at runtime to brute-force the answer:
+    - `linearsys_gf2` (both): try every vector;
+    - `discrete_logarithm` (Codex): test each exponent with the spec's power function;
+    - `ac_automata` (Claude) and `kmp` (Codex): naive matching instead of the named algorithm.
+  - **Design signal:** a functional spec can't tell Aho-Corasick from naive search, so the named algorithm is never enforced. That is the cost question deferred in D29. Making the spec ghost only forces the brute force to be written out.
+  - **Codex spends 2.3× Claude's tokens** per verified task, and needs more rounds.
+- **Fixed after the run:**
+  - **`check-tasks`:** a body of `assume {:axiom} false` must now verify. That proves the frozen preamble and contracts are well-formed, so each task is solvable in principle.
+  - **Importer:** preamble functions and predicates are made `ghost`, and `matrix_multiplication` is marked BROKEN. Re-imported: 65 tasks.
+  - **`call_cli`:** a quota that resets after the whole retry budget now fails at once. Gemini's 38 lost attempts spent about an hour each in retries, which stretched the run from about 4 hours to 10.
+  - **Reviewed by Codex.** Two fixes came out of it: the ghost rewrite now also covers `static` and `opaque` declarations, and the reset time now counts minutes. A `by method` declaration made ghost no longer parses, so `check-tasks` reports it rather than missing it.
+- **Consequences:**
+  - The task files no longer match this run's fingerprint, so it can't be resumed or re-verified in place; git history keeps the task files it ran against.
+  - Gemini's remaining tasks run as a new run after its quota resets (around 2026-11-02).
+- **Interfaces touched:** none.
+- **Proofs and tests added:** the quota case in `test_harness.py`, and the well-formedness check in `check-tasks`.
+- **Left admitted:** none.

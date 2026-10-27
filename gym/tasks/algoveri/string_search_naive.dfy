@@ -2,7 +2,7 @@
 // difficulty: algoveri
 // source: AlgoVeri 8e313b0e8110 algoveri_data/string_search_naive/dafny_spec.dfy (Apache-2.0)
 //== preamble
-predicate matches_at(haystack: seq<int>, needle: seq<int>, start_index: int) {
+ghost predicate matches_at(haystack: seq<int>, needle: seq<int>, start_index: int) {
     && 0 <= start_index
     && start_index + |needle| <= |haystack|
     && forall i :: 0 <= i < |needle| ==> 

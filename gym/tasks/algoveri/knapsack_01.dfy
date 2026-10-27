@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/knapsack_01/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Calculates the total weight of the selected items
-function total_weight(selected: seq<bool>, weights: seq<int>): int
+ghost function total_weight(selected: seq<bool>, weights: seq<int>): int
     requires |selected| <= |weights|
     decreases |selected|
 {
@@ -15,7 +15,7 @@ function total_weight(selected: seq<bool>, weights: seq<int>): int
 }
 
 // Calculates the total value of the selected items
-function total_value(selected: seq<bool>, values: seq<int>): int
+ghost function total_value(selected: seq<bool>, values: seq<int>): int
     requires |selected| <= |values|
     decreases |selected|
 {
@@ -29,7 +29,7 @@ function total_value(selected: seq<bool>, values: seq<int>): int
 // Definition of a valid strategy: 
 // 1. Selection length matches items length
 // 2. Total weight does not exceed capacity
-predicate is_valid_strategy(selected: seq<bool>, weights: seq<int>, capacity: int)
+ghost predicate is_valid_strategy(selected: seq<bool>, weights: seq<int>, capacity: int)
 {
     |selected| == |weights| &&
     total_weight(selected, weights) <= capacity

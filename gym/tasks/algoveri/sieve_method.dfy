@@ -2,13 +2,13 @@
 // difficulty: algoveri
 // source: AlgoVeri 8e313b0e8110 algoveri_data/sieve_method/dafny_spec.dfy (Apache-2.0)
 //== preamble
-predicate divides(d: int, n: int)
+ghost predicate divides(d: int, n: int)
   requires d != 0
 {
   n % d == 0
 }
 
-predicate is_prime(n: int)
+ghost predicate is_prime(n: int)
 {
   n > 1 &&
   forall d :: 1 < d < n ==> !divides(d, n)

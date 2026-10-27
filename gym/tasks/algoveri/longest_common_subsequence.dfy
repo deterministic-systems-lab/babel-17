@@ -3,12 +3,12 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/longest_common_subsequence/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Helper for max
-function max(a: int, b: int): int {
+ghost function max(a: int, b: int): int {
     if a > b then a else b
 }
 
 // LCS recursive specification
-function lcs_spec(s1: seq<char>, s2: seq<char>): int
+ghost function lcs_spec(s1: seq<char>, s2: seq<char>): int
     decreases |s1|, |s2|
 {
     if |s1| == 0 || |s2| == 0 then

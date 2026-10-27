@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/coin_change/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Calculates total monetary value: sum(counts[i] * coins[i])
-function total_amount(counts: seq<int>, coins: seq<int>): int
+ghost function total_amount(counts: seq<int>, coins: seq<int>): int
     requires |counts| == |coins|
     decreases |counts|
 {
@@ -15,7 +15,7 @@ function total_amount(counts: seq<int>, coins: seq<int>): int
 }
 
 // Calculates total number of coins used: sum(counts[i])
-function total_coins(counts: seq<int>): int
+ghost function total_coins(counts: seq<int>): int
     decreases |counts|
 {
     if |counts| == 0 then
@@ -28,7 +28,7 @@ function total_coins(counts: seq<int>): int
 // 1. One count per coin type
 // 2. All counts non-negative
 // 3. Total value equals target amount
-predicate is_valid_change(counts: seq<int>, coins: seq<int>, amount: int) {
+ghost predicate is_valid_change(counts: seq<int>, coins: seq<int>, amount: int) {
     |counts| == |coins| &&
     (forall i: int :: 0 <= i < |counts| ==> counts[i] >= 0) &&
     total_amount(counts, coins) == amount

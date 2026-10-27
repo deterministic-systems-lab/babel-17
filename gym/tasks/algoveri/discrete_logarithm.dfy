@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/discrete_logarithm/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Recursive definition of Modular Exponentiation: (b^e) % m
-function spec_pow_mod(b: int, e: int, m: int): int
+ghost function spec_pow_mod(b: int, e: int, m: int): int
   decreases e
   requires m > 1
 {
@@ -14,7 +14,7 @@ function spec_pow_mod(b: int, e: int, m: int): int
 }
 
 // The predicate that defines a valid Discrete Logarithm x
-predicate is_discrete_log(g: int, h: int, p: int, x: int)
+ghost predicate is_discrete_log(g: int, h: int, p: int, x: int)
   requires p > 1
 {
   spec_pow_mod(g, x, p) == h % p

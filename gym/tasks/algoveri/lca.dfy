@@ -5,7 +5,7 @@
 datatype Tree = Nil | Node(val: int, left: Tree, right: Tree)
 
 datatype Option<T> = None | Some(get: T) {
-    predicate is_some() { this.Some? }
+    ghost predicate is_some() { this.Some? }
 }
 
 // Standard view as a Set of values

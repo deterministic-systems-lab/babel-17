@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/integer_exponential/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Pure mathematical definition of power
-function spec_pow(b: nat, e: nat): nat
+ghost function spec_pow(b: nat, e: nat): nat
   decreases e
 {
   if e == 0 then

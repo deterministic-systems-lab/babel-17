@@ -10,14 +10,14 @@ datatype Node = Node(
     children: seq<Option<Node>>
 ) {
     // A node is "empty" (useless) if it marks no key and leads to no keys.
-    predicate is_empty() 
+    ghost predicate is_empty() 
         requires |this.children| == 256
     {
         !this.is_end && (forall i: int {:trigger this.children[i]} :: 0 <= i < 256 ==> this.children[i].None?)
     }
 
     // Standard structural integrity + The Pruning Invariant
-    predicate well_formed() 
+    ghost predicate well_formed() 
         decreases this
     {
         // 1. Must have exactly 256 slots (for u8)
@@ -36,7 +36,7 @@ datatype Node = Node(
     }
 
     // Recursive definition of containment
-    function contains(key: seq<int>): bool
+    ghost function contains(key: seq<int>): bool
         decreases |key|
     {
         if |key| == 0 then
@@ -65,7 +65,7 @@ ghost function opt_view(node: Option<Node>): iset<seq<int>> {
     }
 }
 
-predicate opt_well_formed(node: Option<Node>) {
+ghost predicate opt_well_formed(node: Option<Node>) {
     match node {
         case Some(n) => 
             // The node structure is valid

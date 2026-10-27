@@ -5,14 +5,14 @@
 // Definition of a Palindrome:
 // A sequence is a palindrome if for every index i, the character at i
 // is identical to the character at the symmetric position from the end.
-predicate is_palindrome(s: seq<int>) {
+ghost predicate is_palindrome(s: seq<int>) {
     // We trigger on s[i] so the solver knows to use this rule 
     // whenever it sees an access to s at index i.
     forall i :: 0 <= i < |s| ==> s[i] == s[|s| - 1 - i]
 }
 
 // Helper to check validity of a subrange within a larger sequence.
-predicate is_valid_subrange(s: seq<int>, start: int, len: int) {
+ghost predicate is_valid_subrange(s: seq<int>, start: int, len: int) {
     && 0 <= start
     && 0 <= len
     && start + len <= |s|

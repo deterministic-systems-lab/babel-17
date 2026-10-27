@@ -2,7 +2,7 @@
 // difficulty: algoveri
 // source: AlgoVeri 8e313b0e8110 algoveri_data/linear_search/dafny_spec.dfy (Apache-2.0)
 //== preamble
-predicate is_sorted(s: seq<int>) {
+ghost predicate is_sorted(s: seq<int>) {
     forall i, j {:trigger s[i], s[j]} :: 
         0 <= i <= j < |s| ==> s[i] <= s[j]
 }

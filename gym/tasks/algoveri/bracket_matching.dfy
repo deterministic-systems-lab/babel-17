@@ -6,7 +6,7 @@
 // '(' (ASCII 40) adds 1 (opening a scope)
 // ')' (ASCII 41) subtracts 1 (closing a scope)
 // All other characters are neutral (0).
-function char_weight(c: int): int {
+ghost function char_weight(c: int): int {
     if c == 40 then      // ASCII for '('
         1
     else if c == 41 then // ASCII for ')'
@@ -17,7 +17,7 @@ function char_weight(c: int): int {
 
 // Recursively calculates the total balance of the sequence.
 // A balanced string must result in a total weight of 0.
-function total_weight(s: seq<int>): int
+ghost function total_weight(s: seq<int>): int
     decreases |s|
 {
     if |s| == 0 then
@@ -29,12 +29,12 @@ function total_weight(s: seq<int>): int
 // Checks the Prefix Property:
 // At no point in the string (index i) should the closing brackets exceed opening brackets.
 // If this is violated (weight < 0), the string is invalid immediately.
-predicate valid_prefix_weights(s: seq<int>) {
+ghost predicate valid_prefix_weights(s: seq<int>) {
     forall i :: 0 <= i <= |s| ==> total_weight(s[0..i]) >= 0
 }
 
 // The high-level correctness predicate for bracket matching.
-predicate is_matched(s: seq<int>) {
+ghost predicate is_matched(s: seq<int>) {
     && total_weight(s) == 0       // Must end with closed pairs
     && valid_prefix_weights(s)    // Must never close a non-existent pair
 }

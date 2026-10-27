@@ -4,9 +4,10 @@
     uv run gym/import_algoveri.py <dir>
 
 AlgoVeri (Apache-2.0) has no reference solutions, so ported tasks have an empty solution
-section; check-tasks then only requires that an empty body fails. Tasks whose method
-lives inside a class are skipped: the generated <Name>_Check wrapper calls a top-level
-method.
+section; check-tasks then requires only that an empty body fails and that the frozen
+contracts are well-formed. Preamble functions and predicates are made ghost, as in the
+seed tasks, so an implementation can't run the spec itself. Tasks whose method lives
+inside a class are skipped: the generated <Name>_Check wrapper calls a top-level method.
 """
 import re
 import shutil
@@ -15,8 +16,9 @@ import sys
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "tasks" / "algoveri"
-# Specs Dafny 4.11 rejects as written, so no agent could solve them.
-BROKEN = {"polymul_karatsuba": "applies << to int; Dafny 4.11 requires a bitvector type"}
+# Specs that are ill-formed under Dafny 4.11 as written, so no agent could solve them.
+BROKEN = {"polymul_karatsuba": "applies << to int; Dafny 4.11 requires a bitvector type",
+          "matrix_multiplication": "dot_product's body fails its own well-formedness check (index out of range)"}
 
 
 def section(text, name):
@@ -41,6 +43,9 @@ def main(src):
         # Declarations before the method (e.g. a datatype) belong with the frozen preamble.
         head, sig = spec[:spec.index("method")], spec[spec.index("method"):]
         preamble = "\n\n".join(p for p in (preamble, section(text, "helpers"), head.strip()) if p)
+        # A by-method declaration made ghost no longer parses, so check-tasks reports it.
+        preamble = re.sub(r"^(\s*(?:(?:static|opaque)\s+)*)(function|predicate)\b", r"\1ghost \2",
+                          preamble, flags=re.M)
         nl = (spec_file.parent / "dafny_nl.txt").read_text().strip()
         intent = re.split(r"(?<=\.)\s", nl, maxsplit=1)[0]
         (OUT / f"{name}.dfy").write_text(

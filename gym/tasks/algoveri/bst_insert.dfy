@@ -4,7 +4,7 @@
 //== preamble
 datatype Tree = Empty | Node(val: int, left: Tree, right: Tree)
 
-function view(tree: Tree): set<int>
+ghost function view(tree: Tree): set<int>
     decreases tree
 {
     match tree
@@ -12,7 +12,7 @@ function view(tree: Tree): set<int>
     case Node(val, left, right) => view(left) + view(right) + {val}
 }
 
-predicate is_bst(tree: Tree)
+ghost predicate is_bst(tree: Tree)
     decreases tree
 {
     match tree

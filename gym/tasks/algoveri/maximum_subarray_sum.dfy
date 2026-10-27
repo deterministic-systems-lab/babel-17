@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/maximum_subarray_sum/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Recursive definition of sum for a sequence slice [start, end)
-function spec_sum(s: seq<int>, start: int, end: int): int
+ghost function spec_sum(s: seq<int>, start: int, end: int): int
     requires 0 <= start <= end <= |s|
     decreases end - start
 {

@@ -3,20 +3,20 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/linearsys_gf2/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // 1. Field Arithmetic Helpers (GF(2))
-function add_gf2(a: int, b: int): int {
+ghost function add_gf2(a: int, b: int): int {
     (a + b) % 2
 }
 
-function mul_gf2(a: int, b: int): int {
+ghost function mul_gf2(a: int, b: int): int {
     (a * b) % 2
 }
 
 // 2. Validity Checks
-predicate is_binary_vector(v: seq<int>) {
+ghost predicate is_binary_vector(v: seq<int>) {
     forall i :: 0 <= i < |v| ==> (v[i] == 0 || v[i] == 1)
 }
 
-predicate is_binary_matrix(m: seq<seq<int>>, rows: int, cols: int) {
+ghost predicate is_binary_matrix(m: seq<seq<int>>, rows: int, cols: int) {
     |m| == rows &&
     // Added trigger { |m[i]| } implicitly via access or explicit if needed
     (forall i :: 0 <= i < rows ==> |m[i]| == cols) &&
@@ -26,7 +26,7 @@ predicate is_binary_matrix(m: seq<seq<int>>, rows: int, cols: int) {
 
 // 3. Dot Product Specification (Row * Vector)
 // Recursive definition matching the Verus spec
-function spec_dot_product_gf2(row: seq<int>, x: seq<int>, k: int): int
+ghost function spec_dot_product_gf2(row: seq<int>, x: seq<int>, k: int): int
     decreases if k < 0 then 0 else k + 1
 {
     if k < 0 then
@@ -43,7 +43,7 @@ function spec_dot_product_gf2(row: seq<int>, x: seq<int>, k: int): int
 }
 
 // 4. Matrix-Vector Multiplication Specification
-predicate is_solution(a: seq<seq<int>>, b: seq<int>, x: seq<int>) {
+ghost predicate is_solution(a: seq<seq<int>>, b: seq<int>, x: seq<int>) {
     |a| == |b| &&
     |a| > 0 &&
     |x| == |a[0]| &&
@@ -58,11 +58,11 @@ predicate is_solution(a: seq<seq<int>>, b: seq<int>, x: seq<int>) {
 // Since the input is already seq<seq<int>>, we don't strictly need them
 // but we define identity mappings for structural alignment.
 
-function to_int_vec(s: seq<int>): seq<int> {
+ghost function to_int_vec(s: seq<int>): seq<int> {
     s
 }
 
-function to_int_mat(s: seq<seq<int>>): seq<seq<int>> {
+ghost function to_int_mat(s: seq<seq<int>>): seq<seq<int>> {
     s
 }
 

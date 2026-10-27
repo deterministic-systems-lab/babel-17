@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/house_robber/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Calculates total loot: sum of nums[i] for all i in 'houses'
-function total_loot(houses: seq<int>, nums: seq<int>): int
+ghost function total_loot(houses: seq<int>, nums: seq<int>): int
     decreases |houses|
 {
     if |houses| == 0 then
@@ -18,7 +18,7 @@ function total_loot(houses: seq<int>, nums: seq<int>): int
 // 1. All indices are chosen from valid range [0, nums.len())
 // 2. No duplicates in choices
 // 3. No two indices are adjacent (|h1 - h2| > 1)
-predicate is_valid_robbery(houses: seq<int>, nums_len: int) {
+ghost predicate is_valid_robbery(houses: seq<int>, nums_len: int) {
     // We enforce the sequence of chosen houses to be sorted strictly increasing
     // This simplifies "no duplicates" and "no adjacent" checking.
     // E.g. [0, 2, 5] is valid. [0, 1] is invalid (adj). [2, 0] invalid (not sorted).

@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/knapsack_unbounded/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Calculates the total weight of the selected items: sum(count[i] * weight[i])
-function total_weight(counts: seq<int>, weights: seq<int>): int
+ghost function total_weight(counts: seq<int>, weights: seq<int>): int
     requires |counts| <= |weights|
     decreases |counts|
 {
@@ -15,7 +15,7 @@ function total_weight(counts: seq<int>, weights: seq<int>): int
 }
 
 // Calculates the total value of the selected items: sum(count[i] * value[i])
-function total_value(counts: seq<int>, values: seq<int>): int
+ghost function total_value(counts: seq<int>, values: seq<int>): int
     requires |counts| <= |values|
     decreases |counts|
 {
@@ -30,7 +30,7 @@ function total_value(counts: seq<int>, values: seq<int>): int
 // 1. Counts length matches items length
 // 2. All counts are non-negative
 // 3. Total weight does not exceed capacity
-predicate is_valid_strategy(counts: seq<int>, weights: seq<int>, capacity: int)
+ghost predicate is_valid_strategy(counts: seq<int>, weights: seq<int>, capacity: int)
 {
     |counts| == |weights| &&
     (forall i :: 0 <= i < |counts| ==> counts[i] >= 0) &&

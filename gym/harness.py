@@ -253,7 +253,9 @@ def call_cli(cli, prompt):
                 return dict(parse_reply(cli, p.stdout), errors=errors)
             except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
                 errors.append(str(e)[-500:])
-        if wait is None:
+        # A quota that resets after the whole retry budget won't recover by waiting (agy's wording).
+        reset = re.search(r"Resets in (\d+)h(?:(\d+)m)?", errors[-1])
+        if wait is None or reset and int(reset[1]) * 3600 + int(reset[2] or 0) * 60 > sum(RETRY_WAITS):
             return dict(error=errors[-1], errors=errors)
         time.sleep(wait)
 
@@ -323,17 +325,20 @@ def read_records(run_dir):
 
 
 def cmd_check_tasks(args):
-    """Every reference solution verifies, and an empty body is a proof failure: not
-    vacuously true and not ill-formed. Imported tasks with no solution skip the first."""
+    """Every reference solution verifies; an empty body is a proof failure (not vacuously
+    true); an assume-false body verifies (the frozen preamble and contracts are well-formed,
+    so the task is solvable in principle). Imported tasks with no solution skip the first."""
     bad = 0
     for t in load_tasks(args.tasks):
         ok, out = verify(t, t["solution"]) if t["solution"] else ("none", "")
         stub, stub_out = verify(t, t["signature"] + "\n{\n}")
-        fine = ok in ("verified", "none") and stub == "proof_failed"
+        wf, wf_out = verify(t, t["signature"] + "\n{\n  assume {:axiom} false;\n}")
+        fine = ok in ("verified", "none") and stub == "proof_failed" and wf == "verified"
         bad += not fine
-        print(f"{'ok ' if fine else 'BAD'} {t['id']:34} solution={ok:13} empty-body={stub}")
+        print(f"{'ok ' if fine else 'BAD'} {t['id']:34} solution={ok:13} empty-body={stub:13} well-formed={wf}")
         if not fine:
-            print("    " + (out if ok not in ("verified", "none") else stub_out).replace("\n", "\n    ")[:2000])
+            why = out if ok not in ("verified", "none") else wf_out if wf != "verified" else stub_out
+            print("    " + why.replace("\n", "\n    ")[:2000])
     print(f"{bad} problem(s)")
     return 1 if bad else 0
 

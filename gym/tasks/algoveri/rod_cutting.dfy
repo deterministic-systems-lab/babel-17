@@ -3,7 +3,7 @@
 // source: AlgoVeri 8e313b0e8110 algoveri_data/rod_cutting/dafny_spec.dfy (Apache-2.0)
 //== preamble
 // Calculates the total length of the pieces
-function sum_lengths(cuts: seq<int>): int
+ghost function sum_lengths(cuts: seq<int>): int
     decreases |cuts|
 {
     if |cuts| == 0 then
@@ -13,7 +13,7 @@ function sum_lengths(cuts: seq<int>): int
 }
 
 // Helper: Safe price lookup that returns 0 for out-of-bounds
-function get_price(prices: seq<int>, idx: int): int {
+ghost function get_price(prices: seq<int>, idx: int): int {
     if 0 <= idx < |prices| then
         prices[idx]
     else
@@ -21,7 +21,7 @@ function get_price(prices: seq<int>, idx: int): int {
 }
 
 // Calculates revenue recursively.
-function calculate_revenue(cuts: seq<int>, prices: seq<int>): int
+ghost function calculate_revenue(cuts: seq<int>, prices: seq<int>): int
     decreases |cuts|
 {
     if |cuts| == 0 then
@@ -33,7 +33,7 @@ function calculate_revenue(cuts: seq<int>, prices: seq<int>): int
 }
 
 // Definition of a valid strategy: positive cuts, valid prices, sums to n
-predicate is_valid_strategy(cuts: seq<int>, n: int, prices: seq<int>) {
+ghost predicate is_valid_strategy(cuts: seq<int>, n: int, prices: seq<int>) {
     (forall i: int :: 0 <= i < |cuts| ==> cuts[i] > 0) &&
     (forall i: int :: 0 <= i < |cuts| ==> cuts[i] - 1 < |prices|) &&
     sum_lengths(cuts) == n

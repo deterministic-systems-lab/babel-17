@@ -2,14 +2,14 @@
 // difficulty: algoveri
 // source: AlgoVeri 8e313b0e8110 algoveri_data/ac_automata/dafny_spec.dfy (Apache-2.0)
 //== preamble
-predicate matches_at(haystack: seq<int>, needle: seq<int>, start_index: int) {
+ghost predicate matches_at(haystack: seq<int>, needle: seq<int>, start_index: int) {
     && 0 <= start_index
     && start_index + |needle| <= |haystack|
     && forall i :: 0 <= i < |needle| ==> 
         haystack[start_index + i] == needle[i]
 }
 
-function patterns_view(patterns: seq<seq<int>>): seq<seq<int>> {
+ghost function patterns_view(patterns: seq<seq<int>>): seq<seq<int>> {
     patterns 
 }
 //== signature

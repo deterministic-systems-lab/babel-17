@@ -20,6 +20,11 @@ assert h.violations("lemma {:induction xs} L(xs: seq<int>) {} // {:axiom} @Axiom
 assert h.extract_code("x\n```dafny\nA\n```\ny\n```dafny\nB\n```") == "B"
 assert h.extract_code("no code here") is None
 
+# A quota that resets after the whole retry budget (65 min > 61) fails at once instead of sleeping.
+h.CLIS["fake"] = ["sh", "-c", "echo 'error: Individual quota reached. Resets in 1h5m' >&2; exit 3"]
+r = h.call_cli("fake", "hi")
+assert len(r["errors"]) == 1 and "1h5m" in r["error"], r
+
 # Tuple types contain parentheses and commas; the wrapper must still find the parameters.
 ac = h.load_task(h.TASKS / "algoveri/ac_automata.dfy")
 assert ac["id"] == "algoveri/ac_automata"
