@@ -1,0 +1,12 @@
+(module add_bool
+  (header
+    (purpose "Arithmetic takes integers, not booleans.")
+    (invariants "None.")
+    (failures "None."))
+  (spec add_bool
+    (params (x i64))
+    (returns (r i64))
+    (effects))
+  (def add_bool
+    (body
+      (return (+ x true)))))

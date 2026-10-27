@@ -1,0 +1,14 @@
+(module bad_abs
+  (header
+    (purpose "Returning x breaks y >= 0 for negative x.")
+    (invariants "None.")
+    (failures "None."))
+  (spec bad_abs
+    (params (x i64))
+    (returns (y i64))
+    (requires (> x -9223372036854775808))
+    (ensures (>= y 0))
+    (effects))
+  (def bad_abs
+    (body
+      (return x))))

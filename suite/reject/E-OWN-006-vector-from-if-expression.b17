@@ -1,0 +1,13 @@
+(module pick
+  (header
+    (purpose "A vector can't come out of an if expression.")
+    (invariants "None.")
+    (failures "None."))
+  (spec pick
+    (params (a (vec i64)) (c bool))
+    (returns (r (vec i64)))
+    (effects))
+  (def pick
+    (body
+      (let r (vec i64) (if c a (vec-new)))
+      (return r))))

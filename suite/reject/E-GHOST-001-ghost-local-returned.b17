@@ -1,0 +1,14 @@
+(module leak
+  (header
+    (purpose "A ghost local can't flow into a runtime value.")
+    (invariants "None.")
+    (failures "None."))
+  (spec leak
+    (params (x i64))
+    (returns (r i64))
+    (ensures (== r x))
+    (effects))
+  (def leak
+    (body
+      (ghost-let g i64 x)
+      (return g))))

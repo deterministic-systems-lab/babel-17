@@ -1,0 +1,15 @@
+(module bump
+  (header
+    (purpose "Parameters are immutable; only let-mut locals can be set.")
+    (invariants "None.")
+    (failures "None."))
+  (spec bump
+    (params (x i64))
+    (returns (r i64))
+    (requires (< x 100))
+    (ensures (== r (+ x 1)))
+    (effects))
+  (def bump
+    (body
+      (set x (+ x 1))
+      (return x))))

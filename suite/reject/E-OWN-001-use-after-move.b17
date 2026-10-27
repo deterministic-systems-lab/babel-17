@@ -1,0 +1,14 @@
+(module moved
+  (header
+    (purpose "A vector can't be used after it moves.")
+    (invariants "None.")
+    (failures "None."))
+  (spec moved
+    (params (a (vec i64)))
+    (returns (n i64))
+    (ensures (== n (len a)))
+    (effects))
+  (def moved
+    (body
+      (let b (vec i64) a)
+      (return (len a)))))

@@ -1,0 +1,20 @@
+(module all_positive
+  (header
+    (purpose "Report whether every element of a sequence is positive.")
+    (invariants "The result is true exactly when every element is positive.")
+    (failures "None."))
+  (spec all_positive
+    (params (a (ref (slice i64))))
+    (returns (b bool))
+    (ensures (== b (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (> (idx a i) 0)))))
+    (effects))
+  (def all_positive
+    (body
+      (let-mut i i64 0)
+      (while (< i (len a))
+        (invariant (and (<= 0 i) (<= i (len a))))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (< k i)) (> (idx a k) 0))))
+        (decreases (- (len a) i))
+        (if (<= (idx a i) 0) (return false) (block))
+        (set i (+ i 1)))
+      (return true))))

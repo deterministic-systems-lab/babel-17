@@ -1,0 +1,17 @@
+(module first_nonneg
+  (header
+    (purpose "The loop condition reads a[i] when i can equal len a.")
+    (invariants "None.")
+    (failures "None."))
+  (spec first_nonneg
+    (params (a (ref (slice i64))))
+    (returns (r i64))
+    (effects))
+  (def first_nonneg
+    (body
+      (let-mut i i64 0)
+      (while (< (idx a i) 0)
+        (invariant (and (<= 0 i) (<= i (len a))))
+        (decreases (- (len a) i))
+        (set i (+ i 1)))
+      (return i))))

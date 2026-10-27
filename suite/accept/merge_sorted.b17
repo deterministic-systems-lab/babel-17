@@ -1,0 +1,27 @@
+(module sorted_merge
+  (header
+    (purpose "Combine two ordered sequences into one, keeping duplicates.")
+    (invariants "The output is ordered; no element is gained or lost.")
+    (failures "None for sorted input. Allocation failure aborts."))
+  (spec merge_sorted
+    (params (a (ref (slice i64))) (b (ref (slice i64))))
+    (returns (out (vec i64)))
+    (requires (sorted a) (sorted b) (<= (+ (len a) (len b)) 9223372036854775807))
+    (ensures (sorted out) (== (multiset out) (msum (multiset a) (multiset b))))
+    (effects alloc))
+  (def merge_sorted
+    (body
+      (let-mut out (vec i64) (vec-new))
+      (let-mut i i64 0)
+      (let-mut j i64 0)
+      (while (or (< i (len a)) (< j (len b)))
+        (invariant (and (and (<= 0 i) (<= i (len a))) (and (<= 0 j) (<= j (len b)))))
+        (invariant (sorted out))
+        (invariant (== (multiset out) (msum (multiset (take a i)) (multiset (take b j)))))
+        (invariant (=> (and (> (len out) 0) (< i (len a))) (<= (last out) (idx a i))))
+        (invariant (=> (and (> (len out) 0) (< j (len b))) (<= (last out) (idx b j))))
+        (decreases (- (+ (len a) (len b)) (+ i j)))
+        (if (or (== j (len b)) (and (< i (len a)) (<= (idx a i) (idx b j))))
+          (block (push out (idx a i)) (set i (+ i 1)))
+          (block (push out (idx b j)) (set j (+ j 1)))))
+      (return out))))

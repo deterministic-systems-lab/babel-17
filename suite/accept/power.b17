@@ -1,0 +1,26 @@
+(module power
+  (header
+    (purpose "Compute b raised to the power e.")
+    (invariants "The result equals pow(b, e).")
+    (failures "None. The precondition keeps every partial power in i64."))
+  (ghost-fn pow ((b int) (e int)) int
+    (requires (>= e 0))
+    (decreases e)
+    (body (if (== e 0) 1 (* b (pow b (- e 1))))))
+  (spec power
+    (params (b i64) (e i64))
+    (returns (p i64))
+    (requires (>= e 0) (forall ((i int)) (=> (and (<= 0 i) (<= i e)) (in_i64 (pow b i)))))
+    (ensures (== p (pow b e)))
+    (effects))
+  (def power
+    (body
+      (let-mut acc i64 1)
+      (let-mut i i64 0)
+      (while (< i e)
+        (invariant (and (<= 0 i) (<= i e)))
+        (invariant (== acc (pow b i)))
+        (decreases (- e i))
+        (set acc (* acc b))
+        (set i (+ i 1)))
+      (return acc))))

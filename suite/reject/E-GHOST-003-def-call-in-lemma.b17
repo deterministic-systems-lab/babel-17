@@ -1,0 +1,15 @@
+(module touchy
+  (header
+    (purpose "A lemma body is ghost and can't call a def.")
+    (invariants "None.")
+    (failures "None."))
+  (spec touch
+    (params (x i64))
+    (returns)
+    (effects))
+  (def touch
+    (body
+      (return)))
+  (lemma uses_touch
+    (params (y i64))
+    (body (call touch y))))

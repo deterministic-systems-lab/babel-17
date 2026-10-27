@@ -1,0 +1,15 @@
+(module reverse
+  (header
+    (purpose "Return a sequence with the elements of the input in reverse order.")
+    (invariants "Element i of the output is element len - 1 - i of the input.")
+    (failures "None. Allocation failure aborts."))
+  (spec reverse
+    (params (a (ref (slice i64))))
+    (returns (r (vec i64)))
+    (ensures
+      (== (len r) (len a))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (== (idx r i) (idx a (- (- (len a) 1) i))))))
+    (effects alloc))
+  (def reverse
+    (body
+      (return (seq-build (len a) (fn (i) (idx a (- (- (len a) 1) i))))))))

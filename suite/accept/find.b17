@@ -1,0 +1,23 @@
+(module find
+  (header
+    (purpose "Return an index where key occurs in a sequence, or -1 if it does not occur.")
+    (invariants "A non-negative result indexes an occurrence of key; -1 means key is absent.")
+    (failures "None."))
+  (spec find
+    (params (a (ref (slice i64))) (key i64))
+    (returns (r i64))
+    (ensures
+      (and (<= -1 r) (< r (len a)))
+      (=> (>= r 0) (== (idx a r) key))
+      (=> (== r -1) (not (contains a key))))
+    (effects))
+  (def find
+    (body
+      (let-mut i i64 0)
+      (while (< i (len a))
+        (invariant (and (<= 0 i) (<= i (len a))))
+        (invariant (not (contains (take a i) key)))
+        (decreases (- (len a) i))
+        (if (== (idx a i) key) (return i) (block))
+        (set i (+ i 1)))
+      (return -1))))

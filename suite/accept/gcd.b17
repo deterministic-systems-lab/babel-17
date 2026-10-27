@@ -1,0 +1,27 @@
+(module gcd
+  (header
+    (purpose "Compute the greatest common divisor of two natural numbers.")
+    (invariants "The result equals gcd(a, b).")
+    (failures "None."))
+  (ghost-fn gcd ((a int) (b int)) int
+    (requires (and (>= a 0) (>= b 0)))
+    (decreases b)
+    (body (if (== b 0) a (gcd b (% a b)))))
+  (spec gcd_iter
+    (params (a i64) (b i64))
+    (returns (g i64))
+    (requires (and (>= a 0) (>= b 0)))
+    (ensures (== g (gcd a b)))
+    (effects))
+  (def gcd_iter
+    (body
+      (let-mut x i64 a)
+      (let-mut y i64 b)
+      (while (!= y 0)
+        (invariant (and (>= x 0) (>= y 0)))
+        (invariant (== (gcd x y) (gcd a b)))
+        (decreases y)
+        (let t i64 (% x y))
+        (set x y)
+        (set y t))
+      (return x))))

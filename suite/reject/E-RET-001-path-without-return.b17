@@ -1,0 +1,12 @@
+(module sign
+  (header
+    (purpose "Every path through a def must end in return or panic (D40).")
+    (invariants "None.")
+    (failures "None."))
+  (spec sign
+    (params (x i64))
+    (returns (r i64))
+    (effects))
+  (def sign
+    (body
+      (if (< x 0) (return -1) (block)))))

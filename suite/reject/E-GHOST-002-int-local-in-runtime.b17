@@ -1,0 +1,13 @@
+(module big
+  (header
+    (purpose "int is a ghost type; runtime locals are i64.")
+    (invariants "None.")
+    (failures "None."))
+  (spec big
+    (params (x i64))
+    (returns (r i64))
+    (effects))
+  (def big
+    (body
+      (let-mut t int 0)
+      (return x))))

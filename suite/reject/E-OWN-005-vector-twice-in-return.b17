@@ -1,0 +1,12 @@
+(module dup
+  (header
+    (purpose "A vector may appear at most once among a return's expressions.")
+    (invariants "None.")
+    (failures "None."))
+  (spec dup
+    (params (a (vec i64)))
+    (returns (x (vec i64)) (y (vec i64)))
+    (effects))
+  (def dup
+    (body
+      (return a a))))

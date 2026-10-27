@@ -1,0 +1,22 @@
+(module count
+  (header
+    (purpose "Count how many times x occurs in a sequence.")
+    (invariants "The result equals the number of occurrences of x.")
+    (failures "None."))
+  (spec count
+    (params (a (ref (slice i64))) (x i64))
+    (returns (c i64))
+    (ensures (== c (occurrences a x)))
+    (effects))
+  (def count
+    (body
+      (let-mut c i64 0)
+      (let-mut i i64 0)
+      (while (< i (len a))
+        (invariant (and (<= 0 i) (<= i (len a))))
+        (invariant (<= c i))
+        (invariant (== c (occurrences (take a i) x)))
+        (decreases (- (len a) i))
+        (if (== (idx a i) x) (set c (+ c 1)) (block))
+        (set i (+ i 1)))
+      (return c))))

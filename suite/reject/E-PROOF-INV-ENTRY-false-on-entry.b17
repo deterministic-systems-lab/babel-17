@@ -1,0 +1,18 @@
+(module loop_entry
+  (header
+    (purpose "The invariant 1 <= i fails before the first iteration.")
+    (invariants "None.")
+    (failures "None."))
+  (spec loop_entry
+    (params (n i64))
+    (returns (r i64))
+    (requires (>= n 0))
+    (effects))
+  (def loop_entry
+    (body
+      (let-mut i i64 0)
+      (while (< i n)
+        (invariant (and (<= 1 i) (<= i n)))
+        (decreases (- n i))
+        (set i (+ i 1)))
+      (return i))))

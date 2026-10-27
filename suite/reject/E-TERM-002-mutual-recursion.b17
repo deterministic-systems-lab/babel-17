@@ -1,0 +1,13 @@
+(module parity
+  (header
+    (purpose "Mutual recursion is rejected in B17-0.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn even ((n int)) bool
+    (requires (>= n 0))
+    (decreases n)
+    (body (if (== n 0) true (odd (- n 1)))))
+  (ghost-fn odd ((n int)) bool
+    (requires (>= n 0))
+    (decreases n)
+    (body (if (== n 0) false (even (- n 1))))))

@@ -1,0 +1,25 @@
+(module min_index
+  (header
+    (purpose "Return the index of a smallest element of a non-empty sequence.")
+    (invariants "The result indexes an element no larger than any other.")
+    (failures "None for non-empty input."))
+  (spec min_index
+    (params (a (ref (slice i64))))
+    (returns (m i64))
+    (requires (> (len a) 0))
+    (ensures
+      (and (<= 0 m) (< m (len a)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (<= (idx a m) (idx a i)))))
+    (effects))
+  (def min_index
+    (body
+      (let-mut m i64 0)
+      (let-mut i i64 1)
+      (while (< i (len a))
+        (invariant (and (<= 1 i) (<= i (len a))))
+        (invariant (and (<= 0 m) (< m i)))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (< k i)) (<= (idx a m) (idx a k)))))
+        (decreases (- (len a) i))
+        (if (< (idx a i) (idx a m)) (set m i) (block))
+        (set i (+ i 1)))
+      (return m))))

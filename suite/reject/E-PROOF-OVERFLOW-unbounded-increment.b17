@@ -1,0 +1,13 @@
+(module succ
+  (header
+    (purpose "x + 1 overflows when x is i64::MAX.")
+    (invariants "None.")
+    (failures "None."))
+  (spec succ
+    (params (x i64))
+    (returns (r i64))
+    (ensures (== r (+ x 1)))
+    (effects))
+  (def succ
+    (body
+      (return (+ x 1)))))

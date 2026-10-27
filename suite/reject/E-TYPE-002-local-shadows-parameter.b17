@@ -1,0 +1,14 @@
+(module shadow
+  (header
+    (purpose "A local may not reuse a parameter's name (D41).")
+    (invariants "None.")
+    (failures "None."))
+  (spec shadow
+    (params (x i64))
+    (returns (r i64))
+    (ensures (== r 0))
+    (effects))
+  (def shadow
+    (body
+      (let-mut x i64 0)
+      (return x))))

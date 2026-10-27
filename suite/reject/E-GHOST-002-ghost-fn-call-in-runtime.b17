@@ -1,0 +1,13 @@
+(module check_sorted
+  (header
+    (purpose "A ghost-fn can't be called from runtime code.")
+    (invariants "None.")
+    (failures "None."))
+  (spec check_sorted
+    (params (a (ref (slice i64))))
+    (returns (b bool))
+    (ensures (== b (sorted a)))
+    (effects))
+  (def check_sorted
+    (body
+      (return (sorted a)))))

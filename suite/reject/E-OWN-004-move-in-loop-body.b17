@@ -1,0 +1,19 @@
+(module drain
+  (header
+    (purpose "A loop body must leave outer vectors as it found them.")
+    (invariants "None.")
+    (failures "None."))
+  (spec drain
+    (params (a (vec i64)))
+    (returns (n i64))
+    (effects))
+  (def drain
+    (body
+      (let-mut v (vec i64) a)
+      (let-mut i i64 0)
+      (while (< i 3)
+        (invariant (and (<= 0 i) (<= i 3)))
+        (decreases (- 3 i))
+        (let w (vec i64) v)
+        (set i (+ i 1)))
+      (return i))))

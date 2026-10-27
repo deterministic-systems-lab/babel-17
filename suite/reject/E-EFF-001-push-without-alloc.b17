@@ -1,0 +1,15 @@
+(module one
+  (header
+    (purpose "push has effect alloc, which the spec must declare.")
+    (invariants "None.")
+    (failures "None."))
+  (spec one
+    (params)
+    (returns (r (vec i64)))
+    (ensures (== (len r) 1))
+    (effects))
+  (def one
+    (body
+      (let-mut v (vec i64) (vec-new))
+      (push v 7)
+      (return v))))

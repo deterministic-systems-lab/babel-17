@@ -1,0 +1,28 @@
+(module reverse_in_place
+  (header
+    (purpose "Reverse a vector in place.")
+    (invariants "Element i of the output is element len - 1 - i of the input.")
+    (failures "None."))
+  (spec reverse_in_place
+    (params (a (vec i64)))
+    (returns (r (vec i64)))
+    (ensures
+      (== (len r) (len a))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (== (idx r i) (idx a (- (- (len a) 1) i))))))
+    (effects))
+  (def reverse_in_place
+    (body
+      (let-mut v (vec i64) a)
+      (let-mut i i64 0)
+      (while (< i (/ (len v) 2))
+        (invariant (and (<= 0 i) (<= i (/ (len a) 2))))
+        (invariant (== (len v) (len a)))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (< k (len a)))
+          (== (idx v k) (if (or (< k i) (>= k (- (len a) i))) (idx a (- (- (len a) 1) k)) (idx a k))))))
+        (decreases (- (/ (len a) 2) i))
+        (let j i64 (- (- (len v) 1) i))
+        (let tmp i64 (idx v i))
+        (set-idx v i (idx v j))
+        (set-idx v j tmp)
+        (set i (+ i 1)))
+      (return v))))

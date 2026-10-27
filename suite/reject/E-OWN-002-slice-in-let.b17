@@ -1,0 +1,14 @@
+(module stash
+  (header
+    (purpose "A borrow may appear only as a call argument, never in a let.")
+    (invariants "None.")
+    (failures "None."))
+  (spec stash
+    (params (v (vec i64)))
+    (returns (n i64))
+    (ensures (== n (len v)))
+    (effects))
+  (def stash
+    (body
+      (let s (ref (slice i64)) (borrow v))
+      (return (len v)))))

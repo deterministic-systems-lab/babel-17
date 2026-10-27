@@ -1,0 +1,21 @@
+(module is_sorted
+  (header
+    (purpose "Report whether a sequence is in non-decreasing order.")
+    (invariants "The result is true exactly when the sequence is sorted.")
+    (failures "None."))
+  (spec is_sorted
+    (params (a (ref (slice i64))))
+    (returns (b bool))
+    (ensures (== b (sorted a)))
+    (effects))
+  (def is_sorted
+    (body
+      (if (< (len a) 2) (return true) (block))
+      (let-mut i i64 1)
+      (while (< i (len a))
+        (invariant (and (<= 1 i) (<= i (len a))))
+        (invariant (sorted (take a i)))
+        (decreases (- (len a) i))
+        (if (> (idx a (- i 1)) (idx a i)) (return false) (block))
+        (set i (+ i 1)))
+      (return true))))

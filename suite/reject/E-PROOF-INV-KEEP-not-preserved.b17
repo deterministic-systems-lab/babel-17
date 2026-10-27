@@ -1,0 +1,19 @@
+(module loop_keep
+  (header
+    (purpose "The invariant i == 0 holds on entry but not after an iteration.")
+    (invariants "None.")
+    (failures "None."))
+  (spec loop_keep
+    (params (n i64))
+    (returns (r i64))
+    (requires (>= n 0))
+    (effects))
+  (def loop_keep
+    (body
+      (let-mut i i64 0)
+      (while (< i n)
+        (invariant (and (<= 0 i) (<= i n)))
+        (invariant (== i 0))
+        (decreases (- n i))
+        (set i (+ i 1)))
+      (return i))))

@@ -1,0 +1,25 @@
+(module sum
+  (header
+    (purpose "Add up the elements of a sequence.")
+    (invariants "The result equals the sum of the elements.")
+    (failures "None. The precondition keeps every running total in i64."))
+  (ghost-fn sum_of ((s (seq int))) int
+    (decreases (len s))
+    (body (if (== (len s) 0) 0 (+ (sum_of (take s (- (len s) 1))) (last s)))))
+  (spec sum
+    (params (a (ref (slice i64))))
+    (returns (s i64))
+    (requires (forall ((i int)) (=> (and (<= 0 i) (<= i (len a))) (in_i64 (sum_of (take a i))))))
+    (ensures (== s (sum_of a)))
+    (effects))
+  (def sum
+    (body
+      (let-mut s i64 0)
+      (let-mut i i64 0)
+      (while (< i (len a))
+        (invariant (and (<= 0 i) (<= i (len a))))
+        (invariant (== s (sum_of (take a i))))
+        (decreases (- (len a) i))
+        (set s (+ s (idx a i)))
+        (set i (+ i 1)))
+      (return s))))

@@ -1,0 +1,13 @@
+(module rem
+  (header
+    (purpose "Rust panics on i64::MIN % -1, so y != 0 is not enough.")
+    (invariants "None.")
+    (failures "None."))
+  (spec rem
+    (params (x i64) (y i64))
+    (returns (r i64))
+    (requires (!= y 0))
+    (effects))
+  (def rem
+    (body
+      (return (% x y)))))

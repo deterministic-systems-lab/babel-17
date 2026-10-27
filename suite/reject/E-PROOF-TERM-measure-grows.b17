@@ -1,0 +1,18 @@
+(module spin
+  (header
+    (purpose "The measure n + i grows as i does.")
+    (invariants "None.")
+    (failures "None."))
+  (spec spin
+    (params (n i64))
+    (returns (r i64))
+    (requires (>= n 0))
+    (effects))
+  (def spin
+    (body
+      (let-mut i i64 0)
+      (while (< i n)
+        (invariant (and (<= 0 i) (<= i n)))
+        (decreases (+ n i))
+        (set i (+ i 1)))
+      (return i))))

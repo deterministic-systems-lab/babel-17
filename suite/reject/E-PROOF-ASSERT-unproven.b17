@@ -1,0 +1,13 @@
+(module hopeful
+  (header
+    (purpose "Nothing establishes x > 0.")
+    (invariants "None.")
+    (failures "None."))
+  (spec hopeful
+    (params (x i64))
+    (returns (r i64))
+    (effects))
+  (def hopeful
+    (body
+      (assert (> x 0))
+      (return x))))

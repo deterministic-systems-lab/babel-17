@@ -1,0 +1,36 @@
+(module partition
+  (header
+    (purpose "Rearrange a vector so elements below pivot come first; return where the rest begin.")
+    (invariants "Elements before k are below pivot, the rest are not, and none is gained or lost.")
+    (failures "None."))
+  (spec partition
+    (params (a (vec i64)) (pivot i64))
+    (returns (r (vec i64)) (k i64))
+    (ensures
+      (== (len r) (len a))
+      (and (<= 0 k) (<= k (len r)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i k)) (< (idx r i) pivot)))
+      (forall ((i int)) (=> (and (<= k i) (< i (len r))) (>= (idx r i) pivot)))
+      (== (multiset r) (multiset a)))
+    (effects))
+  (def partition
+    (body
+      (let-mut v (vec i64) a)
+      (let-mut lo i64 0)
+      (let-mut i i64 0)
+      (while (< i (len v))
+        (invariant (and (and (<= 0 lo) (<= lo i)) (<= i (len v))))
+        (invariant (== (len v) (len a)))
+        (invariant (forall ((p int)) (=> (and (<= 0 p) (< p lo)) (< (idx v p) pivot))))
+        (invariant (forall ((p int)) (=> (and (<= lo p) (< p i)) (>= (idx v p) pivot))))
+        (invariant (== (multiset v) (multiset a)))
+        (decreases (- (len v) i))
+        (if (< (idx v i) pivot)
+          (block
+            (let tmp i64 (idx v lo))
+            (set-idx v lo (idx v i))
+            (set-idx v i tmp)
+            (set lo (+ lo 1)))
+          (block))
+        (set i (+ i 1)))
+      (return v lo))))

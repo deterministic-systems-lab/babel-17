@@ -1,0 +1,14 @@
+(module abs
+  (header
+    (purpose "Return the absolute value of an integer.")
+    (invariants "The result is non-negative and equals x or its negation.")
+    (failures "None. x = i64::MIN is excluded because its negation does not fit."))
+  (spec abs
+    (params (x i64))
+    (returns (y i64))
+    (requires (> x -9223372036854775808))
+    (ensures (>= y 0) (or (== y x) (== y (neg x))))
+    (effects))
+  (def abs
+    (body
+      (if (< x 0) (return (neg x)) (return x)))))

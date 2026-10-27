@@ -1,0 +1,8 @@
+(module orphan
+  (header
+    (purpose "A def must implement a spec in the same module (D39).")
+    (invariants "None.")
+    (failures "None."))
+  (def orphan
+    (body
+      (return))))

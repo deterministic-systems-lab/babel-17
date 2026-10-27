@@ -1,0 +1,23 @@
+(module twice
+  (header
+    (purpose "A vector may appear at most once among a call's arguments.")
+    (invariants "None.")
+    (failures "None."))
+  (spec total
+    (params (a (ref (slice i64))) (b (ref (slice i64))))
+    (returns (n i64))
+    (requires (<= (+ (len a) (len b)) 9223372036854775807))
+    (ensures (== n (+ (len a) (len b))))
+    (effects))
+  (def total
+    (body
+      (return (+ (len a) (len b)))))
+  (spec twice
+    (params (v (vec i64)))
+    (returns (n i64))
+    (requires (<= (* 2 (len v)) 9223372036854775807))
+    (effects))
+  (def twice
+    (body
+      (let ((n i64)) (call total (borrow v) (borrow v)))
+      (return n))))

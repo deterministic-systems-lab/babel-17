@@ -1,0 +1,8 @@
+(module down
+  (header
+    (purpose "Recursion needs a decreases clause.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn down ((n int)) int
+    (requires (>= n 0))
+    (body (if (== n 0) 0 (down (- n 1))))))

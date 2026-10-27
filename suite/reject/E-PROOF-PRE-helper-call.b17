@@ -1,0 +1,22 @@
+(module halves
+  (header
+    (purpose "A call must establish its callee's requires.")
+    (invariants "None.")
+    (failures "None."))
+  (spec half
+    (params (x i64))
+    (returns (r i64))
+    (requires (>= x 0))
+    (ensures (== r (/ x 2)))
+    (effects))
+  (def half
+    (body
+      (return (/ x 2))))
+  (spec caller
+    (params (y i64))
+    (returns (r i64))
+    (effects))
+  (def caller
+    (body
+      (let ((h i64)) (call half y))
+      (return h))))

@@ -1,0 +1,12 @@
+(module view
+  (header
+    (purpose "A spec can't return a slice.")
+    (invariants "None.")
+    (failures "None."))
+  (spec view
+    (params (a (ref (slice i64))))
+    (returns (s (ref (slice i64))))
+    (effects))
+  (def view
+    (body
+      (return a))))

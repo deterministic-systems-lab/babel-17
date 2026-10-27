@@ -1,0 +1,27 @@
+(module isqrt
+  (header
+    (purpose "Compute the integer square root of a natural number.")
+    (invariants "r * r <= n < (r + 1) * (r + 1).")
+    (failures "None."))
+  (lemma square_bound
+    (params (x int))
+    (requires (and (<= 0 x) (<= x 3037000499)))
+    (ensures (<= (* x x) 9223372030926249001))
+    (body))
+  (spec isqrt
+    (params (n i64))
+    (returns (r i64))
+    (requires (>= n 0))
+    (ensures (and (<= (* r r) n) (< n (* (+ r 1) (+ r 1)))))
+    (effects))
+  (def isqrt
+    (body
+      (let-mut r i64 0)
+      (while (< r 3037000499)
+        (invariant (and (<= 0 r) (<= r 3037000499)))
+        (invariant (<= (* r r) n))
+        (decreases (- 3037000499 r))
+        (call square_bound (+ r 1))
+        (if (> (* (+ r 1) (+ r 1)) n) (return r) (block))
+        (set r (+ r 1)))
+      (return r))))
