@@ -10,6 +10,7 @@ assert h.violations("lemma {:axiom} L() ensures false") == ["{:axiom}"]
 assert h.violations("@Axiom\nlemma L() ensures false") == ["@Axiom"]
 assert h.violations("method {:verify false} M() {}") == ["{:verify}"]
 assert h.violations("method M() decreases * {}") == ["decreases *"]
+assert h.violations("lemma assume'() ensures true {}\nmethod expect?() {}") == []
 # A "//" inside a string must not hide the code after it; nor may a verbatim string.
 assert h.violations('method M() { var s := "//"; assume false; }') == ["assume"]
 assert h.violations('method M() { var s := @"\\"; assume false; var t := ""; }') == ["assume"]

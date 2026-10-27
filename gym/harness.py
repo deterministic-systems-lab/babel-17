@@ -85,8 +85,9 @@ The check failed:
 Reply with the complete corrected code in one ```dafny block.
 """
 
-BANNED = {"assume": r"\bassume\b", "expect": r"\bexpect\b", "decreases *": r"\bdecreases\s*\*",
-          "include": r"^\s*include\b"}
+# Dafny identifiers may contain ' and ?, so assume' is a legal name, not the keyword.
+BANNED = {k: rf"(?<![\w'?]){rx}(?![\w'?])" for k, rx in
+          {"assume": "assume", "expect": "expect", "decreases *": r"decreases\s*\*", "include": "include"}.items()}
 # Attributes are allow-listed: both syntaxes ({:axiom}, @Axiom) can switch off checking,
 # and Dafny keeps adding new ones.
 SAFE_ATTRIBUTES = {"trigger", "induction", "fuel", "opaque", "isolate_assertions", "split_here",
@@ -94,6 +95,8 @@ SAFE_ATTRIBUTES = {"trigger", "induction", "fuel", "opaque", "isolate_assertions
                    "IsolateAssertions", "Fuel", "Induction", "TailRecursion"}
 # One pass, leftmost match first, so "//" inside a string is a string, not a comment.
 # Verbatim strings (@"...", with "" as the escape) come before ordinary ones.
+# ponytail: block comments don't nest here, so text inside a nested comment can be
+# falsely flagged (never falsely passed); track comment depth if that ever bites.
 TOKEN = re.compile(r'//[^\n]*|/\*.*?\*/|@"(?:""|[^"])*"|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])\'|.', re.S)
 AXIOM_WARNING = re.compile(r"has no \{:axiom\} annotation|bodyless")
 
@@ -139,7 +142,7 @@ def load_tasks(only=None):
 def violations(code):
     bare = "".join(" " if t[:2] in ("//", "/*") or t[:1] == '"' or t[:2] == '@"' or (t[:1] == "'" and len(t) > 1)
                    else t for t in TOKEN.findall(code))
-    found = [k for k, rx in BANNED.items() if re.search(rx, bare, re.M)]
+    found = [k for k, rx in BANNED.items() if re.search(rx, bare)]
     attrs = re.findall(r"\{:\s*(\w+)|(?<![\w@])@\s*([A-Za-z]\w*)", bare)
     return found + sorted({f"{{:{a}}}" if a else f"@{b}" for a, b in attrs if (a or b) not in SAFE_ATTRIBUTES})
 
@@ -266,6 +269,18 @@ def tool_version(cmd):
         return None
 
 
+def settings(tasks, dafny_version):
+    """What a run's verdicts depend on; resume and reverify refuse if any of it changed."""
+    return dict(tasks=[t["id"] for t in tasks],
+                task_sha={t["id"]: sha(json.dumps(t, sort_keys=True)) for t in tasks},
+                prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT),
+                dafny=dafny_version, dafny_args=DAFNY)
+
+
+def sample_key(r):
+    return r["task"], r["cli"], r["sample"]
+
+
 def read_records(run_dir):
     path = run_dir / "attempts.jsonl"
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
@@ -288,22 +303,24 @@ def cmd_check_tasks(args):
 
 def cmd_run(args):
     tasks, clis = load_tasks(args.tasks), args.clis.split(",")
-    run_id = args.resume or datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ-") + "-".join(clis)
+    run_id = args.resume or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + "-".join(clis)
     run_dir = RUNS / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
+    run_dir.mkdir(parents=True, exist_ok=bool(args.resume))
     dafny_version = tool_version(["dafny", "--version"])
-    if not (run_dir / "meta.json").exists():
+    setup = dict(samples=args.samples, max_iters=args.max_iters, **settings(tasks, dafny_version),
+                 clis={c: dict(cmd=CLIS[c], version=tool_version([CLIS[c][0], "--version"])) for c in clis})
+    if (run_dir / "meta.json").exists():
+        meta = json.loads((run_dir / "meta.json").read_text())
+        changed = [k for k in setup if meta.get(k) != setup[k]]
+        if changed:
+            sys.exit(f"can't resume {run_id}: {', '.join(changed)} changed since it started")
+    else:
         git = tool_version(["git", "-C", str(GYM), "rev-parse", "HEAD"])
         dirty = bool(tool_version(["git", "-C", str(GYM), "status", "--porcelain"]))
         meta = dict(run_id=run_id, started=datetime.now(timezone.utc).isoformat(),
-                    git_commit=git, git_dirty=dirty, samples=args.samples, max_iters=args.max_iters,
-                    tasks=[t["id"] for t in tasks], task_sha={t["id"]: sha(json.dumps(t, sort_keys=True)) for t in tasks},
-                    prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT),
-                    dafny=dafny_version, z3=tool_version(["z3", "--version"]), dafny_args=DAFNY,
-                    clis={c: dict(cmd=CLIS[c], version=tool_version([CLIS[c][0], "--version"])) for c in clis})
+                    git_commit=git, git_dirty=dirty, z3=tool_version(["z3", "--version"]), **setup)
         (run_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
-    done = {(r["task"], r["cli"], r["sample"]) for r in read_records(run_dir)
-            if r.get("final") and r["stage"] != "infra_error"}
+    done = {sample_key(r) for r in read_records(run_dir) if r.get("final") and r["stage"] != "infra_error"}
     todo = [(t, c, s) for t in tasks for c in clis for s in range(1, args.samples + 1)
             if (t["id"], c, s) not in done]
     lock, out = threading.Lock(), open(run_dir / "attempts.jsonl", "a")
@@ -325,9 +342,14 @@ def cmd_run(args):
 
 def cmd_reverify(args):
     """Re-run Dafny on every recorded program; verdicts must match exactly."""
+    meta = json.loads((RUNS / args.run_id / "meta.json").read_text())
+    tasks = {t["id"]: t for t in load_tasks(meta["tasks"])}
+    now = settings(list(tasks.values()), tool_version(["dafny", "--version"]))
+    changed = [k for k in now if k != "prompt_sha" and meta.get(k) != now[k]]
+    if changed:
+        sys.exit(f"can't reverify {args.run_id}: {', '.join(changed)} changed since the run")
     recs = [r for r in read_records(RUNS / args.run_id)
             if r.get("code") and r["stage"] not in ("banned", "no_code", "infra_error")]
-    tasks = {t["id"]: t for t in load_tasks()}
     with cf.ThreadPoolExecutor(args.jobs) as pool:
         stages = list(pool.map(lambda r: verify(tasks[r["task"]], r["code"])[0], recs))
     diffs = [(r, s) for r, s in zip(recs, stages) if s != r["stage"]]
@@ -339,11 +361,13 @@ def cmd_reverify(args):
 
 def summarize(run_id):
     recs = read_records(RUNS / run_id)
-    finals = {r["attempt"]: r for r in recs if r.get("final")}
+    # The latest final record per (task, cli, sample) decides it; every call made for a
+    # decided sample counts toward tokens, including attempts a crash abandoned.
+    finals = {sample_key(r): r for r in recs if r.get("final")}
     stats = {}
     for cli in sorted({r["cli"] for r in finals.values()}):
         done = [r for r in finals.values() if r["cli"] == cli and r["stage"] != "infra_error"]
-        used = [r for r in recs if r["cli"] == cli and r["attempt"] in finals]
+        used = [r for r in recs if r["cli"] == cli and sample_key(r) in finals]
         won = [r for r in done if r["stage"] == "verified"]
         tokens = sum(r.get("tokens_in", 0) + r.get("tokens_out", 0) for r in used)
         stats[cli] = dict(
