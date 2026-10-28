@@ -1160,3 +1160,75 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Impact by re-verification:** the proof cache keys each goal by what it depends on (D63), so only the goals the change touches are solved again.
   - **Examples from the suite:** every code already has a labelled program, which WP3 and WP5 check. WP8's manual can reuse them.
 - **Touches:** D45; D56; D57; D63; interface 8; WP6; WP8; `suite/`.
+
+## D95 · How B17-0 lowers to safe Rust · Proposed
+- **Date:** 2026-10-28
+- **Decision:** WP7's backend, `b17c/rust.py`, turns each module that passes tier 0 into one Rust crate.
+  - **Safety:** the crate carries `#![forbid(unsafe_code)]` and holds no unsafe code (D18).
+  - **Erasure:** ghost-fns, lemmas, contracts, invariants, measures and ghost statements are left out, and so are lemma calls, whose arguments never run. The crate runs §8 as the interpreter does with checking off (D57).
+  - **Types:** `bool` and `i64` stay themselves, `(vec T)` becomes `Vec<T>` and `(ref (slice T))` becomes `&[T]`. A def becomes a function with its spec's parameters, returning one result as itself and several as a tuple. `(borrow v)` becomes `&v`. Every expression's type is the one WP3's checker gives it (`check.types`), so an element type that a `(vec-new)` leaves open is D70's: its destination's, or `i64`.
+  - **Runtime goals:** each of §9's runtime goals is checked where §8 checks it, at every verification level (D80):
+    - `+`, `-`, `*` and `neg` use Rust's checked operations;
+    - `/` and `%` check for a zero divisor, then for `MIN` by `-1`, and truncate as Rust does (D37);
+    - `idx`, `set-idx` and `seq-build` check their index or length.
+
+    A failed check stops the run with the interpreter's `err` outcome: the same reason, node and detail (D56). Rust's own bounds checks stay too (D18).
+  - **Evaluation order:** the interpreter's.
+    - Operands are evaluated left to right, and `and`, `or` and `=>` short-circuit.
+    - `set-idx` evaluates its index, then its value, and then checks the index.
+    - `set-idx` and `push` are method calls, so their operands may read the vector they change, as B17-0 allows. Rust's two-phase borrows accept that.
+    - `seq-build` computes its elements in order, growing its vector as it goes, so an element's `err` comes before any allocation the length implies.
+  - **Names:** a B17-0 name stays as it is in Rust unless Rust reserves it. Then it becomes a raw identifier, such as `r#match`, or `_crate`, `_self` or `_super` for the three that Rust can't write raw. B17-0 names never start with `_`, so these can't clash. Defs live in a module of their own and the crate's helpers in another, so a def may be named `main`, `rt` or `dispatch`.
+  - **Literals:** a comparison of two literals gives the first the type `i64`, since Rust would make both `i32`.
+  - **Unreachable code:** statements after one that never continues normally (§7's ⊥) are left out. None of them can run, and rustc rejects some of them, such as a use of a vector a `return` moved, which D77 allows.
+  - **Lints:** the crate allows the lints valid programs trigger:
+    - a helper the module doesn't use, a local or an assigned value it never reads, and a `let-mut` it never sets;
+    - `(while true ...)`, and recursion that only a proof bounds;
+    - a comparison with an `i64` limit, and a name with two underscores in a row.
+
+    Any other warning is a backend bug, so the self-check builds with warnings denied.
+- **Why:**
+  - **Every goal at its node:** an unverified program fails where the verifier's goal would fail, with the outcome the interpreter gives. A differential test can then compare whole outcomes, and not only whether a run failed.
+  - **WP3's types:** one typing, so the backend can't disagree with tier 0 about an open element type.
+  - **Names:** B17-0's grammar admits 43 of Rust's 51 keywords and reserved words as names, such as `type`, `match`, `loop` and `self`. A single `type` parameter would otherwise break a build.
+  - **Unreachable code:** D77 makes it legal, and rustc rejects some of it.
+  - **The lints:** a fuzz run found `unused_comparisons` on a valid program. Going through rustc's warn-by-default list then found `non_snake_case` too.
+- **Touches:** D18; D36; D37; D56; D57; D70; D77; D80; WP7; `docs/b17-0.md` §5, §7, §8.
+
+## D96 · The emitted binary prints what the interpreter prints · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Running:** the crate's `main` runs one def. `BINARY NAME ARG...` takes each argument as a canonical B17-0 value of its parameter's type: a decimal integer, `true` or `false`, or a `(seq-lit ...)` of them, with only B17-0's four whitespace characters around it (D48). It prints the run's trace and outcome in interface 10's text form (D56), as `interp.py` does, and exits as `interp.py` does: 0 on `ok`, 1 on `panic` or `err`, and 2 when the run can't start, such as for an unknown def, an argument that isn't UTF-8, or one that isn't a value of its parameter's type.
+  - **Batch:** `BINARY --batch` reads one `NAME ARG...` per line of input and prints each run's lines in turn, with a run that can't start as a `refused: why` line.
+  - **Stack:** runs get a thread whose stack is 1 GiB, reserved rather than used, which is room for D59's 1,000 nested calls at up to 1 MiB a frame. A run that recurses past what its stack holds aborts, as allocation failure does (§6).
+  - **Stopping:** a B17-0 `panic` and every `err` stop the run by unwinding, as safe Rust stops on a failed check (D80), and `main` prints the outcome. Any other Rust panic would be a backend bug: `main` prints `internal error` and exits 3.
+  - **Building:** a call to a spec with no def can't be built, so `emit()` refuses the module, unless the call is in code that can't run, which is left out (D95). The interpreter refuses such a run only when it reaches the call (D56). A spec with no def that no def calls is fine.
+  - **What the binary doesn't show:** checking (D57) and `limit` (D59). It runs §8 with ghost code erased, and has no fuel or depth limit of its own.
+  - **`rust.py --run FILE NAME ARG...`** builds the binary once per source and toolchain under `.b17c/rust/`, which git ignores, evaluates each ARG as `interp.py` does, and runs it.
+  - **Interface 10** doesn't change: the binary is a second producer of its text form.
+- **Why:**
+  - **The same text:** a Rust binary shows its prints and how it ended (D56). Printing the interpreter's text makes WP7's differential test a comparison of strings, down to the node and the detail. WP11's differential and performance rewards run the same binary (D21).
+  - **Batch mode:** the self-check's runs, thousands of them, each take a process otherwise.
+  - **The stack:** a main thread's 8 MiB overflowed at depth 999 through a frame of 450 vectors, a run the interpreter finishes. A frame's size depends on the def, so no stack fits every def at every depth. 1 GiB allows frames about a hundred times that one.
+  - **Refusing at build time:** a binary can't call a function that doesn't exist. A stub that refused at run time would let a module build that can't run its own calls.
+- **Touches:** D21; D29; D48; D56; D57; D59; D80; WP7; WP11; interface 10.
+
+## D97 · What WP7's differential tests compare, and the pinned toolchain · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **What's compared:** for every run, the interpreter's text, with checking off, and the binary's must be equal line for line: each `print`, then the outcome with its reason, node and detail. A run the interpreter can't finish in 20,000 steps is skipped, since a binary has no `limit` to show (D59).
+  - **Programs and inputs,** in `b17c/test_rust.py`:
+    - the 29 suite programs that pass tier 0, with 150 sampled inputs per def;
+    - a module of corner cases, each with the text both must print: every runtime goal's failure, evaluation order, prints across calls, names Rust reserves, open element types, unreachable code and refused arguments;
+    - 120 generated defs, from random programs that pass tier 0 by construction and use every runtime statement and expression, with 25 inputs per def.
+
+    Inputs are small integers, `i64`'s edges and random `i64`s, and vectors of up to 8 elements, often sorted. They needn't satisfy `requires`: outside it, with checking off, runs reach the `err` paths.
+  - **Builds:** every crate is compiled with warnings denied (D95).
+  - **The toolchain:** rustc 1.99.1, edition 2021, with `-O` and `-C overflow-checks=on`, so that unchecked arithmetic in the runtime itself would panic rather than wrap. A build compiles and links under fixed names in a temporary directory, so the same source and toolchain give the same binary. CI installs 1.99.1.
+  - **The report:** `rust.py -o BINARY --report JSON` adds a `backend` object to the module's trusted base report (D25). It records rustc's version line, commit and LLVM version, the target triple, the flags, and the SHA-256 of the emitted source and of the binary. It refuses a report written for a different input, before building. `verify.py --report` writes a whole report, so it runs first.
+- **Why:**
+  - **Whole texts:** comparing only whether a run failed would miss a lowering that fails at the wrong node, or with the wrong value.
+  - **Skipping `limit`:** with checking off nothing bounds a loop, and the interpreter's fuel has no counterpart in Rust.
+  - **Generated programs** reach combinations the suite and the corner cases don't.
+  - **Pinning:** D23 pins the solver for the same reason. A newer rustc can add lints or change code generation, and the report must name the toolchain a binary came from (D25).
+- **Touches:** D18; D23; D25; D59; WP7; `.github/workflows/check.yml`.

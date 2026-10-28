@@ -982,3 +982,72 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** 3 and 8, version 0.1 Draft.
 - **Proofs and tests added:** `test_agent.py`, covering every query, a reproduced counterexample, a recursive call's `TERM` goal, impact on a caller, and search by guarantee. Every `b17c` self-check passes.
 - **Left admitted:** none.
+
+## 2026-10-28 · WP7: the Rust backend
+- **Added, on branch `wp7-rust`:**
+  - **`b17c/rust.py`,** standard library only (D19). `emit(module)` turns a module that passes tier 0 into the source of one Rust crate (D95):
+    - the crate carries `#![forbid(unsafe_code)]` and erases ghost code;
+    - every runtime goal of §9 is checked where §8 checks it, so a failed check stops the run with the interpreter's `err`, at the same node and with the same detail;
+    - every expression has the type WP3 gives it, from `check.types`;
+    - the crate's `main` runs one def and prints interface 10's text form, as `interp.py` does, one run per command or many with `--batch` (D96).
+
+    `uv run --no-project b17c/rust.py FILE` prints the Rust, and `-o BINARY` builds it. `--report JSON` adds the backend's fields to the module's trusted base report (D25). `--run FILE NAME ARG...` builds once per source and runs like `interp.py`.
+  - **`b17c/test_rust.py`:** WP7's done-when, and the corner cases below. CI installs rustc 1.99.1 and runs it.
+  - **README:** the backend, its requirement and self-check, CLI examples, and a WP7 row.
+  - **Roadmap,** added in review: WP7 under work in progress, D95–D97 under decisions waiting, and the WP7 row's state.
+- **The toolchain:** rustc 1.99.1 (`58cf8f9c3`, 2026-10-13, LLVM 23.1.1), host `x86_64-apple-darwin`, from rustup's minimal profile. It's the install D18 put off until WP7 started.
+- **For the owner, about the Intel Mac this was built on:** linking fails with its current settings. The arm64 Mac the branch was later reviewed on already uses the Command Line Tools.
+  - **The cause:** `xcode-select` points at Xcode 26.6, whose `xcodebuild` is built for arm64 only, so on this Intel machine `cc` can't find the SDK.
+  - **The workaround:** the Command Line Tools in `/Library/Developer/CommandLineTools` work. Every build here ran with `DEVELOPER_DIR` set to them.
+  - **The fix:** `sudo xcode-select --switch /Library/Developer/CommandLineTools` would fix it for every tool, and may also explain Homebrew's earlier failure.
+- **WP7's done-when holds: emitted code compiles, and matches the interpreter on differential tests.**
+  - **Compiles:** 36 crates, with warnings denied: the 29 suite programs that pass tier 0, a module of corner cases, a module that recurses as deep as D59 allows, 4 generated modules and a module with no defs.
+  - **Matches:** 8,875 runs print exactly the interpreter's text: every print, and the outcome with its node and detail. 6,205 end `ok`, 2,426 `err` and 244 `panic`. 250 more, which the interpreter can't finish in 20,000 steps, are skipped (D97).
+  - **Corner cases:** 80 runs state the text both must print. They cover:
+    - every runtime goal's failure, with its detail;
+    - `set-idx`'s order, and short-circuits;
+    - prints across calls, and `panic` strings with quotes, backslashes, a bidirectional control character and line separators;
+    - names Rust reserves, and open element types;
+    - code after a `return` that rustc would reject;
+    - arguments the binary must refuse.
+- **Fuzzing:** two campaigns of 40 generated modules each, 1,200 defs and about 30,000 runs per campaign. Neither found a mismatch.
+  - **The first** found that a valid program comparing a literal with `9223372036854775807` didn't build with warnings denied, because of rustc's `unused_comparisons` lint. Valid programs may trigger it, so crates now allow it. Going through rustc's warn-by-default lints then found one more, `non_snake_case`, for a name such as `a__b`.
+  - **The second** ran once the emitter took its types from WP3.
+- **Mutation check:** 77 changes to `rust.py`, in its emitter and in the Rust runtime it writes.
+  - **Caught:** 76 make the self-check fail. 8 were caught only after tests were added for them, and 4 more put back the review's bugs below.
+  - **The 77th** turns off `-C overflow-checks=on`. No code path can show it, since every operation that could overflow is already checked.
+  - **Redundant code:** two earlier survivors showed code that wasn't needed, now removed: a special case for writing `i64::MIN`, which rustc reads as written, and a path remapping that builds by relative paths don't need.
+- **Builds are reproducible:** two builds of one source differed only in the output's name, which the binary records. `build()` now links under a fixed name, and the self-check compares two builds byte for byte.
+- **Independent review** of `rust.py` against §2–§8, D56–D59 and the interpreter, with its own programs and its own generator, found 5 bugs. All are fixed, each with a test:
+  - **Valid modules refused:**
+    - **The bug:** a module with an item named `i` or `j` passes tier 0, but `emit()` refused it.
+    - **The cause:** `check.types()` checked the core library in the module's scope, where `sorted`'s binders `i` and `j` met the module's items. WP5's goal generator refused the same modules.
+    - **The fix:** `types()` now types the core library in its own scope, as `check()` leaves it, with a case in `test_check.py`.
+    - **WP5 is unaffected:** its 511 goals for the suite and the core library are byte for byte the same before and after. Z3 isn't installed here, so `test_verify.py` didn't run.
+  - **A stack overflow:** a def whose frame holds 450 vectors, recursing 999 deep, a run the interpreter finishes, overflowed the main thread's 8 MiB stack and killed the process. Runs now get a thread with a 1 GiB stack, room for D59's 1,000 calls at up to 1 MiB a frame (D96).
+  - **`batch()` split lines wrongly:** it split output at U+2028, U+2029 and U+0085, which strings may hold (D50). It splits at `\n` only now.
+  - **A non-UTF-8 argument** made the binary panic with exit 101. It's now refused with exit 2, on the command line and in a batch.
+  - **Unicode whitespace** around an argument, such as a no-break space, was trimmed. Now only B17-0's four whitespace characters are (D48).
+
+  Also fixed:
+  - `emit()`'s docstring now names `ParseError`, and says an unreachable call isn't refused;
+  - the build cache names its temporary files uniquely, so two builds in one process can't collide.
+
+  What the review confirmed, comparing exact text and exit codes:
+  - 150 names in every position, among them every Rust keyword B17-0 admits and the crate's own names;
+  - about 400 hand-written edge runs, and 26 command-line comparisons;
+  - two random campaigns, with no mismatch and no build failure:
+    - its own generator: 202 modules, 28,847 runs;
+    - this test's generator on fresh seeds: 70 modules, 52,347 runs.
+- **D80 already fits:** accepted while this was in progress, it says emitted Rust stops at an unproved `err` and keeps its checks at every level, which D95 does.
+- **Proposed D95–D97,** numbered after B17-1's D81–D92 and WP6's D93–D94. The branch first proposed them as D93–D95, and its rebase onto main renumbered them:
+  - D95: how B17-0 lowers to safe Rust;
+  - D96: the emitted binary prints what the interpreter prints;
+  - D97: what the differential tests compare, and the pinned toolchain.
+- **Interfaces touched:** 5, the trusted base report, which gains WP7's `backend` fields (D25). Interface 10 doesn't change: the binary is a second producer of its text form.
+- **Proofs and tests added:** `b17c/test_rust.py`, run in CI, and a `test_check.py` case for `types()`. Every `b17c` self-check passes except `test_verify.py`, which needs Z3.
+- **Left admitted:** none.
+- **Not yet done:**
+  - B17-1's lowering, with data types as Rust enums (D79), once B17-1's spec text exists;
+  - WP11's use of the binary for its differential and performance rewards;
+  - translation validation, which is WP12's.

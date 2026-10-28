@@ -1,7 +1,8 @@
 # The b17c self-checks on Linux, for every pull request and every push to main. Reproducing
 # b17c/hashes.txt here, on a machine other than the one that wrote it, is WP2's check that
-# content hashes match across machines (D46). The Dafny harness and the Z3 goal spike need
-# their pinned solver builds, so they stay local for now.
+# content hashes match across machines (D46). The Rust backend's check builds with the rustc
+# version D97 pins. The Dafny harness and the Z3 goal spike need their pinned solver builds,
+# so they stay local for now.
 name: check
 on:
   pull_request:
@@ -19,3 +20,5 @@ jobs:
       - run: uv run --no-project --python 3.12 b17c/test_core.py
       - run: uv run --no-project --python 3.12 b17c/test_check.py
       - run: uv run --no-project --python 3.12 b17c/test_agent.py
+      - run: rustup toolchain install 1.99.1 --profile minimal && rustup default 1.99.1
+      - run: uv run --no-project --python 3.12 b17c/test_rust.py

@@ -312,6 +312,18 @@ ok(module("(ghost-fn g () bool (body (=> false (== (last (seq-lit)) 5))))"))
 # A malformed type is a type error even in a runtime place; only a well-formed one is a ghost type (D68).
 bad(f("(x (seq (seq int)))", "(r i64)", "(return 0)"), "E-TYPE-001", "(seq int)")
 
+# types() agrees with check(): the core library is typed in its own scope, so an item may
+# share a name with one of its binders, as with sorted's i and j (found in WP7's review).
+for name in ("i", "j", "s", "x"):
+    m = parse(module(f"(spec {name} (params (n i64)) (returns (r i64)) (effects))", f"(def {name} (body (return n)))"))
+    assert c.check(m) == [] and isinstance(c.types(m), dict), name
+try:
+    c.types(parse(f("(x i64)", "(r i64)", "(return true)")))
+except ValueError as e:
+    assert "E-TYPE-001" in str(e), e
+else:
+    failures.append("types() typed a module that fails tier 0")
+
 # The command line.
 for name, want in [("accept/abs.b17", (0, "")),
                    ("reject/E-OWN-001-use-after-move.b17",
