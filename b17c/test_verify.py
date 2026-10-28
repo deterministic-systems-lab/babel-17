@@ -79,6 +79,30 @@ ids = [r["node"] + " " + r["family"] for r in run(TWO)]
 assert len(ids) == len(set(ids)), ids
 assert any(n.endswith("#2 BOUNDS") for n in ids), ids
 
+# Sorts come from WP3's types: multisets of booleans, and empty literals whose element type
+# only their context fixes: a comparison, concat, take, a ghost-fn's parameter or result.
+SORTS = """(module sorts (header (purpose "p") (invariants "i") (failures "f"))
+  (ghost-fn none ((s (seq bool))) bool (body (== s (seq-lit))))
+  (ghost-fn empty () (seq bool) (body (take (seq-lit) 0)))
+  (ghost-fn chosen () bool (body (if false (last (seq-lit)) (if false (idx (seq-lit) 0) true))))
+  (spec same (params (a (vec bool))) (returns (r (vec bool)))
+    (ensures (== (multiset r) (multiset a)) (== (occurrences r true) (occurrences a true))
+             (== (concat (seq-lit) r) r) (== (seq-lit) (take r 0)) (== (take (seq-lit) 0) (take r 0))
+             (none (take (seq-lit) 0)) (== (empty) (drop r (len r))) (== (if (none r) r a) r) (== (seq-lit (not false)) (seq-lit true))
+             (chosen) (== (occurrences (seq-lit) true) 0) (not (contains (seq-lit) false))) (effects))
+  (def same (body (return a)))
+  (spec count (params (a (ref (slice bool)))) (returns (n i64)) (ensures (== n (len a))) (effects))
+  (def count (body (return (len a))))
+  (spec wrap (params) (returns (v (vec bool))) (ensures (== v (seq-lit))) (effects))
+  (def wrap (body (let w (vec bool) (vec-new)) (let ((n i64)) (call count (borrow w))) (return w))))"""
+assert all(r["verdict"] == "proved" for r in run(SORTS))
+# A module that fails tier 0 has no goals; the error lists its diagnostics.
+try:
+    run(SORTS.replace("(return a)", "(return b)"))
+    raise AssertionError("an undefined name was verified")
+except ValueError as e:
+    assert "E-TYPE-002: 'b' is undefined" in str(e), e
+
 # Only verdicts reached within the budget are cached: a timeout is solved again (D23).
 real = v.G.solve_stats
 v.G.solve_stats = lambda q, seed=0: ("unknown: timeout", 0)

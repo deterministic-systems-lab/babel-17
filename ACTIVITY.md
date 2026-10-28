@@ -862,3 +862,40 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none yet. Once accepted, D79 changes interfaces 1, 6, 10 and 11, and D80 interfaces 4 and 5.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-28 · WP5's goals from WP3's types
+- **The change:** `b17c/goals.py` takes each expression's SMT sort from the type WP3's checker gives it, where the goal spike guessed.
+  - `check.types(module)` returns the type of every expression of the module and the core library, by node.
+  - `goals.Gen` builds on it, and refuses a module that fails tier 0. `verify.py` prints that module's diagnostics instead of goals.
+- **Defects the guesses caused, each found by a probe and now fixed:**
+  - **Multisets of booleans:** `ms` was declared only over integer sequences, so `(multiset r)` for a `(vec bool)` was mis-sorted. Its 2 goals ran to the resource limit unproved; they're now proved in 3,079 units. The prelude has `ms.I` and `ms.B`, and `set-idx`'s multiset fact now holds for both.
+  - **Empty literals:** in `(== r (seq-lit))` or `(concat (seq-lit) r)` with `r` a bool vector, the literal defaulted to an integer sequence, which Z3 rejected as a sort error. Now an expression whose type an empty literal leaves open takes its context's sort: the other side of a comparison, the parameter or result of a ghost-fn, or the sequence or multiset around it.
+  - **Ill-typed modules:** an undefined name crashed `verify.py` with a `KeyError`. It now prints `E-TYPE-002`.
+- **Codex review** (`gpt-5.6-sol`) found 5 bugs, all fixed:
+  - **Context sorts:** they didn't reach `take`, `drop` and `concat`, or a ghost-fn's arguments and body. The fix is one rule at the top of `Gen.expr`, rather than a case per operator.
+  - **`verify.py core.b17`** reported every core name as redeclared. `goals.read` now gives both entry points the core library's own object.
+  - **A parse error** crashed `verify.py`. It now prints `E-PARSE-001`.
+  - The output's first finding was cut off. The probes written for the rest found two more, both fixed:
+    - **Borrowed arguments:** the checker typed `(borrow v)` without passing it through `expr`, so goals had no type for it. It's now recorded.
+    - **Comparing a sequence-valued `if`:** it put an `ite` in a trigger pattern, which Z3 rejects. The old code failed the same way. A fuzzer found the same for any logical operator, as in a literal of comparisons, so a side holding one now gets no pattern.
+  - **A re-review** found two more open-literal cases, both fixed: `idx` and `last` now give an open sequence the sort of their element's context, and `occurrences` the sort of the value it counts, as `contains` already did.
+- **Suite results unchanged:** under 10 shuffled seeds, all 20 accept programs prove every goal, all 9 proof rejects fail exactly their labelled family, and the core library's 69 goals are proved.
+- **WP5 is done for B17-0.** Its three done-whens held already, and generating goals from WP3's types was what remained. B17-1 extends it (D65).
+- **Updated:** the README's status, WP5 and WP16 rows and its `goals.py` entry; the roadmap's work in progress, next steps and WP5 row; `suite/README.md`'s note on how proof labels are checked.
+- **Interfaces touched:** interface 11's prelude, v0.1 Draft: `ms` becomes `ms.I`, and `ms.B` is added. The prelude's hash is in every cache key, so old entries miss.
+- **Fuzzing:** random ghost expressions full of empty literals, in 1,462 modules that pass tier 0, over three seeds. The old code broke on 5 of its first 7; the new code breaks on none.
+- **Proofs and tests added:** `test_verify.py` cases for boolean multisets, empty literals typed by their context, a borrowed argument, a sequence-valued `if` in a comparison, and a module that fails tier 0. Every `b17c` self-check passes.
+- **Left admitted:** none.
+
+## 2026-10-28 · D79 and D80 accepted
+- **Accepted by the owner:** D79, B17-1's scope, and D80, its verification levels (PR #19).
+- **Refinements recorded:** D79 refines D65's WP4a clause, and D80 refines D63's rule for the level a module reaches. Both headings say so.
+- **WP4a stays done.** B17-1 adds no data-type invariants or refinement links (D79).
+- **Updated:**
+  - the README's status and WP4a row;
+  - the roadmap's decisions waiting, next steps, and its WP4a, B17-1 and WP10 rows;
+  - the roadmap's B17-1 and later-subsets rows under How the language grows.
+- **Next:** B17-1's spec text and labelled suite, as B17-0's were, then the checker, interpreter and verifier extend to it.
+- **Interfaces touched:** none yet. B17-1's spec text will change interfaces 1, 6, 10 and 11 (D79), and 4 and 5 (D80).
+- **Proofs and tests added:** none.
+- **Left admitted:** none.

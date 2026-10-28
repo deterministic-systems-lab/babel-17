@@ -647,7 +647,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - When B17-0 gains data types or cost bounds, a new decision reopens WP4a for them.
 - **Touches:** D21; D30; WP4a; WP4b; WP5; WP6; WP10; WP16; `docs/roadmap.md`.
 
-## D63 · Interface 11 and the proof cache · Accepted
+## D63 · Interface 11 and the proof cache · Accepted (level rule refined by D80)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Interface 11, version 0.1, Draft:** a goal's canonical query is the SMT-LIB 2 text `b17c` sends to Z3, in this order:
@@ -706,7 +706,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Recording the goal lets later design decisions be judged against it.
 - **Touches:** D14; D20; Summary; Type system; Verification model; Standard library; Training environment; WP7; WP10; WP11; `README.md`; `docs/roadmap.md`.
 
-## D65 · The language grows in subsets alongside the phases, and B17-1 is part of Phase 1 · Accepted
+## D65 · The language grows in subsets alongside the phases, and B17-1 is part of Phase 1 · Accepted (WP4a clause refined by D79)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Two tracks:** the phases build the toolchain, and the language grows alongside them in subsets: B17-0, B17-1 and on. Each subset takes B17-0's path:
@@ -846,7 +846,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The task asks for every independent error and none that merely follows from another. Positions on every diagnostic make the output usable until WP6 defines node IDs.
 - **Touches:** WP3; WP6; D45; D55; `b17c/hashing.py`.
 
-## D79 · B17-1 adds data types, tuples, collections of any type, and ghost sets and maps · Proposed (refines D65)
+## D79 · B17-1 adds data types, tuples, collections of any type, and ghost sets and maps · Accepted (refines D65)
 - **Date:** 2026-10-28
 - **Evidence:** a survey of the frozen preambles and signatures of the 64 AlgoVeri tasks in `gym/tasks/algoveri/`.
 
@@ -907,7 +907,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **`rank`** keeps measures integers, so §7's termination goal doesn't change.
 - **Touches:** D20; D36; D42; D58; D62; D65; D68; D69; D71; WP3; WP4a; WP5; WP7; WP10; WP15; WP16; interfaces 1, 6, 10 and 11; `docs/b17-0.md` §8 and §11; `docs/roadmap.md`; `README.md`.
 
-## D80 · Verification levels, and what an unproved goal does below L2 · Proposed (refines D63)
+## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Levels are cumulative:**
