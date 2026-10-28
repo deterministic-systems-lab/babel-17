@@ -490,6 +490,15 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Still not proved:** `power`, `sum` and `prefix_sums`.
   - **Proof rejects:** 9 of 9 still fail exactly their labelled family.
 
+## 2026-10-28 · Correction: decision numbers in the soundness entry
+- When #2 merged, the goal spike's proposals were renumbered from D56–D57 to D60–D61. The entry "Goal spike: recursive ghost-fns made sound" predates that: its "Proposed in D57" means D61, and "D56's step form" means D60. D61's own text now cites D60.
+- **Merged on 2026-10-28:**
+  - #2, the interpreter;
+  - #3, the spike's soundness fix;
+  - #4, the roadmap.
+
+  Merging a PR doesn't accept the decisions it proposes, so D56–D61 are still Proposed.
+
 ## 2026-10-28 · Goal spike: proof stability under shuffled seeds
 - **Added:** `b17c/goals.py --seeds N`. A goal counts as proved only if it is also proved under N shuffled seeds of Z3's SMT and SAT cores (D23). Otherwise it's reported as brittle.
 - **First run, 10 seeds:**
