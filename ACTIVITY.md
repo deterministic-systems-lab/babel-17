@@ -489,3 +489,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **`fib`:** it now proves too, but only after 8,130 quantifier instantiations and 4.86M of the 10M-unit budget. That's likely to fail under shuffled seeds, so D56's step form still applies to it.
   - **Still not proved:** `power`, `sum` and `prefix_sums`.
   - **Proof rejects:** 9 of 9 still fail exactly their labelled family.
+
+## 2026-10-28 · Correction: decision numbers in the soundness entry
+- When #2 merged, the goal spike's proposals were renumbered from D56–D57 to D60–D61. The entry "Goal spike: recursive ghost-fns made sound" predates that: its "Proposed in D57" means D61, and "D56's step form" means D60. D61's own text now cites D60.
+- **Merged on 2026-10-28:**
+  - #2, the interpreter;
+  - #3, the spike's soundness fix;
+  - #4, the roadmap.
+
+  Merging a PR doesn't accept the decisions it proposes, so D56–D61 are still Proposed.
