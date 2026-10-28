@@ -646,3 +646,33 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Keeping an empty WP4a on the critical path would hold up WP16 and WP5 for nothing.
   - When B17-0 gains data types or cost bounds, a new decision reopens WP4a for them.
 - **Touches:** D21; D30; WP4a; WP4b; WP5; WP6; WP10; WP16; `docs/roadmap.md`.
+
+## D63 · Interface 11 and the proof cache · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Interface 11, version 0.1, Draft:** a goal's canonical query is the SMT-LIB 2 text `b17c` sends to Z3, in this order:
+    - the versioned prelude: D61's axioms and the encoding's definitions;
+    - the declarations and ghost-fns this goal uses, and the ghost-fns those use, in generation order;
+    - the goal's assumptions;
+    - the negated goal;
+    - `(check-sat)`.
+
+    Then every name `b17c` generated is renamed `k!0`, `k!1`, … in order of first occurrence. These names are constants, bound variables, ghost-fn parameters and ghost-fn symbols. Variables a loop iteration forgets are declared in order of first assignment, not by name. So alpha-equivalent definitions (D45) send byte-identical queries, and an edit elsewhere in the module doesn't change a goal's query. The canonical query is exactly what is solved, and what is cached.
+  - **Cache key:** SHA-256 over:
+    - a format tag;
+    - the hash of the goal's definition: the spec hash for spec, ghost-fn and lemma-statement goals, and the implementation hash for def and lemma-proof goals;
+    - the sorted spec hashes of the items that definition refers to;
+    - the canonical query;
+    - D22's configuration: `b17c`, which is the hash of the generator's source until there are releases; the prelude, which is the hash of its text and `core.b17`; the solver, which is its version and binary hash; the budget; and the number of shuffled seeds.
+  - **Cache entries:** each holds a verdict and the resource units spent, stored under `.b17c/cache/` in the working tree, which git ignores. A verdict follows D23: proved under the canonical seed and every shuffled seed, or brittle.
+  - **Report:** each run's part of the trusted base report (D24, D25) lists:
+    - every proved goal as solver-trusted, by D56-style node ID;
+    - brittle and failed goals;
+    - the core library's laws and the prelude version, as the axioms the goals rest on.
+
+    Interface 5 itself stays WP7's.
+- **Why:**
+  - **The key:** D22 names the key's ingredients but not how they're combined.
+  - **Renaming:** making the query invariant under renaming extends D22's "renames never break references" to proofs, so a renamed definition reuses every proof.
+  - **Trimming each query** to what it uses makes D22's invalidation exact. Measured on a two-function module: a callee's body edit re-verifies only the callee, and a spec edit re-verifies its callers too. Trimming changed no verdict on the suite or the core library.
+- **Touches:** D22–D25; D27 (interface 11); D45; D56; WP5; WP7.

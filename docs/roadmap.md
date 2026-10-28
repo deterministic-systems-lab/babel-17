@@ -51,6 +51,10 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
   - **The goal spike proves every law** under 10 shuffled seeds.
   - **Not in the library:** three of §9's facts. `push`'s effect is a statement fact. `set-idx`'s multiset effect would need a take-and-drop fact §9 lacks. Multiset extensionality ranges over every `int`, which the interpreter can't evaluate.
+- **WP5's front end** (PR pending): `b17c/verify.py`.
+  - **What it does:** it sends canonical queries (interface 11, D63), caches every verdict under D22's key, and reports solver-trusted goals by node ID (D24, D25).
+  - **WP5's three done-whens all hold** with the spike's goals: the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
+  - **What's left** is to generate goals from WP3's types instead of the spike's sort guesses.
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner

@@ -587,3 +587,29 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - D62's dependency table and critical path, which now runs WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11;
   - the suite results above.
 - **Still open, for M3:** D42's Dafny side. The four Dafny seed tasks take the same per-step preconditions when M3's task set is built.
+
+## 2026-10-28 · WP5's front end: canonical queries, the proof cache, the report (D63)
+- **Added:**
+  - **`b17c/verify.py`:** `verify(module)` checks every goal from the goal spike.
+    - Each goal goes out as its canonical query (interface 11): generated names renamed in order of first occurrence.
+    - Each verdict is cached under D22's key: the definition's hash, the spec hashes of what it refers to, the canonical query, and the configuration.
+    - `report()` gives the run's trusted base part (D24, D25): solver-trusted, brittle and failed goals by D56-style node ID, and the axioms they rest on.
+    - The CLI prints the goals that aren't proved and a summary.
+  - **`b17c/test_verify.py`:** a local check, since it needs Z3.
+- **Changed in the spike:**
+  - each goal now records its node and its part (spec or implementation);
+  - a goal's query holds only the declarations and ghost-fns it uses;
+  - a loop's forgotten variables are declared in order of first assignment, not by name;
+  - `solve_stats` reports resource units.
+- **Found while building it:**
+  - **Renaming:** declaring forgotten variables in name order made a renamed program's queries differ.
+  - **Untrimmed queries:** declaring every constant and ghost-fn in every query made a callee's body edit invalidate its callers.
+
+  Both are fixed, and the test covers both.
+- **Evidence:**
+  - **The worked example** verifies in 1.4 s with 10 seeds, and a second run takes every verdict from the cache, at 0 units.
+  - **A renamed `merge_sorted`** (`out`, `i` and the item renamed) hits the cache for every goal.
+  - **Two-function module:** editing `one`'s body re-verifies only `def one`, and editing its spec re-verifies `def two`.
+  - **Rerun after trimming:** 20 of 20 accept programs, 9 of 9 rejects, all 69 core-library goals, and both soundness probes give the same results as before.
+- **WP5's done-whens:** the worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. All three hold for the spike's goals. Generating goals from WP3's types instead of the spike's sort guesses is still to do.
+- **Proposed D63:** interface 11 v0.1, the cache key and entries, and the report's contents.

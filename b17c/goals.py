@@ -18,6 +18,7 @@ milliseconds. Multisets are count arrays. The one fact that can't be a trigger w
 a matching loop, take s (k+1) = concat (take s k) [s[k]], is added at each take term.
 """
 import concurrent.futures as cf
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -140,6 +141,7 @@ class Gen:
         self.decls, self.goals, self.n = [], [], 0
         self.quiet = False
         self.item = None    # (name, measure at entry or None, its params) while checking an item
+        self.part = "spec"  # whose goals: the spec part's or the implementation part's (D45)
         self.funs = self.ghost_fns()
 
     # Names.
@@ -179,7 +181,7 @@ class Gen:
         if self.quiet:
             return
         g = wrap(guard, g)
-        self.goals.append((self.item[0], family, x.pos, list(st.facts), g))
+        self.goals.append((self.item[0], family, x.pos, list(st.facts), g, x, self.part))
         st.facts.append(g)  # every goal is assumed once generated (§9)
 
     def fact(self, st, guard, f):
@@ -472,7 +474,7 @@ class Gen:
             t, _ = self.expr(inv, st, True)
             self.goal(st, (), "INV-ENTRY", inv, t)
         it = st.copy()
-        for name in sorted(self.assigned(body) & set(st.env)):
+        for name in [n for n in self.assigned(body) if n in st.env]:  # in a name-independent order (D63)
             self.var(it, name, st.env[name][1])  # what an iteration forgets
         for inv in invs:
             it.facts.append(self.expr(inv, it, True)[0])
@@ -496,13 +498,14 @@ class Gen:
         return after
 
     def assigned(self, stmts):
-        out = set()
+        """The names the statements assign, in order of first assignment."""
+        out = {}
         for s in stmts:
             if isinstance(s, Form):
                 if _head(s) in ("set", "set-idx", "push", "ghost-set"):
-                    out.add(s.items[1].text)
-                out |= self.assigned(s.items[1:])
-        return out
+                    out[s.items[1].text] = None
+                out.update(dict.fromkeys(self.assigned(s.items[1:])))
+        return list(out)
 
     def call(self, x, st, ghost, results):
         name, args = x.items[1].text, x.items[2:]
@@ -562,7 +565,7 @@ class Gen:
         for it in module.items[3:]:
             kind, name = it.items[0].text, it.items[1].text
             st = State({}, [])
-            self.item = (name, None, ())
+            self.item, self.part = (name, None, ()), "spec"
             if kind == "ghost-fn":
                 ps = it.items[2].items
                 self.params(st, ps)
@@ -595,6 +598,7 @@ class Gen:
 
     def body(self, it, ps, st, ghost):
         dec = clauses(it, "decreases")
+        self.part = "impl"
         d0 = self.expr(dec[0][0], st, True)[0] if dec else None
         self.item = (it.items[1].text, d0, ps)
         end = self.block(clauses(it, "body")[0], st, ghost)
@@ -603,22 +607,48 @@ class Gen:
 
 
 def query(gen, facts, g, item=None):
-    """One goal's query. A recursive ghost-fn's own goals don't get its definition."""
-    body = "\n".join([*gen.decls, *(t for name, t in gen.funs if name is None or name != item), *(f"(assert {f})" for f in facts), f"(assert (not {g}))", "(check-sat)"])
+    """One goal's query: only the declarations and ghost-fns it uses, so an edit elsewhere in
+    the module leaves it unchanged (D22, D63). A recursive ghost-fn's own goals don't get its
+    definition."""
+    asserts = [*(f"(assert {f})" for f in facts), f"(assert (not {g}))", "(check-sat)"]
+    used = set(TOKEN.findall(" ".join(asserts)))
+    funs = [(name, t) for name, t in gen.funs if name is None or name != item]
+    keep, grew = set(), True
+    while grew:  # the ghost-fns the query uses, and the ones they use
+        grew = False
+        for k, (name, t) in enumerate(funs):
+            sym = f"g!{name}" if name else DEFINES.match(t)[1]
+            if k not in keep and sym in used:
+                keep.add(k)
+                used |= set(TOKEN.findall(t))
+                grew = True
+    decls = [d for d in gen.decls if d.split()[1] in used]
+    body = "\n".join([*decls, *(t for k, (_, t) in enumerate(funs) if k in keep), *asserts])
     return PRELUDE + (VDIV if "(vdiv " in body or "(vmod " in body else "") + body
 
 
+TOKEN = re.compile(r"[^\s()]+")
+DEFINES = re.compile(r"\((?:define-fun|declare-fun) (\S+)")
+
+
 def solve(text, seed=0):
+    return solve_stats(text, seed)[0]
+
+
+def solve_stats(text, seed=0):
+    """The verdict on one query, and the resource units Z3 spent on it."""
     if seed:  # D23's shuffled seeds: the SMT core's and the SAT core's
         text = text.replace("(set-option :smt.random_seed 0)",
                             f"(set-option :smt.random_seed {seed})\n(set-option :sat.random_seed {seed})", 1)
     # D23: a resource budget, not seconds, so verdicts don't depend on load. The most a proved
     # suite goal needs is about 0.84M units; the time limit is only a backstop.
-    r = subprocess.run(["z3", f"rlimit={RLIMIT}", "-T:300", "-in"], input=text, capture_output=True, text=True)
+    r = subprocess.run(["z3", f"rlimit={RLIMIT}", "-T:300", "-st", "-in"], input=text, capture_output=True, text=True)
     out = r.stdout.strip().splitlines()
+    units = next((int(line.split()[-1].rstrip(")")) for line in out if ":rlimit-count" in line), 0)
     if any(line.startswith("(error") for line in out) or r.stderr:
-        return "error: " + (r.stdout + r.stderr)[:300]
-    return {"unsat": "proved", "sat": "failed"}.get(out[-1] if out else "", "unknown: " + (r.stdout + r.stderr)[-200:])
+        return "error: " + (r.stdout + r.stderr)[:300], units
+    first = out[0] if out else ""
+    return {"unsat": "proved", "sat": "failed", "unknown": "unknown"}.get(first, "unknown: " + first), units
 
 
 def run(path, seeds=0):
@@ -635,7 +665,7 @@ def run(path, seeds=0):
 
     with cf.ThreadPoolExecutor(8) as pool:
         verdicts = list(pool.map(verdict, goals))
-    return [(item, fam, pos, v) for (item, fam, pos, _, _), v in zip(goals, verdicts)]
+    return [g[:3] + (v,) for g, v in zip(goals, verdicts)]
 
 
 if __name__ == "__main__":
