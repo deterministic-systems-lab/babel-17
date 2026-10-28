@@ -92,6 +92,11 @@ def fn(op, srt, *args):
     return f"({op}.{srt[1]} {' '.join(args)})"
 
 
+def app(f, args):
+    """f applied to args; an SMT constant takes no parentheses."""
+    return f"({f} {' '.join(args)})" if args else f
+
+
 def num(v):
     return str(v) if v >= 0 else f"(- {-v})"
 
@@ -296,10 +301,10 @@ class Gen:
         f = self.defs[h]["ghost-fn"]
         args = [e(y)[0] for y in a]
         if clauses(f, "requires"):
-            self.goal(st, guard, "PRE", x, f"(p!{h} {' '.join(args)})")
+            self.goal(st, guard, "PRE", x, app(f"p!{h}", args))
         if self.item and h == self.item[0]:
             self.term_goal(st, guard, x, f, args)
-        return f"(g!{h}{''.join(' ' + t for t in args)})", sort(f.items[3])
+        return app(f"g!{h}", args), sort(f.items[3])
 
     def term_goal(self, st, guard, x, item, args):
         """At a recursive call: 0 <= callee measure < caller measure (§7)."""
@@ -337,9 +342,21 @@ class Gen:
             body, _ = self.expr(clauses(f, "body")[0][0], st, True)
             pre = [self.expr(c[0], st, True)[0] for c in clauses(f, "requires")]
             self.quiet = q
-            kind = "define-fun-rec" if name in self.calls(f) else "define-fun"
-            out.append(f"({kind} g!{name} ({' '.join(ps)}) {sort(f.items[3])} {body})")
-            out.append(f"(define-fun p!{name} ({' '.join(ps)}) Bool (and true {' '.join(pre)}))")
+            ret, pre = sort(f.items[3]), f"(and true {' '.join(pre)})"
+            if name not in self.calls(f):
+                out.append((None, f"(define-fun g!{name} ({' '.join(ps)}) {ret} {body})"))
+                out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
+                return
+            # Recursive: its equation holds only under its requires, and the ghost-fn's own goals
+            # are checked without it (see query). A definition that doesn't terminate could
+            # otherwise be contradictory, and prove everything, its own TERM goal included.
+            sorts = " ".join(p.split(" ", 1)[1][:-1] for p in ps)
+            args = [p[1:].split(" ", 1)[0] for p in ps]
+            out.append((None, f"(declare-fun g!{name} ({sorts}) {ret})"))
+            out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
+            eq = f"(=> {app('p!' + name, args)} (= {app('g!' + name, args)} {body}))"
+            out.append((name, f"(assert (forall ({' '.join(ps)}) (! {eq} :pattern ({app('g!' + name, args)}))))"
+                        if ps else f"(assert {eq})"))
 
         for name, d in self.defs.items():
             if "ghost-fn" in d:
@@ -580,8 +597,9 @@ class Gen:
             self.post(it, it, State(dict(end.env), end.facts), end)
 
 
-def query(gen, facts, g):
-    body = "\n".join([*gen.decls, *gen.funs, *(f"(assert {f})" for f in facts), f"(assert (not {g}))", "(check-sat)"])
+def query(gen, facts, g, item=None):
+    """One goal's query. A recursive ghost-fn's own goals don't get its definition."""
+    body = "\n".join([*gen.decls, *(t for name, t in gen.funs if name is None or name != item), *(f"(assert {f})" for f in facts), f"(assert (not {g}))", "(check-sat)"])
     return PRELUDE + (VDIV if "(vdiv " in body or "(vmod " in body else "") + body
 
 
@@ -599,7 +617,7 @@ def run(path):
     gen = Gen(m := parse(Path(path).read_bytes()))
     goals = gen.check(m)
     with cf.ThreadPoolExecutor(8) as pool:
-        verdicts = list(pool.map(lambda g: solve(query(gen, g[3], g[4])), goals))
+        verdicts = list(pool.map(lambda g: solve(query(gen, g[3], g[4], g[0])), goals))
     return [(item, fam, pos, v) for (item, fam, pos, _, _), v in zip(goals, verdicts)]
 
 
