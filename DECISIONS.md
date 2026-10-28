@@ -646,3 +646,39 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Keeping an empty WP4a on the critical path would hold up WP16 and WP5 for nothing.
   - When B17-0 gains data types or cost bounds, a new decision reopens WP4a for them.
 - **Touches:** D21; D30; WP4a; WP4b; WP5; WP6; WP10; WP16; `docs/roadmap.md`.
+
+## D63 · Interface 11 and the proof cache · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Interface 11, version 0.1, Draft:** a goal's canonical query is the SMT-LIB 2 text `b17c` sends to Z3, in this order:
+    - the versioned prelude: D61's axioms and the encoding's definitions;
+    - the declarations and ghost-fns this goal uses, and the ghost-fns those use, in generation order;
+    - the goal's assumptions;
+    - the negated goal;
+    - `(check-sat)`.
+
+    Then every name `b17c` generated is renamed `k!0`, `k!1`, … in order of first occurrence. These names are constants, bound variables, ghost-fn parameters and ghost-fn symbols. Variables a loop iteration forgets are declared in order of first assignment, not by name. So alpha-equivalent definitions (D45) send byte-identical queries, and an edit elsewhere in the module doesn't change a goal's query. The canonical query is exactly what is solved, and what is cached.
+  - **Cache key:** SHA-256 over:
+    - a format tag;
+    - the hash of the goal's definition: the spec hash for spec, ghost-fn and lemma-statement goals, and the implementation hash for def and lemma-proof goals;
+    - the sorted spec hashes of the items that definition refers to;
+    - the canonical query;
+    - D22's configuration: `b17c`, which is the hash of the generator's source until there are releases; the prelude, which is the hash of its text and `core.b17`; the solver, which is its version and the SHA-256 of its resolved binary and the `libz3` beside it; the budget; and the number of shuffled seeds.
+
+    Parts are length-prefixed before hashing.
+  - **Cache entries:** each holds a verdict and the resource units spent across every seed, stored under `.b17c/cache/` in the working tree, which git ignores.
+    - A verdict follows D23: proved under the canonical seed and every shuffled seed, or brittle.
+    - Only verdicts reached within the resource budget are cached. A wall-clock timeout or a process error depends on the machine, so it's solved again next time.
+    - Entries are published atomically, and an unreadable entry counts as a miss.
+  - **Goal identity:** a goal is named by its D56-style node ID, followed by the node ID of the contract clause it checks, for a `PRE` or `POST` goal or a loop's measure drop. A node checked more than once, as a loop condition is on entry and at each iteration, is numbered `#2`, `#3` and so on.
+  - **Report:** the module's trusted base report (D24, D25; WP5 owns it, and WP7 adds the backend fields) records:
+    - the input's hash (SHA-256 of its canonical bytes), and the lockfile's hash, which is `null` until B17-0 has imports;
+    - the configuration above;
+    - the level: L3-S when every goal is proved by the solver (D24), L2-S when only the runtime-safety goals are (`BOUNDS`, `OVERFLOW`, `DIV`, `PRE` and `TERM`), and otherwise below L2;
+    - the solver-trusted, brittle, failed and admitted goals, by goal identity;
+    - the core library's laws and the prelude version, as the axioms the goals rest on.
+- **Why:**
+  - **The key:** D22 names the key's ingredients but not how they're combined.
+  - **Renaming:** making the query invariant under renaming extends D22's "renames never break references" to proofs, so a renamed definition reuses every proof.
+  - **Trimming each query** to what it uses makes D22's invalidation exact. Measured on a two-function module: a callee's body edit re-verifies only the callee, and a spec edit re-verifies its callers too. Trimming changed no verdict on the suite or the core library.
+- **Touches:** D22–D25; D27 (interfaces 5 and 11); D45; D56; WP5; WP7.
