@@ -64,16 +64,21 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
 - **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 proposed. Its labelled suite comes next.
+- **WP6, the agent protocol,** is done for B17-0: `b17c/agent.py`.
+  - **Diagnostics** carry interface 3's fields (D93). That includes the goal over the program's names, a counterexample the interpreter replays, the slice of items needed to fix it, and how many goals depend on it.
+  - **The five queries answer** (interface 8, D94). `search` finds specs by what they guarantee, by verifying a def that only calls each candidate.
+  - **Not yet:** repairs, which wait for WP2's typed edits.
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
 - **D81–D92, B17-1's spec text:** the choices `docs/b17-1.md` makes within D79 and D80, as D33–D43 were B17-0's. They cover the syntax, the namespaces, runtime types and copying, places, ghost sets and maps, `alloc` for boxed fields, `rank`, the property-test generator, interface 11's encoding, and which types a quantifier may bind. D91 refines D80, so L2's closure covers the ghost-fns a proof unfolds, and D92 refines D45 with hashes for data items.
+- **D93 and D94, WP6's interfaces:** interface 3's diagnostic schema and interface 8's five queries, at version 0.1.
 
 D79 and D80 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text** is drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92. Its labelled suite in `suite/b17-1/` comes next. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
-2. **WP6**, the agent protocol and diagnostics, builds on WP3 and WP5.
+2. **WP8**, the agent reference manual, builds on WP6: every rule and code with an example that passes `b17c check`.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is under way in a separate session. It needs only WP3 and WP15, which are done.
@@ -92,7 +97,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP4a | The spec language | WP3 | Done, since WP1a is frozen and B17-0 already has a spec language (D62). B17-1 adds no data-type invariants or refinement links, since every surveyed task states its invariants in its contracts, so it stays done (D79). |
 | WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP1a, WP15 | Every entry has witness examples that the interpreter confirms (D28). In progress: met for its 33 laws and 3 ghost-fns. |
 | WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. Done for B17-0. |
-| WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8) |
+| WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8). Done for B17-0 (D93, D94), except repairs, which wait for WP2's typed edits. |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check` |
@@ -150,7 +155,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 - **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). What makes a task hard for them, and how to show it before M3 runs, is open.
 - **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost, and M3 will show whether agents pay it.
-- **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a counterexample, so WP6's diagnostics will often have none to show.
+- **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a model. WP6 solves it again against only the axioms it mentions, and the interpreter replays the model (D93). That found one for each of the suite's 9 proof rejects, and 8 replayed. How often it works on harder programs is open.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).
 - **Training resources.** Phase 2 needs open weights and compute that the project doesn't have yet.
 - **Reaching every domain.** [How the language grows](#how-the-language-grows) lists what D64 needs. What follows B17-1, and in what order, is open. Deciding it needs task sets for applications, pipelines and machine learning, but every benchmark so far is an algorithm task.

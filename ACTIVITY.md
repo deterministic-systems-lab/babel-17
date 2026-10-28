@@ -942,3 +942,43 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** B17-1's parts of interfaces 1 and 6, interface 10's values and `err` reasons, and interface 11 version 0.2, all Draft.
 - **Proofs and tests added:** none yet. The suite comes next (§13).
 - **Left admitted:** none.
+
+## 2026-10-28 · WP6, the agent protocol (D93, D94)
+- **`b17c/agent.py`:** diagnostics in interface 3's schema, and interface 8's five queries, each answered as JSON.
+  - **`check`:** every tier 0 error with its D56 node ID, or every unproved goal with these fields:
+    - the goal, written over the program's names;
+    - a counterexample, with whether the interpreter reproduces it;
+    - its context, its dependents and its budget.
+  - **`obligations`:** every goal of an item.
+  - **`explain`:** a code's rule, from `docs/b17-0.md` §9, with the suite's labelled program.
+  - **`impact`:** the goals a changed spec breaks, callers first.
+  - **`search`:** specs found by what they guarantee. A probe def that only calls the candidate is verified, so the proof is the match.
+  - **`simulate`:** a checked run, as interface 10 reports it.
+- **Counterexamples:** the full prelude's quantifiers keep Z3 from answering `sat`, so a failing goal had none, which the roadmap listed as an open question. WP6 solves the goal again against only the prelude axioms its own part mentions. Each of the suite's 9 proof rejects gets a model, and the interpreter reproduces 8. The ninth, `E-PROOF-BOUNDS-loop-condition`, is flagged as not reproduced. Verdicts still come from the full query.
+- **Hooks in existing code:**
+  - the checker's diagnostics carry their node;
+  - the goal generator records each item's parameter terms and which nodes are ghost;
+  - `verify.verify_goals` returns the goals behind the rows.
+
+  None of these changes a verdict or a hash.
+- **Latency:** tier 0 checks the suite's 20 defs in 7 ms, about 0.4 ms each, against the design spec's target of 100 ms per definition.
+- **Codex review** (`gpt-5.6-sol`) found 9 bugs, all fixed, each with a regression test:
+  - **Goal text:** a ghost-fn's `PRE` printed the call, not its `requires`. `DIV` printed SMT's `(- 9223…)`. A loop's measure drop is now documented as the one goal that isn't a B17-0 expression.
+  - **Counterexamples:** they left out parameters the goal doesn't mention, so none could replay. Those now take a default, and a def with no parameters gets `{}`.
+  - **Dependents:** they counted equal goal text in unrelated items.
+  - **Search:**
+    - it ignored failed goals of the probe's own spec, so it could report a match that doesn't hold;
+    - the probe's name could clash with FILE's items;
+    - its fresh result names had a bound and could crash.
+  - **Impact:** it matched goals by positions, so moving an item looked like a change.
+  - **Refusals:** a parse error in a query returned success, where D94 says exit 2.
+- **Not done:** repairs stay empty until WP2's typed edits exist (interface 2).
+- **Proposed:** D93, interface 3 version 0.1, and D94, interface 8 version 0.1.
+- **Updated:**
+  - the README's status, its WP table, its layout, and its self-checks, now six in CI;
+  - the roadmap's work in progress, decisions waiting, next steps, WP6 row, and its open question on counterexamples, and that WP7 is under way in a separate session;
+  - the README's toolchain examples, which now show `agent.py`;
+  - CI now runs `test_agent.py`, without the queries that need Z3.
+- **Interfaces touched:** 3 and 8, version 0.1 Draft.
+- **Proofs and tests added:** `test_agent.py`, covering every query, a reproduced counterexample, a recursive call's `TERM` goal, impact on a caller, and search by guarantee. Every `b17c` self-check passes.
+- **Left admitted:** none.

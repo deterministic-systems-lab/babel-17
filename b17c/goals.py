@@ -162,6 +162,8 @@ class Gen:
         self.quiet = False
         self.item = None    # (name, measure at entry or None, its params) while checking an item
         self.part = "spec"  # whose goals: the spec part's or the implementation part's (D45)
+        self.inputs = {}    # the current item's parameters: name -> (term, type), for counterexamples
+        self.ghost = set()  # ids of the nodes generated in ghost context
         self.funs = self.ghost_fns()
 
     # Names.
@@ -205,7 +207,7 @@ class Gen:
         if self.quiet:
             return
         g = wrap(guard, g)
-        self.goals.append((self.item[0], family, x.pos, list(st.facts), g, x, self.part, clause))
+        self.goals.append((self.item[0], family, x.pos, list(st.facts), g, x, self.part, clause, self.inputs))
         st.facts.append(g)  # every goal is assumed once generated (§9)
 
     def fact(self, st, guard, f):
@@ -214,6 +216,8 @@ class Gen:
 
     # Expressions: (SMT term, SMT sort).
     def expr(self, x, st, ghost, guard=(), want="SI"):
+        if ghost:
+            self.ghost.add(id(x))
         if isinstance(x, Int):
             return num(x.value), "Int"
         if isinstance(x, Sym):
@@ -591,8 +595,10 @@ class Gen:
             st.facts.append(self.expr(c, st, True)[0])
 
     def params(self, st, ps):
+        self.inputs = {}
         for p in ps:
             self.var(st, p.items[0].text, p.items[1])
+            self.inputs[p.items[0].text] = st.env[p.items[0].text]
 
     def check(self, module):
         for it in module.items[3:]:
