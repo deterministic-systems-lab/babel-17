@@ -1,0 +1,6 @@
+(module core1
+  (header
+    (purpose "B17-1's additions to the core library (docs/b17-1.md §9): the option type, in scope in every B17-1 module.")
+    (invariants "None: option has no laws beyond its encoding as a datatype.")
+    (failures "None."))
+  (data option (t) (none) (some (value t))))

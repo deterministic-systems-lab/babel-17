@@ -12,10 +12,10 @@ SUITE = Path(__file__).resolve().parent.parent / "suite"
 HEAD = '(module m (header (purpose "p") (invariants "i") (failures "f"))'
 
 
-def diagnose(text):
+def diagnose(text, subset=0):
     """check() on text, with a parse error as a diagnostic, as the CLI reports it."""
     try:
-        return c.check(parse(text))
+        return c.check(parse(text, subset), subset)
     except ParseError as e:
         return [c.Diagnostic(e.line, e.col, e.code, e.reason)]
 
@@ -333,6 +333,117 @@ for name, want in [("accept/abs.b17", (0, "")),
     with redirect_stdout(out):
         code = c.main([str(SUITE / name)])
     assert code == want[0] and want[1] in out.getvalue(), (name, code, out.getvalue())
+
+# B17-1 (subset 1, D101): the suite's labels, exactly, as for B17-0 (D44).
+seen = Counter()
+for path in sorted((SUITE / "b17-1").rglob("*.b17")):
+    ds = diagnose(path.read_bytes(), 1)
+    if path.parent.name == "accept" or path.name.startswith("E-PROOF-"):
+        assert ds == [], (path.name, [str(d) for d in ds])
+        seen["accept" if path.parent.name == "accept" else "proof"] += 1
+    else:
+        code = re.match(r"E-[A-Z]+-\d+", path.name).group()
+        assert ds and all(d.code == code for d in ds), (path.name, [str(d) for d in ds])
+        seen["parse" if code == "E-PARSE-001" else "tier 0"] += 1
+assert seen == {"accept": 10, "proof": 5, "tier 0": 40, "parse": 2}, seen
+
+
+def codes1(*items):
+    return sorted({d.code for d in diagnose(module(*items), 1)})
+
+
+def ok1(*items):
+    if ds := diagnose(module(*items), 1):
+        failures.append("expected no diagnostics:\n" + "\n".join(items) + "\n" + "\n".join(map(str, ds)))
+
+
+def bad1(code, *items):
+    if (got := codes1(*items)) != [code]:
+        failures.append(f"expected only {code}, got {got}:\n" + "\n".join(items))
+
+
+TREE = "(data tree () (leaf) (node (val i64) (left tree) (right tree)))"
+BOX = "(data box (a) (box (v a)))"
+SETBOX = "(data bag (a) (bag (s (iset a))))"
+spec = lambda name, params, results, effects="": f"(spec {name} (params {params}) (returns {results}) (effects {effects}))"
+# Types (docs/b17-1.md §3): what's runtime, well-formed and copied, and the subtyping it allows.
+ok1(TREE, BOX, "(ghost-fn g ((b (box i64)) (c (box (tuple int (seq tree))))) bool (body true))")
+bad1("E-GHOST-002", BOX, spec("f", "(b (box int))", "(r i64)"))  # (box int) is a ghost type
+bad1("E-GHOST-002", spec("f", "(s (iset i64))", "(r i64)"))
+bad1("E-TYPE-002", spec("f", "(t nowhere)", "(r i64)"))
+bad1("E-TYPE-001", "(data wrap (a) (wrap (xs (vec a))))", "(ghost-fn g ((w (wrap int))) bool (body true))")
+ok1("(data wrap (a) (wrap (xs (vec a))))", "(ghost-fn g ((w (wrap (option i64)))) bool (body true))")
+bad1("E-TYPE-002", "(data pair (a a) (pair (x a)))")  # a parameter twice
+ok1(BOX, "(ghost-fn g ((b (box i64))) (box int) (body b))")  # covariant (§3)
+bad1("E-TYPE-001", SETBOX, "(ghost-fn g ((b (bag i64))) (bag int) (body b))")  # invariant: a set holds it
+bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
+ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")
+ok1("(data rose () (rose (kids (seq rose))))")  # a sequence may be empty: a finite value (§3)
+# Names (D82): types and values apart; constructors are value names; fields per type.
+ok1("(data tree () (mk (val i64)))", "(ghost-fn tree_val ((tree tree)) int (body (field tree val)))")
+bad1("E-TYPE-002", TREE, spec("f", "(leaf i64)", "(r i64)"))  # a parameter takes a constructor's name
+bad1("E-TYPE-002", TREE, "(data shrub () (leaf))")
+bad1("E-TYPE-002", "(data cell () (cell (some i64)))", "(data opt () (some))")
+bad1("E-TYPE-001", TREE, "(ghost-fn g () tree (body leaf))")  # a constructor isn't a value: (leaf) is
+ok1(TREE, "(data pair () (pair (val i64) (left bool)))")  # field names may repeat across types
+bad1("E-TYPE-002", TREE, "(ghost-fn g ((t tree)) int (body (match t (case (leaf) 0) (case (node v v r) 0))))")
+# Expressions (§4, §7).
+ok1(TREE, "(ghost-fn g ((t tree)) bool (body (and (is node t) (== (rank t) (rank t)))))")
+bad1("E-TYPE-001", TREE, "(ghost-fn g ((t tree)) int (body (match t (case (leaf) 0) (case (node v l r) false))))")
+bad1("E-TYPE-001", TREE, "(ghost-fn g ((t tree)) int (body (match t (case (leaf) 0) (case (node v l r) v) (case (leaf) 0))))")
+bad1("E-TYPE-001", "(ghost-fn g ((x int)) int (body (field x val)))")
+bad1("E-TYPE-001", "(ghost-fn g ((x int)) bool (body (is some x)))")
+bad1("E-TYPE-001", "(ghost-fn g ((p (tuple int int))) int (body (match p (case (tuple a b c) a))))")
+ok1("(ghost-fn g ((p (tuple int bool))) int (body (match p (case (tuple a b) (if b a 0)))))")
+ok1("(ghost-fn g ((o (option int))) int (body (if (is some o) (field o value) 0)))",
+    "(ghost-fn h () (option int) (body (none)))", "(ghost-fn k () (option int) (body (some 3)))")
+bad1("E-TYPE-001", "(ghost-fn k () (option bool) (body (some 3)))")
+ok1("(ghost-fn g ((s (iset int)) (m (map int bool))) bool (body (and (contains (union s (iset-lit 1 2)) 3) "
+    "(lookup (update m 1 true) 1))))")
+bad1("E-TYPE-001", "(ghost-fn g ((s (iset int)) (m (map int int))) bool (body (== (union s m) s)))")
+bad1("E-TYPE-001", "(ghost-fn g ((m (map int int))) bool (body (lookup m 1)))")
+ok1("(ghost-fn g () (iset int) (body (iset-of ((x int)) (> x 0))))", "(ghost-fn h () (map int int) (body (map-lit (1 2) (3 4))))")
+bad1("E-TYPE-001", "(ghost-fn g () (map int int) (body (map-lit (1 2) (3 true))))")
+ok1(BOX, "(ghost-fn g () bool (body (forall ((b (box (seq (tuple int bool))))) (== b b))))")  # exact (D90)
+bad1("E-TYPE-001", TREE, "(ghost-fn g () bool (body (forall ((t tree)) true)))")  # an i64 field
+bad1("E-GHOST-002", TREE, spec("f", "(t tree)", "(r bool)"), "(def f (body (return (== t t))))")
+bad1("E-GHOST-002", spec("f", "(x i64)", "(r bool)"), "(def f (body (return (contains (iset-lit 1) x))))")
+# Ownership (§5): trees move, an i64 option is copied, and places only read.
+SPEC_T = spec("f", "(t tree)", "(r tree)")
+bad1("E-OWN-001", TREE, SPEC_T, "(def f (body (let u tree t) (return t)))")
+ok1(TREE, spec("f", "(o (option i64))", "(r (option i64))"), "(def f (body (let p (option i64) o) (return o)))")
+bad1("E-OWN-001", TREE, SPEC_T, "(def f (body (match t (case (leaf) (block)) (case (node v l r) (return l))) (return t)))")
+ok1(TREE, SPEC_T, "(def f (body (match t (case (leaf) (return (leaf))) (case (node v l r) (return l)))))")
+bad1("E-OWN-004", TREE, spec("f", "(t tree) (n i64)", "(r tree)"),
+     "(def f (body (let-mut i i64 0) (while (< i n) (invariant true) (decreases (- n i)) (let u tree t) (set i (+ i 1))) "
+     "(return (leaf))))")
+bad1("E-OWN-006", TREE, spec("f", "(t tree)", "(r bool)", "alloc"), "(def f (body (return (is node (node 1 t (leaf))))))")
+ok1(TREE, spec("f", "(x i64)", "(r tree)", "alloc"), "(def f (body (let t tree (node x (leaf) (leaf))) (return t)))")
+bad1("E-OWN-007", TREE, "(data pair () (pair (fst tree) (snd tree)))", spec("f", "(p pair)", "(r tree)"),
+     "(def f (body (return (field p fst))))")
+ok1(TREE, "(data pair () (pair (fst tree) (snd tree)))", spec("f", "(p pair)", "(r tree)"),
+    "(def f (body (let-mut q pair p) (let a tree (replace (field q fst) (leaf))) (return a)))")
+ok1(TREE, "(data pair () (pair (fst tree) (snd tree)))", spec("f", "(p pair)", "(r i64)"),
+    "(def f (body (if (is node (field p fst)) (return (field (field p fst) val)) (return 0))))")
+bad1("E-TYPE-001", spec("f", "(a (vec (vec i64)))", "(r (vec i64))"),
+     "(def f (body (let-mut b (vec (vec i64)) a) (let c (vec bool) (replace (idx b 0) (vec-new))) (return (vec-new))))")
+ok1(spec("f", "(a (vec (vec i64)))", "(r (vec (vec i64)))", "alloc"),
+    "(def f (body (let-mut b (vec (vec i64)) a) (push (idx b 0) 7) (set-idx (idx b 0) 0 1) (return b)))")
+bad1("E-OWN-005", TREE, spec("f", "(t tree)", "(r (tuple tree tree))"), "(def f (body (return (tuple t t))))")
+bad1("E-TYPE-002", "(data opt (a) (no) (yes (x a)))")  # a copy of option (D92)
+# Effects (§6): a boxed field allocates; a trie's vector of children doesn't box.
+ok1("(data trie () (trie (end bool) (kids (vec (option trie)))))", spec("f", "(k (vec (option trie)))", "(r trie)"),
+    "(def f (body (return (trie true k))))")
+bad1("E-EFF-001", spec("f", "(n i64)", "(r (vec (option i64)))"), "(def f (body (return (seq-build n (fn (i) (none))))))")
+# D99 and D100: forall statements and obtain.
+ok1("(lemma l (params (k int)) (requires (> k 0)) (ensures (> (* k k) 0)) (body))",
+    "(lemma m (params) (body (forall ((k int)) (call l k)) (obtain ((j int)) (> j 5)) (assert (> j 0))))")
+bad1("E-TYPE-002", "(lemma m (params) (body (forall ((k int)) (call nowhere k))))")
+bad1("E-TYPE-002", "(lemma m (params) (body (obtain ((k int)) (> k 0)) (obtain ((k int)) (> k 1))))")
+# B17-0 keeps its rules: no data types, no nested collections, B17-1's words as names (D101).
+assert [d.code for d in diagnose(module("(ghost-fn map ((field int)) int (body field))"))] == []
+assert [d.code for d in diagnose(module("(ghost-fn g ((s (seq (seq int)))) int (body 0))"))] == ["E-TYPE-001"]
+assert [d.code for d in diagnose(module("(ghost-fn g ((s (seq (seq int)))) int (body 0))"), 1)] == []
 
 assert not failures, "\n\n".join(failures)
 print("checker self-check passed")
