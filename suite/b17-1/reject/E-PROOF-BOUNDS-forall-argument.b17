@@ -1,0 +1,10 @@
+(module forall_index
+  (header
+    (purpose "An argument's goals hold for every binder value, and idx s i doesn't.")
+    (invariants "None.")
+    (failures "None."))
+  (lemma sq_nonneg (params (k int))
+    (ensures (>= (* k k) 0))
+    (body))
+  (lemma all_elems (params (s (seq int)))
+    (body (forall ((i int)) (call sq_nonneg (idx s i))))))

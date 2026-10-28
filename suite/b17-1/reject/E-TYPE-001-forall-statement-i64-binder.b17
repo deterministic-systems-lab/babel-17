@@ -1,0 +1,10 @@
+(module i64_forall
+  (header
+    (purpose "A forall statement's binders have exact types, and i64 isn't one.")
+    (invariants "None.")
+    (failures "None."))
+  (lemma sq_nonneg (params (k int))
+    (ensures (>= (* k k) 0))
+    (body))
+  (lemma all_sq (params)
+    (body (forall ((k i64)) (call sq_nonneg k)))))

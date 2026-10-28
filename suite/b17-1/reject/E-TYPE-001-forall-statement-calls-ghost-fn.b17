@@ -1,0 +1,9 @@
+(module forall_fn
+  (header
+    (purpose "A forall statement applies a lemma, and sq is a ghost-fn.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn sq ((k int)) int
+    (body (* k k)))
+  (lemma all_sq (params)
+    (body (forall ((k int)) (call sq k)))))
