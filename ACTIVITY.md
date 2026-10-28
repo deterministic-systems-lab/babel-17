@@ -1039,6 +1039,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - two random campaigns, with no mismatch and no build failure:
     - its own generator: 202 modules, 28,847 runs;
     - this test's generator on fresh seeds: 70 modules, 52,347 runs.
+- **Validated on review, after rebasing onto main:**
+  - **CI** reproduced the figures above on rustc 1.99.1: 36 crates built with warnings denied, and 8,875 runs matched (6,205 `ok`, 2,426 `err`, 244 `panic`, 250 skipped at the step limit).
+  - **WP5 is unaffected:** all 511 goal queries over the suite and the core library are byte-identical to main's. The suite holds under 10 seeds, and `test_verify.py` passes on a machine with Z3.
+  - **A second Codex review** (`gpt-5.6-sol`) of `rust.py` and `test_rust.py` found no further bugs, and confirmed that the tests compare whole outputs and fail without rustc.
 - **D80 already fits:** accepted while this was in progress, it says emitted Rust stops at an unproved `err` and keeps its checks at every level, which D95 does.
 - **Proposed D95–D97,** numbered after B17-1's D81–D92 and WP6's D93–D94. The branch first proposed them as D93–D95, and its rebase onto main renumbered them:
   - D95: how B17-0 lowers to safe Rust;
