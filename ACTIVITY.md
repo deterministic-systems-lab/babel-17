@@ -465,12 +465,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Findings:**
   - **The porting rule (§10, D42) needs a hint in 4 programs.**
     - The overflow goal at a loop step needs the range precondition at the next index, a term the program never mentions before the step.
-    - Stating the range per step proves all four with no hint. Proposed as D56.
+    - Stating the range per step proves all four with no hint. Proposed as D60.
   - **The encoding matters more than the facts.**
     - Z3's own sequence theory timed out on 9 accept programs. The same §9 facts as axioms of an uninterpreted sequence sort prove them in milliseconds.
     - Division by a variable stalls Z3 unless it's encoded through D37's truncation facts.
     - Wall-clock limits made verdicts depend on load.
-    - Proposed as D57.
+    - Proposed as D61.
   - **Failing goals come back `unknown`, never `sat`.** With quantified axioms, Z3 can't build a counterexample, so WP6's `counterexample` field will usually be empty for these goals. Each failing goal also costs the whole budget.
 - **Not yet:**
   - D23's shuffled-seed runs;
