@@ -73,6 +73,8 @@ None new. D56–D78 were accepted on 2026-10-28. D2–D10, carried over from the
 2. **WP5** generates its goals from WP3's types, replacing the spike's sort guesses.
 3. **WP16** grows the core library alongside WP5.
 
+Off the critical path, **WP7**, the backend that emits safe Rust, can start now: it needs only WP3 and WP15, which are done.
+
 ### Phase 0 work outside the gate
 - **The rest of WP2:** the manifest and lockfile schemas (interface 7, D26) and typed edit operations (interface 2).
 - **The rest of the baselines:** Gemini's remaining tasks once its quota resets, around 2026-11-02, and Grok's once its balance is topped up.

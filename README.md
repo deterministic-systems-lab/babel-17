@@ -18,6 +18,8 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
+Phase 1, the embedded MVP, has begun. Its next steps are B17-1's scope decision and WP5's goals from WP3's types.
+
 | WP | What | State |
 |---|---|---|
 | WP1a | B17-0 core semantics and the accept/reject suite | Done: frozen at v1.0 on 2026-10-28 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)), once WP3's checker agreed with every tier 0 label (D44). |
@@ -90,7 +92,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 - [uv](https://docs.astral.sh/uv/), with Python 3.11 or later. Everything runs through `uv run`, and `b17c` uses only the standard library.
 - To run benchmarks: Dafny 4.11.0 with Z3 5.3.2, plus the agent CLIs you want to compare: `claude`, `codex`, `agy` or `grok`.
 
-**Self-checks.** Each one prints a line ending in "passed". CI runs the first four on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
+**Self-checks.** Each one prints a line ending in "passed". CI runs the first five on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
 
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested

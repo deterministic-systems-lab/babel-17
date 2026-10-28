@@ -828,3 +828,11 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** 6 and B17-0's part of 1, now Frozen at version 1.0.
 - **Proofs and tests added:** a `test_check.py` case for the malformed runtime type. Every `b17c` self-check passes.
 - **Left admitted:** none.
+
+## 2026-10-28 · README and roadmap after the freeze
+- **Checked** both against the repository once PR #17 merged.
+- **README:** CI runs five self-checks, not four: `test_check.py` joined it with WP3. The status section now says Phase 1 has begun, and names its next steps.
+- **Roadmap:** WP7, the Rust backend, is unblocked now that WP3 and WP15 are done, and the next steps say so.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.
