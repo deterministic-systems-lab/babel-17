@@ -1297,3 +1297,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A `choose` expression,** Hilbert's ε: its goal would arise wherever it appears, and two uses with the same body would have to denote the same value. A statement scopes the witness to one place.
   - **Lemmas with results:** every call would bind them, and lemmas would stop being pure facts.
 - **Touches:** D41; D51; D90; D92; D99; B17-1 §2, §7 and §9; WP3; WP5; WP8; WP10.
+
+## D101 · How the toolchain picks a subset · Proposed
+- **Date:** 2026-10-28
+- **Decision:** each `b17c` entry point takes the subset it reads, 0 or 1: `subset=` in Python, and `--subset N` on the command line.
+  - **Subset 0** is B17-0 exactly as frozen: its reserved words, grammar, types and labels. **Subset 1** is B17-1's.
+  - **The default** is 0 until B17-1 freezes. It then becomes 1, the newest frozen subset, and so on for later subsets. Whatever relies on B17-0 then names subset 0: M3's B17-0 track, the manual's checks and B17-0's tests.
+  - **Later,** the manifest (interface 4) declares a module's subset, and the tools read it from there.
+  - **In order:** the parser takes it first. The hasher, checker, interpreter, verifier, backend and agent protocol take it as each extends to B17-1.
+- **Why:**
+  - **B17-1 isn't a superset of B17-0 as written.**
+    - **Reserved words:** B17-1 reserves 20 words that a B17-0 program may use as names, such as `map` and `field`.
+    - **Types:** it accepts types that B17-0 rejects. One is `(seq (seq int))`, for which B17-0's frozen tests and the manual expect `E-TYPE-001`.
+  - **B17-0's outcomes must not change:** B17-0 is frozen (D44), and M3's B17-0 track measures agents writing B17-0.
+  - **A draft's rules shouldn't change what the tools do by default.**
+- **Alternatives:**
+  - **Always the newest subset:** that breaks B17-0's frozen tests and the manual, and changes M3's track mid-experiment.
+  - **The subset in the module text:** that changes B17-0's frozen grammar and every hash.
+  - **A toolchain per subset:** that duplicates every tool.
+- **Touches:** D44; D65; D98; interface 4; WP2; WP3; WP5; WP7; WP8; WP15; M3.

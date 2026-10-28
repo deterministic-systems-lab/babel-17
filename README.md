@@ -77,7 +77,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v0.1 Draft |
 | [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 57, checked by review until the checker reads B17-1 |
-| [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55) |
+| [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar with `--subset 1` (D101) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
 | [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78) |
 | [`b17c/core.b17`](b17c/core.b17) | The core library (WP16): `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas |
@@ -103,7 +103,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 **Self-checks.** Each one prints a line ending in "passed". CI runs the first eight on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
 
 ```sh
-uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested
+uv run --no-project b17c/test_syntax.py    # parser: both suites round-trip, and every lexical and grammar rule is tested
 uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits
 uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and the suite
 uv run --no-project b17c/test_check.py     # checker: the suite's labels exactly, every tier 0 code, every ownership rule
@@ -120,6 +120,7 @@ uv run --no-project gym/test_b17.py        # the harness's B17-0 track: tasks, v
 
 ```sh
 uv run --no-project b17c/syntax.py suite/accept/merge_sorted.b17     # canonical bytes, or E-PARSE-001 with line:col
+uv run --no-project b17c/syntax.py --subset 1 suite/b17-1/accept/bst_insert.b17   # the same for B17-1 (D101)
 uv run --no-project b17c/hashing.py suite/accept/*.b17                # MODULE KIND NAME SPEC-HASH IMPL-HASH per item
 uv run --no-project b17c/check.py suite/reject/E-OWN-001-use-after-move.b17   # FILE:LINE:COL: CODE: message per diagnostic
 uv run --no-project b17c/interp.py --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5

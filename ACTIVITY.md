@@ -1223,3 +1223,28 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** interface 1's B17-1 part gains the two statements.
 - **Proofs and tests added:** five reject programs.
 - **Left admitted:** none.
+
+## 2026-10-28 · B17-1's parser (D101 proposed)
+- **`b17c/syntax.py`:** reads B17-1's grammar (`docs/b17-1.md` §2) when given subset 1, and B17-0's exactly as before by default.
+  - **The B17-1 forms:**
+    - data items;
+    - B17-1's types;
+    - places in `set-idx` and `push`;
+    - `replace`, only as a `let` or `let-mut` initializer;
+    - `match`, both as a statement and as an expression;
+    - `is`, `field`, `tuple`, `get` with a literal index, and `rank`;
+    - the set and map forms;
+    - D99's `forall` statement and D100's `obtain`.
+  - **Reserved words:** B17-1's 20 new words are reserved only in subset 1, so a B17-0 program may still name a parameter `map`.
+  - **The CLI** takes `--subset 1`.
+- **Proposed:** D101. Each tool takes the subset, 0 by default until B17-1 freezes. The reason: B17-1 reserves words that B17-0 programs may use, and it accepts types that B17-0's frozen labels reject.
+- **Checked by `test_syntax.py`:**
+  - **The suite:** every `suite/b17-1/` file parses and round-trips to the same canonical bytes, except its two `E-PARSE-001` rejects, which fail as labelled.
+  - **B17-0's programs:** every B17-0 suite program gives the same tree under subset 1.
+  - **Reserved words:** subset 1's are exactly the words `docs/b17-1.md` §2 lists.
+  - **Misuse:** each B17-1 form misused once fails at the right line and column.
+  - **B17-0 unchanged:** B17-0's tests pass as before, and B17-0 still rejects places.
+- **Updated:** the README's layout, commands and self-check line; the roadmap's decisions waiting and next steps.
+- **Interfaces touched:** interface 1, B17-1's part, now implemented by the parser.
+- **Proofs and tests added:** B17-1's cases in `test_syntax.py`.
+- **Left admitted:** none.
