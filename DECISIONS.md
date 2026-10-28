@@ -845,3 +845,106 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Duplicate specs:** D45's check runs last, only once nothing else has failed, and its `E-TYPE-002` is placed at the later spec. `hashing.HashError` names the two specs. `hashing.hashes` hashes each spec after the items it mentions, so a long chain of references doesn't overflow Python's stack, whatever D55 says about one item's nesting.
 - **Why:** The task asks for every independent error and none that merely follows from another. Positions on every diagnostic make the output usable until WP6 defines node IDs.
 - **Touches:** WP3; WP6; D45; D55; `b17c/hashing.py`.
+
+## D79 · B17-1 adds data types, tuples, collections of any type, and ghost sets and maps · Proposed (refines D65)
+- **Date:** 2026-10-28
+- **Evidence:** a survey of the frozen preambles and signatures of the 64 AlgoVeri tasks in `gym/tasks/algoveri/`.
+
+  | Group | Tasks | What they need beyond B17-0 |
+  |---|---|---|
+  | Already B17-0 | 14 | Nothing. `longest_common_subsequence` takes `seq<char>`, ported as `i64`, as AlgoVeri's own tries store characters. |
+  | Quantified sequences | 11 | Quantifiers over sequences: a sort's permutation witness, or an optimum over every selection, as in the knapsacks |
+  | Pairs | 2 | Tuples, nested sequences |
+  | Optional results | 2 | `Option`, nested sequences |
+  | Graphs | 13 | Records holding nested sequences, tuples for weighted edges, `Option`, quantified paths; ghost sets and maps for matchings and flows |
+  | Trees | 22 | Recursive data types, `Option` of them, `match`; ghost sets and maps for their views |
+
+  - **Generics:** `Option<T>` is the only generic declaration, in 22 tasks. No task has a generic method, function or predicate outside a data type. The one inside, `lca`'s `Option.is_some`, tests a constructor.
+  - **Invariants:** all 37 tasks with data types state their invariants as ghost predicates in `requires` and `ensures`, such as `well_formed(g)` and `node.is_segment_tree()`. None declares a subset type, a class invariant or a refinement link. Dafny's `nat`, in 3 tasks, is an `int` at least 0, which a port states in its `requires` (D42).
+  - **Sets and maps:** 25 specs use them, all in ghost code.
+    - **Sets:** membership, the empty set, singletons, union, difference and intersection. The six trie and ternary search tree tasks define their views by comprehension over all sequences, so those sets can be infinite (Dafny's `iset`). Only `max_matching` counts a set's elements.
+    - **Maps:** the empty map, update, lookup, membership of a key, and union.
+    - **At run time:** Claude's verified solutions from the hard run declare a runtime set in 2 tasks, `kruskal` and `prim`, both of visited vertices, which a `(vec bool)` covers. None declares a runtime map.
+- **Decision:** B17-1 is B17-0 plus the following. The spec text fixes the exact forms.
+  - **Data types:** `(data NAME (T*) (CTOR (FIELD type)*)+)`, a sum of products.
+    - **Recursion:** a data type may contain itself, also through another type, as a trie node holds a vector of optional nodes. Mutually recursive data types wait with mutual recursion (§11).
+    - **Building and reading:** a constructor call `(CTOR e*)` builds a value. `match` takes it apart, and must name every constructor. `(is CTOR e)` tests a value's constructor. `(field e FIELD)` reads a field, with a new runtime-safety goal family, `FIELD`: e was built by a constructor that has that field. Reading a field e lacks is `err` (§8). All of them work in runtime and ghost code.
+  - **Generics:** data types take type parameters. Specs, defs, ghost-fns and lemmas don't, since no task needs it. The core library declares `(option T)`, with constructors `none` and `some`.
+  - **Tuples:** `(tuple T1 ... Tn)` for n ≥ 2. Tuple values are built from their components, and read with `match` or a component projection by literal index.
+  - **Collections of any type:** `vec`, `seq` and `multiset` take any well-formed element type, so collections nest and hold tuples and data.
+  - **Runtime and ghost types:**
+    - **Runtime types:** `bool`, `i64`, a vector of a runtime type, and a tuple or data type whose components are all runtime types.
+    - **Ghost types:** every other type, such as a data type with an `int` field. They're used only in ghost code, as `int` and `seq` are.
+    - **Slices** stay a spec's parameters only, so no other type contains one (D69).
+  - **Ghost sets and maps:**
+    - **Sets:** a set type whose sets may be infinite, with membership, the empty set, insertion, union, difference, intersection and comprehension over a binder. `set` is already a statement, so the spec text names the type. Counting elements is left out: `max_matching`, the only task that counts, states its matching as a sequence of distinct edges.
+    - **Maps:** finite maps, with the empty map, update, lookup, membership of a key and union. Looking up a key outside the map is a ghost `BOUNDS` goal, as an index out of range is.
+  - **Quantifiers** bind values of any type ghost code can use, not just `int` and `bool`. The spec text fixes which, as D68 does for B17-0.
+  - **Copying and moving:** a runtime tuple or data type is copied when every type inside it is copied and it isn't recursive. Otherwise it moves, as a vector does.
+  - **Places, still without lifetimes:**
+    - **What a place is:** an index, a tuple projection or a field read names a place inside a value.
+    - **Reading:** reading a copied value through a place copies it. A moving value can only be read further through, under `len`, `idx`, a projection, a field read or `is`, or viewed in ghost code. It's never moved out of its place.
+    - **Taking a value out:** `replace` takes the moving value out of a place in a `let-mut` local and leaves a new one there, as Rust's `std::mem::replace` does.
+    - **Updating:** `set-idx` takes a place in a `let-mut` local too, so a nested vector is updated where it sits.
+    - **`match`:** it takes an owned value, whose fields move into the arm's names, or a value of a copied type.
+    - **Borrows:** they stay as B17-0 has them: shared slices of vectors, as def-call arguments. Borrowing a data value waits for `&mut` and in-place borrows (§11).
+  - **Termination:** measures stay integers. A built-in ghost `(rank e)` gives each data value an `int` at least 0 and greater than the rank of every value inside it, so recursion down a tree uses `(decreases (rank t))`.
+  - **Equality:** on tuples and data it's structural, and ghost-only, as on collections (D71). Runtime `==` stays on `bool` and `i64`.
+  - **Still out:** strings and characters, floats, runtime sets and maps, generic functions, `&mut`, mutual recursion and vector capacity stay where §11 and D65 put them.
+- **WP4a stays done.** This refines D65, which has B17-1's scope decision reopen WP4a for data-type invariants and refinement links. B17-1 adds neither, since every surveyed task states its invariants as predicates in its contracts. A later decision reopens WP4a when a task needs an invariant that holds across a module's operations, such as an abstract type with a hidden representation.
+- **Toolchain:**
+  - **Extended to B17-1:** the interpreter, checker and verifier. B17-1 freezes under D44, as B17-0 did.
+  - **Verifier:** it encodes tuples and data types as SMT-LIB datatypes, which Z3 supports natively, sets as arrays to `Bool`, and `rank` by axioms.
+  - **Interpreter:** checking evaluates a quantifier only over a range read off its guard (D58), so a quantifier over sequences, sets or maps stays unknown there.
+  - **WP7:** it emits data types as Rust enums, with recursive fields boxed.
+- **Why:**
+  - **Evidence for every feature:** each one is needed by tasks the survey counts, and 50 of the 64 tasks need at least one. The survey finds nothing else a task's contract needs, apart from counting a set's elements.
+  - **Type parameters on data types alone** cover `Option` and keep every function monomorphic.
+  - **Places** give nested reads and updates without lifetimes, as B17-0's slices do. Nothing a place names outlives the expression that uses it.
+  - **Runtime types exclude ghost types and slices,** so a runtime value never holds a borrow or an unbounded integer.
+  - **Ghost-only sets and maps** cover every spec that uses them. The solutions' runtime uses are dense indices.
+  - **Leaving out set cardinality** spares the encoding its axioms for the sake of one task, whose matching a sequence states as well.
+  - **`rank`** keeps measures integers, so §7's termination goal doesn't change.
+- **Touches:** D20; D36; D42; D58; D62; D65; D68; D69; D71; WP3; WP4a; WP5; WP7; WP10; WP15; WP16; interfaces 1, 6, 10 and 11; `docs/b17-0.md` §8 and §11; `docs/roadmap.md`; `README.md`.
+
+## D80 · Verification levels, and what an unproved goal does below L2 · Proposed (refines D63)
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Levels are cumulative:**
+    - **L0:** the module passes tier 0.
+    - **L1:** L0, and every goal is proved or tested (below).
+    - **L2:** L1, and every runtime-safety goal (`BOUNDS`, `OVERFLOW`, `DIV`, `FIELD`, `PRE`, `TERM`) in runtime code is proved from proved goals alone (below). It's L2-S while the solver is trusted (D24).
+    - **L3:** every goal is proved, so nothing is left to test. It's L3-S while the solver is trusted.
+  - **Proved from proved goals:** a proof may assume things that are only tested, and then it doesn't count for L2. What a goal's proof assumes must itself be established this way:
+    - the goals before it on its path, since §9 assumes each goal once it's generated;
+    - the `ensures` of each def it calls, through that def's `POST` goals;
+    - each lemma's claim, through the lemma's own goals.
+
+    WP5 computes this as a closure, and solves a goal again without the assumptions that don't count.
+  - **Declared and reached:**
+    - **Declared:** a module declares the level it must reach, and `b17c` fails when it reaches less. The declaration goes in the manifest (interface 4, D26) once that exists. Until then it's a command-line option.
+    - **Reached:** the trusted base report (D63) records the level reached, and lists each tested goal with the number of inputs that evaluated it. This replaces D63's rule for the level, which looks only at what the solver proved.
+    - **Benchmark tasks** require L3-S, and L3 once the kernel checks proofs (D24).
+  - **Property tests (L1):** the interpreter, with checking on (D57), runs each def on generated inputs.
+    - **Inputs** are drawn for each parameter's type from a fixed seed, and kept when the `requires` hold, so a run is the same on every machine (D23).
+    - **Counts are fixed:** a set number of inputs that satisfy the `requires`, from at most a set number of draws.
+    - **Failures:** an `err` or a contract outcome is a failure, reported as the goal it refutes (D57).
+    - **Limits:** a run that ends in a `limit` (D59) refutes nothing and tests nothing, so the input is dropped, as one whose `requires` fails is.
+    - **When a goal counts as tested:** at least one kept input evaluates it, and every evaluation holds. A goal no input reaches, or one that checking can't evaluate, such as a quantifier left unknown (D58), isn't tested, so L1 needs it proved. Lemma bodies never run (D57), so their goals are always proved.
+    - **The spec text** fixes the counts and the generator.
+  - **Below L2, at run time:**
+    - **An unproved `BOUNDS`, `OVERFLOW`, `DIV` or `FIELD` goal in runtime code** guards a state that §8 calls `err`. Emitted Rust aborts there, as safe Rust does on an index out of range, a checked overflow or a zero divisor, so the program stays memory-safe.
+    - **The same goals in ghost code** can't abort, since ghost code is erased before it runs. Unproved, they leave the contract they sit in undefined at some inputs, and L1's tests evaluate them like any other goal.
+    - **An unproved `PRE` goal** isn't checked. The call runs, its `ensures` may not hold, and any `err` it reaches still aborts.
+    - **An unproved `TERM` goal** isn't checked either, so the code may not terminate.
+    - **Effects still hold:** leaving `panic` out of a spec rules out `(panic STR)` at every level, since tier 0 checks effects. Below L2, it can't rule out an abort at `err`, which is outside the semantics, like allocation failure (D29). The report lists the goals whose failure would abort.
+  - **Contracts are never checked at run time,** at any level. They're ghost code and may quantify over unbounded ranges. Checking `sorted` on each call to a binary search would also change its cost. Below L3, L1's tests exercise them instead.
+  - **WP7 keeps its checks at every level:** arithmetic stays explicitly checked and indexing bounds-checked (D18), whatever is proved.
+- **Why:**
+  - **No domain is shut out:** D64 needs levels below L2 so that a program without a precise spec still gets types, effects, ownership and memory safety.
+  - **Proved or tested:** at L1 and above, every goal has one of the two kinds of evidence, and the report says which.
+  - **Proofs from proved goals:** without that rule, an L2 module could still abort, through a safety proof resting on an invariant that only tests support.
+  - **Aborting on `err`** is what safe Rust already does, so memory safety never depends on a proof.
+  - **Unchecked contracts** keep a program's cost the one its code states. The tests check the contracts without that cost.
+  - **Fixed seeds and counts** keep D23's rule that results don't depend on the machine.
+- **Touches:** D18; D23; D24; D25; D26; D29; D57; D58; D59; D63; D64; D65; interfaces 4 and 5; WP2; WP5; WP7; `docs/roadmap.md`.
