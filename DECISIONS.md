@@ -603,6 +603,9 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The cause:** the goal at `(+ s (idx a i))` needs the prefix precondition at i + 1. The program never mentions that term before the step, so the solver never instantiates the precondition there.
   - **A hint also works,** such as `(assert (== (sum_of (take a (+ i 1))) (+ s (idx a i))))`. But it's the kind of solver hint the suite forbids (`suite/README.md`), and the kind of hand-written step §9 promises agents won't need.
   - **With the step form,** all four prove every goal with no hint, in a fraction of the budget.
+  - **Under D23's shuffled seeds,** measured with 10 seeds:
+    - **The prefix form is luck:** `fib`'s goal held under 7 of 10 seeds, then under all 10 after an unrelated encoding change (D61's `contains` facts). `power`'s went from 0 to 2 of 10 with the same change.
+    - **The step form holds** under all 10 seeds, in both encodings. `fib`'s goal takes 9 quantifier instantiations and 21,542 units, against 4,333 and 1.74M for the prefix form.
 - **Alternatives:**
   - Keep the rule and expect one unfolding `assert` per loop. That puts the cost on every agent in every task, against Bet 1.
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
@@ -616,9 +619,11 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Division:** `/` and `%` by a divisor that isn't a literal are uninterpreted, with D37's truncation facts as axioms: a = b·q + r, |r| < |b|, and r has a's sign. Only queries that use them include them. A literal divisor keeps an exact, linear definition.
   - **Budget:** each goal runs under a resource budget, never a time limit (D23).
   - **Recursive ghost-fns:** each one's defining equation is an axiom that holds only under its `requires`. The ghost-fn's own goals, including its termination goal, are checked without that axiom.
+  - **`contains`:** besides its definition (§9's Membership fact), it gets the facts that follow from it directly: over `concat` it is `or`, a one-element sequence contains only its element, and the empty sequence contains nothing.
 - **Why:** measured on the suite with the spike.
   - **Z3's sequence theory** timed out on 9 of the 20 accept programs. A five-line version of `find`'s invariant step timed out at 60 s; with the axiomatized sort it proves in 0.01 s. The axioms are also exactly §9's promise: "the whole of what a proof may use".
   - **`gcd`'s invariant** timed out while `%` was defined by multiplication, which is nonlinear. With the truncation axioms it proves at once. Their nonlinear term slows every query that contains it, so only queries that need them get them.
   - **Wall-clock limits** made `dedup_sorted` pass or fail depending on machine load. Under a 10M-unit budget the results are stable. The most any proved suite goal needs is 4.86M, for `fib` (see D60); the next most is 0.84M.
+  - **`contains`:** with only its definition, `dedup_sorted`'s invariant and `ensures` held under 6 and 7 of 10 shuffled seeds, because each proof had to find a witness index. With the derived facts, all 25 of its goals hold under every seed. The facts follow from §9's, so they change how fast a proof is found, not what can be proved.
   - **Recursive definitions:** a recursive definition given unconditionally could be contradictory where it doesn't terminate, as in `(+ (bad n) 1)`, and a contradiction proves every goal, including the termination goal that should catch it. Under its `requires` and left out of its own goals, the definition is consistent whenever its termination goal holds, and a definition that doesn't terminate fails that goal. Found while probing the spike's soundness.
 - **Touches:** `docs/b17-0.md` §9 (Encoding); D17; D23; interface 11; WP5.

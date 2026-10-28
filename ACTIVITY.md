@@ -498,3 +498,24 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - #4, the roadmap.
 
   Merging a PR doesn't accept the decisions it proposes, so D56–D61 are still Proposed.
+
+## 2026-10-28 · Goal spike: proof stability under shuffled seeds
+- **Added:** `b17c/goals.py --seeds N`. A goal counts as proved only if it is also proved under N shuffled seeds of Z3's SMT and SAT cores (D23). Otherwise it's reported as brittle.
+- **First run, 10 seeds:**
+  - 15 accept programs held under every seed.
+  - `fib`'s overflow goal held under 7 of 10.
+  - Two of `dedup_sorted`'s goals held under 6 and 7 of 10: the invariant and the `ensures` that its output has the same elements as its input.
+- **`dedup_sorted`'s cause:** `contains` is an existential, so each proof had to find a witness index.
+  - Restating the clauses over indices, as WP15's activity entry suggests, makes them checkable by the interpreter but stays brittle (8 and 5 of 10).
+  - Giving `contains` the facts that follow directly from §9's makes all 25 of its goals hold under every seed: over `concat` it is `or`, a one-element sequence contains only its element, and the empty sequence contains nothing. Proposed as part of D61.
+- **Final run, 10 seeds:**
+
+  | Set | Result |
+  |---|---|
+  | Accept, every goal under every seed | 17 of 20 |
+  | Accept, failing | `power` (2 of 10 seeds), `sum` and `prefix_sums` (no seed) |
+  | Proof rejects, failing exactly their labelled family | 9 of 9 |
+  | Accept goals with contradictory assumptions | 0 of 406 |
+
+  The full run takes 2 minutes.
+- **`fib` and `power` are luck under the prefix form.** The `contains` change, which has nothing to do with them, moved `fib` from 7 to 10 seeds and `power` from 0 to 2. With D60's step form, all four range programs hold under every seed in both encodings. `fib`'s goal then takes 9 quantifier instantiations and 21,542 units, against 4,333 and 1.74M before.

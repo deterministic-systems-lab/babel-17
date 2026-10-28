@@ -1,10 +1,11 @@
 """Spike: B17-0's proof goals (docs/b17-0.md §7, §9), one Z3 query each.
 
-    uv run --no-project b17c/goals.py FILE...
+    uv run --no-project b17c/goals.py [--seeds N] FILE...
 
 prints each file's goals that aren't proved, and checks them against the suite label
 its path implies: an accept program must prove every goal, and an E-PROOF-<FAMILY>
-reject must fail only goals of that family.
+reject must fail only goals of that family. With --seeds N, a goal counts as proved only
+if it is also proved under N shuffled seeds (D23); one that isn't is reported as brittle.
 
 This tests the suite's proof labels before WP1a freezes (D44). It isn't WP5: it
 assumes the program passes tier 0, does no type checking, and its encoding is one
@@ -67,6 +68,12 @@ for E, X in (("Int", "I"), ("Bool", "B")):
 (assert (forall ((s S{X}) (k Int)) (! (=> (= k 0) (= (take.{X} s k) empty.{X})) :pattern ((take.{X} s k)))))
 (assert (forall ((s S{X}) (k Int) (j Int)) (! (=> (and (<= 0 j) (<= j k) (<= k (len.{X} s))) (= (take.{X} (take.{X} s k) j) (take.{X} s j)))
   :pattern ((take.{X} (take.{X} s k) j)))))
+(declare-fun has.{X} (S{X} {E}) Bool)
+(assert (forall ((s S{X}) (x {E})) (! (= (has.{X} s x) (exists ((i Int)) (and (<= 0 i) (< i (len.{X} s)) (= (nth.{X} s i) x))))
+  :pattern ((has.{X} s x)))))
+(assert (forall ((s S{X}) (t S{X}) (x {E})) (! (= (has.{X} (cat.{X} s t) x) (or (has.{X} s x) (has.{X} t x))) :pattern ((has.{X} (cat.{X} s t) x)))))
+(assert (forall ((y {E}) (x {E})) (! (= (has.{X} (unit.{X} y) x) (= x y)) :pattern ((has.{X} (unit.{X} y) x)))))
+(assert (forall ((x {E})) (! (not (has.{X} empty.{X} x)) :pattern ((has.{X} empty.{X} x)))))
 """
 PRELUDE += f"""(declare-fun ms (SI) (Array Int Int))
 (assert (= (ms empty.I) {ZERO}))
@@ -265,9 +272,7 @@ class Gen:
             return fn("nth", srt, s, f"(- {fn('len', srt, s)} 1)"), ELEM[srt]
         if h == "contains":
             (s, srt), (v, _) = e(a[0]), e(a[1])
-            k = self.bound("k")
-            return (f"(exists (({k} Int)) (and (<= 0 {k}) (< {k} {fn('len', srt, s)}) "
-                    f"(= {fn('nth', srt, s, k)} {v})))"), "Bool"
+            return fn("has", srt, s, v), "Bool"
         if h == "multiset":
             return f"(ms {e(a[0])[0]})", "(Array Int Int)"
         if h == "msum":
@@ -603,7 +608,10 @@ def query(gen, facts, g, item=None):
     return PRELUDE + (VDIV if "(vdiv " in body or "(vmod " in body else "") + body
 
 
-def solve(text):
+def solve(text, seed=0):
+    if seed:  # D23's shuffled seeds: the SMT core's and the SAT core's
+        text = text.replace("(set-option :smt.random_seed 0)",
+                            f"(set-option :smt.random_seed {seed})\n(set-option :sat.random_seed {seed})", 1)
     # D23: a resource budget, not seconds, so verdicts don't depend on load. The most a proved
     # suite goal needs is about 0.84M units; the time limit is only a backstop.
     r = subprocess.run(["z3", f"rlimit={RLIMIT}", "-T:300", "-in"], input=text, capture_output=True, text=True)
@@ -613,18 +621,29 @@ def solve(text):
     return {"unsat": "proved", "sat": "failed"}.get(out[-1] if out else "", "unknown: " + (r.stdout + r.stderr)[-200:])
 
 
-def run(path):
+def run(path, seeds=0):
     gen = Gen(m := parse(Path(path).read_bytes()))
     goals = gen.check(m)
+
+    def verdict(g):
+        q = query(gen, g[3], g[4], g[0])
+        v = solve(q)
+        if v != "proved":
+            return v
+        held = sum(solve(q, k) == "proved" for k in range(1, seeds + 1))
+        return v if held == seeds else f"brittle: proved under {held} of {seeds} shuffled seeds"
+
     with cf.ThreadPoolExecutor(8) as pool:
-        verdicts = list(pool.map(lambda g: solve(query(gen, g[3], g[4], g[0])), goals))
+        verdicts = list(pool.map(verdict, goals))
     return [(item, fam, pos, v) for (item, fam, pos, _, _), v in zip(goals, verdicts)]
 
 
 if __name__ == "__main__":
-    bad = 0
-    for path in sys.argv[1:]:
-        results = run(path)
+    bad, args, seeds = 0, sys.argv[1:], 0
+    if args[:1] == ["--seeds"]:
+        seeds, args = int(args[1]), args[2:]
+    for path in args:
+        results = run(path, seeds)
         open_ = [(item, fam, pos, v) for item, fam, pos, v in results if v != "proved"]
         name = Path(path).name
         want = name.split("-")[2] if name.startswith("E-PROOF-") else None
