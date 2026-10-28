@@ -938,7 +938,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - D90's evidence now counts `max_matching`'s tuple binders.
 - **A targeted check** found 4 more spec issues, all fixed: a type recursive through `seq` isn't exact, since uninterpreted sequences admit cycles; variance follows a type's own recursive applications; hashing resolves names per namespace; and D91's closure is defined over the equations a query includes. It also noted that `hashing.py` doesn't implement D92 yet, which comes with the toolchain's extension to B17-1.
 - **A limit, recorded in §5 and §12:** a data value can't be borrowed (D79), so a recursive read of a tree consumes it, or rebuilds it at the cost of allocation.
-- **Updated:** the README's status, language note and layout; the roadmap's decisions waiting and next steps.
+- **Updated:** the README's status, language note and layout; the roadmap's work in progress, decisions waiting and next steps, which now also say WP7 is under way in a separate session.
 - **Interfaces touched:** B17-1's parts of interfaces 1 and 6, interface 10's values and `err` reasons, and interface 11 version 0.2, all Draft.
 - **Proofs and tests added:** none yet. The suite comes next (§13).
 - **Left admitted:** none.

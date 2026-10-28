@@ -63,6 +63,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **What it does:** it sends canonical queries (interface 11, D63), caches every verdict under D22's key, and reports solver-trusted goals by node ID (D24, D25).
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
+- **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 proposed. Its labelled suite comes next.
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
@@ -75,7 +76,7 @@ D79 and D80 were accepted on 2026-10-28. D2–D10, carried over from the design 
 2. **WP6**, the agent protocol and diagnostics, builds on WP3 and WP5.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
-Off the critical path, **WP7**, the backend that emits safe Rust, can start now: it needs only WP3 and WP15, which are done.
+Off the critical path, **WP7**, the backend that emits safe Rust, is under way in a separate session. It needs only WP3 and WP15, which are done.
 
 ### Phase 0 work outside the gate
 - **The rest of WP2:** the manifest and lockfile schemas (interfaces 4 and 7, D26) and typed edit operations (interface 2).
