@@ -1,12 +1,13 @@
-"""WP5's verifier, before WP3's types: the goal spike's goals, cached and reported (D17, D22-D25, D63).
+"""WP5's verifier: goals from WP3's types, cached and reported (D17, D22-D25, D63).
 
     uv run --no-project b17c/verify.py [--seeds N] [--cache DIR] [--report FILE] FILE
 
-checks every goal of FILE, prints each one that isn't proved, and a summary. With
+checks every goal of FILE, prints each one that isn't proved, and a summary. A FILE that
+fails tier 0 has no goals: its diagnostics are printed instead, as `b17c/check.py` prints them. With
 --report it also writes the module's trusted base report as JSON (D25). It exits 0 only
 when every goal is proved under the canonical seed and every shuffled seed (D23).
 
-Each goal is sent as its canonical query (interface 11, D63): the spike's SMT-LIB text
+Each goal is sent as its canonical query (interface 11, D63): goals.py's SMT-LIB text
 with b17c's generated names renamed in order of first occurrence, so alpha-equivalent
 definitions send the same bytes. Verdicts are cached under D22's key, so unchanged
 code, renamed code and the callers of a changed body are never solved again.
@@ -24,7 +25,7 @@ from pathlib import Path
 
 import goals as G
 import hashing as H
-from syntax import Form, Sym, _head, canonical as canonical_bytes, parse
+from syntax import Form, ParseError, Sym, _head, canonical as canonical_bytes
 
 HERE = Path(__file__).resolve().parent
 SEEDS = 10
@@ -119,7 +120,8 @@ def _write(path, entry):
 
 def verify(module, seeds=SEEDS, cache=CACHE):
     """Every goal of module: its node, contract clause, family, verdict, resource units and
-    whether it came from the cache, plus the run's configuration."""
+    whether it came from the cache, plus the run's configuration. Raises ValueError, listing
+    the diagnostics, if module fails tier 0."""
     gen = G.Gen(module)
     goals = gen.check(module)
     hashes, core = H.hashes(module), H.hashes(G.CORE)
@@ -199,8 +201,15 @@ def main(argv):
     if len(argv) != 1:
         print("usage: uv run --no-project b17c/verify.py [--seeds N] [--cache DIR] [--report FILE] FILE", file=sys.stderr)
         return 2
-    module = parse(Path(argv[0]).read_bytes())
-    rows, cfg = verify(module, seeds, cache)
+    try:
+        module = G.read(argv[0])
+        rows, cfg = verify(module, seeds, cache)
+    except ParseError as e:
+        print(f"{argv[0]}:{e.line}:{e.col}: {e.code}: {e.reason}")
+        return 1
+    except ValueError as e:  # tier 0 failed, so there are no goals to generate
+        print("\n".join(f"{argv[0]}:{d}" for d in str(e).splitlines()))
+        return 1
     for r in rows:
         if r["verdict"] != "proved":
             print(f"{r['verdict']}  {r['family']}  {r['node']}")

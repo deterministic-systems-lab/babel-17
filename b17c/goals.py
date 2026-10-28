@@ -1,4 +1,4 @@
-"""Spike: B17-0's proof goals (docs/b17-0.md §7, §9), one Z3 query each.
+"""B17-0's proof goals (docs/b17-0.md §7, §9), one Z3 query each, for WP5's verifier.
 
     uv run --no-project b17c/goals.py [--seeds N] FILE...
 
@@ -7,9 +7,8 @@ its path implies: an accept program must prove every goal, and an E-PROOF-<FAMIL
 reject must fail only goals of that family. With --seeds N, a goal counts as proved only
 if it is also proved under N shuffled seeds (D23); one that isn't is reported as brittle.
 
-This tests the suite's proof labels until WP5 makes its own goals. It isn't WP5: it
-assumes the program passes tier 0, does no type checking, and its encoding is one
-guess at interface 11.
+Each expression's sort comes from the type WP3's checker gives it (check.types), so a
+program must pass tier 0 first. The encoding is one guess at interface 11.
 
 Encoding (§9): sequences are an uninterpreted sort per element type, SI and SB, and
 §9's background facts are their only axioms, with triggers. Z3's own sequence theory
@@ -23,14 +22,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import check as C
 from syntax import Form, Int, Sym, _head, parse
 
-CORE = parse((Path(__file__).parent / "core.b17").read_bytes())
+CORE = C.CORE
 LIM = "9223372036854775808"
 RLIMIT = 10_000_000
 MIN = f"(- {LIM})"
 MSUM = "(_ map (+ (Int Int) Int))"
-ZERO = "((as const (Array Int Int)) 0)"
 PRELUDE = f"""(set-option :smt.random_seed 0)
 (define-fun tdiv ((a Int) (b Int)) Int
   (ite (>= a 0) (ite (> b 0) (div a b) (- (div a (- b)))) (ite (> b 0) (- (div (- a) b)) (div (- a) (- b)))))
@@ -76,10 +75,12 @@ for E, X in (("Int", "I"), ("Bool", "B")):
 (assert (forall ((y {E}) (x {E})) (! (= (has.{X} (unit.{X} y) x) (= x y)) :pattern ((has.{X} (unit.{X} y) x)))))
 (assert (forall ((x {E})) (! (not (has.{X} empty.{X} x)) :pattern ((has.{X} empty.{X} x)))))
 """
-PRELUDE += f"""(declare-fun ms (SI) (Array Int Int))
-(assert (= (ms empty.I) {ZERO}))
-(assert (forall ((x Int)) (! (= (ms (unit.I x)) (store {ZERO} x 1)) :pattern ((ms (unit.I x))))))
-(assert (forall ((s SI) (t SI)) (! (= (ms (cat.I s t)) ({MSUM} (ms s) (ms t))) :pattern ((ms (cat.I s t))))))
+for E, X in (("Int", "I"), ("Bool", "B")):
+    ZERO = f"((as const (Array {E} Int)) 0)"
+    PRELUDE += f"""(declare-fun ms.{X} (S{X}) (Array {E} Int))
+(assert (= (ms.{X} empty.{X}) {ZERO}))
+(assert (forall ((x {E})) (! (= (ms.{X} (unit.{X} x)) (store {ZERO} x 1)) :pattern ((ms.{X} (unit.{X} x))))))
+(assert (forall ((s S{X}) (t S{X})) (! (= (ms.{X} (cat.{X} s t)) ({MSUM} (ms.{X} s) (ms.{X} t))) :pattern ((ms.{X} (cat.{X} s t))))))
 """
 ELEM = {"SI": "Int", "SB": "Bool"}
 
@@ -93,6 +94,24 @@ def sort(t):
     if h == "ref":
         t = t.items[1]
     return "SB" if sort(t.items[1]) == "Bool" else "SI"
+
+
+def tsort(t):
+    """The SMT sort of a type as check.py computes it, or None where an empty literal leaves
+    an element type open."""
+    if t == C.BOOL:
+        return "Bool"
+    if t in (C.I64, C.INT):
+        return "Int"
+    e = None if t == C.ANY else tsort(t[1])
+    if e is None:
+        return None
+    return f"(Array {e} Int)" if t[0] == "multiset" else "SB" if e == "Bool" else "SI"
+
+
+def seq_of(elem):
+    """The sort of a sequence of elements of sort elem."""
+    return "SB" if elem == "Bool" else "SI"
 
 
 def fn(op, srt, *args):
@@ -134,6 +153,7 @@ class State:
 
 class Gen:
     def __init__(self, module):
+        self.types = C.types(module)  # raises if module fails tier 0
         self.defs = {}
         for m in (CORE, module):
             for it in m.items[3:]:
@@ -176,6 +196,10 @@ class Gen:
                        f"{in_i64(fn('nth', srt, t, k))}) :pattern ({fn('nth', srt, t, k)})))")
         return out
 
+    def sort_of(self, *xs, default="SI"):
+        """The sort tier 0 gives the first of xs whose type an empty literal doesn't leave open."""
+        return next((s for s in map(tsort, (self.types[id(x)] for x in xs)) if s), default)
+
     # Goals and facts.
     def goal(self, st, guard, family, x, g, clause=None):
         if self.quiet:
@@ -198,6 +222,7 @@ class Gen:
             t, typ = st.env[x.text]
             return t, sort(typ)
         h, a = _head(x), x.items[1:]
+        want = tsort(self.types[id(x)]) or want  # an open element type takes its context's sort
         e = lambda y, g=guard, w="SI": self.expr(y, st, ghost, g, w)
         if h in ("+", "-", "*"):
             (l, _), (r, _) = e(a[0]), e(a[1])
@@ -214,12 +239,17 @@ class Gen:
             op = ("tdiv" if h == "/" else "tmod") if isinstance(a[1], Int) else ("vdiv" if h == "/" else "vmod")
             return f"({op} {l} {r})", "Int"
         if h in ("<", "<=", ">", ">=", "==", "!="):
-            (l, srt), (r, _) = e(a[0]), e(a[1])
+            w = self.sort_of(a[0], a[1])  # where an empty literal is compared, the other side's sort
+            (l, srt), (r, _) = e(a[0], w=w), e(a[1], w=w)
             if srt in ELEM:  # §9: sequences are equal when their lengths and elements are
                 j = self.bound("j")
-                eq = (f"(and (= {fn('len', srt, l)} {fn('len', srt, r)}) (forall (({j} Int)) (! (=> (and (<= 0 {j}) "
-                      f"(< {j} {fn('len', srt, l)})) (= {fn('nth', srt, l, j)} {fn('nth', srt, r, j)})) "
-                      f":pattern ({fn('nth', srt, l, j)}) :pattern ({fn('nth', srt, r, j)}))))")
+                body = (f"(=> (and (<= 0 {j}) (< {j} {fn('len', srt, l)})) "
+                        f"(= {fn('nth', srt, l, j)} {fn('nth', srt, r, j)}))")
+                # Z3 rejects a pattern holding a logical operator, as a sequence-valued if or a
+                # literal of comparisons does, so such a side gets none.
+                pats = "".join(f" :pattern ({fn('nth', srt, t, j)})" for t in (l, r) if not LOGICAL.search(t))
+                eq = (f"(and (= {fn('len', srt, l)} {fn('len', srt, r)}) "
+                      f"(forall (({j} Int)) {f'(! {body}{pats})' if pats else body}))")
                 return (eq if h == "==" else f"(not {eq})"), "Bool"
             op = {"==": "=", "!=": "distinct"}.get(h, h)
             return f"({op} {l} {r})", "Bool"
@@ -242,23 +272,23 @@ class Gen:
         if h == "len":
             s, srt = e(a[0])
             return fn("len", srt, s), "Int"
-        if h == "idx":
-            (s, srt), (i, _) = e(a[0]), e(a[1])
+        if h == "idx":  # an open sequence takes the sort its element's context gives
+            (s, srt), (i, _) = e(a[0], w=seq_of(want)), e(a[1])
             self.goal(st, guard, "BOUNDS", x, f"(and (<= 0 {i}) (< {i} {fn('len', srt, s)}))")
             return fn("nth", srt, s, i), ELEM[srt]
         if h == "borrow":
             return e(a[0])
         if h in ("vec-new",) or (h == "seq-lit" and not a):
-            return f"empty.{want[1]}", want
+            srt = want if want in ELEM else "SI"
+            return f"empty.{srt[1]}", srt
         if h == "seq-lit":
-            parts = [e(y) for y in a]
-            srt = "SB" if parts[0][1] == "Bool" else "SI"
+            parts, srt = [e(y) for y in a], want
             out = fn("unit", srt, parts[0][0])
             for t, _ in parts[1:]:
                 out = fn("cat", srt, out, fn("unit", srt, t))
             return out, srt
         if h in ("take", "drop"):
-            (s, srt), (k, _) = e(a[0]), e(a[1])
+            (s, srt), (k, _) = e(a[0], w=want), e(a[1])
             self.goal(st, guard, "BOUNDS", x, f"(and (<= 0 {k}) (<= {k} {fn('len', srt, s)}))")
             t = fn(h, srt, s, k)
             if h == "take":  # §9's step fact, which as a trigger would loop
@@ -266,21 +296,25 @@ class Gen:
                 self.fact(st, guard, f"(=> (and (< 0 {k}) (<= {k} {fn('len', srt, s)})) (= {t} {prev}))")
             return t, srt
         if h == "concat":
-            (s, srt), (t, _) = e(a[0]), e(a[1])
+            srt = want if want in ELEM else "SI"
+            (s, _), (t, _) = e(a[0], w=srt), e(a[1], w=srt)
             return fn("cat", srt, s, t), srt
         if h == "last":
-            s, srt = e(a[0])
+            s, srt = e(a[0], w=seq_of(want))
             self.goal(st, guard, "BOUNDS", x, f"(> {fn('len', srt, s)} 0)")
             return fn("nth", srt, s, f"(- {fn('len', srt, s)} 1)"), ELEM[srt]
         if h == "contains":
-            (s, srt), (v, _) = e(a[0]), e(a[1])
+            (s, srt), (v, _) = e(a[0], w=seq_of(self.sort_of(a[1]))), e(a[1])
             return fn("has", srt, s, v), "Bool"
         if h == "multiset":
-            return f"(ms {e(a[0])[0]})", "(Array Int Int)"
+            srt = self.sort_of(a[0], default="SB" if want == "(Array Bool Int)" else "SI")
+            return f"(ms.{srt[1]} {e(a[0], w=srt)[0]})", f"(Array {ELEM[srt]} Int)"
         if h == "msum":
-            return f"({MSUM} {e(a[0])[0]} {e(a[1])[0]})", "(Array Int Int)"
+            srt = want if want.startswith("(Array") else "(Array Int Int)"
+            return f"({MSUM} {e(a[0], w=srt)[0]} {e(a[1], w=srt)[0]})", srt
         if h == "occurrences":
-            return f"(select (ms {e(a[0])[0]}) {e(a[1])[0]})", "Int"
+            s, srt = e(a[0], w=seq_of(self.sort_of(a[1])))
+            return f"(select (ms.{srt[1]} {s}) {e(a[1])[0]})", "Int"
         if h in ("forall", "exists"):
             inner, decl = State(dict(st.env), st.facts), []
             for b in a[0].items:
@@ -306,7 +340,7 @@ class Gen:
             return r, ss
         # (NAME e*): a ghost-fn call
         f = self.defs[h]["ghost-fn"]
-        args = [e(y)[0] for y in a]
+        args = [e(y, w=sort(p.items[1]))[0] for y, p in zip(a, f.items[2].items)]
         if clauses(f, "requires"):
             self.goal(st, guard, "PRE", x, app(f"p!{h}", args))
         if self.item and h == self.item[0]:
@@ -346,7 +380,7 @@ class Gen:
                 st.env[p.items[0].text] = (v, p.items[1])
                 ps.append(f"({v} {sort(p.items[1])})")
             q, self.quiet = self.quiet, True
-            body, _ = self.expr(clauses(f, "body")[0][0], st, True)
+            body, _ = self.expr(clauses(f, "body")[0][0], st, True, want=sort(f.items[3]))
             pre = [self.expr(c[0], st, True)[0] for c in clauses(f, "requires")]
             self.quiet = q
             ret, pre = sort(f.items[3]), f"(and true {' '.join(pre)})"
@@ -418,10 +452,9 @@ class Gen:
                          f"(forall (({k} Int)) (! (=> (and (<= 0 {k}) (< {k} {fn('len', srt, old)}) (not (= {k} {i}))) "
                          f"(= {fn('nth', srt, new, k)} {fn('nth', srt, old, k)})) :pattern ({fn('nth', srt, new, k)})))",
                          f"(= {fn('nth', srt, new, i)} {v})"]
-            if srt == "SI":
-                ov = fn("nth", srt, old, i)
-                m1 = f"(store (ms {old}) {ov} (- (select (ms {old}) {ov}) 1))"
-                st.facts.append(f"(= (ms {new}) (store {m1} {v} (+ (select {m1} {v}) 1)))")
+            ov, ms = fn("nth", srt, old, i), f"ms.{srt[1]}"
+            m1 = f"(store ({ms} {old}) {ov} (- (select ({ms} {old}) {ov}) 1))"
+            st.facts.append(f"(= ({ms} {new}) (store {m1} {v} (+ (select {m1} {v}) 1)))")
             return st
         if h == "if":
             c, _ = self.expr(a[0], st, ghost)
@@ -628,6 +661,7 @@ def query(gen, facts, g, item=None):
 
 
 TOKEN = re.compile(r"[^\s()]+")
+LOGICAL = re.compile(r"\((?:ite|not|and|or|=>|=|distinct|<|<=|>|>=|forall|exists) ")
 DEFINES = re.compile(r"\((?:define-fun|declare-fun) (\S+)")
 
 
@@ -651,8 +685,14 @@ def solve_stats(text, seed=0):
     return {"unsat": "proved", "sat": "failed", "unknown": "unknown"}.get(first, "unknown: " + first), units
 
 
+def read(path):
+    """The module at path; the core library is the one object tier 0 typed, so its goals can be checked."""
+    m = parse(Path(path).read_bytes())
+    return CORE if m == CORE else m
+
+
 def run(path, seeds=0):
-    gen = Gen(m := parse(Path(path).read_bytes()))
+    gen = Gen(m := read(path))
     goals = gen.check(m)
 
     def verdict(g):

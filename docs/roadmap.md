@@ -46,7 +46,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **It agrees with every label** of the 50-program suite: the 20 accept programs and 9 proof rejects pass tier 0, and each of the other 21 rejects fails with exactly its code, one of them at the parser.
   - **D66–D78** record the readings it settled where §2–§9 were silent, such as block scoping, which types are well formed, and where a borrow may appear. They're accepted and written into `b17-0.md`.
   - **Review:** a Codex bug hunt ran 29,694 random modules through it with no crash, and found 4 bugs, all fixed. Two were false accepts, one a false reject and one a wrong code.
-- **Proof labels, checked mechanically.** A spike of WP5's goal generator, `b17c/goals.py`, runs the suite through Z3 under 10 shuffled seeds (D23).
+- **Proof labels, checked mechanically.** WP5's goal generator, `b17c/goals.py`, runs the suite through Z3 under 10 shuffled seeds (D23).
   - **Proof rejects:** all 9 `E-PROOF-*` programs fail exactly their labelled goal.
   - **Accept programs:** all 20 prove every goal under every seed, with no hints. Before D60, four didn't, or did only by luck.
 - **Baselines (WP17).**
@@ -57,12 +57,12 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
-  - **The goal spike proves every law** under 10 shuffled seeds.
+  - **The verifier proves every law** under 10 shuffled seeds.
   - **Not in the library:** three of §9's facts. `push`'s effect is a statement fact. `set-idx`'s multiset effect would need a take-and-drop fact §9 lacks. Multiset extensionality ranges over every `int`, which the interpreter can't evaluate.
-- **WP5's front end** is merged (PR #11): `b17c/verify.py`.
+- **WP5, the verifier,** is done for B17-0: `b17c/verify.py`, with its goals from `b17c/goals.py`.
   - **What it does:** it sends canonical queries (interface 11, D63), caches every verdict under D22's key, and reports solver-trusted goals by node ID (D24, D25).
-  - **WP5's three done-whens all hold** with the spike's goals: the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
-  - **What's left** is to generate goals from WP3's types instead of the spike's sort guesses.
+  - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
+  - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
@@ -72,9 +72,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's scope** is proposed in D79 and D80 (D65). Once they're accepted, B17-1 gets its spec text and labelled suite, and the checker, interpreter and verifier extend to it.
-2. **WP5** generates its goals from WP3's types, replacing the spike's sort guesses.
-3. **WP16** grows the core library alongside WP5.
+1. **B17-1** gets its spec text and labelled suite, now that D79 and D80 set its scope. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
+2. **WP6**, the agent protocol and diagnostics, builds on WP3 and WP5.
+3. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, can start now: it needs only WP3 and WP15, which are done.
 
@@ -91,7 +91,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | WP1a, WP2 | It agrees with every tier 0 label in the suite. Done (PR #15). |
 | WP4a | The spec language | WP3 | Done for B17-0, since WP1a is frozen and B17-0 already has a spec language (D62). B17-1's scope decision reopens it for data-type invariants and refinement links (D65). |
 | WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP1a, WP15 | Every entry has witness examples that the interpreter confirms (D28). In progress: met for its 33 laws and 3 ghost-fns. |
-| WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. The goal spike is its starting point. |
+| WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. Done for B17-0. |
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8) |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests |

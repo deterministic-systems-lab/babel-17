@@ -6,7 +6,8 @@ parses and checks FILE and prints `FILE:LINE:COL: CODE: message` for each diagno
 exiting 1 if there are any. A parse error prints the same way, as E-PARSE-001.
 
 check(module) returns the diagnostics in position order; an empty list means the module
-passes tier 0. Proof goals are WP5's: this checker generates none.
+passes tier 0. Proof goals are WP5's: this checker generates none, but types(module) gives
+WP5 the type it computes for each expression.
 """
 import sys
 from dataclasses import dataclass, field
@@ -41,6 +42,15 @@ class Diagnostic:
 def check(module):
     """module's tier 0 diagnostics, in position order; none means it passes tier 0."""
     return sorted(_Checker(module).run())
+
+
+def types(module):
+    """The type tier 0 gives each expression of module and of the core library, by node id,
+    for WP5's goals. Raises ValueError, listing the diagnostics, if module fails tier 0."""
+    c = _Checker(module)
+    if diags := sorted(c.run(core=True)):
+        raise ValueError("\n".join(map(str, diags)))
+    return c.types
 
 
 def show(t):
@@ -139,10 +149,12 @@ class _Checker:
         self.reported = set()  # moved vectors already reported used (E-OWN-001), so each is reported once
         self.defs = set()      # the names of the module's defs
         self.clashes = set()   # names declared wrongly: reported once, then never checked where used (D78)
+        self.types = {}        # id(expression) -> its type, for WP5
 
-    def run(self):
+    def run(self, core=False):
+        """The diagnostics; with core, the core library's items are checked too, for their types."""
         self.collect()
-        for item in [i for n, i in self.items.items() if n not in CORE_NAMES]:
+        for item in [i for n, i in self.items.items() if core or n not in CORE_NAMES]:
             self.item, self.names, self.moves, self.effects, self.reported = item, set(), {}, [], set()
             {"spec": self.check_spec, "ghost-fn": self.check_ghost_fn, "lemma": self.check_lemma}[item.kind](item)
         self.recursion()
@@ -172,7 +184,7 @@ class _Checker:
         for it in CORE.items[3:]:
             self.items[it.items[1].text] = _Item(it.items[0].text, it.items[1].text, it)
         defs = {}
-        for it in self.module.items[3:]:
+        for it in self.module.items[3:] if self.module is not CORE else ():  # the core library itself
             kind, name = it.items[0].text, it.items[1]
             if name.text in CORE_NAMES:
                 if name.text not in self.clashes:  # once for a spec and its def
@@ -571,7 +583,7 @@ class _Checker:
     def slice_argument(self, a, t):
         """A slice parameter takes (borrow v) of a live vector, or a slice parameter (§7)."""
         if _head(a) == "borrow":
-            v = a.items[1]
+            v, self.types[id(a)] = a.items[1], t
             got = self.var(v, False)
             if got not in (ERR,) and (got[0] != "vec" or not same(("slice", got[1]), t)):
                 self.report("E-TYPE-001", v, f"(borrow {v.text}) needs a vector of {show(t[1])}, and '{v.text}' "
@@ -620,6 +632,10 @@ class _Checker:
         return ERR if t == ERR else t[1]
 
     def expr(self, x, g, want=None):
+        t = self.types[id(x)] = self._expr(x, g, want)
+        return t
+
+    def _expr(self, x, g, want):
         if isinstance(x, Int):
             if not g or want == I64:
                 if not MIN <= x.value <= MAX:
