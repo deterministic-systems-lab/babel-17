@@ -13,17 +13,17 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 
 ## Status
 
-**Phase 0, as of 2026-10-28.** Phase 0 builds the smallest language that can express real verified programs, and the tools to check it. Its gate (D16) has three parts:
+**Phase 0's gate has passed, as of 2026-10-28.** Phase 0 builds the smallest language that can express real verified programs, and the tools to check it. Its gate (D16) has three parts:
 1. WP1a's semantics and suite are frozen;
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
 | WP | What | State |
 |---|---|---|
-| WP1a | B17-0 core semantics and the accept/reject suite | Drafted, v0.1 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)). WP3's checker now agrees with every tier 0 label, which D44 makes the condition for freezing. |
+| WP1a | B17-0 core semantics and the accept/reject suite | Done: frozen at v1.0 on 2026-10-28 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)), once WP3's checker agreed with every tier 0 label (D44). |
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
-| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite, so WP1a can freeze (D44). D66–D78 are proposed. |
-| WP4a | The spec language | Done once WP1a freezes (D62): B17-0's spec language is WP1a's. |
+| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. |
+| WP4a | The spec language | Done for B17-0 (D62): its spec language is WP1a's. B17-1 reopens it (D65). |
 | WP5 | Verifier: proof goals sent to Z3 | In progress: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. The goals come from the spike, [b17c/goals.py](b17c/goals.py), with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. |
 | WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the goal spike proves each. |
@@ -68,7 +68,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 
 | Path | What |
 |---|---|
-| [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v0.1 Draft |
+| [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.0 Frozen |
 | [`suite/`](suite/) | 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
@@ -166,4 +166,4 @@ Every set so far is near the ceiling for current models. The vericoding tasks we
   - the interfaces it touched;
   - the proofs and tests it added;
   - anything it left admitted.
-- **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP2, WP3 and WP15 may build on WP1a's draft before it freezes (D44).
+- **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44).

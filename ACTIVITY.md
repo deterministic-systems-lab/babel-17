@@ -799,4 +799,25 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Updated:** the README's results, task counts, date, `check-tasks` comment, WP17 row and re-checking note, and the roadmap's baselines, remaining Phase 0 work and "Hard enough tasks" question.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
+
+## 2026-10-28 · D66–D78 accepted; WP1a frozen, and Phase 0's gate passes
+- **Owner decision:** accepted D66–D78, WP3's readings of B17-0, and merged WP3's checker (PR #15).
+- **Written into `docs/b17-0.md`**, each in the section it reads:
+  - §2: block scoping, and results sharing D41's uniqueness with parameters (D66);
+  - §3: element types, no nested collections, and no multiset subtyping (D68, D70);
+  - §4: ghost types in runtime places, and how literals take their type (D68, D70);
+  - §5: where slices and borrows may appear (D69), which statement changes which binding (D75), loop bodies leaving vectors as found (D76), and one argument per vector (D72);
+  - §7: ghost arithmetic producing `int`, collection equality being ghost-only, sequence operations, open element types, `i64` binders, owned vector arguments, bound results, `return` in a lemma, and `E-RET-001`'s view of loops and unreachable code (D68, D70, D71, D73–D75, D77);
+  - §9: names of the wrong kind in the tier 0 table (D67), and how errors are reported once each (D78).
+  - D78's note on how `hashing.py` orders its work is about the implementation, so it stays in DECISIONS.md only.
+- **Refinements recorded:** D66 refines D41, D69 and D72 refine D36, D74 refines D43, D77 refines D40, and D78 refines D45. Each earlier entry names its refinement.
+- **WP1a frozen under D44:** WP3's checker agrees with every tier 0 label in the suite, so `docs/b17-0.md` and `suite/` are Frozen at version 1.0. Interface 6 and B17-0's part of interface 1 are Frozen with them (D27). Changing them now takes a new decision.
+- **Phase 0's gate passes:** WP1a is frozen, WP2's round-trip tests pass, and WP15 passes its conformance tests (D16). Phase 1 begins. Its next steps are B17-1's scope decision (D65), which reopens WP4a, and WP5's goals from WP3's types.
+- **Updated:**
+  - the README's status, the WP1a, WP3 and WP4a rows, the layout row for `b17-0.md`, and the note on interfaces;
+  - the roadmap's gate table, work in progress, decisions waiting, next steps, the WP3 and WP4a rows, and the B17-0 and B17-1 rows;
+  - `suite/README.md`'s note on how labels are checked;
+  - `b17c/goals.py`'s docstring.
+- **Interfaces touched:** 6 and B17-0's part of 1, now Frozen at version 1.0.
+- **Proofs and tests added:** none. Every `b17c` self-check passes.
 - **Left admitted:** none.

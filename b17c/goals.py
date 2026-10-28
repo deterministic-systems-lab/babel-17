@@ -7,7 +7,7 @@ its path implies: an accept program must prove every goal, and an E-PROOF-<FAMIL
 reject must fail only goals of that family. With --seeds N, a goal counts as proved only
 if it is also proved under N shuffled seeds (D23); one that isn't is reported as brittle.
 
-This tests the suite's proof labels before WP1a freezes (D44). It isn't WP5: it
+This tests the suite's proof labels until WP5 makes its own goals. It isn't WP5: it
 assumes the program passes tier 0, does no type checking, and its encoding is one
 guess at interface 11.
 

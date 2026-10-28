@@ -326,7 +326,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Capacity only matters for the "push never reallocates" performance claim, which needs allocation bounds that D30 defers.
 - **Touches:** D29; D30; Worked example; `docs/b17-0.md` §1, §11.
 
-## D36 · Ownership without lifetimes · Accepted
+## D36 · Ownership without lifetimes · Accepted (refined by D69 and D72)
 - **Date:** 2026-10-27
 - **Decision:**
   - Vectors are owned and move.
@@ -354,13 +354,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This replaces the generated `_Check` wrapper the Dafny harness needs, and it matches D4: people sign specs, not implementations.
 - **Touches:** Specification layer; `docs/b17-0.md` §1, §10.
 
-## D40 · Every path returns or panics · Accepted
+## D40 · Every path returns or panics · Accepted (refined by D77)
 - **Date:** 2026-10-27
 - **Decision:** Every path through a `def` ends in `return` or `panic`, and early returns are allowed. `(return e1 ... en)`, one expression per declared result, is the only way to exit with results.
 - **Why:** "One way to say it", while still allowing the early returns agents write naturally in search loops.
 - **Touches:** `docs/b17-0.md` §7, §9.
 
-## D41 · No shadowing · Accepted
+## D41 · No shadowing · Accepted (refined by D66)
 - **Date:** 2026-10-27
 - **Decision:**
   - Item names are unique within a module, except that a `spec` and its `def` share one name.
@@ -374,7 +374,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** That keeps the two task sets aligned, so the comparison measures the language rather than different specs. The extra goals are what Bet 1 claims costs agents little.
 - **Touches:** WP10; WP17; Success metrics; `docs/b17-0.md` §10.
 
-## D43 · A spec may declare several results · Accepted
+## D43 · A spec may declare several results · Accepted (refined by D74)
 - **Date:** 2026-10-27
 - **Decision:**
   - A spec may declare several results, returned together by `(return e1 ... en)` and bound by `(let ((x T) ...) (call ...))`.
@@ -391,7 +391,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** So far the labels have been checked only by review. A checker that runs the suite is their first mechanical test, and freezing before it would turn every mislabel it finds into a superseding decision.
 - **Touches:** WP1a; WP2; WP3; WP15; D16; D21 (WP2, WP3 and WP15 depend on WP1a's draft, not its freeze); `docs/b17-0.md`; `suite/README.md`.
 
-## D45 · What a B17-0 hash covers · Accepted (refines D22)
+## D45 · What a B17-0 hash covers · Accepted (refines D22; refined by D78)
 - **Date:** 2026-10-27
 - **Decision:** D22 applied to B17-0's four item kinds.
   - **Spec and def:** the spec hash covers the `spec` item. The implementation hash covers the spec hash and the `def` item.
@@ -732,7 +732,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Why B17-1 in Phase 1:** WP10 needs it for AlgoVeri-class tasks. D64 also needs L0 and L1 early, so that domains without precise specs aren't shut out.
   - **Why later subsets stay unscheduled:** finding which features help agents is what the benchmarks are for (D14, D20).
 - **Touches:** D14; D18; D20; D21; D22; D30; D44; D62; D64; WP1a; WP4a; WP7; WP10; WP11; M3; `docs/b17-0.md` §11; `docs/roadmap.md`; `README.md`.
-## D66 · Locals are scoped to their block, and results share the parameters' names · Proposed
+## D66 · Locals are scoped to their block, and results share the parameters' names · Accepted (refines D41)
 - **Date:** 2026-10-28
 - **Decision:**
   - A local is visible from its declaration to the end of the innermost `block`, loop body or `if` branch that declares it. A branch is a single statement, so a `let` that forms a whole branch is visible nowhere after it. Using a local outside that range is `E-TYPE-002`, as for any undefined name.
@@ -741,7 +741,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §2 says names are unique within an item, and that results are in scope only in `ensures`, but not where a local stops being visible. Without block scoping, `(if c (let y i64 1) (block)) (return y)` would read a local that only one path declares. A parameter and a result with the same name would make `ensures` ambiguous.
 - **Touches:** WP3; D41; `docs/b17-0.md` §2.
 
-## D67 · A name of the wrong kind is a type error · Proposed
+## D67 · A name of the wrong kind is a type error · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Wrong kind, `E-TYPE-001`:**
@@ -756,7 +756,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §9 files undefined names under `E-TYPE-002` but says nothing of names that exist with the wrong kind. Treating those as type errors keeps "undefined" meaning undefined. Checking an orphan def's body would report every parameter it uses as undefined, which is one error cascading into many.
 - **Touches:** WP3; `docs/b17-0.md` §9's tier 0 table.
 
-## D68 · Which types are well-formed · Proposed
+## D68 · Which types are well-formed · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Element types:** a `(vec T)` or `(ref (slice T))` holds `bool` or `i64` (§3). A `(seq T)` or `(multiset T)` holds `bool`, `i64` or `int`, so collections never nest (§11). Anything else is `E-TYPE-001`.
@@ -765,7 +765,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §3 gives the element types of vectors and §11 rules out nested collections, but neither names a code. A malformed type is a type error. A well-formed ghost type in a runtime place is §9's "ghost type in runtime context".
 - **Touches:** WP3; `docs/b17-0.md` §3, §7, §11.
 
-## D69 · Slices are spec parameters, and borrows are def-call arguments · Proposed
+## D69 · Slices are spec parameters, and borrows are def-call arguments · Accepted (refines D36)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Slice types:** only a spec's parameters may have one. Anywhere else is `E-OWN-002`: a result, a `let`, a ghost local, or a ghost-fn's or lemma's parameter or result.
@@ -773,7 +773,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §3 calls slices "parameters only" and §5 lets a borrow "appear only as a call argument", without saying which parameters or which calls. Ghost code already views a vector as a `(seq T)` (§3) without a borrow, so the strict reading costs nothing.
 - **Touches:** WP3; D36; `docs/b17-0.md` §3, §5.
 
-## D70 · Ghost typing: integers, literals and multisets · Proposed
+## D70 · Ghost typing: integers, literals and multisets · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Arithmetic:** ghost arithmetic and `neg` produce `int` (§7's Arith-G), and `int` isn't an `i64`. So a ghost local, ghost-fn result or parameter declared `i64` takes only an `i64`-typed expression, such as an `i64` variable, and `(ghost-let g i64 (+ x 1))` is `E-TYPE-001`.
@@ -787,31 +787,31 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §3 lists the subtyping rules exactly, and these are the readings that add no rule of their own. Covariant multisets and implicit `int`-to-`i64` narrowing would both be new rules.
 - **Touches:** WP3; D34; D53; `docs/b17-0.md` §3, §4, §7.
 
-## D71 · Comparing collections is ghost-only · Proposed
+## D71 · Comparing collections is ghost-only · Accepted
 - **Date:** 2026-10-28
 - **Decision:** `==` and `!=` on vectors, slices, seqs or multisets in runtime code are `E-GHOST-002`.
 - **Why:** §7's Cmp rule allows equality on collections in ghost context only. That makes it a ghost-only operation, which is the case §9's table files under `E-GHOST-002`.
 - **Touches:** WP3; `docs/b17-0.md` §7, §9.
 
-## D72 · A vector appears in at most one argument · Proposed
+## D72 · A vector appears in at most one argument · Accepted (refines D36)
 - **Date:** 2026-10-28
 - **Decision:** §5's rule 7 counts arguments. A vector variable may appear in at most one of a call's arguments, and in at most one of a return's expressions, however it appears there: owned, borrowed, or only read, as in `(len v)`. So `(call g (borrow v) (len v))` and `(return v (len v))` are `E-OWN-005`. Several appearances inside one argument count as one, as in `(+ (idx v 0) (len v))`. Lemma calls are ghost and aren't counted.
 - **Why:** The rule says "at most once among a call's arguments, whether owned or borrowed", which on the strict reading covers any appearance. Counting per argument keeps the rule about aliasing between arguments. It matches Rust, which rejects `f(v, v.len())` and `(v, v.len())`.
 - **Touches:** WP3; D36; `docs/b17-0.md` §5, §7.
 
-## D73 · An owned vector argument is a variable · Proposed
+## D73 · An owned vector argument is a variable · Accepted
 - **Date:** 2026-10-28
 - **Decision:** An argument for a `(vec T)` parameter must be a variable, which then moves (§7). `(vec-new)`, a `seq-build` or any other expression in that place is `E-OWN-006`.
 - **Why:** §7 says "An owned vector argument must be a live variable, which then moves." `E-OWN-006` is already the code for a vector expression of the wrong form. A program writes `(let-mut v (vec i64) (vec-new))` first and passes `v`.
 - **Touches:** WP3; `docs/b17-0.md` §7.
 
-## D74 · A call's results are always bound · Proposed
+## D74 · A call's results are always bound · Accepted (refines D43)
 - **Date:** 2026-10-28
 - **Decision:** `(call f ...)` as a statement is only for a callee with no results, which means a lemma or a spec that returns nothing. When f's spec declares results, they must be bound by `(let ((x T) ...) (call f ...))`, one name per result, and dropping them is `E-TYPE-001`.
 - **Why:** §7 binds results "one name per declared result". Never dropping them means an owned vector can't be lost by accident, and a result list stays something only a call's `let` can hold (§8, D43).
 - **Touches:** WP3; D43; `docs/b17-0.md` §7.
 
-## D75 · Which statement changes which binding · Proposed
+## D75 · Which statement changes which binding · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - `set`, `set-idx` and `push` change runtime locals, and `ghost-set` changes ghost locals. Targeting the other kind is `E-GHOST-001`, since it would let ghost and runtime state mix.
@@ -820,13 +820,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §5 rule 5 and §7 give the mutability rules for runtime locals, and §7 says ghost statements "act on ghost locals only", but neither names a code for crossing between the two.
 - **Touches:** WP3; `docs/b17-0.md` §5, §7.
 
-## D76 · A loop body leaves vectors exactly as it found them · Proposed
+## D76 · A loop body leaves vectors exactly as it found them · Accepted
 - **Date:** 2026-10-28
 - **Decision:** §5's rule 6 applies both ways. A loop body whose normal end leaves an outer vector moved that was live at its start is `E-OWN-004`, and so is one that leaves an outer vector live that had moved before the loop, by giving it a new value with `set`. Vectors the body declares itself aren't outer.
 - **Why:** After the loop, the vector's state would depend on how many times the body ran, which is what "in the state it found it" rules out.
 - **Touches:** WP3; `docs/b17-0.md` §5, §7.
 
-## D77 · A loop may always end, and unreachable code is still checked · Proposed
+## D77 · A loop may always end, and unreachable code is still checked · Accepted (refines D40)
 - **Date:** 2026-10-28
 - **Decision:**
   - For `E-RET-001`, every `while` may end normally, whatever its condition, so a def body that ends with a loop needs a `return` or `panic` after it.
@@ -834,7 +834,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Tier 0 doesn't reason about values. Rust makes the same choice for `while true`.
 - **Touches:** WP3; D40; `docs/b17-0.md` §7.
 
-## D78 · One diagnostic per error · Proposed
+## D78 · One diagnostic per error · Accepted (refines D45)
 - **Date:** 2026-10-28
 - **Decision:**
   - **No cascades:** an expression that fails a check takes on a type compatible with anything, so code that uses it doesn't report again.

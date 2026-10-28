@@ -29,20 +29,22 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 - **Python first (D19).** `b17c` stays a Python prototype until Phase 3, so distribution (WP9) waits for the Rust rewrite.
 - **Manifest and lockfile (D26).** Their schemas move into Phase 0 under WP2, and the registry stays in Phase 3 (WP13).
 
-## Where we are: Phase 0
+## Where we are: Phase 0's gate has passed
 
 ### The Phase 0 gate
 
+All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part of the gate are still open, listed [below](#phase-0-work-outside-the-gate).
+
 | Gate item | State |
 |---|---|
-| **WP1a frozen** | B17-0 v0.1 ([b17-0.md](b17-0.md)) and the 50-program [suite](../suite/) are drafted, and owner decisions are applied through D62, including D60's per-step ranges. Under D44, they freeze once WP3's checker agrees with every tier 0 label. It now does (PR pending): the freeze waits on D66–D78, the readings the checker settled, which go into `b17-0.md` once decided. |
+| **WP1a frozen** | Done. B17-0 v1.0 ([b17-0.md](b17-0.md)) and the 50-program [suite](../suite/) froze on 2026-10-28 under D44, once WP3's checker agreed with every tier 0 label. D66–D78, the readings the checker settled, are written into `b17-0.md`. |
 | **WP2's round-trip tests pass** | Done. The parser and canonical printer round-trip the whole suite. The hasher's golden file reproduces on Linux CI, so content hashes match across machines (D46). |
 | **WP15 passes its conformance tests** | Done. The interpreter is merged (PR #2) and passes WP1a's conformance tests. |
 
 ### Work in progress
-- **WP3, the tier 0 checker** (PR pending): `b17c/check.py`.
+- **WP3, the tier 0 checker,** is merged (PR #15): `b17c/check.py`.
   - **It agrees with every label** of the 50-program suite: the 20 accept programs and 9 proof rejects pass tier 0, and each of the other 21 rejects fails with exactly its code, one of them at the parser.
-  - **D66–D78** record the readings it settled where §2–§9 are silent, such as block scoping, which types are well formed, and where a borrow may appear.
+  - **D66–D78** record the readings it settled where §2–§9 were silent, such as block scoping, which types are well formed, and where a borrow may appear. They're accepted and written into `b17-0.md`.
   - **Review:** a Codex bug hunt ran 29,694 random modules through it with no crash, and found 4 bugs, all fixed. Two were false accepts, one a false reject and one a wrong code.
 - **Proof labels, checked mechanically.** A spike of WP5's goal generator, `b17c/goals.py`, runs the suite through Z3 under 10 shuffled seeds (D23).
   - **Proof rejects:** all 9 `E-PROOF-*` programs fail exactly their labelled goal.
@@ -64,16 +66,14 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-- **D66–D78:** the tier 0 readings WP3's checker settled (PR pending).
+None. D56–D78 were accepted on 2026-10-28.
 
-D56–D65 were accepted on 2026-10-28.
+### Next on the critical path
+1. **B17-1's scope** is decided now that B17-0 is frozen (D65). The decision reopens WP4a for data-type invariants and refinement links.
+2. **WP5** generates its goals from WP3's types, replacing the spike's sort guesses.
+3. **WP16** grows the core library alongside WP5.
 
-### Left before the Phase 0 gate
-1. Merge WP3's checker, which agrees with every tier 0 label in the suite.
-2. Decide D66–D78, and write the accepted readings into `b17-0.md`.
-3. Freeze WP1a under D44.
-
-These belong to Phase 0 but aren't part of its gate:
+### Phase 0 work outside the gate
 - **The rest of WP2:** the manifest and lockfile schemas (interface 7, D26) and typed edit operations (interface 2).
 - **The rest of the baselines:** Gemini's remaining tasks once its quota resets, around 2026-11-02, and Grok's once its balance is topped up.
 
@@ -83,8 +83,8 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 
 | WP | What | Depends on | Done when |
 |---|---|---|---|
-| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | WP1a, WP2 | It agrees with every tier 0 label in the suite |
-| WP4a | The spec language | WP3 | Done for B17-0 when WP1a freezes (D62), since B17-0 already has a spec language. B17-1's scope decision reopens it for data-type invariants and refinement links (D65). |
+| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | WP1a, WP2 | It agrees with every tier 0 label in the suite. Done (PR #15). |
+| WP4a | The spec language | WP3 | Done for B17-0, since WP1a is frozen and B17-0 already has a spec language (D62). B17-1's scope decision reopens it for data-type invariants and refinement links (D65). |
 | WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP1a, WP15 | Every entry has witness examples that the interpreter confirms (D28). In progress: met for its 33 laws and 3 ghost-fns. |
 | WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. The goal spike is its starting point. |
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8) |
@@ -134,8 +134,8 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 | Subset | What it adds | When |
 |---|---|---|
-| **B17-0** | Checked integers, booleans, sequences, slices and owned vectors; contracts; the `alloc`, `panic` and `io` effects (D20) | Phase 0. It freezes when WP3's checker agrees with the suite. |
-| **B17-1** | Generics beyond integers, tuples, data types and nested collections ([§11](b17-0.md)); verification levels L0 and L1, and how a goal that isn't proved behaves below L2 (D64) | Phase 1. Its exact scope is decided after B17-0 freezes. |
+| **B17-0** | Checked integers, booleans, sequences, slices and owned vectors; contracts; the `alloc`, `panic` and `io` effects (D20) | Phase 0. Frozen on 2026-10-28, once WP3's checker agreed with the suite (D44). |
+| **B17-1** | Generics beyond integers, tuples, data types and nested collections ([§11](b17-0.md)); verification levels L0 and L1, and how a goal that isn't proved behaves below L2 (D64) | Phase 1. Its exact scope is the next decision, now that B17-0 is frozen. |
 | **Later subsets** | From §11: mutable borrows, floats, strings and maps; mutual recursion, once there's group hashing (D22); and vector capacity, once there are allocation bounds (D30). From D64: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. Effects for files, network and time. | Benchmarks set the order (D14), within §11's prerequisites. Growth continues past Phase 4 until D64's scope is covered. |
 
 - **The standard library** grows with the subsets. The design spec's library covers collections, numerics, text, parsers, cryptography and time. Each subset's scope includes the library entries it makes expressible.
