@@ -19,8 +19,9 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP | What | State |
 |---|---|---|
 | WP1a | B17-0 core semantics and the accept/reject suite | Drafted, v0.1 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)). Freezes once WP3's checker agrees with the suite (D44). |
-| WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Typed edits and the lockfile remain. |
-| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Next, on top of the parser. |
+| WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
+| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | In progress, on the parser and hasher. |
+| WP4a | The spec language | Proposed (D62): done when WP1a freezes, since B17-0 already has one. |
 | WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)). It checks the suite's proof labels: 17 of 20 accept programs prove under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled (D60, D61). |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces) and D56–D59 are proposed. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
@@ -84,7 +85,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 - [uv](https://docs.astral.sh/uv/), with Python 3.11 or later. Everything runs through `uv run`, and `b17c` uses only the standard library.
 - To run benchmarks: Dafny 4.11.0 with Z3 5.3.2, plus the agent CLIs you want to compare: `claude`, `codex`, `agy` or `grok`.
 
-**Self-checks.** Each one prints a line ending in "passed":
+**Self-checks.** Each one prints a line ending in "passed". CI runs the first three on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
 
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested

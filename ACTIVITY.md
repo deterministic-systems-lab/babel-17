@@ -519,3 +519,15 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
   The full run takes 2 minutes.
 - **`fib` and `power` are luck under the prefix form.** The `contains` change, which has nothing to do with them, moved `fib` from 7 to 10 seeds and `power` from 0 to 2. With D60's step form, all four range programs hold under every seed in both encodings. `fib`'s goal then takes 9 quantifier instantiations and 21,542 units, against 4,333 and 1.74M before.
+
+## 2026-10-28 · CI on Linux; hashes match across machines
+- **Added:** `.github/workflows/check.yml`. It runs `test_syntax`, `test_hashing` and `test_interp` on Ubuntu with Python 3.12, for every pull request and every push to main.
+- **WP2's last done-when:** on its first run (Actions run 40609086707), `test_hashing` reproduced `b17c/hashes.txt` exactly. The file was written on macOS with Python 3.11. Content hashes therefore match across machines (D46). With the parse-print round trips, both of WP2's done-whens now pass.
+- **Left out of CI:** the Dafny harness and the Z3 goal spike need their pinned solver builds (D23).
+- **WP2 still to do,** though neither item is part of its done-when: the manifest and lockfile schemas (interface 7, D26), and typed edit operations (interface 2).
+
+## 2026-10-28 · WP4a's scope proposed (D62)
+- **Why:** the roadmap noted that WP4a, next after WP3 on D21's critical path, had no definition or test.
+- **Finding:** B17-0 already defines a spec language: headers, specs, ghost-fns, lemmas, and §7's well-formedness rules. The goal spike discharges the well-formedness goals of every suite spec. The design spec's other spec features either aren't needed (frames, given ownership) or need language growth Phase 1 doesn't plan (data-type invariants, refinement links, resource contracts).
+- **Proposed D62:** WP4a ends when WP1a freezes, and WP1a takes its place in D21's table. That shortens the critical path and lets WP16 start now.
+- **On acceptance:** update `docs/roadmap.md`'s Phase 1 table and critical path.
