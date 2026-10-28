@@ -613,3 +613,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Rerun after trimming:** 20 of 20 accept programs, 9 of 9 rejects, all 69 core-library goals, and both soundness probes give the same results as before.
 - **WP5's done-whens:** the worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. All three hold for the spike's goals. Generating goals from WP3's types instead of the spike's sort guesses is still to do.
 - **Proposed D63:** interface 11 v0.1, the cache key and entries, and the report's contents.
+- **Codex review** (`gpt-5.6-sol`) found 8 issues, all fixed and tested:
+  - **Solver hash:** it covered only the `z3` wrapper, truncated. It now hashes the resolved binary and its `libz3`, as full SHA-256 digests.
+  - **Timeouts:** a wall-clock timeout or process error could be cached, against D23. Only verdicts reached within the budget are cached now.
+  - **Atomic writes:** cache writes now go to a temporary file that's renamed into place, and an unreadable entry counts as a miss.
+  - **D25's fields:** the report lacked the input hash, lockfile hash and level. It now records them, and the level is L3-S or L2-S per D24.
+  - **Duplicate node IDs:** several `POST` or `PRE` goals at one node shared an ID. Goals now name their contract clause, and repeated checks of one node are numbered.
+  - **Units:** shuffled seeds' resource units weren't counted. They are now.
+  - **Untested key:** the cache key's dependency hashes weren't tested on their own. The key is now a function with its own test.
+  - **D63's wording:** it said interface 5 stays WP7's, but D25 gives the report to WP5. The text is corrected.
+- **Not found:** Codex found no trimming defect: closure is transitive, and a recursive ghost-fn keeps its declaration and `requires` while losing its own equation. No canonical-name collision either.

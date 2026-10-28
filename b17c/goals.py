@@ -177,11 +177,11 @@ class Gen:
         return out
 
     # Goals and facts.
-    def goal(self, st, guard, family, x, g):
+    def goal(self, st, guard, family, x, g, clause=None):
         if self.quiet:
             return
         g = wrap(guard, g)
-        self.goals.append((self.item[0], family, x.pos, list(st.facts), g, x, self.part))
+        self.goals.append((self.item[0], family, x.pos, list(st.facts), g, x, self.part, clause))
         st.facts.append(g)  # every goal is assumed once generated (§9)
 
     def fact(self, st, guard, f):
@@ -493,7 +493,7 @@ class Gen:
             q, self.quiet = self.quiet, True
             d, _ = self.expr(dec, end, True)
             self.quiet = q
-            self.goal(end, (), "TERM", dec, f"(< {d} {d0})")
+            self.goal(end, (), "TERM", dec, f"(< {d} {d0})", clause=x)  # the drop across a pass
         after.facts.append(f"(not {c})")
         return after
 
@@ -518,10 +518,10 @@ class Gen:
         for p, t in zip(params, terms):
             env.env[p.items[0].text] = (t, p.items[1])
         q, self.quiet = self.quiet, True
-        pres = [self.expr(c, env, True)[0] for cl in clauses(callee, "requires") for c in cl]
+        pres = [(c, self.expr(c, env, True)[0]) for cl in clauses(callee, "requires") for c in cl]
         self.quiet = q
-        for pre in pres:
-            self.goal(st, (), "PRE", x, pre)
+        for c, pre in pres:
+            self.goal(st, (), "PRE", x, pre, clause=c)
         if self.item and name == self.item[0]:
             self.term_goal(st, (), x, d.get("def") or callee, terms)
         for r, p in zip(results, clauses(callee, "returns")[0] if "spec" in d else ()):
@@ -544,7 +544,7 @@ class Gen:
                 q, self.quiet = self.quiet, True
                 t, _ = self.expr(c, env, True)
                 self.quiet = q
-                self.goal(st, (), "POST", x, t)
+                self.goal(st, (), "POST", x, t, clause=c)
                 env.facts = st.facts
 
     # Items.

@@ -663,16 +663,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
     - the hash of the goal's definition: the spec hash for spec, ghost-fn and lemma-statement goals, and the implementation hash for def and lemma-proof goals;
     - the sorted spec hashes of the items that definition refers to;
     - the canonical query;
-    - D22's configuration: `b17c`, which is the hash of the generator's source until there are releases; the prelude, which is the hash of its text and `core.b17`; the solver, which is its version and binary hash; the budget; and the number of shuffled seeds.
-  - **Cache entries:** each holds a verdict and the resource units spent, stored under `.b17c/cache/` in the working tree, which git ignores. A verdict follows D23: proved under the canonical seed and every shuffled seed, or brittle.
-  - **Report:** each run's part of the trusted base report (D24, D25) lists:
-    - every proved goal as solver-trusted, by D56-style node ID;
-    - brittle and failed goals;
-    - the core library's laws and the prelude version, as the axioms the goals rest on.
+    - D22's configuration: `b17c`, which is the hash of the generator's source until there are releases; the prelude, which is the hash of its text and `core.b17`; the solver, which is its version and the SHA-256 of its resolved binary and the `libz3` beside it; the budget; and the number of shuffled seeds.
 
-    Interface 5 itself stays WP7's.
+    Parts are length-prefixed before hashing.
+  - **Cache entries:** each holds a verdict and the resource units spent across every seed, stored under `.b17c/cache/` in the working tree, which git ignores.
+    - A verdict follows D23: proved under the canonical seed and every shuffled seed, or brittle.
+    - Only verdicts reached within the resource budget are cached. A wall-clock timeout or a process error depends on the machine, so it's solved again next time.
+    - Entries are published atomically, and an unreadable entry counts as a miss.
+  - **Goal identity:** a goal is named by its D56-style node ID, followed by the node ID of the contract clause it checks, for a `PRE` or `POST` goal or a loop's measure drop. A node checked more than once, as a loop condition is on entry and at each iteration, is numbered `#2`, `#3` and so on.
+  - **Report:** the module's trusted base report (D24, D25; WP5 owns it, and WP7 adds the backend fields) records:
+    - the input's hash (SHA-256 of its canonical bytes), and the lockfile's hash, which is `null` until B17-0 has imports;
+    - the configuration above;
+    - the level: L3-S when every goal is proved by the solver (D24), L2-S when only the runtime-safety goals are (`BOUNDS`, `OVERFLOW`, `DIV`, `PRE` and `TERM`), and otherwise below L2;
+    - the solver-trusted, brittle, failed and admitted goals, by goal identity;
+    - the core library's laws and the prelude version, as the axioms the goals rest on.
 - **Why:**
   - **The key:** D22 names the key's ingredients but not how they're combined.
   - **Renaming:** making the query invariant under renaming extends D22's "renames never break references" to proofs, so a renamed definition reuses every proof.
   - **Trimming each query** to what it uses makes D22's invalidation exact. Measured on a two-function module: a callee's body edit re-verifies only the callee, and a spec edit re-verifies its callers too. Trimming changed no verdict on the suite or the core library.
-- **Touches:** D22–D25; D27 (interface 11); D45; D56; WP5; WP7.
+- **Touches:** D22–D25; D27 (interfaces 5 and 11); D45; D56; WP5; WP7.
