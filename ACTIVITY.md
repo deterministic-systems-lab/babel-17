@@ -836,3 +836,29 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-28 · B17-1's scope proposed (D79, D80)
+- **Survey:** the frozen preamble and signature of each of the 64 AlgoVeri tasks, read for the features its contract needs. Claude's verified solutions from the hard run were read for runtime sets and maps.
+  - **Already B17-0 (14):** `binary_search`, `bracket_matching`, `fast_exponential`, `gcd`, `integer_exponential`, `kmp`, `linear_search`, `longest_common_subsequence` (characters as `i64`), `maximum_subarray_sum`, `polymul_naive`, `sieve_method`, `string_search_naive`, `trial_division_naive`, `trial_division_optimized`.
+  - **Quantified sequences (11):** `bubble_sort`, `insertion_sort`, `merge_sort`, `quick_sort` and `k_smallest` (a permutation witness), and `coin_change`, `house_robber`, `jump_game`, `knapsack_01`, `knapsack_unbounded` and `longest_increasing_subsequence` (an optimum over every selection).
+  - **Pairs (2):** `ac_automata`, `longest_palindrome_substring`.
+  - **Optional results (2):** `discrete_logarithm`, `linearsys_gf2`.
+  - **Graphs (13):** `bfs`, `dfs`, `bipartite_check`, `cycle_detection`, `topological_sort`, `scc_tarjan`, `bellman_ford`, `dijkstra`, `kruskal`, `prim`, `edmond_karp`, `push_relabel`, `max_matching`.
+  - **Trees (22):** the six `bst_*` tasks, `splaytree_splay`, `lca`, the five `llrbt_*`, three `segmenttree_*`, three `ternarysearchtree_*` and three `trie_*` tasks.
+- **Proposed:**
+  - **D79, B17-1's language:** data types with type parameters, tuples, collections of any element type, quantifiers over any ghost type, ghost sets and maps, places instead of lifetimes for nested values, and `rank` for termination over data. WP4a stays done, refining D65.
+  - **D80, verification levels:** cumulative levels where, from L1, every goal is proved or tested; L1's property tests; L2's safety proofs resting only on proved goals, refining D63; and below L2, aborts at `err` with contracts unchecked at run time.
+- **Updated:** the roadmap's decisions waiting and next steps.
+- **Codex review** (`gpt-5.6-sol`) found 11 issues, all fixed before the PR:
+  - **The survey:** 11 tasks counted as already B17-0 quantify over sequences, which B17-0's binders can't. The tries' views are infinite sets defined by comprehension, and specs also use set difference, intersection and, once, cardinality. Dafny's `nat` is a subset type, and `lca` has a generic member predicate.
+  - **D79:** runtime aggregates could have held slices or ghost types; field reads needed a goal family of their own (`FIELD`); and keeping WP4a done refines D65.
+  - **D80:** tests didn't cover every goal, and couldn't evaluate unknown quantifiers or lemma bodies; an L2 safety proof could rest on a goal that's only tested; dropping overflow checks contradicted D18; D63's level rule and D24's L3-S needed amending; and leaving out `panic` still rules out explicit panics at every level.
+  - **Touches:** interfaces 1, 5, 6 and 10 were missing.
+- **Codex re-review** found 4 more, all fixed:
+  - **L2:** a caller's safety proof could still rest on a callee's `ensures` that's only tested. D80 now defines "proved from proved goals" as a closure over earlier goals, callees' `POST` goals and lemmas' goals.
+  - **Ghost goals:** a `BOUNDS`, `DIV` or `FIELD` goal in ghost code can't abort a run, since ghost code is erased. Only runtime ones guard `err`.
+  - **Limits:** a run that hits D59's limit refutes no goal, so its input is dropped.
+  - **Interfaces:** the manifest is interface 4 (D26); interface 7 is the lockfile. The roadmap's WP2 line had the same slip.
+- **Interfaces touched:** none yet. Once accepted, D79 changes interfaces 1, 6, 10 and 11, and D80 interfaces 4 and 5.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.

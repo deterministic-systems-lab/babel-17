@@ -66,17 +66,20 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-None new. D56–D78 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+- **D79, B17-1's scope:** data types, tuples, collections of any type, and ghost sets and maps, from a survey of the 64 AlgoVeri tasks. It keeps WP4a done, since every surveyed task states its invariants as predicates in its contracts.
+- **D80, verification levels:** L0 and L1, and what a goal that isn't proved does below L2.
+
+D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's scope** is decided now that B17-0 is frozen (D65). The decision reopens WP4a for data-type invariants and refinement links.
+1. **B17-1's scope** is proposed in D79 and D80 (D65). Once they're accepted, B17-1 gets its spec text and labelled suite, and the checker, interpreter and verifier extend to it.
 2. **WP5** generates its goals from WP3's types, replacing the spike's sort guesses.
 3. **WP16** grows the core library alongside WP5.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, can start now: it needs only WP3 and WP15, which are done.
 
 ### Phase 0 work outside the gate
-- **The rest of WP2:** the manifest and lockfile schemas (interface 7, D26) and typed edit operations (interface 2).
+- **The rest of WP2:** the manifest and lockfile schemas (interfaces 4 and 7, D26) and typed edit operations (interface 2).
 - **The rest of the baselines:** Gemini's remaining tasks once its quota resets, around 2026-11-02, and Grok's once its balance is topped up.
 
 ## Phase 1
