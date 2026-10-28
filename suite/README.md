@@ -49,7 +49,7 @@ The labels were first checked by review: by the author, and by an independent mo
 | `bst_search` | A recursive read, which consumes its tree | Written |
 | `discrete_logarithm` | An optional result | Written |
 | `longest_palindrome_substring` | A tuple result | Written |
-| `segmenttree_query` | Ghost maps; `replace` on a node's fields | Written |
+| `segmenttree_query` | Ghost maps; `replace` on a node's fields | Needs D100 for the witness step |
 | `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Needs D99 for the view step |
 | `lca` | `option` throughout | Needs D99 for `find`'s postcondition |
 | `bfs` | A graph record, nested vectors, a quantifier over paths | Bounds only |
@@ -58,7 +58,8 @@ The labels were first checked by review: by the author, and by an independent mo
 
 - **Written:** the invariants and hints cover every goal, as far as review can tell.
 - **Needs D99:** one step proves a fact for every sequence or unbounded integer, which needs D99's universal introduction.
-- **Bounds only:** the invariants cover bounds, overflow and termination. Correctness waits for D99, as these proofs quantify over every path, spanning tree or change.
+- **Needs D100:** one step must name the witness of an ∃, which needs D100's existential elimination.
+- **Bounds only:** the invariants cover bounds, overflow and termination. Correctness waits for D99 and D100, since these proofs quantify over every path, spanning tree or change, and name witnesses.
 
 Each proof is finished against WP5 once it extends to B17-1. A proof that fails then is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 

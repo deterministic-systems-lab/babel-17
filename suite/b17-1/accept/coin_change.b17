@@ -45,7 +45,6 @@
         (let-mut c i64 0)
         (while (< c (len coins))
           (invariant (and (<= 0 c) (<= c (len coins))))
-          (invariant (and (<= 1 a) (<= a amount)))
           (invariant (== (len dp) (+ amount 1)))
           (invariant (forall ((b int)) (=> (and (<= 0 b) (<= b amount)) (and (<= -1 (idx dp b)) (<= (idx dp b) b)))))
           (decreases (- (len coins) c))

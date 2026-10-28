@@ -1263,9 +1263,10 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-10-28
 - **Decision:** B17-1 gains a ghost statement, `(forall ((x T) ...) (call L e*))`. It applies the lemma L at every value of its binders. Afterwards the verifier assumes ∀x. ⟦L's requires⟧ ⇒ ⟦L's ensures⟧, with the arguments e substituted.
   - **Binders:** each has an exact type (D90) and is scoped to the call. Names follow §2's binder rules.
-  - **Goals:** none of its own. L's `requires` becomes the antecedent, instead of a goal at the call.
+  - **Goals:** only the arguments' own. Each argument is checked in ghost context with the binders in scope, and its goals, such as an `idx`'s bounds, become ⟦∀x. goal⟧. L's `requires` becomes the antecedent instead of a goal, so a proof passes the binders themselves and lets L's `requires` guard them: `(forall ((i int)) (call l s i))`, not `(call l (idx s i))`.
+  - **The fact:** L's `requires` and `ensures` clauses are each conjoined, and the arguments substituted without capture. Like a lemma call's `ensures`, the fact holds from the statement on, along that path.
   - **Where it may appear:** wherever a lemma call may, in def and lemma bodies. Like a lemma call, it's ghost, has no effects and moves nothing.
-  - **Recursion:** a use inside L's own body carries the measure goal for every binder value, ⟦∀x. requires ⇒ 0 ≤ callee measure < caller measure⟧, so induction stays sound.
+  - **Recursion:** a use inside L's own body carries the measure goal for every binder value, ⟦∀x. requires ⇒ 0 ≤ callee measure < caller measure⟧, under the path's assumptions, so induction stays sound.
   - **Syntax and hashing:** `forall` is already reserved, so no word is added. The binders are numbered with D45's other binders, in the same walk (D92).
 - **Why:**
   - **A missing kind of proof.** A lemma proves a fact about its parameters. A ∀ in an `ensures`, invariant or `assert` is proved by the solver alone, since nothing applies a lemma at a value a quantifier binds. A ghost `while` reaches only a bounded range of integers.
@@ -1277,3 +1278,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Nothing:** agents would have to phrase each such proof so that the solver instantiates a quantified `ensures` unaided. In the Dafny proofs above, no agent managed without the statement.
   - **An "arbitrary x" block,** as in Lean's `intro`: the same power, with a new kind of scope.
 - **Touches:** D80; D90; D91; D92; B17-1 §2, §7 and §9; WP3; WP5; WP8; WP10.
+
+## D100 · Existential elimination: naming a witness · Proposed
+- **Date:** 2026-10-28
+- **Decision:** B17-1 gains a ghost statement, `(obtain ((x T) ...) e)`. Its goal is ⟦∃x. e⟧. It then binds each x as an immutable ghost local, with e assumed.
+  - **Binders:** each has an exact type (D90). They are locals: unique within the item (D41), and visible to the end of the enclosing block, loop body or branch.
+  - **Goals:** e's own goals, under the binders, then ∃x. e, in the `E-PROOF-ASSERT` family.
+  - **Where it may appear:** in def and lemma bodies, wherever a ghost statement may. A ghost local never flows into a runtime value (`E-GHOST-001`), so a witness can't change what the program computes.
+  - **The word:** `obtain` joins the reserved words (D51). The binders are numbered with D45's other binders (D92).
+- **Why:**
+  - **A missing kind of proof.** The solver can use an ∃ that a `requires` or a callee's `ensures` gives, but a proof can't name its witness, to assert something about it or pass it to a lemma. A lemma can't return values (`E-GHOST-003`), so it can't hand one back either.
+  - **The evidence:**
+    - **How often:** Dafny's `:|` names a witness in 102 of the 327 verified AlgoVeri solutions in the runs, across 32 of the 64 tasks.
+    - **In B17-1's suite:** every verified solution of `segmenttree_query`, `bfs` and `kruskal` uses it.
+    - **What `segmenttree_query` needs it for:** the parent's witness is a child's, and the proof has to name it to relate the two views. Codex's review of the suite found that step missing.
+  - **Today's workaround:** compute the witness at runtime and return it. That costs a result, and works only when the witness is computable.
+- **Alternatives:**
+  - **A `choose` expression,** Hilbert's ε: its goal would arise wherever it appears, and two uses with the same body would have to denote the same value. A statement scopes the witness to one place.
+  - **Lemmas with results:** every call would bind them, and lemmas would stop being pure facts.
+- **Touches:** D41; D51; D90; D92; D99; B17-1 §2, §7 and §9; WP3; WP5; WP8; WP10.

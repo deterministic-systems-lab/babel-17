@@ -64,7 +64,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
 - **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted.
-- **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 42 programs to reject, one per rule. Its labels are checked by review until the checker reads B17-1. Writing it found a gap, which D99 proposes to close: no B17 proof can apply a lemma at every value of a quantifier.
+- **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 42 programs to reject, one per rule. Its labels are checked by review until the checker reads B17-1. Writing it found two gaps in B17's proofs, which D99 and D100 propose to close: none can apply a lemma at every value of a quantifier, or name the witness of an ∃.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.
   - **Runs match the interpreter:** 8,875 differential runs print exactly the interpreter's text, across the suite, corner cases and generated programs, with rustc 1.99.1 pinned. Fuzzing and a mutation check found no mismatch left.
@@ -79,11 +79,12 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 
 ### Decisions waiting for the owner
 - **D99, universal introduction:** a ghost statement `(forall ((x T) ...) (call L e*))` that applies a lemma at every value of its binders. Every verified Dafny solution of five of the ten AlgoVeri tasks in B17-1's suite needs Dafny's equivalent.
+- **D100, existential elimination:** a ghost statement `(obtain ((x T) ...) e)` that proves an ∃ and names its witness. A third of the verified AlgoVeri solutions use Dafny's equivalent, `:|`.
 
 D79–D98 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92 accepted, and `suite/b17-1/`. Next, the parser and checker extend to B17-1, then the interpreter and verifier. It freezes once the checker agrees with every tier 0 label (D44). Five accept programs' proofs wait for D99 and the verifier.
+1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92 accepted, and `suite/b17-1/`. Next, the parser and checker extend to B17-1, then the interpreter and verifier. It freezes once the checker agrees with every tier 0 label (D44). Six accept programs' proofs wait for D99 or D100, and all wait for the verifier.
 2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 

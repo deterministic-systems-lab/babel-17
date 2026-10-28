@@ -62,7 +62,7 @@
         (let-mut i i64 0)
         (while (< i deg)
           (invariant (and (<= 0 i) (<= i deg)))
-          (invariant (and (<= 0 head) (< head (len queue))))
+          (invariant (< head (len queue)))
           (invariant (== (len dist) n))
           (invariant (== (+ (len queue) (occurrences dist -1)) n))
           (invariant (forall ((w int)) (=> (and (<= 0 w) (< w n)) (>= (idx dist w) -1))))

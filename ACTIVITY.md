@@ -1161,12 +1161,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** `gym/test_b17.py`.
 - **Left admitted:** none.
 
-## 2026-10-28 · B17-1's labelled suite (D99 proposed)
+## 2026-10-28 · B17-1's labelled suite (D99 and D100 proposed)
 - **`suite/b17-1/`:** B17-1's accept/reject suite, as `docs/b17-1.md` §13 describes.
   - **Accept:** 10 AlgoVeri ports, one per feature, each with its frozen contracts and a def.
-    - Proofs written in full: `bst_insert`, `bst_search`, `discrete_logarithm`, `longest_palindrome_substring` and `segmenttree_query`.
-    - `trie_insert` and `lca` each have one step that needs D99.
-    - `bfs`, `kruskal` and `coin_change` have invariants for bounds, overflow and termination only. Their correctness proofs wait for D99.
+    - Proofs written in full: `bst_insert`, `bst_search`, `discrete_logarithm` and `longest_palindrome_substring`.
+    - `trie_insert` and `lca` each have one step that needs D99, and `segmenttree_query` one that needs D100.
+    - `bfs`, `kruskal` and `coin_change` have invariants for bounds, overflow and termination only. Their correctness proofs wait for D99 and D100.
   - **Reject:** 42 programs with one error each. They cover every case §13 lists, and give each new rule of §2–§9 a program.
 - **Checked:**
   - **By review.**
@@ -1188,7 +1188,17 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **The count:** all 24 verified Dafny solutions of `bfs`, `coin_change`, `kruskal`, `lca` and `trie_insert` use that statement, 3 to 53 times each. They come from Claude, Codex, Gemini and Grok.
   - **Why it can't be avoided:** in four of the five tasks, some of those statements range over an unbounded type, which a ghost `while` can't reach.
   - **Proposed:** D99, a `forall` statement over one lemma call.
+- **Found, second:** a B17 proof can't name the witness of an ∃, which Dafny's `:|` does.
+  - **The count:** 102 of the 327 verified AlgoVeri solutions use `:|`, across 32 of the 64 tasks, among them every solution of `segmenttree_query`, `bfs` and `kruskal`.
+  - **Proposed:** D100, an `obtain` statement that proves an ∃ and binds its witness as ghost locals.
+- **Codex review** (`gpt-5.6-sol`), against both spec documents and the Dafny originals:
+  - **Labels:** no wrong label. Every reject has exactly its labelled error, and every accept passes tier 0. Every port's contracts match its Dafny task, apart from the differences `suite/README.md` lists.
+  - **`segmenttree_query`:** its proof isn't complete. Lifting a child's witness to the parent needs a named witness, so it's now marked as needing D100.
+  - **`bst_insert` and `bst_search`:** flagged as leaving set reasoning to the solver. Left as they are: each step is one quantifier instantiation, triggered by terms the goal already has, and accept programs carry no hints until the verifier shows a need.
+  - **Spec text:** the finite-value rule is now a least fixed point. `E-TERM-002` now names distinct data items, so `(option node)` inside `node` is self-recursion.
+  - **D99:** sound, but the arguments' own goals, such as an `idx`'s bounds, were missing. They are now goals for every binder value. D99 also now says how its clauses combine, and that the fact holds along the path.
+- **Ponytail review:** four invariants restated facts the loop never changes (b17-0 §9), and `trie_insert`'s one-caller `fresh` helper is folded into `node_of`. All cut, 12 lines.
 - **Updated:** the README's status and layout; the roadmap's progress, decisions waiting, next steps and B17-1 rows; `suite/README.md`.
-- **Interfaces touched:** none yet. D99 would add a statement to interface 1.
+- **Interfaces touched:** none yet. D99 and D100 would each add a statement to interface 1.
 - **Proofs and tests added:** the suite's 52 programs.
 - **Left admitted:** none.

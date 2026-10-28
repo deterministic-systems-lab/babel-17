@@ -39,15 +39,6 @@
       (forall ((k int)) (=> (contains key k) (and (<= 0 k) (< k 256)))))
     (ensures (well_formed res) (not (is_empty res)) (== (view res) (union (opt_view tree) (iset-lit key))))
     (effects alloc))
-  (spec fresh
-    (params)
-    (returns (n node))
-    (ensures (well_formed n) (is_empty n))
-    (effects alloc))
-  (def fresh
-    (body
-      (let kids (vec (option node)) (seq-build 256 (fn (i) (none))))
-      (return (node false kids))))
   (spec node_of
     (params (tree (option node)))
     (returns (n node))
@@ -57,7 +48,7 @@
   (def node_of
     (body
       (match tree
-        (case (none) (block (let ((empty node)) (call fresh)) (return empty)))
+        (case (none) (block (let kids (vec (option node)) (seq-build 256 (fn (i) (none)))) (return (node false kids))))
         (case (some m) (return m)))))
   (spec insert_at
     (params (tree (option node)) (key (ref (slice i64))) (i i64))
