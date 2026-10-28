@@ -1244,6 +1244,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Reserved words:** subset 1's are exactly the words `docs/b17-1.md` §2 lists.
   - **Misuse:** each B17-1 form misused once fails at the right line and column.
   - **B17-0 unchanged:** B17-0's tests pass as before, and B17-0 still rejects places.
+- **Codex review** (`gpt-5.6-sol`), with all findings fixed and tested:
+  - **B17-0 unchanged:** it compared the new parser with the old one, in subset 0, on 100,004 generated valid and malformed inputs. Decisions, canonical bytes, messages and positions were all identical.
+  - **Type parameters rejected:** every data type with type parameters, such as `(data box (t) ...)`, was refused. A test had expected a valid declaration to fail, which hid it.
+  - **Operators as type names:** a type such as `(+ i64)` was accepted.
+  - **Shared state:** the subset was module state, so two threads could read under each other's. The harness parses in a thread pool, so the subset is now per thread.
+  - **Untested forms:** `diff`, `update`, tuple patterns, `get` places and `replace` in a `let-mut` had no test. Each now has one.
+- **Ponytail review:** places read through a shape table, and `iset-lit` shares `seq-lit`'s branch.
 - **Updated:** the README's layout, commands and self-check line; the roadmap's decisions waiting and next steps.
 - **Interfaces touched:** interface 1, B17-1's part, now implemented by the parser.
 - **Proofs and tests added:** B17-1's cases in `test_syntax.py`.

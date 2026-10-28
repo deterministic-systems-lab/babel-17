@@ -176,16 +176,21 @@ bad("(x i64)", "(obtain i64)", "obtain i64", "'obtain' is reserved", subset=1)
 # B17-1's forms, each misused once.
 B1 = OK.split("\n")[0] + """
 (data t () (leaf) (node (v i64) (l t)))
+(data box (a b) (box (first a) (second (option b))))
 (ghost-fn g ((x t)) int (body (match x (case (leaf) 0) (case (node v l) (get (tuple v 1) 0)))))
+(ghost-fn k ((p (tuple int int)) (s (iset int)) (m (map int int))) bool (body (match p (case (tuple a b) (== (diff s (iset-lit a)) (iset-of ((c int)) (contains (update m b a) c)))))))
 (spec h (params (x t) (a (vec (vec i64)))) (returns (r i64)) (effects))
-(def h (body (let-mut b (vec (vec i64)) a) (set-idx (idx b 0) 0 1) (obtain ((k int)) (> k 0)) (return 0))))"""
-assert s.canonical(s.parse(B1, 1)) == B1.encode() and error(B1).reason.startswith("expected an item")
+(def h (body (let-mut b (vec (vec i64)) a) (set-idx (idx b 0) 0 1) (set-idx (get b 0) 1 2) (let-mut c (vec i64) (replace (field b f) (vec-new))) (obtain ((k int)) (> k 0)) (return 0))))"""
+assert s.canonical(s.parse(B1, 1)) == B1.encode()
+error(B1)  # B17-0 has none of these forms
 bad1 = lambda old, new, snippet, phrase: bad(old, new, snippet, phrase, B1, 1)
-bad1("(data t () (leaf)", "(data t (leaf)", "(leaf)", "written () when there are none")
-bad1("(data t () (leaf) (node (v i64) (l t)))", "(data t ())", ")\n(ghost-fn", "needs type parameters and a constructor")
+bad1("(data t () (leaf)", "(data t leaf (leaf)", "leaf (leaf)", "written () when there are none")
+bad1("(data box (a b)", "(data box (a (b))", "(b)", "expected a type parameter")
+bad1("(a (vec (vec i64)))", "(a (+ i64))", "(+ i64)", "expected a type")
+bad1("(data t () (leaf) (node (v i64) (l t)))", "(data t ())", ")\n(data box", "needs type parameters and a constructor")
 bad1("(data t () (leaf)", "(data t () leaf", "leaf (node", "expected a constructor")
 bad1("(case (leaf) 0)", "(leaf 0)", "(leaf 0)", "expected (case pat e)")
-bad1("(match x (case (leaf) 0) (case (node v l) (get (tuple v 1) 0)))", "(match x)", ")))\n(spec", "at least one case")
+bad1("(match x (case (leaf) 0) (case (node v l) (get (tuple v 1) 0)))", "(match x)", ")))\n(ghost-fn k", "at least one case")
 bad1("(tuple v 1)", "(tuple v)", "(tuple v)", "at least two expressions")
 bad1("(case (node v l)", "(case (tuple v)", "(tuple v)", "binds at least two names")
 bad1("(get (tuple v 1) 0)", "(iset-of ((a int) (b int)) true)", "(iset-of", "expected (iset-of ((NAME type)) ...)")

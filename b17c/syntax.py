@@ -13,6 +13,7 @@ the subset (D101): 0 by default, for B17-0 exactly as frozen, or 1 for B17-1's g
 import bisect
 import re
 import sys
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -43,7 +44,13 @@ KEYWORDS_1 = KEYWORDS | {
 EFFECTS = ["alloc", "panic", "io"]  # D52: listed in this order, each at most once
 MAX_DEPTH = 128  # D55: the same on every machine, and well inside Python's recursion limit
 sys.set_int_max_str_digits(0)  # D53: integer literals have no size limit
-_sub, _kw = 0, KEYWORDS  # the subset being read, set by parse() and parse_expr() (D101)
+
+
+class _State(threading.local):
+    sub, kw = 0, KEYWORDS  # the subset being read, per thread, since the harness parses in a pool (D101)
+
+
+_st = _State()
 
 
 @dataclass(frozen=True)
@@ -97,10 +104,9 @@ def parse_expr(text, subset=0):
 
 
 def _use(subset):
-    global _sub, _kw
     if subset not in (0, 1):
         raise ValueError(f"no subset B17-{subset}: 0 or 1 (D101)")
-    _sub, _kw = subset, KEYWORDS_1 if subset else KEYWORDS
+    _st.sub, _st.kw = subset, KEYWORDS_1 if subset else KEYWORDS
 
 
 def _decode(text):
@@ -235,7 +241,7 @@ def _atom(tok, pos):
         if tok == "-0":
             raise ParseError(pos, "integer '-0' is not canonical: write 0")
         return Int(int(tok), pos)
-    if NAME.match(tok) or tok in OPS or tok in _kw:
+    if NAME.match(tok) or tok in OPS or tok in _st.kw:
         return Sym(tok, pos)
     if re.match(r"[A-Za-z_]", tok):
         raise ParseError(pos, f"'{tok}' is not a valid name: names match [a-z][a-z0-9_]*")
@@ -268,7 +274,7 @@ def _show(x):
 def _name(x, what="a name"):
     if not isinstance(x, Sym):
         _fail(x, f"expected {what}, found {_show(x)}")
-    if x.text in _kw:
+    if x.text in _st.kw:
         _fail(x, f"'{x.text}' is reserved and can't be used as a name")
     if not NAME.match(x.text):
         _fail(x, f"expected {what}, found '{x.text}'")
@@ -347,7 +353,7 @@ def _module(x):
 
 def _item(x):
     h = _head(x)
-    kinds = ("ghost-fn", "lemma", "spec", "def") + (("data",) if _sub else ())
+    kinds = ("ghost-fn", "lemma", "spec", "def") + (("data",) if _st.sub else ())
     if h not in kinds:
         _fail(x, f"expected an item ({', '.join(kinds[:-1])} or {kinds[-1]}), found {_show(x)}")
     if len(x.items) < 2:
@@ -357,7 +363,7 @@ def _item(x):
         if len(x.items) < 4:
             raise ParseError(x.end, "(data TNAME (TNAME*) ctor+) needs type parameters and a constructor")
         ps = x.items[2]
-        if not isinstance(ps, Form) or _head(ps) is not None:
+        if not isinstance(ps, Form):
             _fail(ps, f"expected the data type's (TNAME*) parameters, written () when there are none, found {_show(ps)}")
         for t in ps.items:
             _name(t, "a type parameter")
@@ -437,12 +443,12 @@ def _type(x):
         return _type(x.items[1])
     if h == "ref" and len(x.items) == 2 and _head(x.items[1]) == "slice" and len(x.items[1].items) == 2:
         return _type(x.items[1].items[1])
-    if _sub:  # B17-1: TNAME | (TNAME type+) | (tuple type type+) | (iset type) | (map type type)
-        if isinstance(x, Sym) and x.text not in _kw and NAME.match(x.text):
+    if _st.sub:  # B17-1: TNAME | (TNAME type+) | (tuple type type+) | (iset type) | (map type type)
+        if isinstance(x, Sym) and x.text not in _st.kw and NAME.match(x.text):
             return
         n = len(x.items) - 1 if isinstance(x, Form) else -1
         if (h == "tuple" and n >= 2) or (h == "iset" and n == 1) or (h == "map" and n == 2) \
-                or (h is not None and h not in _kw and n >= 1):
+                or (h is not None and h not in _st.kw and NAME.match(h) and n >= 1):
             for t in x.items[1:]:
                 _type(t)
             return
@@ -495,19 +501,16 @@ def _check(kind, x):
         _expr(x.items[2])
 
 
+PLACES = {"idx": ("place", "e"), "get": ("place", "INT"), "field": ("place", "NAME")}  # B17-1 §2
+
+
 def _place(x):
     """B17-1's place = NAME | (idx place e) | (get place INT) | (field place NAME)."""
     h = _head(x)
-    if h == "idx":
-        p, e = _arity(x, ("place", "e"))
-        _place(p)
-        _expr(e)
-    elif h in ("get", "field"):
-        p, k = _arity(x, ("place", "INT" if h == "get" else "NAME"))
-        _place(p)
-        _check("INT" if h == "get" else "NAME", k)
-    else:
-        _name(x, "a place: a variable, or (idx place e), (get place INT) or (field place NAME)")
+    if h not in PLACES:
+        return _name(x, "a place: a variable, or (idx place e), (get place INT) or (field place NAME)")
+    for kind, arg in zip(PLACES[h], _arity(x, PLACES[h])):
+        _check(kind, arg)
 
 
 def _binders(x, h, one=False):
@@ -555,7 +558,7 @@ def _stmt(x):
     h = _head(x)
     if h in STMTS:
         shape = STMTS[h]
-        if _sub and h in ("set-idx", "push"):
+        if _st.sub and h in ("set-idx", "push"):
             shape = ("place",) + shape[1:]
         for kind, arg in zip(shape, _arity(x, shape)):
             _check(kind, arg)
@@ -573,7 +576,7 @@ def _stmt(x):
             name, typ, e = _arity(x, ("NAME", "type", "e"))
             _name(name)
             _type(typ)
-            if _sub and _head(e) == "replace":  # (let NAME type (replace place e))
+            if _st.sub and _head(e) == "replace":  # (let NAME type (replace place e))
                 p, v = _arity(e, ("place", "e"))
                 _place(p)
                 _expr(v)
@@ -587,14 +590,14 @@ def _stmt(x):
             _expr(e)
     elif h == "call":
         _call(x, x.items[1:])
-    elif _sub and h == "match":
+    elif _st.sub and h == "match":
         _cases(x, "stmt")
-    elif _sub and h == "forall":  # (forall ((NAME type)+) (call NAME e*)), D99
+    elif _st.sub and h == "forall":  # (forall ((NAME type)+) (call NAME e*)), D99
         if len(x.items) != 3:
             _fail(x, "expected (forall ((NAME type)+) (call NAME e*))")
         _binders(x, h)
         _call(x.items[2], _form(x.items[2], "call", "NAME e*"))
-    elif _sub and h == "obtain":  # (obtain ((NAME type)+) e), D100
+    elif _st.sub and h == "obtain":  # (obtain ((NAME type)+) e), D100
         if len(x.items) != 3:
             _fail(x, "expected (obtain ((NAME type)+) e)")
         _binders(x, h)
@@ -625,25 +628,22 @@ def _expr(x):
     h = _head(x)
     if h is None:
         _fail(x, "expected an expression, found a list with no head word")
-    if _sub and h in EXPRS_1:
+    if _st.sub and h in EXPRS_1:
         for kind, arg in zip(EXPRS_1[h], _arity(x, EXPRS_1[h])):
             _check(kind, arg)
-    elif _sub and h == "match":
+    elif _st.sub and h == "match":
         _cases(x, "e")
-    elif _sub and h == "tuple":
+    elif _st.sub and h == "tuple":
         if len(x.items) < 3:
             _fail(x, "(tuple e e+) takes at least two expressions")
         for e in x.items[1:]:
             _expr(e)
-    elif _sub and h == "iset-lit":
-        for e in x.items[1:]:
-            _expr(e)
-    elif _sub and h == "iset-of":  # (iset-of ((NAME type)) e)
+    elif _st.sub and h == "iset-of":  # (iset-of ((NAME type)) e)
         if len(x.items) != 3:
             _fail(x, "expected (iset-of ((NAME type)) e)")
         _binders(x, h, one=True)
         _expr(x.items[2])
-    elif _sub and h == "map-lit":  # (map-lit (e e)*)
+    elif _st.sub and h == "map-lit":  # (map-lit (e e)*)
         for entry in x.items[1:]:
             if not isinstance(entry, Form) or len(entry.items) != 2:
                 _fail(entry, f"expected a map entry (e e), found {_show(entry)}")
@@ -655,7 +655,7 @@ def _expr(x):
             _check(kind, arg)
         if h == "neg" and isinstance(args[0], Int):
             _fail(x, f"(neg INT) is not canonical: write {-args[0].value}")  # D53
-    elif h == "seq-lit":
+    elif h == "seq-lit" or (_st.sub and h == "iset-lit"):
         for e in x.items[1:]:
             _expr(e)
     elif h in ("forall", "exists"):
@@ -663,7 +663,7 @@ def _expr(x):
             _fail(x, f"expected ({h} ((NAME type)+) e)")
         _binders(x, h)
         _expr(x.items[2])
-    elif h in _kw:
+    elif h in _st.kw:
         _fail(x, f"({h} ...) is not an expression")
     else:  # (NAME e*): a ghost-fn call
         _name(x.items[0], "a ghost-fn name")
