@@ -671,3 +671,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the "Reaching every domain" question narrowed to what follows B17-1;
   - D65 listed as waiting.
 - **`README.md`:** its pointer to the roadmap mentions how the language grows.
+- **Codex review** (`gpt-5.6-sol`) found 6 issues, all fixed:
+  - **Phase 1 gate:** it didn't require B17-1. It now requires B17-1 frozen and its tasks emitted as Rust.
+  - **WP4a:** data types reopen it under D62. D65 now says B17-1's scope decision does, and the WP4a row says so.
+  - **Freeze rule:** "every label" contradicted D44, which needs only the tier 0 labels. It now says tier 0.
+  - **Critical path:** it still put WP10 off the path. A second path of the same length now runs through B17-1 and WP10, and M3's needs separate the seed ports from the AlgoVeri ports.
+  - **Prerequisites:** the later-subset list dropped §11's: mutual recursion waits for group hashing (D22), and vector capacity for allocation bounds (D30). Both are restored.
+  - **One subset at a time:** the roadmap said each subset freezes before the next starts, which D65 doesn't decide. Removed.
