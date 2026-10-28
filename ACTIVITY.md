@@ -623,3 +623,24 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Untested key:** the cache key's dependency hashes weren't tested on their own. The key is now a function with its own test.
   - **D63's wording:** it said interface 5 stays WP7's, but D25 gives the report to WP5. The text is corrected.
 - **Not found:** Codex found no trimming defect: closure is transitive, and a recursive ghost-fn keeps its declaration and `requires` while losing its own equation. No canonical-name collision either.
+
+## 2026-10-28 · Proposed D64: Babel-17 is an all-purpose language for agents
+- **Why:** the owner stated the goal: an all-in-one, all-purpose language for AI to use. Neither the README nor the decisions said so.
+- **Proposed D64:**
+  - the goal, covering services, applications and their user interfaces, pipelines, scripts and machine learning;
+  - breadth through verification levels, with L0 and L1 arriving in B17-1;
+  - other languages as a bridge, not the end state;
+  - five design gaps, each to be decided separately;
+  - benchmarks beyond algorithm tasks.
+- **Updated:**
+  - **`README.md`:** the introduction states the goal, and what B17-0 covers today.
+  - **`docs/roadmap.md`:**
+    - the goal, under "How the plan works";
+    - D63 and D64 under decisions waiting, since D63 was listed nowhere;
+    - a new open question on reaching every domain;
+    - WP5's front end (PR #11) and WP16's first part (PR #9) marked merged.
+- **Codex review** (`gpt-5.6-sol`) found 3 issues, all fixed:
+  - **Overclaiming:** the README said modules are "fully correct" where intent is precise, and folded contract testing into L0. It now names the levels in order and says what each gives. D64 says L3 means L3-S while the solver is trusted (D24).
+  - **Bet 1 as fact:** D64's rationale said the reason verified languages stay niche "doesn't apply". It now depends on M3 bearing Bet 1 out, and names the limits that remain.
+  - **Stale date:** the roadmap said 2026-10-27 while adding 2026-10-28 status.
+- **Not found:** no contradiction with D14 or D20, and the WP and PR numbers check out.
