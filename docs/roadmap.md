@@ -63,7 +63,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **What it does:** it sends canonical queries (interface 11, D63), caches every verdict under D22's key, and reports solver-trusted goals by node ID (D24, D25).
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
-- **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 proposed. Its labelled suite comes next.
+- **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted. Its labelled suite comes next.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.
   - **Runs match the interpreter:** 8,875 differential runs print exactly the interpreter's text, across the suite, corner cases and generated programs, with rustc 1.99.1 pinned. Fuzzing and a mutation check found no mismatch left.
@@ -74,11 +74,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-- **D81–D92, B17-1's spec text:** the choices `docs/b17-1.md` makes within D79 and D80, as D33–D43 were B17-0's. They cover the syntax, the namespaces, runtime types and copying, places, ghost sets and maps, `alloc` for boxed fields, `rank`, the property-test generator, interface 11's encoding, and which types a quantifier may bind. D91 refines D80, so L2's closure covers the ghost-fns a proof unfolds, and D92 refines D45 with hashes for data items.
-- **D93 and D94, WP6's interfaces:** interface 3's diagnostic schema and interface 8's five queries, at version 0.1.
-- **D95–D97, WP7's readings:** how B17-0 lowers to safe Rust, what the binary prints, and what the differential tests compare, with the pinned toolchain.
-
-D79 and D80 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D97 were accepted on 2026-10-28: B17-1's scope and spec text, WP6's interfaces and WP7's readings. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text** is drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92. Its labelled suite in `suite/b17-1/` comes next. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).

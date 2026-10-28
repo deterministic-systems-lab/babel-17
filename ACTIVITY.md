@@ -1055,3 +1055,18 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - B17-1's lowering, with data types as Rust enums (D79), once B17-1's spec text exists;
   - WP11's use of the binary for its differential and performance rewards;
   - translation validation, which is WP12's.
+
+## 2026-10-28 · D81–D97 accepted
+- **Accepted by the owner:**
+  - D81–D92, B17-1's spec text (PR #21);
+  - D93 and D94, WP6's interfaces 3 and 8 (PR #22);
+  - D95–D97, WP7's readings (PR #23).
+- **Refinements recorded:** D91 refines D80's closure for L2, and D92 refines D45's hashing. The headings of D80 and D45 now say so.
+- **Still Draft:** `docs/b17-1.md` stays version 0.1 until it freezes with its labelled suite (D44). Interfaces 3, 8 and 11 stay at their Draft versions.
+- **Updated:**
+  - `docs/b17-1.md`'s status and §14;
+  - the roadmap's decisions waiting, now none, and its B17-1 entry;
+  - the README's WP7 row.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.

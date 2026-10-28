@@ -391,7 +391,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** So far the labels have been checked only by review. A checker that runs the suite is their first mechanical test, and freezing before it would turn every mislabel it finds into a superseding decision.
 - **Touches:** WP1a; WP2; WP3; WP15; D16; D21 (WP2, WP3 and WP15 depend on WP1a's draft, not its freeze); `docs/b17-0.md`; `suite/README.md`.
 
-## D45 · What a B17-0 hash covers · Accepted (refines D22; refined by D78)
+## D45 · What a B17-0 hash covers · Accepted (refines D22; refined by D78 and D92)
 - **Date:** 2026-10-27
 - **Decision:** D22 applied to B17-0's four item kinds.
   - **Spec and def:** the spec hash covers the `spec` item. The implementation hash covers the spec hash and the `def` item.
@@ -907,7 +907,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **`rank`** keeps measures integers, so §7's termination goal doesn't change.
 - **Touches:** D20; D36; D42; D58; D62; D65; D68; D69; D71; WP3; WP4a; WP5; WP7; WP10; WP15; WP16; interfaces 1, 6, 10 and 11; `docs/b17-0.md` §8 and §11; `docs/roadmap.md`; `README.md`.
 
-## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63)
+## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63; refined by D91)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Levels are cumulative:**
@@ -949,7 +949,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Fixed seeds and counts** keep D23's rule that results don't depend on the machine.
 - **Touches:** D18; D23; D24; D25; D26; D29; D57; D58; D59; D63; D64; D65; interfaces 4 and 5; WP2; WP5; WP7; `docs/roadmap.md`.
 
-## D81 · B17-1's syntax for data types, tuples and match · Proposed
+## D81 · B17-1's syntax for data types, tuples and match · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Data types:** `(data D (A*) (C (F type)*)+)` declares a type with its parameters and constructors. A constructor call is `(C e*)`, the same form as a ghost-fn call.
@@ -962,7 +962,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The form of a constructor call:** it matches the ghost-fn call agents already write, and the name tells them apart.
 - **Touches:** D47; D79; `docs/b17-1.md` §2, §7; interfaces 1 and 6.
 
-## D82 · Types and values have separate namespaces · Proposed
+## D82 · Types and values have separate namespaces · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Type names:** data types and type parameters are unique within a module. They may not be a built-in type word or the core library's `option`.
@@ -972,7 +972,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** AlgoVeri's ports name parameters after their types (`graph: Graph`), and Dafny's `datatype Graph = Graph(...)` shares a type's name with its constructor. Names here are lowercase only, so one namespace would force renames on every such port. Types and values never appear in the same position, so keeping them apart costs no ambiguity.
 - **Touches:** D41; D51; `docs/b17-1.md` §2.
 
-## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Proposed
+## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Runtime types:** `bool`, `i64`, and a vector, tuple or data type whose components are all runtime types, as D79 lists them. A slice is a spec's parameter type only, and never sits inside another type. Every other type is a ghost type. A vector's element is a runtime type.
@@ -993,7 +993,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **No recursion under arrays:** those three are arrays in the encoding (D89), and Z3 has no well-founded datatype that contains itself inside an array.
 - **Touches:** D34; D36; D68; D69; D70; D79; `docs/b17-1.md` §3, §5.
 
-## D84 · Places, replace, and what match may take · Proposed
+## D84 · Places, replace, and what match may take · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Places:** a place is a variable, `(idx p i)`, `(get p K)` or `(field p F)`. Reading a copied value through one copies it. A moving value in a place can only be read further, under `len`, `idx`, `get`, `field` or `is`, or in ghost code.
@@ -1013,7 +1013,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The other three rules** close holes a review found: a `seq-build` moving one value into every element, `(push (field x kids) x)` moving x into itself, and a `replace` at an unchecked index.
 - **Touches:** D36; D72; D73; D76; D79; `docs/b17-1.md` §5, §7; `b17c/check.py`.
 
-## D85 · Ghost sets and maps · Proposed
+## D85 · Ghost sets and maps · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Types:** `(iset T)` is a set that may be infinite, and `(map K V)` a finite map.
@@ -1028,13 +1028,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Literals from their destination:** without it, `(iset-lit v)` with v an `i64` couldn't be an `(iset int)`, since sets have no subtyping (D83).
 - **Touches:** D70; D79; `docs/b17-1.md` §2, §4, §7.
 
-## D86 · A constructor with a boxed field allocates · Proposed
+## D86 · A constructor with a boxed field allocates · Accepted
 - **Date:** 2026-10-28
 - **Decision:** a field is boxed when its type mentions its own data type other than inside a vector. A constructor call has effect `alloc` when its constructor has a boxed field. `tuple`, `match`, `is`, `field`, `get` and `replace` have no effect.
 - **Why:** WP7 emits a boxed field as a Rust `Box`, which allocates. A vector already holds its elements on the heap, so a field that reaches its type only through one isn't boxed. An effect says what a function may do (D20), so the constructor carries `alloc` even when the field it fills is `none`.
 - **Touches:** D20; D30; D79; WP7; `docs/b17-1.md` §6.
 
-## D87 · rank is height, on every data value · Proposed
+## D87 · rank is height, on every data value · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Where it applies:** `(rank e)` is defined for e of any data type, as D79 says. A tuple or any other type is `E-TYPE-001`.
@@ -1046,7 +1046,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Every data value:** an LLRB tree recurses on `(option node)`, which isn't itself recursive, so `rank` must reach it too.
 - **Touches:** D57; D79; `docs/b17-1.md` §7, §8, §9.
 
-## D88 · The property-test generator · Proposed
+## D88 · The property-test generator · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Generator:** SplitMix64. Its state starts at the first 16 hex digits after `spec0:` in the def's spec hash (D46), read as an unsigned 64-bit integer. `docs/b17-1.md` §10 gives the exact stream: the order of draws, how each value consumes it, and each type's smallest value.
@@ -1062,7 +1062,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Fixed counts:** they bound a test run's cost, as D59's fuel bounds a run.
 - **Touches:** D22; D23; D57; D59; D80; WP15; `docs/b17-1.md` §10.
 
-## D89 · Interface 11 version 0.2 encodes B17-1 · Proposed
+## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Datatypes:** tuples and data types are SMT-LIB datatypes, generic ones parametric.
@@ -1080,7 +1080,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The sequence equality predicate:** D61's sequences are uninterpreted, so SMT equality alone isn't extensional. Dafny's `Seq#Equal` solves the same problem.
 - **Touches:** D17; D61; D63; D79; WP5; interface 11; `docs/b17-1.md` §9.
 
-## D90 · Quantifiers bind only types the encoding states exactly · Proposed
+## D90 · Quantifiers bind only types the encoding states exactly · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Allowed binder types:** a binder of `forall`, `exists` or `iset-of` has an exact type. `bool` and `int` are exact; a `seq`, `iset` or tuple is exact when its parts are; a data type is exact when every field type of every constructor is, after substitution, with its own recursive occurrences counting as exact unless reached through a `seq`, where D61's uninterpreted sequences would admit a cyclic value.
@@ -1092,13 +1092,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Evidence:** the surveyed specs quantify over sequences in 28 tasks, counting the tries' comprehensions over keys, and over flows in 2 and a matching in 1, which rewrite to sequences. `max_matching` also binds tuple edges, which are exact as `(tuple int int)`.
 - **Touches:** D61; D68; D79; D89; WP10; `docs/b17-1.md` §7, §11, §12.
 
-## D91 · L2's closure covers the ghost-fns a proof unfolds · Proposed (refines D80)
+## D91 · L2's closure covers the ghost-fns a proof unfolds · Accepted (refines D80)
 - **Date:** 2026-10-28
 - **Decision:** a goal's canonical query includes the defining equations of the ghost-fns it uses (D63), and a proof may rest on any of them. It counts for L2 only once every goal of each such ghost-fn counts too: the well-definedness of its `requires`, its measure and its body, and its termination, and likewise, transitively, for the ghost-fns those goals' queries include. WP5 solves a goal again without an equation that doesn't count. This adds a fourth item to D80's list of what a proof may assume, after earlier goals on the path, callees' `ensures` and lemmas' claims.
 - **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
 - **Touches:** D63; D80; WP5; `docs/b17-1.md` §10.
 
-## D92 · How B17-1's data items and binders are hashed · Proposed (refines D45)
+## D92 · How B17-1's data items and binders are hashed · Accepted (refines D45)
 - **Date:** 2026-10-28
 - **Decision:** the format stays version 0 (D46). B17-0's items hash as before, and these rules cover B17-1's new forms.
   - **Data items** have only a spec hash, covering the whole item, as ghost-fns do. Inside one, its own name becomes `_`, its type parameters `$0`, `$1`, … in order, its constructors `#0`, `#1`, … in order, and its fields `.0`, `.1`, … across all its constructors in declaration order.
@@ -1112,7 +1112,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **No coinciding types:** two types identical up to names would get one hash, and the references in specs couldn't tell them apart.
 - **Touches:** D22; D45; D46; WP2; `b17c/hashing.py`; `docs/b17-1.md` §2.
 
-## D93 · Interface 3 version 0.1: the diagnostic schema · Proposed
+## D93 · Interface 3 version 0.1: the diagnostic schema · Accepted
 - **Date:** 2026-10-28
 - **Decision:** `b17c/agent.py check FILE` prints a JSON array of diagnostics. It lists every tier 0 error or, once tier 0 passes, every goal that isn't proved, and exits 1 when the array isn't empty. Each diagnostic has the design spec's fields:
   - **`code`:** a §9 tier 0 code, or `E-PROOF-` and the goal's family.
@@ -1141,7 +1141,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Dependents:** they show which failure to fix first, as the design spec asks.
 - **Touches:** D23; D56; D57; D63; interface 3; WP2; WP6; `docs/b17-0.md` §9.
 
-## D94 · Interface 8 version 0.1: the five queries · Proposed
+## D94 · Interface 8 version 0.1: the five queries · Accepted
 - **Date:** 2026-10-28
 - **Decision:** `b17c/agent.py` answers each query with one JSON document. When a query can't run, it exits 2 with `{"error": ...}`.
   - **`obligations FILE NAME`:** every goal of the item, with its node, family, goal, verdict, whether it came from the cache, and its budget.
@@ -1161,7 +1161,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Examples from the suite:** every code already has a labelled program, which WP3 and WP5 check. WP8's manual can reuse them.
 - **Touches:** D45; D56; D57; D63; interface 8; WP6; WP8; `suite/`.
 
-## D95 · How B17-0 lowers to safe Rust · Proposed
+## D95 · How B17-0 lowers to safe Rust · Accepted
 - **Date:** 2026-10-28
 - **Decision:** WP7's backend, `b17c/rust.py`, turns each module that passes tier 0 into one Rust crate.
   - **Safety:** the crate carries `#![forbid(unsafe_code)]` and holds no unsafe code (D18).
@@ -1195,7 +1195,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The lints:** a fuzz run found `unused_comparisons` on a valid program. Going through rustc's warn-by-default list then found `non_snake_case` too.
 - **Touches:** D18; D36; D37; D56; D57; D70; D77; D80; WP7; `docs/b17-0.md` §5, §7, §8.
 
-## D96 · The emitted binary prints what the interpreter prints · Proposed
+## D96 · The emitted binary prints what the interpreter prints · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Running:** the crate's `main` runs one def. `BINARY NAME ARG...` takes each argument as a canonical B17-0 value of its parameter's type: a decimal integer, `true` or `false`, or a `(seq-lit ...)` of them, with only B17-0's four whitespace characters around it (D48). It prints the run's trace and outcome in interface 10's text form (D56), as `interp.py` does, and exits as `interp.py` does: 0 on `ok`, 1 on `panic` or `err`, and 2 when the run can't start, such as for an unknown def, an argument that isn't UTF-8, or one that isn't a value of its parameter's type.
@@ -1213,7 +1213,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Refusing at build time:** a binary can't call a function that doesn't exist. A stub that refused at run time would let a module build that can't run its own calls.
 - **Touches:** D21; D29; D48; D56; D57; D59; D80; WP7; WP11; interface 10.
 
-## D97 · What WP7's differential tests compare, and the pinned toolchain · Proposed
+## D97 · What WP7's differential tests compare, and the pinned toolchain · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **What's compared:** for every run, the interpreter's text, with checking off, and the binary's must be equal line for line: each `print`, then the outcome with its reason, node and detail. A run the interpreter can't finish in 20,000 steps is skipped, since a binary has no `limit` to show (D59).
