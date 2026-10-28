@@ -16,9 +16,10 @@ import sys
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "tasks" / "algoveri"
-# Specs that are ill-formed under Dafny 4.11 as written, so no agent could solve them.
+# Specs that are ill-formed under Dafny 4.11 as written, or unsatisfiable, so no agent could solve them.
 BROKEN = {"polymul_karatsuba": "applies << to int; Dafny 4.11 requires a bitvector type",
-          "matrix_multiplication": "dot_product's body fails its own well-formedness check (index out of range)"}
+          "matrix_multiplication": "dot_product's body fails its own well-formedness check (index out of range)",
+          "rod_cutting": "n has no lower bound, and at n = -1 no strategy of positive cuts exists"}
 
 
 def ghost(preamble):

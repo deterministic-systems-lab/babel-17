@@ -50,7 +50,8 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 - **Baselines (WP17).**
   - Claude, Codex, Gemini and Grok each verified all 60 seed attempts in Dafny.
   - On AlgoVeri, Claude verified 64 of 66 tasks and Codex 60 of 66.
-  - Both sets are near the ceiling for current models, so a harder set from vericoding is running now, against Claude, Codex and Grok.
+  - On the hard run, 65 AlgoVeri and 28 vericoding tasks, Claude verified 92 of 93, Codex 90 and Grok all 49 it finished before its balance ran out.
+  - Claude's only failure, `rod_cutting`, has a spec no program can satisfy, so it's removed. Every set is near the ceiling, vericoding's included.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -74,7 +75,7 @@ D56–D65 were accepted on 2026-10-28.
 
 These belong to Phase 0 but aren't part of its gate:
 - **The rest of WP2:** the manifest and lockfile schemas (interface 7, D26) and typed edit operations (interface 2).
-- **The hard baseline:** finish the vericoding run and analyse it. Re-run Gemini once its quota resets, around 2026-11-02.
+- **The rest of the baselines:** Gemini's remaining tasks once its quota resets, around 2026-11-02, and Grok's once its balance is topped up.
 
 ## Phase 1
 
@@ -142,7 +143,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 ## Open questions that shape the plan
 
-- **Hard enough tasks.** The seed tasks and AlgoVeri barely separate today's models in Dafny. If the vericoding set doesn't either, M3's tasks will have to be written (WP10).
+- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). What makes a task hard for them, and how to show it before M3 runs, is open.
 - **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost, and M3 will show whether agents pay it.
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a counterexample, so WP6's diagnostics will often have none to show.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).

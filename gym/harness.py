@@ -64,6 +64,9 @@ CLIS = {
              "--output-format", "streaming-json"],
 }
 CALL_TIMEOUT, RETRY_WAITS = 1800, [60, 120, 240, 480, 960, 1800]
+# Dafny's resource limit bounds a verification; this only backstops a hang. At 30 minutes, a
+# run near the limit timed out under 6 parallel jobs and ran out of resource alone (18 minutes).
+VERIFY_TIMEOUT = 4 * CALL_TIMEOUT
 FEEDBACK_CHARS = 6000
 
 TASK_PROMPT = """Write Dafny {dafny_version} code that verifies with no errors.
@@ -186,7 +189,7 @@ def verify(task, code):
         f.write_text(f"{code}\n\n// ---- appended by the harness ----\n"
                      f"{task['preamble']}\n\n{task['check']}\n")
         try:
-            p = subprocess.run(DAFNY + [str(f)], capture_output=True, text=True, timeout=CALL_TIMEOUT)
+            p = subprocess.run(DAFNY + [str(f)], capture_output=True, text=True, timeout=VERIFY_TIMEOUT)
         except subprocess.TimeoutExpired:
             return "timeout", "The verifier timed out."
         out = (p.stdout + p.stderr).replace(str(f), "program.dfy").strip()
