@@ -1259,7 +1259,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The seed tasks first:** the suite already ports them, and they verify. The AlgoVeri ports wait for B17-1 (D65).
 - **Touches:** D8; D13; D23; D28; D32; D42; D65; D93; WP10; WP17; M3; `gym/harness.py`.
 
-## D99 · Universal introduction: a lemma applied at every value · Proposed
+## D99 · Universal introduction: a lemma applied at every value · Accepted
 - **Date:** 2026-10-28
 - **Decision:** B17-1 gains a ghost statement, `(forall ((x T) ...) (call L e*))`. It applies the lemma L at every value of its binders. Afterwards the verifier assumes ∀x. ⟦L's requires⟧ ⇒ ⟦L's ensures⟧, with the arguments e substituted.
   - **Binders:** each has an exact type (D90) and is scoped to the call. Names follow §2's binder rules.
@@ -1279,7 +1279,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **An "arbitrary x" block,** as in Lean's `intro`: the same power, with a new kind of scope.
 - **Touches:** D80; D90; D91; D92; B17-1 §2, §7 and §9; WP3; WP5; WP8; WP10.
 
-## D100 · Existential elimination: naming a witness · Proposed
+## D100 · Existential elimination: naming a witness · Accepted
 - **Date:** 2026-10-28
 - **Decision:** B17-1 gains a ghost statement, `(obtain ((x T) ...) e)`. Its goal is ⟦∃x. e⟧. It then binds each x as an immutable ghost local, with e assumed.
   - **Binders:** each has an exact type (D90). They are locals: unique within the item (D41), and visible to the end of the enclosing block, loop body or branch.

@@ -1,0 +1,7 @@
+(module no_witness
+  (header
+    (purpose "No integer is both below 0 and above 0.")
+    (invariants "None.")
+    (failures "None."))
+  (lemma empty_range (params)
+    (body (obtain ((k int)) (and (< k 0) (> k 0))))))

@@ -1,0 +1,14 @@
+(module leak
+  (header
+    (purpose "An obtained witness is a ghost local, so it can't be returned.")
+    (invariants "None.")
+    (failures "None."))
+  (spec pick
+    (params (n i64))
+    (returns (r i64))
+    (requires (> n 0))
+    (effects))
+  (def pick
+    (body
+      (obtain ((k int)) (and (<= 0 k) (< k n)))
+      (return k))))

@@ -57,9 +57,11 @@ The labels were first checked by review: by the author, and by an independent mo
 | `coin_change` | A quantifier over sequences | Bounds only |
 
 - **Written:** the invariants and hints cover every goal, as far as review can tell.
-- **Needs D99:** one step proves a fact for every sequence or unbounded integer, which needs D99's universal introduction.
-- **Needs D100:** one step must name the witness of an ∃, which needs D100's existential elimination.
-- **Bounds only:** the invariants cover bounds, overflow and termination. Correctness waits for D99 and D100, since these proofs quantify over every path, spanning tree or change, and name witnesses.
+- **Needs D99:** one step proves a fact for every sequence or unbounded integer, which takes D99's `forall` statement.
+- **Needs D100:** one step names the witness of an ∃, which takes D100's `obtain`.
+- **Bounds only:** the invariants cover bounds, overflow and termination. Correctness takes both statements, since these proofs quantify over every path, spanning tree or change, and name witnesses.
+
+D99 and D100 are accepted. The steps that use them are written against WP5 once it reads B17-1, as each fails or passes.
 
 Each proof is finished against WP5 once it extends to B17-1. A proof that fails then is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
@@ -71,6 +73,6 @@ Each proof is finished against WP5 once it extends to B17-1. A proof that fails 
 - **Ranges (D42, §10's rule):** `discrete_logarithm` requires `g * (p - 1)` to fit, so every step's `g * cur` does. The others need none, since their own preconditions bound every value.
 - **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` relabels components instead of keeping a union-find forest, and `bfs` uses a vector as its queue.
 
-**Reject:** 42 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 39 with a tier 0 code and 3 with a proof family.
+**Reject:** 47 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 42 with a tier 0 code and 5 with a proof family.
 
 **How the labels are checked:** by review for now, as B17-0's first were. The parser, checker and verifier don't read B17-1 yet, so nothing here runs. When WP3 extends to B17-1, it checks the tier 0 labels by execution, and WP5 checks the proof labels.

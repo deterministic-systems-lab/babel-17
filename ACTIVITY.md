@@ -1203,3 +1203,23 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none yet. D99 and D100 would each add a statement to interface 1.
 - **Proofs and tests added:** the suite's 52 programs.
 - **Left admitted:** none.
+
+## 2026-10-28 · D99 and D100 accepted, and in B17-1's spec text
+- **Accepted by the owner:** D99, the `forall` statement, and D100, `obtain`. PR #27, the suite, was merged.
+- **`docs/b17-1.md`:**
+  - **§2:** both statements in the grammar. `obtain` is now reserved, and their binders are hashed as D92's other binders are.
+  - **§7:** their checking, goals and facts, as D99 and D100 state them. A `forall` statement that names something other than a lemma is `E-TYPE-001`. Both may appear in lemma bodies.
+  - **§8:** with checking on, a `forall` statement checks nothing, and an `obtain`'s witnesses are unknown (D58).
+  - **§9:** their goal families.
+  - **§14:** both decisions listed.
+- **`suite/b17-1/reject/`:** five programs for the new rules:
+  - an `i64` binder;
+  - a ghost-fn where a lemma belongs;
+  - a returned witness;
+  - an `obtain` with no witness;
+  - an argument whose bounds don't hold for every binder value.
+- **The accept programs' proofs:** the steps that use the new statements wait for WP5 to read B17-1. Then each can be written against the verifier as it fails or passes.
+- **Updated:** the roadmap's decisions waiting, next steps and B17-1 row; the README's suite count; `suite/README.md`.
+- **Interfaces touched:** interface 1's B17-1 part gains the two statements.
+- **Proofs and tests added:** five reject programs.
+- **Left admitted:** none.
