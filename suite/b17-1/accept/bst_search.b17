@@ -1,0 +1,33 @@
+(module bst_search
+  (header
+    (purpose "Decide whether a binary search tree holds a value.")
+    (invariants "The result is whether the value is in the tree's set of values.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (leaf) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn is_bst ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (leaf) true)
+      (case (node v l r)
+        (and (and (is_bst l) (is_bst r))
+             (and (forall ((x int)) (=> (contains (view l) x) (< x v)))
+                  (forall ((x int)) (=> (contains (view r) x) (> x v)))))))))
+  (spec search
+    (params (t tree) (x i64))
+    (returns (found bool))
+    (requires (>= x 0) (is_bst t))
+    (ensures (== found (contains (view t) x)))
+    (effects))
+  (def search (decreases (rank t))
+    (body
+      (match t
+        (case (leaf) (return false))
+        (case (node v l r)
+          (if (== x v)
+            (return true)
+            (if (< x v)
+              (block (let ((in_left bool)) (call search l x)) (return in_left))
+              (block (let ((in_right bool)) (call search r x)) (return in_right)))))))))

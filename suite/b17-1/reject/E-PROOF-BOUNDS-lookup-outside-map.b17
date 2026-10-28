@@ -1,0 +1,7 @@
+(module at_two
+  (header
+    (purpose "A map need not have key 2.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn at_two ((m (map int int))) int
+    (body (lookup m 2))))

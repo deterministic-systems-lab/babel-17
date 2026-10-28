@@ -1,0 +1,7 @@
+(module tuple_rank
+  (header
+    (purpose "rank is defined on data values only.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn height ((p (tuple int int))) int
+    (body (rank p))))

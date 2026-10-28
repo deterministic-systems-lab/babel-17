@@ -1,0 +1,47 @@
+(module discrete_logarithm
+  (header
+    (purpose "Find the smallest x below p with g^x = h mod p, or report that none exists.")
+    (invariants "A result is a discrete logarithm below p, and no smaller one exists; none means no x below p is one.")
+    (failures "None."))
+  (ghost-fn spec_pow_mod ((b int) (e int) (m int)) int (requires (> m 1)) (decreases e)
+    (body (if (<= e 0) 1 (% (* b (spec_pow_mod b (- e 1) m)) m))))
+  (ghost-fn is_discrete_log ((g int) (h int) (p int) (x int)) bool (requires (> p 1))
+    (body (== (spec_pow_mod g x p) (% h p))))
+  (spec discrete_log_naive
+    (params (g i64) (h i64) (p i64))
+    (returns (res (option i64)))
+    (requires
+      (and (and (>= g 0) (>= h 0)) (>= p 0))
+      (> p 1)
+      (<= (* g (- p 1)) 9223372036854775807))
+    (ensures
+      (match res
+        (case (none) (forall ((k int)) (=> (and (<= 0 k) (< k p)) (not (is_discrete_log g h p k)))))
+        (case (some y)
+          (and (and (is_discrete_log g h p y) (and (<= 0 y) (< y p)))
+               (forall ((k int)) (=> (and (<= 0 k) (< k y)) (not (is_discrete_log g h p k))))))))
+    (effects))
+  (lemma mul_le (params (a int) (b int) (c int))
+    (requires (<= 0 a) (<= 0 b) (<= b c))
+    (ensures (<= (* a b) (* a c)))
+    (body))
+  (def discrete_log_naive
+    (body
+      (let target i64 (% h p))
+      (let-mut x i64 0)
+      (let-mut cur i64 1)
+      (while (< x p)
+        (invariant (and (<= 0 x) (<= x p)))
+        (invariant (and (<= 0 cur) (< cur p)))
+        (invariant (== cur (spec_pow_mod g x p)))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (< k x)) (not (is_discrete_log g h p k)))))
+        (decreases (- p x))
+        (if (== cur target)
+          (return (some x))
+          (block))
+        (assert (not (is_discrete_log g h p x)))
+        (assert (== (spec_pow_mod g (+ x 1) p) (% (* g (spec_pow_mod g x p)) p)))
+        (call mul_le g cur (- p 1))
+        (set cur (% (* g cur) p))
+        (set x (+ x 1)))
+      (return (none)))))

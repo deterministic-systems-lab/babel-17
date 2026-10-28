@@ -1,0 +1,11 @@
+(module copies
+  (header
+    (purpose "A seq-build body runs once per element, so it can't move an outer vector.")
+    (invariants "None.")
+    (failures "None."))
+  (spec copies
+    (params (a (vec i64)))
+    (returns (r (vec (vec i64))))
+    (effects alloc))
+  (def copies
+    (body (return (seq-build 2 (fn (i) a))))))

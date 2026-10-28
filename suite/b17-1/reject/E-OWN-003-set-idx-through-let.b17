@@ -1,0 +1,15 @@
+(module bump
+  (header
+    (purpose "A place is updated only through a let-mut root.")
+    (invariants "None.")
+    (failures "None."))
+  (spec bump
+    (params (rows (vec (vec i64))))
+    (returns (r (vec (vec i64))))
+    (requires (> (len rows) 0) (> (len (idx rows 0)) 0))
+    (effects))
+  (def bump
+    (body
+      (let v (vec (vec i64)) rows)
+      (set-idx (idx v 0) 0 1)
+      (return v))))

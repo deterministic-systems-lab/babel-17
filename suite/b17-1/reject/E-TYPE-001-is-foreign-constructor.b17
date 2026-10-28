@@ -1,0 +1,8 @@
+(module foreign_is
+  (header
+    (purpose "is takes a constructor of its operand's type.")
+    (invariants "None.")
+    (failures "None."))
+  (data shape () (dot) (square (side i64)))
+  (ghost-fn absent ((s shape)) bool
+    (body (is none s))))

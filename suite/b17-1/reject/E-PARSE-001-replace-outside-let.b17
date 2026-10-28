@@ -1,0 +1,14 @@
+(module bare_replace
+  (header
+    (purpose "replace appears only as a let or let-mut initializer.")
+    (invariants "None.")
+    (failures "None."))
+  (spec swap_first
+    (params (a (vec i64)))
+    (returns (r i64))
+    (requires (> (len a) 0))
+    (effects))
+  (def swap_first
+    (body
+      (let-mut v (vec i64) a)
+      (return (replace (idx v 0) 7)))))

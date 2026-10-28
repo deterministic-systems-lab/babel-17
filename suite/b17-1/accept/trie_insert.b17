@@ -1,0 +1,88 @@
+(module trie_insert
+  (header
+    (purpose "Insert a byte string into a trie whose nodes have 256 optional children.")
+    (invariants "The result is a pruned, well-formed trie holding the old keys and the new one.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (is_end bool) (children (vec (option node)))))
+  (ghost-fn is_empty ((n node)) bool (requires (== (len (field n children)) 256))
+    (body (and (not (field n is_end))
+               (forall ((i int)) (=> (and (<= 0 i) (< i 256)) (is none (idx (field n children) i)))))))
+  (ghost-fn well_formed ((n node)) bool (decreases (rank n))
+    (body (and (== (len (field n children)) 256)
+               (forall ((i int)) (=> (and (<= 0 i) (< i 256))
+                 (match (idx (field n children) i)
+                   (case (none) true)
+                   (case (some c) (and (well_formed c) (not (is_empty c))))))))))
+  (ghost-fn has_key ((n node) (key (seq int))) bool (decreases (len key))
+    (body (if (== (len key) 0)
+            (field n is_end)
+            (if (and (<= 0 (idx key 0)) (< (idx key 0) (len (field n children))))
+              (match (idx (field n children) (idx key 0))
+                (case (none) false)
+                (case (some c) (has_key c (drop key 1))))
+              false))))
+  (ghost-fn view ((n node)) (iset (seq int))
+    (body (iset-of ((key (seq int))) (has_key n key))))
+  (ghost-fn opt_view ((o (option node))) (iset (seq int))
+    (body (match o
+      (case (none) (iset-lit))
+      (case (some n) (view n)))))
+  (ghost-fn opt_well_formed ((o (option node))) bool
+    (body (match o
+      (case (none) true)
+      (case (some n) (and (well_formed n) (not (is_empty n)))))))
+  (spec insert
+    (params (tree (option node)) (key (ref (slice i64))))
+    (returns (res node))
+    (requires
+      (opt_well_formed tree)
+      (forall ((k int)) (=> (contains key k) (and (<= 0 k) (< k 256)))))
+    (ensures (well_formed res) (not (is_empty res)) (== (view res) (union (opt_view tree) (iset-lit key))))
+    (effects alloc))
+  (spec fresh
+    (params)
+    (returns (n node))
+    (ensures (well_formed n) (is_empty n))
+    (effects alloc))
+  (def fresh
+    (body
+      (let kids (vec (option node)) (seq-build 256 (fn (i) (none))))
+      (return (node false kids))))
+  (spec node_of
+    (params (tree (option node)))
+    (returns (n node))
+    (requires (opt_well_formed tree))
+    (ensures (well_formed n) (== (view n) (opt_view tree)))
+    (effects alloc))
+  (def node_of
+    (body
+      (match tree
+        (case (none) (block (let ((empty node)) (call fresh)) (return empty)))
+        (case (some m) (return m)))))
+  (spec insert_at
+    (params (tree (option node)) (key (ref (slice i64))) (i i64))
+    (returns (res node))
+    (requires
+      (opt_well_formed tree)
+      (forall ((k int)) (=> (contains key k) (and (<= 0 k) (< k 256))))
+      (and (<= 0 i) (<= i (len key))))
+    (ensures (well_formed res) (not (is_empty res)) (== (view res) (union (opt_view tree) (iset-lit (drop key i)))))
+    (effects alloc))
+  (def insert_at (decreases (- (len key) i))
+    (body
+      (let-mut ((n node)) (call node_of tree))
+      (if (== i (len key))
+        (block
+          (let kids (vec (option node)) (replace (field n children) (vec-new)))
+          (return (node true kids)))
+        (block
+          (let c i64 (idx key i))
+          (let child (option node) (replace (idx (field n children) c) (none)))
+          (let ((sub node)) (call insert_at child key (+ i 1)))
+          (set-idx (field n children) c (some sub))
+          (return n)))))
+  (def insert
+    (body
+      (assert (== (drop key 0) key))
+      (let ((res node)) (call insert_at tree key 0))
+      (return res))))

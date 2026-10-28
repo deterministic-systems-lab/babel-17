@@ -1,0 +1,6 @@
+(module field_twice
+  (header
+    (purpose "Field names are unique across a data type's constructors.")
+    (invariants "None.")
+    (failures "None."))
+  (data span () (point (at i64)) (range (at i64) (to i64))))

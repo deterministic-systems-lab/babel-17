@@ -1,0 +1,6 @@
+(module own_option
+  (header
+    (purpose "option is the core library's type.")
+    (invariants "None.")
+    (failures "None."))
+  (data option () (nothing)))

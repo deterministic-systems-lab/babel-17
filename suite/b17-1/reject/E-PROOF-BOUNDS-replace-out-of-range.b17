@@ -1,0 +1,14 @@
+(module swap_in
+  (header
+    (purpose "The vector may be empty, so index 0 may not exist.")
+    (invariants "None.")
+    (failures "None."))
+  (spec swap_in
+    (params (a (vec i64)) (x i64))
+    (returns (prev i64) (r (vec i64)))
+    (effects))
+  (def swap_in
+    (body
+      (let-mut v (vec i64) a)
+      (let y i64 (replace (idx v 0) x))
+      (return y v))))

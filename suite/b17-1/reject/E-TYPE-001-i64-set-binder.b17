@@ -1,0 +1,7 @@
+(module i64_binder
+  (header
+    (purpose "A set comprehension can't bind an i64.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn small () (iset i64)
+    (body (iset-of ((x i64)) (< x 10)))))

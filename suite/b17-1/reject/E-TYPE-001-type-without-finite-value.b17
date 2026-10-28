@@ -1,0 +1,6 @@
+(module no_finite_value
+  (header
+    (purpose "Every data type needs a finite value, and every loop holds another loop.")
+    (invariants "None.")
+    (failures "None."))
+  (data loop () (more (next loop))))

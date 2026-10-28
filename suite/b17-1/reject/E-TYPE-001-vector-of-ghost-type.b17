@@ -1,0 +1,7 @@
+(module ghost_elements
+  (header
+    (purpose "A vector's elements have a runtime type, and (option int) is a ghost type.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn count ((v (vec (option int)))) int
+    (body (len v))))

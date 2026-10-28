@@ -1,0 +1,12 @@
+(module twin
+  (header
+    (purpose "A moving value goes in one argument of a constructor at most.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec twin
+    (params (t tree))
+    (returns (r tree))
+    (effects alloc))
+  (def twin
+    (body (return (node 0 t t)))))

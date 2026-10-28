@@ -1258,3 +1258,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Structured feedback:** it's part of what Babel-17 offers agents. Dafny's track gives Dafny's raw output, which is what Dafny offers.
   - **The seed tasks first:** the suite already ports them, and they verify. The AlgoVeri ports wait for B17-1 (D65).
 - **Touches:** D8; D13; D23; D28; D32; D42; D65; D93; WP10; WP17; M3; `gym/harness.py`.
+
+## D99 · Universal introduction: a lemma applied at every value · Proposed
+- **Date:** 2026-10-28
+- **Decision:** B17-1 gains a ghost statement, `(forall ((x T) ...) (call L e*))`. It applies the lemma L at every value of its binders. Afterwards the verifier assumes ∀x. ⟦L's requires⟧ ⇒ ⟦L's ensures⟧, with the arguments e substituted.
+  - **Binders:** each has an exact type (D90) and is scoped to the call. Names follow §2's binder rules.
+  - **Goals:** none of its own. L's `requires` becomes the antecedent, instead of a goal at the call.
+  - **Where it may appear:** wherever a lemma call may, in def and lemma bodies. Like a lemma call, it's ghost, has no effects and moves nothing.
+  - **Recursion:** a use inside L's own body carries the measure goal for every binder value, ⟦∀x. requires ⇒ 0 ≤ callee measure < caller measure⟧, so induction stays sound.
+  - **Syntax and hashing:** `forall` is already reserved, so no word is added. The binders are numbered with D45's other binders, in the same walk (D92).
+- **Why:**
+  - **A missing kind of proof.** A lemma proves a fact about its parameters. A ∀ in an `ensures`, invariant or `assert` is proved by the solver alone, since nothing applies a lemma at a value a quantifier binds. A ghost `while` reaches only a bounded range of integers.
+  - **The evidence:** writing B17-1's accept suite found it. All 24 verified Dafny solutions of `bfs`, `coin_change`, `kruskal`, `lca` and `trie_insert` in the AlgoVeri runs use Dafny's `forall` statement, 3 to 53 times each, from all four agents. In four of the five tasks some range over an unbounded type: every path, every valid change, every common ancestor and every key. `kruskal`'s range over vertex indices and weights, which a ghost `while` could reach at much greater length.
+  - **The smallest form that covers it:** one lemma call, rather than Dafny's statement with its own `ensures` and body. A body can always become a lemma, and a lemma already scopes its goals.
+  - **Sound by construction:** L is proved once, for every argument that meets its `requires`, and exact binders range only over real values of their types (D90).
+- **Alternatives:**
+  - **Dafny's form, with a body:** more to specify, and its goals need a scope of their own, which is what a lemma already is.
+  - **Nothing:** agents would have to phrase each such proof so that the solver instantiates a quantified `ensures` unaided. In the Dafny proofs above, no agent managed without the statement.
+  - **An "arbitrary x" block,** as in Lean's `intro`: the same power, with a new kind of scope.
+- **Touches:** D80; D90; D91; D92; B17-1 §2, §7 and §9; WP3; WP5; WP8; WP10.

@@ -1,0 +1,66 @@
+(module segmenttree_query
+  (header
+    (purpose "Find the maximum value over a range of a range-maximum segment tree.")
+    (invariants "The result is at least every value in the range, and equal to one of them.")
+    (failures "None."))
+  (data node () (node (val i64) (low i64) (high i64) (left (option node)) (right (option node))))
+  (ghost-fn view ((n node)) (map int int) (decreases (rank n))
+    (body
+      (if (and (is none (field n left)) (is none (field n right)))
+        (map-lit ((field n low) (field n val)))
+        (union
+          (match (field n left) (case (none) (map-lit)) (case (some l) (view l)))
+          (match (field n right) (case (none) (map-lit)) (case (some r) (view r)))))))
+  (ghost-fn is_segment_tree ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (and (and (<= 0 (field n low)) (< (field n low) (field n high))) (<= 0 (field n val)))
+        (and
+          (match (field n left)
+            (case (none) (match (field n right)
+              (case (none) (== (field n high) (+ (field n low) 1)))
+              (case (some extra) false)))
+            (case (some l) (match (field n right)
+              (case (none) false)
+              (case (some r)
+                (and
+                  (and (and (== (field l low) (field n low)) (== (field l high) (/ (+ (field n low) (field n high)) 2)))
+                       (and (== (field r low) (/ (+ (field n low) (field n high)) 2)) (== (field r high) (field n high))))
+                  (and (and (is_segment_tree l) (is_segment_tree r))
+                       (== (field n val) (if (> (field l val) (field r val)) (field l val) (field r val)))))))))
+          (and
+            (forall ((k int)) (== (contains (view n) k) (and (<= (field n low) k) (< k (field n high)))))
+            (forall ((k int)) (=> (contains (view n) k) (<= (lookup (view n) k) (field n val)))))))))
+  (spec query
+    (params (t node) (ql i64) (qr i64))
+    (returns (res i64))
+    (requires (is_segment_tree t) (< ql qr) (<= (field t low) ql) (<= qr (field t high)))
+    (ensures
+      (>= res 0)
+      (forall ((k int)) (=> (and (<= ql k) (< k qr)) (<= (lookup (view t) k) res)))
+      (exists ((k int)) (and (and (<= ql k) (< k qr)) (== (lookup (view t) k) res))))
+    (effects))
+  (def query (decreases (rank t))
+    (body
+      (let-mut m node t)
+      (let lo i64 (field m low))
+      (let hi i64 (field m high))
+      (let top i64 (field m val))
+      (let lc (option node) (replace (field m left) (none)))
+      (let rc (option node) (replace (field m right) (none)))
+      (match lc
+        (case (none) (return top))
+        (case (some a)
+          (match rc
+            (case (none) (return top))
+            (case (some b)
+              (block
+                (let mid i64 (+ lo (/ (- hi lo) 2)))
+                (if (<= qr mid)
+                  (block (let ((x i64)) (call query a ql qr)) (return x))
+                  (if (>= ql mid)
+                    (block (let ((y i64)) (call query b ql qr)) (return y))
+                    (block
+                      (let ((u i64)) (call query a ql mid))
+                      (let ((w i64)) (call query b mid qr))
+                      (if (>= u w) (return u) (return w)))))))))))))

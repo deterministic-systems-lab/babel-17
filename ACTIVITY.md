@@ -1160,3 +1160,35 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** `gym/test_b17.py`.
 - **Left admitted:** none.
+
+## 2026-10-28 · B17-1's labelled suite (D99 proposed)
+- **`suite/b17-1/`:** B17-1's accept/reject suite, as `docs/b17-1.md` §13 describes.
+  - **Accept:** 10 AlgoVeri ports, one per feature, each with its frozen contracts and a def.
+    - Proofs written in full: `bst_insert`, `bst_search`, `discrete_logarithm`, `longest_palindrome_substring` and `segmenttree_query`.
+    - `trie_insert` and `lca` each have one step that needs D99.
+    - `bfs`, `kruskal` and `coin_change` have invariants for bounds, overflow and termination only. Their correctness proofs wait for D99.
+  - **Reject:** 42 programs with one error each. They cover every case §13 lists, and give each new rule of §2–§9 a program.
+- **Checked:**
+  - **By review.**
+  - **Reading:** a scratch check that every file reads as one S-expression module.
+  - **Names:** a scratch lint for names that D41 makes unique within an item. It found a case binder used twice in `segmenttree_query`'s `is_segment_tree`.
+  - **Neither check is committed.** The parser and checker check these files for real once they read B17-1.
+- **Spec text fixed** (`docs/b17-1.md`), where the rules left a label undecided:
+  - **§1:** `insert` takes AlgoVeri's `(>= x 0)`, as every other port keeps its u64 constraints;
+  - **Arm order:** a misplaced arm is `E-TYPE-001`, not `E-PARSE-001`, since only the checker knows a type's constructor order;
+  - **Finite values:** a sequence stops a type's recursion, as a vector does;
+  - **`seq-build`:** a runtime `seq-build`'s body is an owned position, so §7's `(seq-build n (fn (i) (vec-new)))` is legal under rule 7;
+  - **Slices:** a place rooted at a slice is `E-OWN-003`. A slice is only ever a parameter, so the `E-OWN-002` clause could never apply;
+  - **Codes that were missing:**
+    - a wrong field or constructor is `E-TYPE-001`;
+    - runtime equality on any type but `bool` and `i64` is `E-GHOST-002`;
+    - a moving `match`-expression scrutinee is `E-OWN-006`;
+    - a ghost type as a spec's parameter or result, or as a runtime binding's type, is `E-GHOST-002`.
+- **Found:** a B17 proof can't apply a lemma at every value of a quantifier, which Dafny's `forall` statement does.
+  - **The count:** all 24 verified Dafny solutions of `bfs`, `coin_change`, `kruskal`, `lca` and `trie_insert` use that statement, 3 to 53 times each. They come from Claude, Codex, Gemini and Grok.
+  - **Why it can't be avoided:** in four of the five tasks, some of those statements range over an unbounded type, which a ghost `while` can't reach.
+  - **Proposed:** D99, a `forall` statement over one lemma call.
+- **Updated:** the README's status and layout; the roadmap's progress, decisions waiting, next steps and B17-1 rows; `suite/README.md`.
+- **Interfaces touched:** none yet. D99 would add a statement to interface 1.
+- **Proofs and tests added:** the suite's 52 programs.
+- **Left admitted:** none.

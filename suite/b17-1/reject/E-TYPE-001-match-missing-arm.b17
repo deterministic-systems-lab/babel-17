@@ -1,0 +1,9 @@
+(module missing_arm
+  (header
+    (purpose "A match needs an arm for every constructor.")
+    (invariants "None.")
+    (failures "None."))
+  (data shape () (dot) (square (side i64)))
+  (ghost-fn area ((s shape)) int
+    (body (match s
+      (case (square k) (* k k))))))

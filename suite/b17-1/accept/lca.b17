@@ -1,0 +1,88 @@
+(module lca
+  (header
+    (purpose "Find the lowest common ancestor of two values in a binary tree with distinct values.")
+    (invariants "The result is a common ancestor of both values, and no common ancestor is deeper.")
+    (failures "None."))
+  (data tree () (nil) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (nil) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn holds ((t tree) (target int)) bool (decreases (rank t))
+    (body (match t
+      (case (nil) false)
+      (case (node v l r) (or (or (== v target) (holds l target)) (holds r target))))))
+  (ghost-fn tree_distinct ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (nil) true)
+      (case (node v l r)
+        (and (and (and (tree_distinct l) (tree_distinct r))
+                  (and (not (holds l v)) (not (holds r v))))
+             (== (inter (view l) (view r)) (iset-lit)))))))
+  (ghost-fn spec_get_depth ((t tree) (target int)) (option int) (decreases (rank t))
+    (body (match t
+      (case (nil) (none))
+      (case (node v l r)
+        (if (== v target)
+          (some 0)
+          (if (is some (spec_get_depth l target))
+            (some (+ (field (spec_get_depth l target) value) 1))
+            (if (is some (spec_get_depth r target))
+              (some (+ (field (spec_get_depth r target) value) 1))
+              (none))))))))
+  (ghost-fn spec_get_subtree ((t tree) (target int)) tree (decreases (rank t))
+    (body (match t
+      (case (nil) (nil))
+      (case (node v l r)
+        (if (== v target)
+          t
+          (if (is node (spec_get_subtree l target)) (spec_get_subtree l target) (spec_get_subtree r target)))))))
+  (ghost-fn is_common_ancestor ((t tree) (anc_val int) (p int) (q int)) bool
+    (body (match (spec_get_subtree t anc_val)
+      (case (nil) false)
+      (case (node v l r) (and (holds (spec_get_subtree t anc_val) p) (holds (spec_get_subtree t anc_val) q))))))
+  (spec lowest_common_ancestor
+    (params (root tree) (p i64) (q i64))
+    (returns (res (option i64)))
+    (requires (>= p 0) (>= q 0) (holds root p) (holds root q) (tree_distinct root))
+    (ensures
+      (is some res)
+      (is_common_ancestor root (field res value) p q)
+      (forall ((x int))
+        (=> (is_common_ancestor root x p q)
+            (and (and (is some (spec_get_depth root x)) (is some (spec_get_depth root (field res value))))
+                 (<= (field (spec_get_depth root x) value) (field (spec_get_depth root (field res value)) value))))))
+    (effects))
+  (ghost-fn is_lca ((t tree) (a int) (p int) (q int)) bool
+    (body (and (is_common_ancestor t a p q)
+               (forall ((x int))
+                 (=> (is_common_ancestor t x p q)
+                     (and (and (is some (spec_get_depth t x)) (is some (spec_get_depth t a)))
+                          (<= (field (spec_get_depth t x) value) (field (spec_get_depth t a) value))))))))
+  (spec find
+    (params (t tree) (p i64) (q i64))
+    (returns (out (option i64)))
+    (requires (tree_distinct t))
+    (ensures
+      (=> (and (holds t p) (holds t q)) (and (is some out) (is_lca t (field out value) p q)))
+      (=> (and (holds t p) (not (holds t q))) (== out (some p)))
+      (=> (and (not (holds t p)) (holds t q)) (== out (some q)))
+      (=> (and (not (holds t p)) (not (holds t q))) (is none out)))
+    (effects))
+  (def find (decreases (rank t))
+    (body
+      (match t
+        (case (nil) (return (none)))
+        (case (node v l r)
+          (if (or (== v p) (== v q))
+            (return (some v))
+            (block
+              (let ((a (option i64))) (call find l p q))
+              (let ((b (option i64))) (call find r p q))
+              (if (and (is some a) (is some b))
+                (return (some v))
+                (if (is some a) (return a) (return b)))))))))
+  (def lowest_common_ancestor
+    (body
+      (let ((res (option i64))) (call find root p q))
+      (return res))))

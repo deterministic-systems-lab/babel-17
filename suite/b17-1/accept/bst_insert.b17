@@ -1,0 +1,33 @@
+(module bst_insert
+  (header
+    (purpose "Insert a value into a binary search tree.")
+    (invariants "The result is a search tree holding the old values and the new one.")
+    (failures "Allocation failure aborts."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (leaf) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn is_bst ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (leaf) true)
+      (case (node v l r)
+        (and (and (is_bst l) (is_bst r))
+             (and (forall ((x int)) (=> (contains (view l) x) (< x v)))
+                  (forall ((x int)) (=> (contains (view r) x) (> x v)))))))))
+  (spec insert
+    (params (t tree) (x i64))
+    (returns (out tree))
+    (requires (>= x 0) (is_bst t))
+    (ensures (is_bst out) (== (view out) (union (view t) (iset-lit x))))
+    (effects alloc))
+  (def insert (decreases (rank t))
+    (body
+      (match t
+        (case (leaf) (return (node x (leaf) (leaf))))
+        (case (node v l r)
+          (if (< x v)
+            (block (let ((l2 tree)) (call insert l x)) (return (node v l2 r)))
+            (if (> x v)
+              (block (let ((r2 tree)) (call insert r x)) (return (node v l r2)))
+              (return (node v l r)))))))))

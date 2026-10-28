@@ -1,0 +1,7 @@
+(module get_name
+  (header
+    (purpose "A tuple component's index is a literal.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn pick ((p (tuple int int)) (k int)) int
+    (body (get p k))))

@@ -1,0 +1,14 @@
+(module take_row
+  (header
+    (purpose "A vector inside a vector is taken out with replace, not moved.")
+    (invariants "None.")
+    (failures "None."))
+  (spec take_row
+    (params (rows (vec (vec i64))))
+    (returns (r (vec i64)))
+    (requires (> (len rows) 0))
+    (effects))
+  (def take_row
+    (body
+      (let row (vec i64) (idx rows 0))
+      (return row))))
