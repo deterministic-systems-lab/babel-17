@@ -122,6 +122,11 @@ def verify(module, seeds=SEEDS, cache=CACHE):
     """Every goal of module: its node, contract clause, family, verdict, resource units and
     whether it came from the cache, plus the run's configuration. Raises ValueError, listing
     the diagnostics, if module fails tier 0."""
+    return verify_goals(module, seeds, cache)[2:]
+
+
+def verify_goals(module, seeds=SEEDS, cache=CACHE):
+    """verify(), with the goal generator and its goals, one per row, for WP6's diagnostics."""
     gen = G.Gen(module)
     goals = gen.check(module)
     hashes, core = H.hashes(module), H.hashes(G.CORE)
@@ -163,7 +168,7 @@ def verify(module, seeds=SEEDS, cache=CACHE):
         seen[(node, g[1])] += 1  # the same node checked twice, as a loop condition is
         rows.append({"node": node + (f" #{seen[(node, g[1])]}" if seen[(node, g[1])] > 1 else ""),
                      "family": g[1], **r})
-    return rows, cfg
+    return gen, goals, rows, cfg
 
 
 def report(module, rows, cfg):

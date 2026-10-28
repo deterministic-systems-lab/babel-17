@@ -34,6 +34,7 @@ class Diagnostic:
     col: int
     code: str
     message: str
+    node: object = field(default=None, compare=False, repr=False)  # the form it's about, for WP6's node IDs
 
     def __str__(self):
         return f"{self.line}:{self.col}: {self.code}: {self.message}"
@@ -176,7 +177,7 @@ class _Checker:
                 self.report(e.code, self.module, e.reason)
 
     def report(self, code, node, message):
-        self.diags.add(Diagnostic(node.pos[0], node.pos[1], code, message))
+        self.diags.add(Diagnostic(node.pos[0], node.pos[1], code, message, node))
 
     # Items and names (§2).
 

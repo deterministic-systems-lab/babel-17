@@ -1111,3 +1111,52 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Positions for names:** renaming a type, constructor or field changes no hash, as D22 asks of renames.
   - **No coinciding types:** two types identical up to names would get one hash, and the references in specs couldn't tell them apart.
 - **Touches:** D22; D45; D46; WP2; `b17c/hashing.py`; `docs/b17-1.md` §2.
+
+## D93 · Interface 3 version 0.1: the diagnostic schema · Proposed
+- **Date:** 2026-10-28
+- **Decision:** `b17c/agent.py check FILE` prints a JSON array of diagnostics. It lists every tier 0 error or, once tier 0 passes, every goal that isn't proved, and exits 1 when the array isn't empty. Each diagnostic has the design spec's fields:
+  - **`code`:** a §9 tier 0 code, or `E-PROOF-` and the goal's family.
+  - **`severity`:** always `error`, since B17-0 has no warnings.
+  - **`node`:** D56's node ID. For a goal it's D63's goal identity, and for a parse error `module@LINE:COL`.
+  - **`message`:** the checker's text, or the goal's family and verdict.
+  - **`goal`:** a B17-0 ghost expression over the program's own names:
+    - a `BOUNDS`, `OVERFLOW` or `DIV` goal is written out, as `(and (<= 0 i) (< i (len a)))` or `(in_i64 (+ x 1))`;
+    - a `PRE` goal is the callee's `requires` at the call's arguments, unless a binder in it would capture an argument's name;
+    - a `TERM` goal is `(<= 0 D)` for a loop's measure D, or a recursive call's measure at its arguments below the caller's. The drop across a pass is written `(decreases D)`, the one goal that isn't a B17-0 expression, since B17-0 can't name a value from before the pass;
+    - any other goal is the clause it checks, as written.
+  - **`counterexample`:** values of every parameter of the goal's item. One the goal doesn't mention takes 0, `false` or the empty sequence, since any value will do. A sequence is a list, or `{len, prefix}` beyond 8 elements.
+    - It's offered for failed and unknown goals, found by solving the goal's query with only the prelude axioms its own part mentions.
+    - `reproduced` says whether a checked run of the def on those values fails too (D57). It's `null` when no run is possible, as for a goal of a spec.
+  - **`context`:** the goal's item and each item it refers to, as `kind name`.
+  - **`repairs`:** empty until interface 2's typed edits exist (WP2).
+  - **`dependents`:** the later goals of the same item and part whose assumptions include it, since §9 assumes each goal once generated.
+  - **`budget_used`:** its resource units across every seed (D63).
+- **Why:**
+  - **Representations:** the design spec names the fields but not how each is written. These are the ones B17-0 can fill today.
+  - **Goals in B17-0 terms:** an agent writes B17-0, not SMT-LIB, and the program's own names let it find the spot.
+  - **Counterexamples:** the full prelude's quantifiers keep Z3 from ever answering `sat`, so a failing goal had none to show. That was an open question in the roadmap.
+    - Solving against only the axioms a goal mentions finds a model for every one of the suite's 9 proof rejects.
+    - The interpreter reproduces 8 of them, and flags the ninth as not reproduced.
+    - A model from fewer axioms can be spurious, so it's reported with that check, never trusted alone. The goal's verdict still comes from the full query (D63).
+  - **Dependents:** they show which failure to fix first, as the design spec asks.
+- **Touches:** D23; D56; D57; D63; interface 3; WP2; WP6; `docs/b17-0.md` §9.
+
+## D94 · Interface 8 version 0.1: the five queries · Proposed
+- **Date:** 2026-10-28
+- **Decision:** `b17c/agent.py` answers each query with one JSON document. When a query can't run, it exits 2 with `{"error": ...}`.
+  - **`obligations FILE NAME`:** every goal of the item, with its node, family, goal, verdict, whether it came from the cache, and its budget.
+  - **A query on a file that doesn't parse** is refused, like any query that can't run.
+  - **`explain CODE`:** the code's row in `docs/b17-0.md` §9, the list items that state its rule with the code, and the suite's labelled program for it.
+  - **`impact FILE CHANGED`:** CHANGED's items replace FILE's of the same kind and name, and the module is verified again.
+    - It reports each goal that was proved before and isn't now: first the callers', then the changed items' own. Goals are matched by node path without positions, so moving an item isn't a change (D56).
+    - If the change fails tier 0, it reports those errors instead.
+  - **`search FILE QUERY`:** QUERY holds one spec, and the candidates are FILE's specs with the same parameter and result types in order.
+    - For each candidate, a probe implements the query spec by calling the candidate, and is verified. The probe gets a name none of FILE's items has. A query whose parameter or result names are FILE's items is refused (D41).
+    - Its `PRE` goal is that the query's `requires` imply the candidate's. Its `POST` goals are that the candidate's `ensures` imply the query's. Tier 0 checks that the candidate's effects fit the query's.
+    - A candidate guarantees the query when every goal of the probe, its spec's included, is proved, or when D45 finds it identical. The others come with the goals or codes that failed.
+  - **`simulate FILE NAME ARG...`:** a checked run in the interpreter (D57), with interface 10's outcome as JSON fields, its trace, its unchecked clauses and its text form (D56).
+- **Why:**
+  - **Search by guarantee is a proof:** a def that only calls the candidate verifies exactly when the candidate meets the query's contract. The verifier already decides that, so search needs no logic of its own.
+  - **Impact by re-verification:** the proof cache keys each goal by what it depends on (D63), so only the goals the change touches are solved again.
+  - **Examples from the suite:** every code already has a labelled program, which WP3 and WP5 check. WP8's manual can reuse them.
+- **Touches:** D45; D56; D57; D63; interface 8; WP6; WP8; `suite/`.
