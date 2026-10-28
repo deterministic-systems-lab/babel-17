@@ -264,7 +264,7 @@ bad(module("(spec sorted (params (a (vec i64))) (returns) (effects))", "(def sor
            "(spec f (params (a (vec i64))) (returns) (effects))", "(def f (body (call sorted a) (return)))"),
     "E-TYPE-002", "sorted (params")
 bad(f("(a (vec i64))", "(r i64)", "(let ((n i64)) (call g (borrow a))) (return n)",
-      extra=["(spec g (params (k i64)) (returns (n i64)) (ensures (> n k)) (effects))"]), "E-TYPE-001", "(borrow a)")
+      extra=["(spec g (params (k i64)) (returns (n i64)) (ensures (> n k)) (effects))"]), "E-OWN-002", "(borrow a)")
 bad(f("(x i64)", "(r i64)", "(let y i64 0) (let y bool true) (return (+ y 1))"), "E-TYPE-002", "y bool")
 bad(f("(x i64)", "(r (vec i64))", "(let-mut v (vec i64) (vec-new)) (push v 1) (push v 2) (push v 3) (return v)"),
     "E-EFF-001", "(push v 1)")
@@ -298,6 +298,17 @@ assert [d.code for d in diagnose(f("(x i64)", "(r i64)", "(let y i64 (+ x true))
 assert [d.code for d in diagnose(f("(a (vec i64))", "(r i64)",
                                    "(let b (vec i64) a) (let c i64 (len a)) (return (idx a 0))"))] == ["E-OWN-001"]
 assert diagnose(module("(def orphan (body (return (+ x y))))")) == diagnose(module("(def orphan (body (return)))"))
+
+# Found in review: an element of an open-typed literal is never a collection, a local's move
+# record ends with its scope, and a borrow for a non-slice parameter is misplaced (D69).
+bad(module("(spec f (params) (returns (r (vec i64))) (effects))", "(def f (body (return (idx (vec-new) 0))))"),
+    "E-TYPE-001", "(idx (vec-new) 0)")
+bad(module("(ghost-fn g () bool (body (contains (seq-lit) (seq-lit 1))))"), "E-TYPE-001", "(seq-lit 1)")
+bad(module("(ghost-fn g () int (body (occurrences (seq-lit) (seq-lit 1))))"), "E-TYPE-001", "(seq-lit 1)")
+ok(f("", "(r (vec i64))", "(block (let a (vec i64) (vec-new)) (let b (vec i64) a)) (return (seq-build 1 (fn (a) a)))",
+     effects="alloc"))
+ok(f("(x i64)", "(r i64)", "(let y i64 (idx (vec-new) 0)) (return y)"))  # an absurd but well-typed read
+ok(module("(ghost-fn g () bool (body (=> false (== (last (seq-lit)) 5))))"))
 
 # The command line.
 for name, want in [("accept/abs.b17", (0, "")),

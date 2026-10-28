@@ -760,3 +760,9 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **The stack overflow:** `hashing.hashes` recursed through every item a spec refers to. With references in reverse order, 200 chained ghost-fns overflowed Python's stack. It now hashes each spec after the items it mentions, using an explicit stack, so a 3000-item reverse chain hashes in a fraction of a second, with the same hashes as in calling order. The golden hashes are unchanged.
   - **`HashError.names`:** a duplicate-spec error now names both specs.
   - **The checker** passes the module unchanged and drops its reordering pass and its parsing of error messages, 33 lines in all. D78's text is updated to match.
+- **Codex review of the checker** (`gpt-5.6-sol`): it ran 29,694 random modules through the checker, with no crash, and found 4 bugs, all fixed and tested:
+  - **False accept, `idx` and `last`:** reading an element from an empty literal gave a type compatible with anything, so `(return (idx (vec-new) 0))` passed as a `(vec i64)`. The element now takes its destination's type, which can't be a collection, or is an integer when nothing fixes it. D70 records the rule.
+  - **False accept, `contains` and `occurrences`:** with an empty literal, they accepted a collection to look for, a nested-sequence type D68 forbids. That's now `E-TYPE-001`.
+  - **False reject, move records:** a local's move record outlived its block, so a later `fn` binder reusing the name was reported as a use after move. Records now end with their scope (D66).
+  - **Wrong code:** `(borrow v)` for a non-slice parameter was `E-TYPE-001`, and its test expected that. D69 makes any borrow outside a slice parameter `E-OWN-002`, so code and test now follow D69.
+- **After the fixes:** all five self-checks pass, and the suite still matches 50 of 50.

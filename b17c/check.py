@@ -331,14 +331,20 @@ class _Checker:
             live = self.stmt(s, g)
             if not live:
                 self.moves = before
-        self.scopes.pop()
+        self.leave()
         return live
 
     def branch(self, s, g):
         self.scopes.append({})  # a statement in a branch is a scope of its own (D66)
         live = self.stmt(s, g)
-        self.scopes.pop()
+        self.leave()
         return live
+
+    def leave(self):
+        """End a block's scope. Its locals go out of scope with their move records, so a later
+        binder may reuse a name (§2, D66)."""
+        for name in self.scopes.pop():
+            self.moves.pop(name, None)
 
     def stmt(self, s, g):
         it = s.items
@@ -551,7 +557,8 @@ class _Checker:
                 self.slice_argument(a, t)
             elif _head(a) == "borrow":
                 self.var(a.items[1], False)
-                self.report("E-TYPE-001", a, f"(borrow {a.items[1].text}) is a slice, and this parameter is {show(t)}")
+                self.report("E-OWN-002", a, f"(borrow {a.items[1].text}) can only be an argument for a slice parameter, "
+                                            f"and this one is {show(t)} (§5, D69)")
             elif t[0] == "vec" and not isinstance(a, Sym):
                 if self.expr(a, False, want=t) != ERR and _head(a) != "if":  # an if already reported it
                     self.report("E-OWN-006", a, "an owned vector argument must be a variable, which then moves (§7, D73)")
@@ -701,7 +708,7 @@ class _Checker:
         if t != ERR and t[0] not in SEQUENCES:
             self.report("E-TYPE-001", x.items[1], f"idx takes a sequence, not {show(t)}")
             return ERR
-        return ERR if t == ERR or t[1] == ANY else t[1]
+        return ERR if t == ERR else self.element(x, t[1], g, want)
 
     def e_borrow(self, x, g, want):
         self.report("E-OWN-002", x, "(borrow v) can only be an argument of a def call (§5, D69)")
@@ -771,12 +778,25 @@ class _Checker:
 
     def e_last(self, x, g, want):
         e = self.sequence(x.items[1], "last")
-        return ERR if e == ANY else e
+        return e if e == ERR else self.element(x, e, True, want)
+
+    def element(self, x, e, g, want):
+        """An element of a sequence of e. An element type an empty literal leaves open takes its
+        destination's, which can't be a collection (D68), or is an integer if nothing fixes it (D70)."""
+        if e != ANY:
+            return e
+        if want is not None and want != ERR and want[0] in COLLECTIONS:
+            self.report("E-TYPE-001", x, f"an element of a sequence is never {show(want)} (§11, D68)")
+            return ERR
+        return want if want in (BOOL, I64, INT, ERR) else INT if g else I64
 
     def e_contains(self, x, g, want):
         e = self.sequence(x.items[1], x.items[0].text)
         t = self.expr(x.items[2], True)
-        if join(e, t) is None:
+        if t != ERR and t[0] in COLLECTIONS:
+            self.report("E-TYPE-001", x.items[2], f"{x.items[0].text} looks for an element, and B17-0 has no "
+                                                  f"nested collections (§11, D68)")
+        elif join(e, t) is None:
             self.report("E-TYPE-001", x.items[2], f"{x.items[0].text} looks for {show(t)} among {show(e)}")
         return BOOL if x.items[0].text == "contains" else INT
 

@@ -783,6 +783,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Subtyping:** it is exactly §3's. In particular `(multiset T)` has none, so `(== (multiset a) (multiset (seq-lit 1)))` with `a` a vector of `i64` compares `(multiset i64)` with `(multiset int)` and is `E-TYPE-001`.
   - **Sequence operations:** `len`, `idx`, `take`, `drop`, `last`, `contains` and `occurrences` take sequences (vectors, slices or seqs), never multisets.
   - **Element types left open:** an empty `seq-lit`, and a `(vec-new)` whose context fixes no element type, take one from wherever they're used, and are never an error on their own.
+    - An element read from one, by `idx` or `last`, takes its destination's type, which can't be a collection (D68). With no destination, it's an integer: `int` in ghost code and `i64` in runtime code.
 - **Why:** §3 lists the subtyping rules exactly, and these are the readings that add no rule of their own. Covariant multisets and implicit `int`-to-`i64` narrowing would both be new rules.
 - **Touches:** WP3; D34; D53; `docs/b17-0.md` §3, §4, §7.
 
