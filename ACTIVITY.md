@@ -571,3 +571,19 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - **`set-idx`'s multiset effect over `seq_update`:** the interpreter confirms it, but the encoding can't prove it without `concat (take s k) (drop s k) = s`, which §9 doesn't have.
 - **Result:** the interpreter confirms all 33 laws on the grid in under 2 s, and the goal spike proves all 69 of the library's goals under 10 seeds.
 - **Open:** §9 has no take-and-drop decomposition fact. Adding one would let a library law state `set-idx`'s multiset effect. Once D60 removes the suite's brute-force proofs, the fact is cheap to add; until then it flips `fib`.
+
+## 2026-10-28 · D56–D62 accepted; D60 and D61 applied
+- **Owner decision:** accepted D56–D62. D21 is marked as amended by D62.
+- **D60 applied:**
+  - **Suite:** `fib`, `power`, `sum` and `prefix_sums` state their ranges per loop step.
+  - **Docs:** §10's porting rule says so, and so does the suite README's ranges table.
+  - **Hashes:** the golden file is regenerated. Only those four programs' hashes changed.
+- **D61 applied:** §9's Encoding text now gives the axiomatized sequences, count-map multisets, division by a variable, guarded recursive definitions and the resource budget. Its Membership fact now lists the derived `contains` facts.
+- **`docs/b17-0.md`:** its implements list names D60 and D61. It stays at v0.1 Draft until WP3's checker agrees with the suite (D44).
+- **Result:** under 10 shuffled seeds, all 20 accept programs now prove every goal with no hints, and all 9 proof rejects fail exactly their labelled family. Every proof label in the suite is now confirmed mechanically, not only by review.
+- **Checks:** `test_syntax`, `test_hashing`, `test_interp` and `test_core` all pass.
+- **README and roadmap:**
+  - no decisions are waiting;
+  - D62's dependency table and critical path, which now runs WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11;
+  - the suite results above.
+- **Still open, for M3:** D42's Dafny side. The four Dafny seed tasks take the same per-step preconditions when M3's task set is built.

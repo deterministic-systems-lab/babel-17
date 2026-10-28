@@ -10,7 +10,7 @@
   (spec fib_iter
     (params (n i64))
     (returns (f i64))
-    (requires (>= n 0) (forall ((i int)) (=> (and (<= 0 i) (<= i n)) (in_i64 (fib i)))))
+    (requires (>= n 0) (forall ((i int)) (=> (and (<= 1 i) (< i n)) (in_i64 (+ (fib (- i 1)) (fib i))))))
     (ensures (== f (fib n)))
     (effects))
   (def fib_iter
