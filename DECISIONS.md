@@ -705,3 +705,27 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Verification levels let one language serve code with precise specs and code without them. Without them, Babel-17 would stay confined to the domains Dafny serves.
   - Recording the goal lets later design decisions be judged against it.
 - **Touches:** D14; D20; Summary; Type system; Verification model; Standard library; Training environment; WP7; WP10; WP11; `README.md`; `docs/roadmap.md`.
+
+## D65 · The language grows in subsets alongside the phases, and B17-1 is part of Phase 1 · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Two tracks:** the phases build the toolchain, and the language grows alongside them in subsets: B17-0, B17-1 and on. Each subset takes B17-0's path:
+    - a decision on its scope;
+    - spec text and a labelled suite;
+    - the interpreter, checker and verifier extended to it;
+    - a freeze once the checker agrees with every label (D44).
+  - **B17-1 is part of Phase 1.** It adds what `docs/b17-0.md` §11 assigns it: generics beyond integers, tuples, data types and nested collections. It also adds verification levels L0 and L1, and decides how a goal that isn't proved behaves below L2 (D64). Its exact scope is its own decision, made after B17-0 freezes.
+    - **WP10:** its AlgoVeri ports wait for B17-1, since most AlgoVeri tasks need tuples or data types. The seed tasks don't.
+    - **M3:** it can start on B17-0's tasks and add B17-1's when B17-1 freezes.
+  - **Later subsets** cover the rest of D64's scope. Benchmarks set their order (D14), and growth continues past Phase 4 until that scope is covered.
+    - **From §11:** mutable borrows, mutual recursion, floats, strings, maps and vector capacity.
+    - **From D64:** closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation.
+    - **Effects** for files, network and time.
+  - **The standard library** the design spec describes grows with the subsets: collections, numerics, text, parsers, cryptography and time. Each subset's scope includes the library entries it makes expressible.
+  - **Task sets beyond algorithms** (D64) are built as the subsets that can express them arrive.
+  - **WP11's curriculum** covers every domain the language has reached by the Phase 2 gate.
+- **Why:**
+  - **No schedule for growth:** D64 sets the destination, but the phases only schedule tooling, so nothing said when the language itself grows.
+  - **Why B17-1 in Phase 1:** WP10 needs it for AlgoVeri-class tasks. D64 also needs L0 and L1 early, so that domains without precise specs aren't shut out.
+  - **Why later subsets stay unscheduled:** finding which features help agents is what the benchmarks are for (D14, D20).
+- **Touches:** D14; D20; D44; D64; WP1a; WP10; WP11; M3; `docs/b17-0.md` §11; `docs/roadmap.md`; `README.md`.

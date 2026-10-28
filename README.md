@@ -29,7 +29,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the goal spike proves each. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
 
-[docs/roadmap.md](docs/roadmap.md) covers all five phases, what's left before the Phase 0 gate, and what comes after it.
+[docs/roadmap.md](docs/roadmap.md) covers all five phases, what's left before the Phase 0 gate, what comes after it, and how the language grows from B17-0 toward D64's scope.
 
 `b17c`, the toolchain, is a Python prototype until Phase 3 (D19). Phase 1 compiles to safe Rust (D18), and the solver is Z3, driven by goals `b17c` generates itself (D17).
 

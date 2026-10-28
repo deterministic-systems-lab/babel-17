@@ -4,6 +4,7 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
+- **Two tracks:** the phases build the toolchain, and the language grows alongside them in subsets, from B17-0 to B17-1 and on (D65, proposed). See [How the language grows](#how-the-language-grows).
 - **Phases, ordered by risk:** Babel-17 is built in five phases, ordered by risk rather than by date.
 - **Gates:** each phase ends at a gate, and the next phase doesn't start until that gate passes.
 - **Benchmarks:** they steer the design, by showing which features help agents and which only cost tokens. They don't decide whether the language gets built (D14).
@@ -17,7 +18,7 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 | Phase | What it builds | Gate to leave it |
 |---|---|---|
 | **0. Core semantics** | B17-0's written semantics and accept/reject suite (WP1a); the canonical form and content hashes (WP2); the reference interpreter (WP15); the baseline harness (WP17) | WP1a is frozen, WP2's round-trip tests pass, and WP15 passes its conformance tests (D16) |
-| **1. Embedded MVP** | The checker, spec language, verifier, agent diagnostics, a backend that emits safe Rust, the agent manual, the core spec library and benchmark ports | Every ported benchmark task verifies end to end and runs as emitted Rust (D18) |
+| **1. Embedded MVP** | The checker, spec language, verifier, agent diagnostics, a backend that emits safe Rust, the agent manual, the core spec library and benchmark ports; B17-1, the second language subset (D65, proposed) | Every ported benchmark task verifies end to end and runs as emitted Rust (D18) |
 | **2. Training loop** | The training environment (`b17c gym`), and a model trained in it | A gym-trained model beats off-the-shelf models writing Dafny or Verus on held-out tasks. It must also beat the same base model trained on Dafny with equal compute (D31). |
 | **3. Native backend** | A native backend whose every lowering pass is checked by translation validation; the package registry; a Rust rewrite of `b17c`, shipped as one binary (D10, D19) | Verified Babel-17 matches hand-written Rust on a benchmark suite |
 | **4. Optimizer and ecosystem** | An ML optimizer behind a translation validator, superoptimization, FFI and a first production service | — |
@@ -59,7 +60,9 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-None. D56–D64 were accepted on 2026-10-28.
+- **D65:** the language grows in subsets alongside the phases, and B17-1 is part of Phase 1.
+
+D56–D64 were accepted on 2026-10-28.
 
 ### Left before the Phase 0 gate
 1. Build WP3's checker until it agrees with every tier 0 label in the suite.
@@ -83,10 +86,11 @@ From D21's dependency table, as D62 amends it, the critical path to the Phase 2 
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check` |
-| WP10 | Benchmark ports | WP1a, WP5 | Ported Dafny, Verus and Lean tasks verify end to end |
+| B17-1 | The second subset: generics, tuples, data types, nested collections; verification levels L0 and L1 (D64, D65) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every label (D44) |
+| WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since most need tuples or data types | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.
-- **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42).
+- **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It can start on B17-0's tasks and add B17-1's when B17-1 freezes (D65).
 - **What it measures:** the success metrics: verified pass rate, repair rounds and tokens per verified task.
 - **What it needs:** WP5, WP6, WP8 and WP10, and tasks hard enough to separate the two languages.
 - **How it's used:** its results steer the design (D14).
@@ -97,6 +101,8 @@ From D21's dependency table, as D62 amends it, the critical path to the Phase 2 
 - rewards and anti-hacking rules are enforced;
 - a held-out split is frozen;
 - an in-context baseline is recorded.
+
+Its curriculum covers every domain the language has reached by then (D65).
 
 Agents first learn B17-0 from the manual in context, and models are trained in Phase 2 (D8, proposed).
 
@@ -113,6 +119,23 @@ Agents first learn B17-0 from the manual in context, and models are trained in P
   - The package registry, where imports resolve only to lockfile hashes (WP13, D9).
 - **Phase 4:** an ML optimizer whose transformations each pass translation validation (WP14), superoptimization, FFI and a first production service.
 
+## How the language grows
+
+The phases build the toolchain. The language grows alongside them in subsets, each frozen before the next starts (D65, proposed). A subset takes B17-0's path:
+1. a decision on its scope;
+2. spec text and a labelled suite;
+3. the interpreter, checker and verifier extended to it;
+4. a freeze once the checker agrees with every label (D44).
+
+| Subset | What it adds | When |
+|---|---|---|
+| **B17-0** | Checked integers, booleans, sequences, slices and owned vectors; contracts; the `alloc`, `panic` and `io` effects (D20) | Phase 0. It freezes when WP3's checker agrees with the suite. |
+| **B17-1** | Generics beyond integers, tuples, data types and nested collections ([§11](b17-0.md)); verification levels L0 and L1, and how a goal that isn't proved behaves below L2 (D64) | Phase 1. Its exact scope is decided after B17-0 freezes. |
+| **Later subsets** | From §11: mutable borrows, mutual recursion, floats, strings, maps and vector capacity. From D64: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. Effects for files, network and time. | Benchmarks set the order (D14). Growth continues past Phase 4 until D64's scope is covered. |
+
+- **The standard library** grows with the subsets. The design spec's library covers collections, numerics, text, parsers, cryptography and time. Each subset's scope includes the library entries it makes expressible.
+- **Task sets beyond algorithms** (D64) are built as the subsets that can express them arrive.
+
 ## Open questions that shape the plan
 
 - **Hard enough tasks.** The seed tasks and AlgoVeri barely separate today's models in Dafny. If the vericoding set doesn't either, M3's tasks will have to be written (WP10).
@@ -120,4 +143,4 @@ Agents first learn B17-0 from the manual in context, and models are trained in P
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a counterexample, so WP6's diagnostics will often have none to show.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).
 - **Training resources.** Phase 2 needs open weights and compute that the project doesn't have yet.
-- **Reaching every domain.** D64's goal needs features the design spec doesn't have: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. It also needs task sets for applications, pipelines and machine learning to steer them, since every benchmark so far is an algorithm task.
+- **Reaching every domain.** [How the language grows](#how-the-language-grows) lists what D64 needs. What follows B17-1, and in what order, is open. Deciding it needs task sets for applications, pipelines and machine learning, but every benchmark so far is an algorithm task.

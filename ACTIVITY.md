@@ -648,3 +648,26 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 ## 2026-10-28 · D63 and D64 accepted
 - **Owner decision:** accepted D63 (interface 11 and the proof cache) and D64 (Babel-17 is an all-purpose language for agents).
 - **README and roadmap:** D64 is no longer marked proposed, and no decisions are waiting.
+
+## 2026-10-28 · Proposed D65: the language grows alongside the phases
+- **Why:** the owner asked whether the roadmap reflects D64. It did only partly. It stated the goal and listed the missing features, but:
+  - its phases scheduled only tooling;
+  - B17-1, where D64 puts L0 and L1, appeared in no phase;
+  - the standard library had no place;
+  - every benchmark stayed an algorithm task.
+- **Proposed D65:**
+  - **Two tracks:** the language grows in subsets alongside the phases, each following B17-0's path to a D44 freeze.
+  - **B17-1 in Phase 1,** with §11's data types, tuples, generics and nested collections, and L0 and L1. WP10's AlgoVeri ports wait for it, and M3 can start on B17-0.
+  - **Later subsets** are ordered by benchmarks and continue past Phase 4.
+  - **The standard library** grows with the subsets.
+  - **Task sets beyond algorithms** arrive with the subsets that can express them.
+  - **WP11's curriculum** covers every domain reached.
+- **`docs/roadmap.md`:**
+  - a "Two tracks" line under "How the plan works";
+  - B17-1 in Phase 1's row and table;
+  - WP10's dependency on B17-1, and M3's start on B17-0;
+  - WP11's curriculum;
+  - a new section, "How the language grows";
+  - the "Reaching every domain" question narrowed to what follows B17-1;
+  - D65 listed as waiting.
+- **`README.md`:** its pointer to the roadmap mentions how the language grows.
