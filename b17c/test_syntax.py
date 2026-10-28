@@ -8,9 +8,9 @@ SUITE = Path(__file__).resolve().parent.parent / "suite"
 PARSE_REJECT = SUITE / "reject/E-PARSE-001-while-without-decreases.b17"
 
 
-def error(text):
+def error(text, subset=0):
     try:
-        s.parse(text)
+        s.parse(text, subset)
     except s.ParseError as e:
         assert e.code == "E-PARSE-001", e
         return e
@@ -57,11 +57,11 @@ assert s.canonical(s.parse(esc)) == esc.encode()
 assert s.parse(esc.encode()) == s.parse(esc)
 
 
-def bad(old, new, snippet, phrase, base=OK):
+def bad(old, new, snippet, phrase, base=OK, subset=0):
     """Replace old with new in base; parsing must fail where snippet starts, citing phrase."""
     assert old in base, old
     text = base.replace(old, new, 1)
-    e = error(text)
+    e = error(text, subset)
     assert (e.line, e.col) == at(text, snippet), (text, e)
     assert phrase in e.reason, (phrase, e)
 
@@ -153,5 +153,53 @@ for text, reason in [("", "empty input: expected an expression"), ("1 2", "text 
         assert reason in e.reason, (text, e)
     else:
         raise AssertionError(f"parsed but should not have: {text!r}")
+
+# B17-1, read with subset 1 (D101). Every suite/b17-1 file parses and round-trips but its two parse rejects.
+for f in sorted((SUITE / "b17-1").rglob("*.b17")):
+    text = f.read_text()
+    if f.name.startswith("E-PARSE-001"):
+        e = error(text, 1)
+        assert e.reason in ("expected an integer literal, found 'k'", "(replace ...) is not an expression"), (f, e)
+        continue
+    tree = s.parse(text, 1)
+    assert s.parse(s.canonical(tree), 1) == tree and s.canonical(s.parse(s.canonical(tree), 1)) == s.canonical(tree), f
+assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 57
+# Every B17-0 suite program is a B17-1 program with the same tree (docs/b17-1.md, opening).
+assert all(s.parse(f.read_text(), 1) == s.parse(f.read_text()) for f in files if f != PARSE_REJECT)
+# B17-1's reserved words are exactly those docs/b17-1.md §2 adds; B17-0 still reads them as names.
+doc1 = (SUITE.parent / "docs/b17-1.md").read_text()
+added = doc1[doc1.index("**Reserved words:**"):doc1.index("(D51)", doc1.index("**Reserved words:**"))]
+assert set(re.findall(r"`([a-z-]+)`", added)) == s.KEYWORDS_1 - s.KEYWORDS, set(re.findall(r"`([a-z-]+)`", added)) ^ (s.KEYWORDS_1 - s.KEYWORDS)
+assert s.parse(OK.replace("(x i64)", "(map i64)")) and s.parse(OK.replace("(return x)", "(return (field x))"))
+bad("(x i64)", "(map i64)", "map i64", "'map' is reserved", subset=1)
+bad("(x i64)", "(obtain i64)", "obtain i64", "'obtain' is reserved", subset=1)
+# B17-1's forms, each misused once.
+B1 = OK.split("\n")[0] + """
+(data t () (leaf) (node (v i64) (l t)))
+(data box (a b) (box (first a) (second (option b))))
+(ghost-fn g ((x t)) int (body (match x (case (leaf) 0) (case (node v l) (get (tuple v 1) 0)))))
+(ghost-fn k ((p (tuple int int)) (s (iset int)) (m (map int int))) bool (body (match p (case (tuple a b) (== (diff s (iset-lit a)) (iset-of ((c int)) (contains (update m b a) c)))))))
+(spec h (params (x t) (a (vec (vec i64)))) (returns (r i64)) (effects))
+(def h (body (let-mut b (vec (vec i64)) a) (set-idx (idx b 0) 0 1) (set-idx (get b 0) 1 2) (let-mut c (vec i64) (replace (field b f) (vec-new))) (obtain ((k int)) (> k 0)) (return 0))))"""
+assert s.canonical(s.parse(B1, 1)) == B1.encode()
+error(B1)  # B17-0 has none of these forms
+bad1 = lambda old, new, snippet, phrase: bad(old, new, snippet, phrase, B1, 1)
+bad1("(data t () (leaf)", "(data t leaf (leaf)", "leaf (leaf)", "written () when there are none")
+bad1("(data box (a b)", "(data box (a (b))", "(b)", "expected a type parameter")
+bad1("(a (vec (vec i64)))", "(a (+ i64))", "(+ i64)", "expected a type")
+bad1("(data t () (leaf) (node (v i64) (l t)))", "(data t ())", ")\n(data box", "needs type parameters and a constructor")
+bad1("(data t () (leaf)", "(data t () leaf", "leaf (node", "expected a constructor")
+bad1("(case (leaf) 0)", "(leaf 0)", "(leaf 0)", "expected (case pat e)")
+bad1("(match x (case (leaf) 0) (case (node v l) (get (tuple v 1) 0)))", "(match x)", ")))\n(ghost-fn k", "at least one case")
+bad1("(tuple v 1)", "(tuple v)", "(tuple v)", "at least two expressions")
+bad1("(case (node v l)", "(case (tuple v)", "(tuple v)", "binds at least two names")
+bad1("(get (tuple v 1) 0)", "(iset-of ((a int) (b int)) true)", "(iset-of", "expected (iset-of ((NAME type)) ...)")
+bad1("(get (tuple v 1) 0)", "(map-lit (1))", "(1)", "expected a map entry")
+bad1("(get (tuple v 1) 0)", "(replace v 1)", "(replace", "not an expression")
+bad1("(obtain ((k int)) (> k 0))", "(obtain ((k int)))", "(obtain", "expected (obtain ((NAME type)+) e)")
+bad1("(obtain ((k int)) (> k 0))", "(forall ((k int)) (assert true))", "(assert", "expected (call NAME e*)")
+bad1("(set-idx (idx b 0) 0 1)", "(set-idx (len b) 0 1)", "(len b)", "expected a place")
+bad1("(a (vec (vec i64)))", "(a (tuple i64))", "(tuple i64)", "expected a type")
+bad("(def f (body (return x)))", "(def f (body (set-idx (idx x 0) 0 1) (return x)))", "(idx x 0)", "expected a name")  # B17-0: no places
 
 print("syntax self-check passed")
