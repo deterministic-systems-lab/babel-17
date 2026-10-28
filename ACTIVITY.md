@@ -531,3 +531,24 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Finding:** B17-0 already defines a spec language: headers, specs, ghost-fns, lemmas, and §7's well-formedness rules. The goal spike discharges the well-formedness goals of every suite spec. The design spec's other spec features either aren't needed (frames, given ownership) or need language growth Phase 1 doesn't plan (data-type invariants, refinement links, resource contracts).
 - **Proposed D62:** WP4a ends when WP1a freezes, and WP1a takes its place in D21's table. That shortens the critical path and lets WP16 start now.
 - **On acceptance:** update `docs/roadmap.md`'s Phase 1 table and critical path.
+
+## 2026-10-28 · WP16: the core spec library
+- **Started** on the assumption that D62 is accepted. Under D62, WP16 depends on WP1a and WP15, and both are in place.
+- **`b17c/core.b17`** now holds:
+  - **Ghost-fns:** `sorted`, `in_i64` and `seq_update`, a functional `set-idx`.
+  - **30 laws as lemmas,** each with an empty body:
+    - §9's length, element, prefix, sequence-equality, membership and multiset facts;
+    - D61's derived `contains` facts;
+    - the update facts, stated over `seq_update`;
+    - the laws of integer order.
+  - **Names:** every law is named `law_*`, and as core library names they're reserved (D51).
+- **`b17c/test_core.py`:** WP16's witness examples (D28).
+  - **Laws:** the reference interpreter evaluates every law at every point of a grid: 40 sequences over {0, 1, 2} of length 0 to 3, and integers from -1 to 4. A law must hold wherever its `requires` does, and at 3 points or more, so it isn't vacuous.
+  - **Ghost-fns:** each has inputs where it's true and inputs where it's false.
+  - **Teeth:** a law made false fails, and so does a law made vacuous.
+  - **Speed:** about 1 s. CI runs it on Linux.
+- **Cross-check:** the goal spike proves all 66 of the library's goals under 10 shuffled seeds, so the encoding implies every law, and the interpreter confirms each law is true.
+  - **Dropped law:** one stated that a functional update swaps one count of the old value for one of the new. The interpreter confirmed it, but the encoding couldn't prove it, since §9 gives that multiset effect only for the `set-idx` statement. A lemma can't state a statement's effect, so the law was dropped, and the library's header says so.
+- **Suite results unchanged:** 17 of 20 accept programs and 9 of 9 rejects under 10 seeds.
+  - `power`'s brute-force proof shifted again, with no change to `power` itself. That's more evidence for D60.
+  - Adding a take-and-drop fact, `concat (take s k) (drop s k) = s`, to try to save the dropped law also flipped `fib`, so it was reverted.
