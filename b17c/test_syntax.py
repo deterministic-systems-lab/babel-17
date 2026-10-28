@@ -141,4 +141,17 @@ assert error(deep(126)).reason == "lists nest more than 128 deep"
 big = int("1" * 5000)
 assert s.canonical(s.parse(HEAD.replace("bool", "int") + f"{big})))")).endswith(f"{big})))".encode())
 
+# parse_expr reads exactly one expression, an atom included, under the same rules.
+assert s.parse_expr(" -5\n") == s.Int(-5) and s.parse_expr(b"true") == s.Sym("true")
+assert s.parse_expr("(seq-lit 1 (neg x))") == s.Form((s.Sym("seq-lit"), s.Int(1), s.Form((s.Sym("neg"), s.Sym("x")))))
+for text, reason in [("", "empty input: expected an expression"), ("1 2", "text after the expression"),
+                     ("(neg 5)", "not canonical"), ('"s"', "a string is not an expression"),
+                     ("(seq-lit 1", "unclosed '('"), ("len", "'len' is reserved"), ("007", "leading zero")]:
+    try:
+        s.parse_expr(text)
+    except s.ParseError as e:
+        assert reason in e.reason, (text, e)
+    else:
+        raise AssertionError(f"parsed but should not have: {text!r}")
+
 print("syntax self-check passed")

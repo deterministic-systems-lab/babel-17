@@ -507,7 +507,92 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §2 sets no limit, so the parser's real limit was Python's recursion depth, which varies by platform and by caller. A program could then parse, hash or print on one machine and fail on another, which D46's "hashes match across machines" rules out. A fixed limit makes every machine accept the same programs. 128 leaves room for the recursive printer, checker, hasher and tree comparison; at 253 levels, comparing two trees already overflowed. The deepest suite program nests 13 deep. Found by Codex's review of the parser.
 - **Touches:** WP2; D46; `docs/b17-0.md` §2.
 
-## D56 · Ported ranges are stated per step · Proposed
+## D56 · Interface 10: interpreter traces and outcomes · Proposed
+- **Date:** 2026-10-27
+- **Decision:** Interface 10, version 0.1, Draft. D27 names it without giving its contents; these are its contents.
+  - **Trace:** the values `print` produced, in execution order across all calls. B17-0 has no other observable effect, so nothing else is traced. Every outcome carries the trace up to where the run stopped.
+  - **Outcomes:** §8's three, plus two outside §8:
+    - `ok(results)`, one value per declared result (D43);
+    - `panic(message)`;
+    - `err(reason, node, detail)`. The reason is the §9 family whose goal rules the error out: `OVERFLOW` for `+`, `-`, `*` and `neg`; `DIV` for a zero divisor, `MIN / -1` or `MIN % -1`; and `BOUNDS` for `idx`, `set-idx` or a negative `seq-build` length;
+    - `contract(kind, clause, node, detail)`, only when checking (D57);
+    - `limit(steps | depth, node)` (D59).
+
+    Every outcome also lists the clauses checking couldn't evaluate (D58).
+  - **Nodes:** an item's kind and name, the child-index path from the item's form, and the source line and column, written `def succ/2.1.1@13:15`. The path is D22's. The item stands in for D22's stable definition ID until one exists.
+  - **Order:** expressions evaluate left to right (§7), so `err` reports the first operation that fails. `set-idx` evaluates its index and then its value, then checks the index. `return` evaluates every result before checking any `ensures`.
+  - **Text form:** a `print V` line per trace entry, then an `unchecked KIND CLAUSE at NODE` line per unevaluated clause, then one outcome line:
+    - `ok V...`;
+    - `panic "S"`;
+    - `err REASON at NODE: detail`;
+    - `contract KIND CLAUSE at NODE: detail`;
+    - `limit steps|depth at NODE`.
+
+    Values are B17-0 terms: decimal integers, `true` and `false`, and `(seq-lit ...)`.
+  - **Refusals:** some runs can't go on, and those raise an error instead of returning an outcome:
+    - the def doesn't exist;
+    - an argument isn't a value of its parameter's type;
+    - a call reaches a spec with no def (calls are modular, so such a program can pass tier 0);
+    - a name is undefined, so the program doesn't pass tier 0.
+  - **CLI:** `b17c/interp.py` takes each argument as a closed B17-0 expression evaluated in ghost context, so `(seq-lit 1 2 3)` passes a sequence. It prints the text form and exits 0 on `ok`, 1 on any other outcome, and 2 when the run can't start or is refused.
+- **Why:** WP7's differential tests compare the interpreter with the Rust Phase 1 emits (D18). A Rust binary shows its prints and how it ended, and nothing else, so that is what a trace holds. `err`'s reasons are §9's families, so a concrete failure names the goal the verifier should have failed to discharge. Child-index paths survive reformatting, which line numbers don't.
+- **Touches:** D22; D27 (interface 10); WP7; WP15; `docs/b17-0.md` §8.
+
+## D57 · What checking evaluates, and what a contract outcome reports · Proposed
+- **Date:** 2026-10-27
+- **Decision:** With checking off, the interpreter is §8: ghost code is erased and lemma calls do nothing. With checking on, it also evaluates the following in ghost context, where integers are unbounded and division truncates (D34, D37):
+  - **Each call of a def or ghost-fn:**
+    - its `requires` in order (`PRE`);
+    - then, at a recursive call, 0 ≤ callee measure < caller measure (`TERM`). §7 states this goal under the callee's `requires`, so the measure is evaluated only once they hold. Each half is checked whenever its own values are known, so 0 ≤ callee measure is checked even when the caller's measure is unknown.
+
+    The call's frame is entered before its `requires` run. A recursive call inside a ghost-fn's own `requires` is therefore a recursive call too. A call with the same arguments as a call still in progress can't descend, and is `TERM` at once rather than an endless recursion.
+  - **Each `return`:** every result first, then the `ensures` in order, with the parameters at their entry values and the results bound (`POST`).
+  - **Each loop:**
+    - the invariants on entry (`INV-ENTRY`);
+    - the measure ≥ 0 at the start of each iteration whose condition holds (`TERM`);
+    - after each normal pass, the invariants (`INV-KEEP`), then the measure strictly below its value at that iteration's start (`TERM`).
+  - **Ghost statements:** `assert` (`ASSERT`), `ghost-let`, `ghost-let-mut` and `ghost-set`.
+  - **Ghost-fn calls:** as for any call, then the body. When a ghost-fn's `requires` is unknown (D58), the call is unknown and the `requires` is recorded as unchecked. Ghost-fns are pure, so results are memoized by argument; a recursive call still checks its measure when its value is already known.
+  - **Lemma calls:** the arguments, then the lemma's `requires` (`PRE`) and its `ensures` (`POST`, the lemma's claim at those arguments). The body never runs.
+  - **Ghost expressions' own goals:** an index, `take`, `drop`, `last` or `seq-build` length out of range (`BOUNDS`), and a zero divisor (`DIV`).
+
+  The first check that fails ends the run with `contract(kind, clause, node, detail)`:
+  - kind is the §9 family the run refutes;
+  - clause is the false expression, or for an undefined expression, the clause or ghost-fn body it sits in;
+  - node is where the check happened: the call, `return`, loop, `assert` or undefined expression, or the def itself for its `requires` on entry.
+- **Why:** Each check is one of §9's goals at a concrete state, so a contract outcome is a counterexample to that goal, named the way the verifier names it. Checking a lemma's claim where it's called gives WP16's witness examples something to run, and its proof stays the verifier's job. Memoizing ghost-fns changes no result and makes recursive specs such as `fib` linear to evaluate.
+- **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9.
+
+## D58 · A quantifier is evaluated only over a range read off its guard · Proposed
+- **Date:** 2026-10-27
+- **Decision:**
+  - **Guard:** a `forall`'s guard is G when its body is `(=> G P)`. An `exists`'s guard is its body, when that's an `and`. Nested `and`s are flattened into a list of conjuncts in evaluation order.
+  - **Order:** binders take values in declaration order. Each `int` binder's range is worked out once the binders before it have values. A `bool` binder ranges over `false` and `true`.
+  - **Bounds:** only G's leading conjuncts that can't fail give bounds. The first conjunct that might fail ends the list, because it might fail at a point that a later conjunct rules out. A conjunct that can't fail is a comparison whose sides are each either an unassigned binder or an expression that mentions none and is defined here, such as `(len a)`, or else a conjunct that mentions no unassigned binder and is defined here. Among those:
+    - `(op x E)` and `(op E x)`, where x is an `int` binder and op is `<`, `<=`, `>`, `>=` or `==`, bound x by E's value;
+    - the same with E another unassigned binder y relate x and y, and bounds pass along such relations until none changes, as in `sorted`'s i < j < `(len s)`;
+    - any other such conjunct bounds nothing. If it's false, the guard holds nowhere.
+
+    Once the conjuncts read so far admit no point, the rest aren't read, because evaluation would never reach them.
+  - **Evaluation:** a binder without a finite lower and upper bound makes its part of the quantifier unknown. Otherwise the body is evaluated at every point in range, even after the result is decided, so an undefined point is always found. A point out of range makes G false at a conjunct that can't fail, so skipping it changes nothing and hides nothing. Every point costs fuel (D59), so a range too large to search ends the run with `limit`.
+  - **Unknown:** any operation with an unknown operand is unknown. `and`, `or` and `=>` with an unknown left operand are unknown, and their right operand isn't evaluated, since the left may guard it. A quantifier is false (`forall`) or true (`exists`) when a point decides it, and otherwise unknown if any part was. A clause that comes out unknown is neither assumed true nor reported false. The run goes on, and the outcome lists it once per clause and node as `unchecked(kind, clause, node)`.
+- **Why:**
+  - **The brief:** WP15's brief asks for exactly this: evaluate a quantifier only when each binder's range can be read off its guard, and never treat it as true otherwise.
+  - **Leading conjuncts only:** a bound taken from a later conjunct, or a quantifier that stopped at its first witness, could pass a clause that is undefined at a point it skipped. An independent review found both in a first version.
+  - **Coverage:** the rule covers every quantifier in the suite except `dedup_sorted`'s "same elements" clauses, which range over every `int`. Its `ensures` and third invariant are listed as unchecked on every run.
+  - **Unknown left operands:** not evaluating the right operand costs a little precision, since `(and unknown false)` is unknown rather than false, but it never evaluates a guarded expression outside its guard.
+- **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9; `suite/accept/dedup_sorted.b17`.
+
+## D59 · Runs are bounded by fuel and call depth · Proposed
+- **Date:** 2026-10-27
+- **Decision:**
+  - **Fuel:** a run has 1,000,000 steps by default. Each statement executed and each expression evaluated costs one step, in runtime and ghost code alike.
+  - **Depth:** a run allows 1,000 nested def and ghost-fn calls by default.
+  - **Outcome:** running out of either ends the run with `limit(steps)` or `limit(depth)` at the node being run. Neither is an outcome of §8, since the run didn't finish.
+  - **Settings:** both are arguments of `run()`, and the CLI's `--fuel N` sets the first.
+- **Why:** With checking off, nothing stops a loop whose measure doesn't drop. A checked run can meet a quantifier box too large to search. Steps and calls count the same way on every machine, so a run stops at the same node everywhere. A timeout wouldn't, and neither would Python's own recursion limit, which varies with platform and caller (D55's reasoning, applied to runs). The interpreter raises Python's limit in proportion to the depth limit, so the depth limit always stops a run first.
+- **Touches:** WP7; WP15; D55.
+## D60 · Ported ranges are stated per step · Proposed
 - **Date:** 2026-10-27
 - **Decision:**
   - §10's porting rule keeps its aim, that every value a task computes fits in i64, but states it per step: for each loop step, the value that step computes fits, written in the terms the step uses.
@@ -523,7 +608,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
 - **Touches:** D42; `docs/b17-0.md` §10; `suite/accept/` `fib`, `power`, `sum` and `prefix_sums`; the ported-ranges table in `suite/README.md`; WP10.
 
-## D57 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Proposed
+## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Proposed
 - **Date:** 2026-10-27
 - **Decision:** for WP5 and interface 11, and replacing §9's line "vectors, slices and seqs become SMT sequences":
   - **Sequences:** vectors, slices and seqs are an uninterpreted sort per element type, and §9's background facts, with triggers, are their only axioms. SMT-LIB's sequence theory isn't used.
