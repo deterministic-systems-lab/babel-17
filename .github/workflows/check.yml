@@ -1,0 +1,18 @@
+# The b17c self-checks on Linux, for every pull request and every push to main. Reproducing
+# b17c/hashes.txt here, on a machine other than the one that wrote it, is WP2's check that
+# content hashes match across machines (D46). The Dafny harness and the Z3 goal spike need
+# their pinned solver builds, so they stay local for now.
+name: check
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  self-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --no-project --python 3.12 b17c/test_syntax.py
+      - run: uv run --no-project --python 3.12 b17c/test_hashing.py
+      - run: uv run --no-project --python 3.12 b17c/test_interp.py
