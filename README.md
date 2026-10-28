@@ -87,7 +87,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels |
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63) |
 | [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8) |
-| [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny |
+| [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 for M3 (D98) |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 64 from AlgoVeri, 28 from vericoding |
 | [`gym/runs/`](gym/runs/) | One directory per run: `meta.json` holds the configuration and fingerprints, and `attempts.jsonl` every round of every attempt |
 | [`DECISIONS.md`](DECISIONS.md) | Every design decision, with its status |
@@ -113,6 +113,7 @@ uv run --no-project b17c/test_rust.py      # Rust backend: emitted crates compil
 uv run --no-project b17c/test_manual.py    # agent manual: every example has its stated outcome, every code has one (Z3 for proofs)
 uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
+uv run --no-project gym/test_b17.py        # the harness's B17-0 track: tasks, verdicts, one attempt against a fake CLI (needs Z3)
 ```
 
 **The toolchain:**
@@ -137,6 +138,7 @@ Canonical bytes put the module name and header on the first line, then one item 
 uv run --no-project gym/harness.py check-tasks                       # reference solutions verify; contracts well-formed, non-trivial
 uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks abs,fib
 uv run --no-project gym/harness.py run --clis claude,codex,grok --samples 1 --jobs 6 --tasks algoveri/,vericoding/
+uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17/   # M3: the seed tasks in B17-0 (D98)
 uv run --no-project gym/harness.py reverify RUN_ID                   # re-check every recorded verdict
 uv run --no-project gym/harness.py summary RUN_ID [RUN_ID ...]
 ```
@@ -150,6 +152,9 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 **How it works:**
 - **Isolation:** each CLI runs through its own subscription (D13), with tools, web search, user configuration, hooks and MCP servers turned off. The exception is Grok's X search: it runs server-side and can't be disabled, so the harness counts every use.
 - **Frozen contracts:** the agent's code is checked against the task's frozen contracts through a generated wrapper, so it can't weaken them.
+- **The B17-0 track (D98):** the same seed tasks, posed in B17-0 with the agent manual in the prompt. The agent's items join the task module, so restating its spec is an error.
+  - **Verified:** tier 0 passes, every spec has a def, and every goal is proved under 11 seeds. A spec without a def would let a call assume anything.
+  - **Feedback:** between rounds, the agent gets `agent.py check`'s JSON diagnostics. No B17-0 run has been made yet.
 - **Verdicts:** banned constructs (`assume`, `{:axiom}`, `{:verify false}`, `decreases *`, and similar) fail outright, and an exhausted resource budget counts as a failure, never a pass.
 - **Re-checking:** `reverify` re-runs every recorded verdict, and so far each one has reproduced exactly. One did only when run alone: under load, it hit the verifier's wall-clock timeout before Dafny's resource limit, so that timeout is now a 2-hour backstop.
 

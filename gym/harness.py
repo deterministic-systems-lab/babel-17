@@ -5,6 +5,10 @@
     uv run gym/harness.py reverify RUN_ID
     uv run gym/harness.py summary RUN_ID [OTHER_RUN_ID]
 
+B17-0 tasks (M3's track, D98) are b17/NAME, one per seed program in suite/accept/. Each
+poses the program's header, its one spec and the ghost-fns that spec refers to; the agent
+adds a def and any helpers, with docs/manual.md in its prompt, and is verified by b17c.
+
 Each file in gym/tasks/ has three sections: a preamble of frozen definitions, the method
 signature with its contracts, and a hidden reference solution. An agent's code is checked
 as: its code, then the preamble, then a generated <Name>_Check method that calls <Name>
@@ -32,6 +36,7 @@ from pathlib import Path
 
 GYM = Path(__file__).resolve().parent
 TASKS, RUNS = GYM / "tasks", GYM / "runs"
+B17C, SUITE, MANUAL = GYM.parent / "b17c", GYM.parent / "suite" / "accept", GYM.parent / "docs" / "manual.md"
 
 # Z3 rlimit units, same as Dafny's CSV ResourceCount. The heaviest reference proof
 # (merge_sorted) uses 14M; the rest stay under 0.5M.
@@ -104,6 +109,37 @@ The check failed:
 Reply with the complete corrected code in one ```dafny block.
 """
 
+B17_TASK_PROMPT = """Write B17-0 code that passes b17c with every proof goal discharged.
+
+This is B17-0's reference manual:
+
+{manual}
+
+The task module:
+
+```lisp
+{frozen}
+```
+
+Rules:
+- Write a def for the spec {name}. You may add lemmas, ghost-fns, and spec and def pairs for helpers. Every spec you add needs a def.
+- Your items are added to the task module after its items, so don't restate them. Your first line is line {first_line} of the module that's checked.
+- Answer directly without using tools. Reply with your items, and only your items, in one ```lisp block.
+"""
+B17_REPAIR_PROMPT = """
+Your previous items:
+
+```lisp
+{code}
+```
+
+The check failed. These are b17c's diagnostics (D93), with lines counted in the whole module:
+
+{feedback}
+
+Reply with your complete corrected items in one ```lisp block.
+"""
+
 # Dafny identifiers may contain ' and ?, so assume' is a legal name, not the keyword.
 BANNED = {k: rf"(?<![\w'?]){rx}(?![\w'?])" for k, rx in
           {"assume": "assume", "expect": "expect", "decreases *": r"decreases\s*\*", "include": "include"}.items()}
@@ -167,8 +203,49 @@ def load_task(path):
                 solution=sec["solution"], check=check, **meta)
 
 
+def b17c():
+    """b17c's agent and syntax modules, imported on first use: they import each other by bare name."""
+    if str(B17C) not in sys.path:
+        sys.path.insert(0, str(B17C))
+    import agent
+    import syntax
+    return agent, syntax
+
+
+def load_b17_task(path):
+    """A seed task in B17-0 (D98): the suite program's header, its one spec, and the ghost-fns
+    that spec refers to, transitively, cut from its source. Its def and any lemma or ghost-fn
+    only a proof uses are the hidden solution."""
+    _, syntax = b17c()
+    text = path.read_text()
+    m = syntax.parse(text.encode())
+    items = [it for it in m.items[3:] if it.items[0].text != "def"]
+    [spec] = [it for it in items if it.items[0].text == "spec"]
+    fns = {it.items[1].text: it for it in items if it.items[0].text == "ghost-fn"}
+    keep, todo = set(), [spec]
+    while todo:
+        it = todo.pop()
+        if it.items[1].text not in keep:
+            keep.add(it.items[1].text)
+            stack = [it]
+            while stack:  # every name it mentions that's a ghost-fn
+                x = stack.pop()
+                if isinstance(x, syntax.Form):
+                    stack.extend(x.items)
+                elif isinstance(x, syntax.Sym) and x.text in fns:
+                    todo.append(fns[x.text])
+    lines = text.split("\n")
+    offset = lambda pos: sum(len(line) + 1 for line in lines[:pos[0] - 1]) + pos[1] - 1
+    kept = [text[offset(it.pos):offset(it.end) + 1] for it in items if it.items[1].text in keep]
+    frozen = text[:offset(m.items[3].pos)] + "\n  ".join(kept) + ")"
+    dafny = TASKS / f"{path.stem}.dfy"
+    meta = dict(re.findall(r"^// (\w+): (.*)$", dafny.read_text(), re.M)) if dafny.exists() else {}
+    return dict(id=f"b17/{path.stem}", lang="b17", name=spec.items[1].text, frozen=frozen,
+                solution=text, difficulty=meta.get("difficulty"))
+
+
 def load_tasks(only=None):
-    tasks = [load_task(p) for p in sorted(TASKS.rglob("*.dfy"))]
+    tasks = [load_task(p) for p in sorted(TASKS.rglob("*.dfy"))] + [load_b17_task(p) for p in sorted(SUITE.glob("*.b17"))]
     # An entry ending in "/" selects a whole task set, e.g. "algoveri/".
     return [t for t in tasks if not only
             or any(t["id"] == o or (o.endswith("/") and t["id"].startswith(o)) for o in only)]
@@ -183,7 +260,9 @@ def violations(code):
 
 
 def verify(task, code):
-    """Check agent code against a task. Returns (stage, Dafny output)."""
+    """Check agent code against a task. Returns (stage, the checker's output)."""
+    if task.get("lang") == "b17":
+        return verify_b17(task, code)
     with tempfile.TemporaryDirectory() as d:
         f = Path(d) / "program.dfy"
         f.write_text(f"{code}\n\n// ---- appended by the harness ----\n"
@@ -207,10 +286,43 @@ def verify(task, code):
     return f"dafny_exit_{p.returncode}", out
 
 
-def extract_code(text):
+def verify_b17(task, code):
+    """The agent's items added to the task module (D98). Verified when tier 0 passes, every spec
+    has a def, and every goal is proved under the canonical seed and 10 shuffled ones (D23).
+    Specs are modular, so a spec with no def would let a call assume anything."""
+    agent, syntax = b17c()
+    try:
+        m = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode())
+    except syntax.ParseError as e:
+        return "rejected", json.dumps([{"code": e.code, "node": f"module@{e.line}:{e.col}", "message": e.reason}], indent=1)
+    try:
+        if errors := agent.tier0(m):
+            return "rejected", json.dumps(errors, indent=1)
+        defs = {it.items[1].text for it in m.items[3:] if it.items[0].text == "def"}
+        if missing := [it.items[1].text for it in m.items[3:] if it.items[0].text == "spec" and it.items[1].text not in defs]:
+            return "no_def", f"Every spec needs a def, and these have none: {', '.join(missing)}."
+        with tempfile.TemporaryDirectory() as cache:  # a fresh cache, so every verdict is solved anew
+            diags = agent.diagnostics(m, cache=Path(cache))  # as Dafny's are, and reverify is independent
+    except Exception as e:  # a b17c bug, not the agent's: an infrastructure error, retried on resume
+        return "checker_error", f"{type(e).__name__}: {e}"
+    if errors := [d for d in diags if " goal is error" in d["message"]]:  # Z3 itself failed
+        return "checker_error", json.dumps(errors, indent=1)
+    return ("verified", "") if not diags else ("proof_failed", json.dumps(diags, indent=1))
+
+
+def allows_panic(task):
+    """Whether a B17-0 task's spec lists panic: ensures bind only normal returns, so such a spec
+    is met by a def that always panics, and the task would grade nothing."""
+    _, syntax = b17c()
+    spec = next(it for it in syntax.parse(task["frozen"].encode()).items[3:] if it.items[0].text == "spec")
+    effects = next(c for c in spec.items if isinstance(c, syntax.Form) and c.items[0].text == "effects")
+    return any(e.text == "panic" for e in effects.items[1:])
+
+
+def extract_code(text, lang="dafny"):
     blocks = re.findall(r"```(\w*)[^\n]*\n(.*?)```", text, re.S)
-    for lang, body in reversed(blocks):
-        if lang.lower() in ("dafny", "dfy", ""):
+    for fence, body in reversed(blocks):
+        if fence.lower() in (("lisp", "") if lang == "b17" else ("dafny", "dfy", "")):
             return body.strip()
     return None
 
@@ -287,6 +399,12 @@ def call_cli(cli, prompt):
 
 
 def render(task, dafny_version, code=None, feedback=None):
+    if task.get("lang") == "b17":
+        prompt = B17_TASK_PROMPT.format(manual=MANUAL.read_text(), frozen=task["frozen"], name=task["name"],
+                                        first_line=task["frozen"].count("\n") + 2)
+        if feedback is not None:
+            prompt += B17_REPAIR_PROMPT.format(code=code or "(none)", feedback=feedback[:FEEDBACK_CHARS])
+        return prompt
     preamble = PREAMBLE_BLOCK.format(preamble=task["preamble"]) if task["preamble"] else ""
     prompt = TASK_PROMPT.format(dafny_version=dafny_version, signature=task["signature"],
                                 preamble_block=preamble, name=task["name"])
@@ -301,19 +419,24 @@ def run_attempt(task, cli, sample, max_iters, dafny_version, log):
         prompt = render(task, dafny_version, code, feedback)
         start = time.time()
         reply = call_cli(cli, prompt)
-        rec = dict(attempt=attempt_id, task=task["id"], difficulty=task.get("difficulty"),
+        lang = task.get("lang", "dafny")
+        rec = dict(attempt=attempt_id, task=task["id"], lang=lang, difficulty=task.get("difficulty"),
                    cli=cli, sample=sample, iter=it, prompt_sha=sha(prompt))
         if "error" in reply:
             log(dict(rec, stage="infra_error", final=True, error=reply["error"],
                      errors=reply["errors"]))
             return
-        new = extract_code(reply["text"])
+        new = extract_code(reply["text"], lang)
         if new is None:
-            stage, feedback = "no_code", "No ```dafny code block was found in your reply."
-        elif bad := violations(new):
+            fence = "lisp" if lang == "b17" else "dafny"
+            stage, feedback = "no_code", f"No ```{fence} code block was found in your reply."
+        elif lang == "dafny" and (bad := violations(new)):
             stage, feedback = "banned", f"Your code uses constructs that are not allowed: {', '.join(bad)}."
         else:
             stage, feedback = verify(task, new)
+        if stage == "checker_error":  # like a failed call: not a verdict on the agent, so resume retries it
+            log(dict(rec, stage="infra_error", final=True, error=feedback, errors=reply["errors"], code=new))
+            return
         code = new if new is not None else code
         done = stage == "verified" or it == max_iters
         log(dict(rec, stage=stage, final=done, seconds=round(time.time() - start, 1),
@@ -334,11 +457,16 @@ def tool_version(cmd):
 
 def settings(tasks, dafny_version):
     """What a run's verdicts depend on; resume and reverify refuse if any of it changed."""
-    return dict(tasks=[t["id"] for t in tasks],
-                task_sha={t["id"]: sha(json.dumps(t, sort_keys=True)) for t in tasks},
-                prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT),
-                dafny=dafny_version, dafny_args=DAFNY, z3=tool_version(["z3", "--version"]),
-                harness_sha=sha(Path(__file__).read_text()))
+    s = dict(tasks=[t["id"] for t in tasks],
+             task_sha={t["id"]: sha(json.dumps(t, sort_keys=True)) for t in tasks},
+             z3=tool_version(["z3", "--version"]), harness_sha=sha(Path(__file__).read_text()))
+    if any(t.get("lang", "dafny") == "dafny" for t in tasks) or not tasks:  # Dafny verdicts rest on Dafny
+        s |= dict(prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT), dafny=dafny_version, dafny_args=DAFNY)
+    if any(t.get("lang") == "b17" for t in tasks):  # B17-0 verdicts rest on b17c and the manual
+        sources = sorted(B17C.glob("*.py")) + [B17C / "core.b17"]
+        s |= dict(b17_prompt_sha=sha(B17_TASK_PROMPT + B17_REPAIR_PROMPT + MANUAL.read_text()),
+                  b17c_sha=sha("".join(f.name + f.read_text() for f in sources if not f.name.startswith("test_"))))
+    return s
 
 
 def sample_key(r):
@@ -357,6 +485,17 @@ def cmd_check_tasks(args):
     so the task is solvable in principle). Imported tasks with no solution skip the first."""
     bad = 0
     for t in load_tasks(args.tasks):
+        if t.get("lang") == "b17":  # the suite program verifies; the task alone has no def
+            ok, out = verify_b17(dict(t, frozen=t["solution"].rstrip()), "")
+            stub, stub_out = verify_b17(t, "")
+            if allows_panic(t):
+                ok, out = "allows_panic", "a task spec that allows panic is met by a def that always panics"
+            fine = ok == "verified" and stub == "no_def"
+            bad += not fine
+            print(f"{'ok ' if fine else 'BAD'} {t['id']:34} solution={ok:13} no-def={stub}")
+            if not fine:
+                print("    " + (out if ok != "verified" else stub_out).replace("\n", "\n    ")[:2000])
+            continue
         # A frozen preamble with assume or {:axiom} hands every solution an unproved fact.
         banned = violations(t["preamble"]) + violations(t["solution"])
         ok, out = (("banned", ", ".join(banned)) if banned else
@@ -418,7 +557,7 @@ def cmd_reverify(args):
     tasks = {t["id"]: t for t in load_tasks(meta["tasks"])}
     now = settings(list(tasks.values()), tool_version(["dafny", "--version"]))
     # Verdict changes from a harness edit show up as mismatches below, so its hash isn't required.
-    changed = [k for k in now if k not in ("prompt_sha", "harness_sha") and meta.get(k) != now[k]]
+    changed = [k for k in now if k not in ("prompt_sha", "b17_prompt_sha", "harness_sha") and meta.get(k) != now[k]]
     if changed:
         sys.exit(f"can't reverify {args.run_id}: {', '.join(changed)} changed since the run")
     recs = [r for r in read_records(RUNS / args.run_id)
@@ -440,9 +579,11 @@ def summarize(run_id):
     finals = {sample_key(r): r for r in sorted((r for r in recs if r.get("final")),
                                                 key=lambda r: r["stage"] != "infra_error")}
     stats = {}
-    for cli in sorted({r["cli"] for r in finals.values()}):
-        done = [r for r in finals.values() if r["cli"] == cli and r["stage"] != "infra_error"]
-        used = [r for r in recs if r["cli"] == cli and sample_key(r) in finals]
+    # B17-0 attempts count apart from Dafny ones, as CLI/b17; records from before D98 are Dafny's.
+    track = lambda r: r["cli"] + ("/b17" if r.get("lang") == "b17" else "")
+    for cli in sorted({track(r) for r in finals.values()}):
+        done = [r for r in finals.values() if track(r) == cli and r["stage"] != "infra_error"]
+        used = [r for r in recs if track(r) == cli and sample_key(r) in finals]
         won = [r for r in done if r["stage"] == "verified"]
         tokens = sum(r.get("tokens_in", 0) + r.get("tokens_out", 0) for r in used)
         stats[cli] = dict(
@@ -451,7 +592,7 @@ def summarize(run_id):
             mean_iters_to_verify=round(sum(r["iter"] for r in won) / len(won), 2) if won else None,
             tokens_per_verified=round(tokens / len(won)) if won else None,
             calls_using_tools=sum(r.get("tool_items", 0) > 0 for r in used),
-            infra_errors=sum(r["stage"] == "infra_error" for r in finals.values() if r["cli"] == cli),
+            infra_errors=sum(r["stage"] == "infra_error" for r in finals.values() if track(r) == cli),
             final_stages={s: sum(r["stage"] == s for r in done) for s in sorted({r["stage"] for r in done})},
             by_difficulty={d: f"{sum(r['stage'] == 'verified' for r in done if r.get('difficulty') == d)}"
                               f"/{sum(r.get('difficulty') == d for r in done)}"

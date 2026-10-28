@@ -77,13 +77,11 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **D98, M3's B17-0 track:** how the seed tasks are posed in the harness, with the manual in context, and what counts as verified.
-
-D79–D97 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D98 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text** is drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92 accepted. Its labelled suite in `suite/b17-1/` comes next. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
-2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. It needs a B17-0 track in the harness, proposed as D98, with agents learning from the manual in context (D8). It's set against the Dafny baselines already recorded.
+2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0. It extends to B17-1 with the rest of the toolchain, emitting data types as Rust enums (D79).
@@ -112,7 +110,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 **The head-to-head experiment** is called M3 in the activity log.
 - **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It can start on B17-0's tasks and add B17-1's when B17-1 freezes (D65).
 - **What it measures:** the success metrics: verified pass rate, repair rounds and tokens per verified task.
-- **What it needs:** a B17-0 track in the harness, now that WP5, WP6 and WP8 are done for B17-0, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
+- **What it needs:** with WP5, WP6, WP8 and the harness's B17-0 track done, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
 - **How it's used:** its results steer the design (D14).
 
 ## Phase 2

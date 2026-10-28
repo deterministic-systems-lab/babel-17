@@ -1233,7 +1233,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Pinning:** D23 pins the solver for the same reason. A newer rustc can add lints or change code generation, and the report must name the toolchain a binary came from (D25).
 - **Touches:** D18; D23; D25; D59; WP7; `.github/workflows/check.yml`.
 
-## D98 · M3's B17-0 track in the harness · Proposed
+## D98 · M3's B17-0 track in the harness · Accepted
 - **Date:** 2026-10-28
 - **Decision:** `gym/harness.py` gains a B17-0 track. It runs the same CLIs, isolation, samples and round limit as the Dafny track (WP17), so only the language differs.
   - **Tasks:** the 20 seed tasks, from `suite/accept/`. Each poses:
