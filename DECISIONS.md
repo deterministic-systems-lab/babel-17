@@ -148,7 +148,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62)
+## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62, WP10 and WP11 edges by D65)
 - **Date:** 2026-10-26
 - **Decision:** WP4 splits:
   - **WP4a, the spec language:** depends on WP3.
@@ -706,7 +706,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Recording the goal lets later design decisions be judged against it.
 - **Touches:** D14; D20; Summary; Type system; Verification model; Standard library; Training environment; WP7; WP10; WP11; `README.md`; `docs/roadmap.md`.
 
-## D65 · The language grows in subsets alongside the phases, and B17-1 is part of Phase 1 · Proposed
+## D65 · The language grows in subsets alongside the phases, and B17-1 is part of Phase 1 · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Two tracks:** the phases build the toolchain, and the language grows alongside them in subsets: B17-0, B17-1 and on. Each subset takes B17-0's path:

@@ -678,3 +678,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Critical path:** it still put WP10 off the path. A second path of the same length now runs through B17-1 and WP10, and M3's needs separate the seed ports from the AlgoVeri ports.
   - **Prerequisites:** the later-subset list dropped §11's: mutual recursion waits for group hashing (D22), and vector capacity for allocation bounds (D30). Both are restored.
   - **One subset at a time:** the roadmap said each subset freezes before the next starts, which D65 doesn't decide. Removed.
+
+## 2026-10-28 · D65 accepted
+- **Owner decision:** accepted D65. B17-1 is part of Phase 1 and its gate, and the language grows in subsets alongside the phases.
+- **Records:** D21 is marked as amended by D65. That covers WP10's dependency on B17-1 for its AlgoVeri ports, and through it WP11's.
+- **Roadmap:** D65 is no longer marked proposed, and no decisions are waiting.

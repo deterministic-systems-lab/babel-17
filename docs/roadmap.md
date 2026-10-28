@@ -4,7 +4,7 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
-- **Two tracks:** the phases build the toolchain, and the language grows alongside them in subsets, from B17-0 to B17-1 and on (D65, proposed). See [How the language grows](#how-the-language-grows).
+- **Two tracks:** the phases build the toolchain, and the language grows alongside them in subsets, from B17-0 to B17-1 and on (D65). See [How the language grows](#how-the-language-grows).
 - **Phases, ordered by risk:** Babel-17 is built in five phases, ordered by risk rather than by date.
 - **Gates:** each phase ends at a gate, and the next phase doesn't start until that gate passes.
 - **Benchmarks:** they steer the design, by showing which features help agents and which only cost tokens. They don't decide whether the language gets built (D14).
@@ -18,7 +18,7 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 | Phase | What it builds | Gate to leave it |
 |---|---|---|
 | **0. Core semantics** | B17-0's written semantics and accept/reject suite (WP1a); the canonical form and content hashes (WP2); the reference interpreter (WP15); the baseline harness (WP17) | WP1a is frozen, WP2's round-trip tests pass, and WP15 passes its conformance tests (D16) |
-| **1. Embedded MVP** | The checker, spec language, verifier, agent diagnostics, a backend that emits safe Rust, the agent manual, the core spec library and benchmark ports; B17-1, the second language subset (D65, proposed) | B17-1 is frozen, and every ported benchmark task, B17-1's included, verifies end to end and runs as emitted Rust (D18, D65) |
+| **1. Embedded MVP** | The checker, spec language, verifier, agent diagnostics, a backend that emits safe Rust, the agent manual, the core spec library and benchmark ports; B17-1, the second language subset (D65) | B17-1 is frozen, and every ported benchmark task, B17-1's included, verifies end to end and runs as emitted Rust (D18, D65) |
 | **2. Training loop** | The training environment (`b17c gym`), and a model trained in it | A gym-trained model beats off-the-shelf models writing Dafny or Verus on held-out tasks. It must also beat the same base model trained on Dafny with equal compute (D31). |
 | **3. Native backend** | A native backend whose every lowering pass is checked by translation validation; the package registry; a Rust rewrite of `b17c`, shipped as one binary (D10, D19) | Verified Babel-17 matches hand-written Rust on a benchmark suite |
 | **4. Optimizer and ecosystem** | An ML optimizer behind a translation validator, superoptimization, FFI and a first production service | — |
@@ -60,9 +60,7 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-- **D65:** the language grows in subsets alongside the phases, and B17-1 is part of Phase 1.
-
-D56–D64 were accepted on 2026-10-28.
+None. D56–D65 were accepted on 2026-10-28.
 
 ### Left before the Phase 0 gate
 1. Build WP3's checker until it agrees with every tier 0 label in the suite.
@@ -121,7 +119,7 @@ Agents first learn B17-0 from the manual in context, and models are trained in P
 
 ## How the language grows
 
-The phases build the toolchain. The language grows alongside them in subsets (D65, proposed). A subset takes B17-0's path:
+The phases build the toolchain. The language grows alongside them in subsets (D65). A subset takes B17-0's path:
 1. a decision on its scope;
 2. spec text and a labelled suite;
 3. the interpreter, checker and verifier extended to it;
