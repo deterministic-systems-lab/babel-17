@@ -48,7 +48,12 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
   - Claude, Codex, Gemini and Grok each verified all 60 seed attempts in Dafny.
   - On AlgoVeri, Claude verified 64 of 66 tasks and Codex 60 of 66.
   - Both sets are near the ceiling for current models, so a harder set from vericoding is running now, against Claude, Codex and Grok.
-- **CI** runs the `b17c` self-checks on Linux for every pull request.
+- **WP16, the core spec library,** is under way on the assumption that D62 is accepted.
+  - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
+  - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
+  - **The goal spike proves every law** under 10 shuffled seeds.
+  - **Not in the library:** three of §9's facts. `push`'s effect is a statement fact. `set-idx`'s multiset effect would need a take-and-drop fact §9 lacks. Multiset extensionality ranges over every `int`, which the interpreter can't evaluate.
+- **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
 All of these are Proposed in [DECISIONS.md](../DECISIONS.md).
@@ -83,7 +88,7 @@ From D21's dependency table, the critical path to the Phase 2 gate is WP1a, WP2,
 |---|---|---|---|
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | WP1a, WP2 | It agrees with every tier 0 label in the suite |
 | WP4a | The spec language | WP3 | Proposed (D62): done when WP1a freezes, since B17-0 already has a spec language |
-| WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP4a, WP15 | Every entry has witness examples that the interpreter confirms (D28) |
+| WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP4a, WP15 | Every entry has witness examples that the interpreter confirms (D28). In progress: met for its 33 laws and 3 ghost-fns. |
 | WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP4a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. The goal spike is its starting point. |
 | WP6 | Agent protocol and diagnostics | WP3, WP4a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8) |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP4a, WP5, WP15 | They run on the worked example |

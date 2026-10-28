@@ -24,6 +24,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP4a | The spec language | Proposed (D62): done when WP1a freezes, since B17-0 already has one. |
 | WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)). It checks the suite's proof labels: 17 of 20 accept programs prove under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled (D60, D61). |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces) and D56–D59 are proposed. |
+| WP16 | Core spec library | In progress (D62): [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the goal spike proves each. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
 
 [docs/roadmap.md](docs/roadmap.md) covers all five phases, what's left before the Phase 0 gate, and what comes after it.
@@ -69,7 +70,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`suite/`](suite/) | 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
-| [`b17c/core.b17`](b17c/core.b17) | The core library prelude: `sorted` and `in_i64` |
+| [`b17c/core.b17`](b17c/core.b17) | The core library (WP16): `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
 | [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59) |
 | [`b17c/goals.py`](b17c/goals.py) | Spike: proof goals for the suite, checked with Z3 (§9) |
@@ -85,12 +86,13 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 - [uv](https://docs.astral.sh/uv/), with Python 3.11 or later. Everything runs through `uv run`, and `b17c` uses only the standard library.
 - To run benchmarks: Dafny 4.11.0 with Z3 5.3.2, plus the agent CLIs you want to compare: `claude`, `codex`, `agy` or `grok`.
 
-**Self-checks.** Each one prints a line ending in "passed". CI runs the first three on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
+**Self-checks.** Each one prints a line ending in "passed". CI runs the first four on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
 
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested
 uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits
 uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and the suite
+uv run --no-project b17c/test_core.py      # core library: every law confirmed by the interpreter (WP16's witnesses)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 ```
 
