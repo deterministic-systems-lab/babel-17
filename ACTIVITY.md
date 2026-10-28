@@ -416,3 +416,15 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - checking the spike against the interpreter's traces, once WP15 lands.
 
   Codex is reviewing the spike for soundness.
+
+## 2026-10-27 · Goal spike: recursive ghost-fns made sound
+- **Found** while probing the spike's soundness, a probe Codex's review had started before OpenAI's content filter ended it.
+  - The spike gave Z3 each recursive ghost-fn as an unconditional recursive definition.
+  - A body like `(+ (bad n) 1)` makes that definition contradictory, and a contradiction proves every goal, including the termination goal that should reject it.
+  - On the suite, no ghost-fn had this problem.
+- **Fixed:** a recursive ghost-fn's equation is now an axiom that holds only under its `requires`, and its own goals are checked without it. The probe's termination goal now fails, and so does a wrong postcondition next to a well-defined ghost-fn. Proposed in D57.
+- **Rerun:**
+  - **Accept:** 17 of 20 prove every goal, with no contradictory assumptions among their 406.
+  - **`fib`:** it now proves too, but only after 8,130 quantifier instantiations and 4.86M of the 10M-unit budget. That's likely to fail under shuffled seeds, so D56's step form still applies to it.
+  - **Still not proved:** `power`, `sum` and `prefix_sums`.
+  - **Proof rejects:** 9 of 9 still fail exactly their labelled family.
