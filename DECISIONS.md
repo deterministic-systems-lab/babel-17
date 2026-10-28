@@ -983,7 +983,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
     - two data types may not contain each other (`E-TERM-002`);
     - a data type never contains itself inside an `iset`, `map` or `multiset`.
   - **Subtyping, in ghost code:** tuples are covariant in their components, as `seq` is. `iset` and `map` have no rule, as `multiset` has none (D70). A data type is covariant in some parameters and invariant in the rest:
-    - a parameter is invariant when one of its occurrences in the fields sits inside an `iset`, `map` or `multiset`, or is the argument for another type's invariant parameter;
+    - a parameter is invariant when one of its occurrences in the fields sits inside an `iset`, `map` or `multiset`, or is the argument for an invariant parameter of any data-type application, the type's own recursive ones included;
     - the module's variances are the largest assignment that satisfies this, found by starting with every parameter covariant.
 - **Why:**
   - **Runtime types:** D79 asks that no runtime value hold a borrow or an unbounded integer. This is that rule stated over types.
@@ -1083,7 +1083,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 ## D90 · Quantifiers bind only types the encoding states exactly · Proposed
 - **Date:** 2026-10-28
 - **Decision:**
-  - **Allowed binder types:** a binder of `forall`, `exists` or `iset-of` has an exact type. `bool` and `int` are exact; a `seq`, `iset` or tuple is exact when its parts are; a data type is exact when every field type of every constructor is, after substitution, with its own recursive occurrences counting as exact.
+  - **Allowed binder types:** a binder of `forall`, `exists` or `iset-of` has an exact type. `bool` and `int` are exact; a `seq`, `iset` or tuple is exact when its parts are; a data type is exact when every field type of every constructor is, after substitution, with its own recursive occurrences counting as exact unless reached through a `seq`, where D61's uninterpreted sequences would admit a cyclic value.
   - **Rejected:** any other binder is `E-TYPE-001`, so `i64`, a vector, a slice, a `multiset` or a `map` anywhere inside, a data type's fields included, makes a binder fail. D68's `i64` binder rule is the same rule for B17-0's types.
   - **Ports:** `edmond_karp` and `push_relabel`, which quantify over flows stated as maps, state a flow as a sequence of sequences of `int` instead.
 - **Why:**
@@ -1094,7 +1094,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 
 ## D91 · L2's closure covers the ghost-fns a proof unfolds · Proposed (refines D80)
 - **Date:** 2026-10-28
-- **Decision:** a proof that unfolds a ghost-fn assumes its defining equation. It counts for L2 only once every goal of that ghost-fn counts too: the well-definedness of its `requires`, its measure and its body, and its termination, and likewise for the ghost-fns those goals unfold. This adds a fourth item to D80's list of what a proof may assume, after earlier goals on the path, callees' `ensures` and lemmas' claims.
+- **Decision:** a goal's canonical query includes the defining equations of the ghost-fns it uses (D63), and a proof may rest on any of them. It counts for L2 only once every goal of each such ghost-fn counts too: the well-definedness of its `requires`, its measure and its body, and its termination, and likewise, transitively, for the ghost-fns those goals' queries include. WP5 solves a goal again without an equation that doesn't count. This adds a fourth item to D80's list of what a proof may assume, after earlier goals on the path, callees' `ensures` and lemmas' claims.
 - **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
 - **Touches:** D63; D80; WP5; `docs/b17-1.md` §10.
 
@@ -1104,6 +1104,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Data items** have only a spec hash, covering the whole item, as ghost-fns do. Inside one, its own name becomes `_`, its type parameters `$0`, `$1`, … in order, its constructors `#0`, `#1`, … in order, and its fields `.0`, `.1`, … across all its constructors in declaration order.
   - **References:** a data type's name becomes its spec hash H, a constructor H's `#i`, and a field `.k`, wherever they're used.
   - **Binders:** case-pattern names and `iset-of` variables are numbered with D45's other binders.
+  - **Namespaces:** names resolve in their own namespace (D82), so a data type and a ghost-fn named alike hash apart.
   - **One data type per hash:** two data items with the same spec hash in a module are `E-TYPE-002`, as two specs are.
 - **Why:**
   - **References by hash:** editing a data type then rehashes every spec that mentions it, as editing a ghost-fn does. A layout change must re-verify what depends on it.
