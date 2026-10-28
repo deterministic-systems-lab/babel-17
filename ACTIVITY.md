@@ -886,3 +886,16 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Fuzzing:** random ghost expressions full of empty literals, in 1,462 modules that pass tier 0, over three seeds. The old code broke on 5 of its first 7; the new code breaks on none.
 - **Proofs and tests added:** `test_verify.py` cases for boolean multisets, empty literals typed by their context, a borrowed argument, a sequence-valued `if` in a comparison, and a module that fails tier 0. Every `b17c` self-check passes.
 - **Left admitted:** none.
+
+## 2026-10-28 · D79 and D80 accepted
+- **Accepted by the owner:** D79, B17-1's scope, and D80, its verification levels (PR #19).
+- **Refinements recorded:** D79 refines D65's WP4a clause, and D80 refines D63's rule for the level a module reaches. Both headings say so.
+- **WP4a stays done.** B17-1 adds no data-type invariants or refinement links (D79).
+- **Updated:**
+  - the README's status and WP4a row;
+  - the roadmap's decisions waiting, next steps, and its WP4a, B17-1 and WP10 rows;
+  - the roadmap's B17-1 and later-subsets rows under How the language grows.
+- **Next:** B17-1's spec text and labelled suite, as B17-0's were, then the checker, interpreter and verifier extend to it.
+- **Interfaces touched:** none yet. B17-1's spec text will change interfaces 1, 6, 10 and 11 (D79), and 4 and 5 (D80).
+- **Proofs and tests added:** none.
+- **Left admitted:** none.
