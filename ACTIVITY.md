@@ -499,6 +499,33 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
   Merging a PR doesn't accept the decisions it proposes, so D56–D61 are still Proposed.
 
+## 2026-10-28 · Goal spike: proof stability under shuffled seeds
+- **Added:** `b17c/goals.py --seeds N`. A goal counts as proved only if it is also proved under N shuffled seeds of Z3's SMT and SAT cores (D23). Otherwise it's reported as brittle.
+- **First run, 10 seeds:**
+  - 15 accept programs held under every seed.
+  - `fib`'s overflow goal held under 7 of 10.
+  - Two of `dedup_sorted`'s goals held under 6 and 7 of 10: the invariant and the `ensures` that its output has the same elements as its input.
+- **`dedup_sorted`'s cause:** `contains` is an existential, so each proof had to find a witness index.
+  - Restating the clauses over indices, as WP15's activity entry suggests, makes them checkable by the interpreter but stays brittle (8 and 5 of 10).
+  - Giving `contains` the facts that follow directly from §9's makes all 25 of its goals hold under every seed: over `concat` it is `or`, a one-element sequence contains only its element, and the empty sequence contains nothing. Proposed as part of D61.
+- **Final run, 10 seeds:**
+
+  | Set | Result |
+  |---|---|
+  | Accept, every goal under every seed | 17 of 20 |
+  | Accept, failing | `power` (2 of 10 seeds), `sum` and `prefix_sums` (no seed) |
+  | Proof rejects, failing exactly their labelled family | 9 of 9 |
+  | Accept goals with contradictory assumptions | 0 of 406 |
+
+  The full run takes 2 minutes.
+- **`fib` and `power` are luck under the prefix form.** The `contains` change, which has nothing to do with them, moved `fib` from 7 to 10 seeds and `power` from 0 to 2. With D60's step form, all four range programs hold under every seed in both encodings. `fib`'s goal then takes 9 quantifier instantiations and 21,542 units, against 4,333 and 1.74M before.
+
+## 2026-10-28 · CI on Linux; hashes match across machines
+- **Added:** `.github/workflows/check.yml`. It runs `test_syntax`, `test_hashing` and `test_interp` on Ubuntu with Python 3.12, for every pull request and every push to main.
+- **WP2's last done-when:** on its first run (Actions run 40609086707), `test_hashing` reproduced `b17c/hashes.txt` exactly. The file was written on macOS with Python 3.11. Content hashes therefore match across machines (D46). With the parse-print round trips, both of WP2's done-whens now pass.
+- **Left out of CI:** the Dafny harness and the Z3 goal spike need their pinned solver builds (D23).
+- **WP2 still to do,** though neither item is part of its done-when: the manifest and lockfile schemas (interface 7, D26), and typed edit operations (interface 2).
+
 ## 2026-10-28 · WP4a's scope proposed (D62)
 - **Why:** the roadmap noted that WP4a, next after WP3 on D21's critical path, had no definition or test.
 - **Finding:** B17-0 already defines a spec language: headers, specs, ghost-fns, lemmas, and §7's well-formedness rules. The goal spike discharges the well-formedness goals of every suite spec. The design spec's other spec features either aren't needed (frames, given ownership) or need language growth Phase 1 doesn't plan (data-type invariants, refinement links, resource contracts).
