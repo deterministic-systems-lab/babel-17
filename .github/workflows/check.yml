@@ -17,3 +17,4 @@ jobs:
       - run: uv run --no-project --python 3.12 b17c/test_hashing.py
       - run: uv run --no-project --python 3.12 b17c/test_interp.py
       - run: uv run --no-project --python 3.12 b17c/test_core.py
+      - run: uv run --no-project --python 3.12 b17c/test_check.py

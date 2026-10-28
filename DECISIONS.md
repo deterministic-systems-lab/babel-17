@@ -732,3 +732,116 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Why B17-1 in Phase 1:** WP10 needs it for AlgoVeri-class tasks. D64 also needs L0 and L1 early, so that domains without precise specs aren't shut out.
   - **Why later subsets stay unscheduled:** finding which features help agents is what the benchmarks are for (D14, D20).
 - **Touches:** D14; D18; D20; D21; D22; D30; D44; D62; D64; WP1a; WP4a; WP7; WP10; WP11; M3; `docs/b17-0.md` §11; `docs/roadmap.md`; `README.md`.
+## D66 · Locals are scoped to their block, and results share the parameters' names · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - A local is visible from its declaration to the end of the innermost `block`, loop body or `if` branch that declares it. A branch is a single statement, so a `let` that forms a whole branch is visible nowhere after it. Using a local outside that range is `E-TYPE-002`, as for any undefined name.
+  - D41's uniqueness still covers the whole item: two locals may not share a name even in separate blocks.
+  - A spec's results take part in D41 with its parameters, so a result may not share a name with a parameter or another result (`E-TYPE-002`). A def's locals may still reuse result names (§2).
+- **Why:** §2 says names are unique within an item, and that results are in scope only in `ensures`, but not where a local stops being visible. Without block scoping, `(if c (let y i64 1) (block)) (return y)` would read a local that only one path declares. A parameter and a result with the same name would make `ensures` ambiguous.
+- **Touches:** WP3; D41; `docs/b17-0.md` §2.
+
+## D67 · A name of the wrong kind is a type error · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Wrong kind, `E-TYPE-001`:**
+    - an item used as a value, such as `(return g)` for a ghost-fn g;
+    - a spec or lemma called as `(NAME e*)`;
+    - a ghost-fn called with `(call ...)` in ghost code;
+    - a parameter, local or binder called as either.
+
+    In runtime code, any ghost-fn call is `E-GHOST-002`.
+  - **No item or binding by that name:** `E-TYPE-002`.
+  - **A def with no spec:** reported once (`E-TYPE-002`). Its body isn't checked, since the spec supplies its parameters and results, and calls to it aren't either (D78).
+- **Why:** §9 files undefined names under `E-TYPE-002` but says nothing of names that exist with the wrong kind. Treating those as type errors keeps "undefined" meaning undefined. Checking an orphan def's body would report every parameter it uses as undefined, which is one error cascading into many.
+- **Touches:** WP3; `docs/b17-0.md` §9's tier 0 table.
+
+## D68 · Which types are well-formed · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Element types:** a `(vec T)` or `(ref (slice T))` holds `bool` or `i64` (§3). A `(seq T)` or `(multiset T)` holds `bool`, `i64` or `int`, so collections never nest (§11). Anything else is `E-TYPE-001`.
+  - **Binders:** `forall` and `exists` bind `int` or `bool` only (§7), so an `i64` binder is `E-TYPE-001`.
+  - **Ghost types in runtime places:** `int`, `(seq T)` and `(multiset T)` are `E-GHOST-002` as a spec's parameter or result type, or as the type of a `let`, `let-mut` or a call's result binding.
+- **Why:** §3 gives the element types of vectors and §11 rules out nested collections, but neither names a code. A malformed type is a type error. A well-formed ghost type in a runtime place is §9's "ghost type in runtime context".
+- **Touches:** WP3; `docs/b17-0.md` §3, §7, §11.
+
+## D69 · Slices are spec parameters, and borrows are def-call arguments · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Slice types:** only a spec's parameters may have one. Anywhere else is `E-OWN-002`: a result, a `let`, a ghost local, or a ghost-fn's or lemma's parameter or result.
+  - **Borrows:** `(borrow v)` may appear only as an argument of a def call, whose parameter is a slice. Anywhere else, including a lemma call's arguments and ghost code, is `E-OWN-002`. The borrowed variable must be a live vector (`E-OWN-001`, or `E-TYPE-001` if it isn't a vector).
+- **Why:** §3 calls slices "parameters only" and §5 lets a borrow "appear only as a call argument", without saying which parameters or which calls. Ghost code already views a vector as a `(seq T)` (§3) without a borrow, so the strict reading costs nothing.
+- **Touches:** WP3; D36; `docs/b17-0.md` §3, §5.
+
+## D70 · Ghost typing: integers, literals and multisets · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Arithmetic:** ghost arithmetic and `neg` produce `int` (§7's Arith-G), and `int` isn't an `i64`. So a ghost local, ghost-fn result or parameter declared `i64` takes only an `i64`-typed expression, such as an `i64` variable, and `(ghost-let g i64 (+ x 1))` is `E-TYPE-001`.
+  - **Literals:** an integer literal takes its type from its context (§4):
+    - in runtime code it is an `i64` and must fit in i64 (`E-TYPE-001`, D53);
+    - in ghost code it is an `int` of any size, unless its destination is `i64`, where it must fit.
+  - **Subtyping:** it is exactly §3's. In particular `(multiset T)` has none, so `(== (multiset a) (multiset (seq-lit 1)))` with `a` a vector of `i64` compares `(multiset i64)` with `(multiset int)` and is `E-TYPE-001`.
+  - **Sequence operations:** `len`, `idx`, `take`, `drop`, `last`, `contains` and `occurrences` take sequences (vectors, slices or seqs), never multisets.
+  - **Element types left open:** an empty `seq-lit`, and a `(vec-new)` whose context fixes no element type, take one from wherever they're used, and are never an error on their own.
+    - An element read from one, by `idx` or `last`, takes its destination's type, which can't be a collection (D68). With no destination, it's an integer: `int` in ghost code and `i64` in runtime code.
+- **Why:** §3 lists the subtyping rules exactly, and these are the readings that add no rule of their own. Covariant multisets and implicit `int`-to-`i64` narrowing would both be new rules.
+- **Touches:** WP3; D34; D53; `docs/b17-0.md` §3, §4, §7.
+
+## D71 · Comparing collections is ghost-only · Proposed
+- **Date:** 2026-10-28
+- **Decision:** `==` and `!=` on vectors, slices, seqs or multisets in runtime code are `E-GHOST-002`.
+- **Why:** §7's Cmp rule allows equality on collections in ghost context only. That makes it a ghost-only operation, which is the case §9's table files under `E-GHOST-002`.
+- **Touches:** WP3; `docs/b17-0.md` §7, §9.
+
+## D72 · A vector appears in at most one argument · Proposed
+- **Date:** 2026-10-28
+- **Decision:** §5's rule 7 counts arguments. A vector variable may appear in at most one of a call's arguments, and in at most one of a return's expressions, however it appears there: owned, borrowed, or only read, as in `(len v)`. So `(call g (borrow v) (len v))` and `(return v (len v))` are `E-OWN-005`. Several appearances inside one argument count as one, as in `(+ (idx v 0) (len v))`. Lemma calls are ghost and aren't counted.
+- **Why:** The rule says "at most once among a call's arguments, whether owned or borrowed", which on the strict reading covers any appearance. Counting per argument keeps the rule about aliasing between arguments. It matches Rust, which rejects `f(v, v.len())` and `(v, v.len())`.
+- **Touches:** WP3; D36; `docs/b17-0.md` §5, §7.
+
+## D73 · An owned vector argument is a variable · Proposed
+- **Date:** 2026-10-28
+- **Decision:** An argument for a `(vec T)` parameter must be a variable, which then moves (§7). `(vec-new)`, a `seq-build` or any other expression in that place is `E-OWN-006`.
+- **Why:** §7 says "An owned vector argument must be a live variable, which then moves." `E-OWN-006` is already the code for a vector expression of the wrong form. A program writes `(let-mut v (vec i64) (vec-new))` first and passes `v`.
+- **Touches:** WP3; `docs/b17-0.md` §7.
+
+## D74 · A call's results are always bound · Proposed
+- **Date:** 2026-10-28
+- **Decision:** `(call f ...)` as a statement is only for a callee with no results, which means a lemma or a spec that returns nothing. When f's spec declares results, they must be bound by `(let ((x T) ...) (call f ...))`, one name per result, and dropping them is `E-TYPE-001`.
+- **Why:** §7 binds results "one name per declared result". Never dropping them means an owned vector can't be lost by accident, and a result list stays something only a call's `let` can hold (§8, D43).
+- **Touches:** WP3; D43; `docs/b17-0.md` §7.
+
+## D75 · Which statement changes which binding · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - `set`, `set-idx` and `push` change runtime locals, and `ghost-set` changes ghost locals. Targeting the other kind is `E-GHOST-001`, since it would let ghost and runtime state mix.
+  - Changing a binding that can't change is `E-OWN-003`: a parameter (of a spec, lemma or ghost-fn), a `let` or a `ghost-let`.
+  - In a lemma body, `(return e ...)` with values is `E-GHOST-003`, like any other runtime statement there.
+- **Why:** §5 rule 5 and §7 give the mutability rules for runtime locals, and §7 says ghost statements "act on ghost locals only", but neither names a code for crossing between the two.
+- **Touches:** WP3; `docs/b17-0.md` §5, §7.
+
+## D76 · A loop body leaves vectors exactly as it found them · Proposed
+- **Date:** 2026-10-28
+- **Decision:** §5's rule 6 applies both ways. A loop body whose normal end leaves an outer vector moved that was live at its start is `E-OWN-004`, and so is one that leaves an outer vector live that had moved before the loop, by giving it a new value with `set`. Vectors the body declares itself aren't outer.
+- **Why:** After the loop, the vector's state would depend on how many times the body ran, which is what "in the state it found it" rules out.
+- **Touches:** WP3; `docs/b17-0.md` §5, §7.
+
+## D77 · A loop may always end, and unreachable code is still checked · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - For `E-RET-001`, every `while` may end normally, whatever its condition, so a def body that ends with a loop needs a `return` or `panic` after it.
+  - Statements after a `return` or `panic` in the same block are checked for names and types as usual, but being unreachable isn't an error.
+- **Why:** Tier 0 doesn't reason about values. Rust makes the same choice for `while true`.
+- **Touches:** WP3; D40; `docs/b17-0.md` §7.
+
+## D78 · One diagnostic per error · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **No cascades:** an expression that fails a check takes on a type compatible with anything, so code that uses it doesn't report again.
+  - **Names declared wrongly:** an item name declared twice, a core library name declared again (D51), or a def with no spec, is reported once, at the later declaration. Uses of that name, as a value or a callee, aren't checked, since which declaration they mean is unclear. A local declared twice keeps the binding already in scope.
+  - **Moves:** a moved vector's first runtime use is reported (`E-OWN-001`), and later uses aren't. A vector repeated in one call or return is reported once (`E-OWN-005`), with no use-after-move report on top.
+  - **Effects:** each effect a spec leaves out is reported once, at the first statement that has it (`E-EFF-001`).
+  - **Recursion:** `E-TERM-001` is reported at each recursive call. `E-TERM-002` is reported once per group of mutually recursive items, a strongly connected component of the call graph, at its first call by position.
+  - **Duplicate specs:** D45's check runs last, only once nothing else has failed, and its `E-TYPE-002` is placed at the later spec. `hashing.HashError` names the two specs. `hashing.hashes` hashes each spec after the items it mentions, so a long chain of references doesn't overflow Python's stack, whatever D55 says about one item's nesting.
+- **Why:** The task asks for every independent error and none that merely follows from another. Positions on every diagnostic make the output usable until WP6 defines node IDs.
+- **Touches:** WP3; WP6; D45; D55; `b17c/hashing.py`.
