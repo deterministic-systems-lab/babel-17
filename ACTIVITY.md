@@ -1070,3 +1070,17 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-28 · Documentation audit after WP6, WP7 and D81–D97
+- **Checked:** every Markdown file in the repository against the state after PRs #21–#23.
+- **README:** the interfaces note listed only the frozen ones. It now gives every Draft interface and its version: B17-1's parts of 1 and 6, 3 and 8 (D93, D94), 10 (D56), 11 with 0.2 drafted (D63, D89), and 5 with WP7's backend fields (D97).
+- **Roadmap:**
+  - B17-1's row under How the language grows still said its spec text was next. It now says the text is drafted and its decisions accepted, and the suite is next. The Phase 1 table's B17-1 row says the same.
+  - The critical-path paragraph now says which work packages are done, and what's left of each path.
+  - M3 needed WP5 and WP6, which are done, so its needs are WP8 and the ports.
+  - The CI entry now counts seven self-checks, among them WP6's and WP7's.
+- **`suite/README.md`:** it now says WP7's differential tests and WP6's `explain` use the suite.
+- **Already current:** `docs/b17-0.md` (frozen), `docs/b17-1.md`, DECISIONS.md and the rest of the README.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.

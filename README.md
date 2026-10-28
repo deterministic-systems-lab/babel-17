@@ -180,4 +180,9 @@ Every set so far is near the ceiling for current models. The vericoding tasks we
   - the interfaces it touched;
   - the proofs and tests it added;
   - anything it left admitted.
-- **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44).
+- **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44). The rest are Draft:
+  - B17-1's parts of 1 and 6, in `docs/b17-1.md`, until B17-1 freezes;
+  - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94);
+  - 10, interpreter traces, at version 0.1 (D56);
+  - 11, solver queries, at version 0.1, with 0.2 drafted for B17-1 (D63, D89);
+  - 5, the trusted base report, which now carries WP7's backend fields (D25, D97).
