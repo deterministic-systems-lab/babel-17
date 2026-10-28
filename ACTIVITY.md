@@ -498,3 +498,9 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - #4, the roadmap.
 
   Merging a PR doesn't accept the decisions it proposes, so D56–D61 are still Proposed.
+
+## 2026-10-28 · WP4a's scope proposed (D62)
+- **Why:** the roadmap noted that WP4a, next after WP3 on D21's critical path, had no definition or test.
+- **Finding:** B17-0 already defines a spec language: headers, specs, ghost-fns, lemmas, and §7's well-formedness rules. The goal spike discharges the well-formedness goals of every suite spec. The design spec's other spec features either aren't needed (frames, given ownership) or need language growth Phase 1 doesn't plan (data-type invariants, refinement links, resource contracts).
+- **Proposed D62:** WP4a ends when WP1a freezes, and WP1a takes its place in D21's table. That shortens the critical path and lets WP16 start now.
+- **On acceptance:** update `docs/roadmap.md`'s Phase 1 table and critical path.

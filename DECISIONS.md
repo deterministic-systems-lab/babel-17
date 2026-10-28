@@ -622,3 +622,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Wall-clock limits** made `dedup_sorted` pass or fail depending on machine load. Under a 10M-unit budget the results are stable. The most any proved suite goal needs is 4.86M, for `fib` (see D60); the next most is 0.84M.
   - **Recursive definitions:** a recursive definition given unconditionally could be contradictory where it doesn't terminate, as in `(+ (bad n) 1)`, and a contradiction proves every goal, including the termination goal that should catch it. Under its `requires` and left out of its own goals, the definition is consistent whenever its termination goal holds, and a definition that doesn't terminate fails that goal. Found while probing the spike's soundness.
 - **Touches:** `docs/b17-0.md` §9 (Encoding); D17; D23; interface 11; WP5.
+
+## D62 · For B17-0, the spec language is WP1a's, and WP4a ends when WP1a freezes · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **The spec language:** B17-0's spec language is the module header and the `spec`, `ghost-fn` and `lemma` items of `docs/b17-0.md`, with §7's well-formedness rules: clauses are checked in order, and ghost-fns are well-defined and terminate. WP4a adds nothing to it for Phase 1.
+  - **Deferred:** the spec-layer features the design spec lists that B17-0 lacks each wait for what they need.
+    - **Frame conditions** aren't needed. Under value semantics and ownership (D36), a def can change only what it owns, and an in-place algorithm returns what it changed (§5).
+    - **Data-type invariants and refinement links** wait until B17-0 has data types (§11).
+    - **Resource contracts** wait under D30.
+  - **Done when:** WP1a freezes (D44), and WP5 discharges the well-formedness goals of every suite spec. The goal spike already discharges them.
+  - **D21's table:** wherever a WP depends on WP4a, it depends on WP1a instead. That covers WP4b, WP5, WP6, WP10 and WP16.
+    - The critical path to the Phase 2 gate becomes WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11.
+    - WP16, the core spec library, can start now: its other dependency, WP15, is merged.
+- **Why:**
+  - D21 split WP4 so that a spec language would exist before the verifier. B17-0 already has one.
+  - Every feature it's missing needs a language change that Phase 1 doesn't plan, or isn't needed at all.
+  - Keeping an empty WP4a on the critical path would hold up WP16 and WP5 for nothing.
+  - When B17-0 gains data types or cost bounds, a new decision reopens WP4a for them.
+- **Touches:** D21; D30; WP4a; WP4b; WP5; WP6; WP10; WP16; `docs/roadmap.md`.
