@@ -899,3 +899,45 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none yet. B17-1's spec text will change interfaces 1, 6, 10 and 11 (D79), and 4 and 5 (D80).
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-28 · B17-1's spec text drafted (D81–D92)
+- **`docs/b17-1.md`, version 0.1 Draft:** B17-1 as changes to `docs/b17-0.md`, section by section.
+  - **Contents:** the grammar, types, ownership, effects, typing rules, semantics and proof goals, plus D80's levels and the porting rules.
+  - **Worked example:** AlgoVeri's `bst_insert`.
+  - **Compatibility:** every B17-0 program stays a B17-1 program with the same meaning. No suite program or core law uses a word B17-1 reserves; that was checked against every token in `suite/` and `core.b17`.
+- **Proposed:** D81–D92, the readings the text makes within D79 and D80:
+  - D81, the syntax: `data`, `match` with ordered arms, `is`, `field`, `tuple` and `get`;
+  - D82, separate namespaces for types and values;
+  - D83, runtime types, copying, well-formed data types and ghost covariance;
+  - D84, places, `replace` and `E-OWN-007`;
+  - D85, ghost sets and maps;
+  - D86, `alloc` for boxed fields;
+  - D87, `rank` as height;
+  - D88, the property-test generator;
+  - D89, interface 11 version 0.2;
+  - D90, which types a quantifier may bind;
+  - D91, ghost-fns in L2's closure, refining D80;
+  - D92, how data items and the new binders are hashed, refining D45.
+- **Codex review** (`gpt-5.6-sol`) found 11 issues, all fixed:
+  - **Soundness:**
+    - quantifiers over maps, multisets or types holding `i64` let the encoding prove an `exists` with a witness no program has, so binders are restricted (D90). As a result, the `edmond_karp` and `push_relabel` ports state flows as sequences;
+    - `replace` lacked its place's `BOUNDS` and `FIELD` goals;
+    - moves inside `if` and `match` expressions and `seq-build` bodies had no join, so moves now happen only in owned positions, and a `seq-build` body moves nothing outer;
+    - a mutation's value could move its own place's root.
+  - **The L2 closure** missed the ghost-fn equations a proof unfolds (D91).
+  - **Data types:** a data type inside an `iset`, `map` or `multiset` of itself has no Z3 datatype. Blanket covariance let a wrapper around a map pass for another.
+  - **Contradictions with D79:** slices aren't runtime types, and `rank` applies to every data value, which LLRB trees need for `(option node)`.
+  - **Gaps:** the map operations' types, and the exact random stream of D88, now pseudocode.
+- **Codex re-review** found 7 more, all fixed:
+  - exactness for binders now recurses through data fields, so `(data d () (c (x i64)))` can't be bound;
+  - D91's closure covers every goal of an unfolded ghost-fn, its `requires` and measure included;
+  - variance is a fixpoint, so a parameter passed on to an invariant one is invariant;
+  - D87's title and D89's `rank` now say every data value;
+  - hashing had no rule for data items, so D92 adds one;
+  - D88's seed is now exact about the hash's text form;
+  - D90's evidence now counts `max_matching`'s tuple binders.
+- **A limit, recorded in §5 and §12:** a data value can't be borrowed (D79), so a recursive read of a tree consumes it, or rebuilds it at the cost of allocation.
+- **Updated:** the README's status, language note and layout; the roadmap's decisions waiting and next steps.
+- **Interfaces touched:** B17-1's parts of interfaces 1 and 6, interface 10's values and `err` reasons, and interface 11 version 0.2, all Draft.
+- **Proofs and tests added:** none yet. The suite comes next (§13).
+- **Left admitted:** none.

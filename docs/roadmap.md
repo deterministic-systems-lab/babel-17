@@ -66,10 +66,12 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-None new. D79 and D80, B17-1's scope and its verification levels, were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+- **D81–D92, B17-1's spec text:** the choices `docs/b17-1.md` makes within D79 and D80, as D33–D43 were B17-0's. They cover the syntax, the namespaces, runtime types and copying, places, ghost sets and maps, `alloc` for boxed fields, `rank`, the property-test generator, interface 11's encoding, and which types a quantifier may bind. D91 refines D80, so L2's closure covers the ghost-fns a proof unfolds, and D92 refines D45 with hashes for data items.
+
+D79 and D80 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1** gets its spec text and labelled suite, now that D79 and D80 set its scope. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
+1. **B17-1's spec text** is drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92. Its labelled suite in `suite/b17-1/` comes next. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
 2. **WP6**, the agent protocol and diagnostics, builds on WP3 and WP5.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
