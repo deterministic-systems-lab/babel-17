@@ -79,7 +79,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/goals.py`](b17c/goals.py) | Spike: proof goals for the suite, checked with Z3 (§9) |
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63) |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny |
-| [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 65 from AlgoVeri, 28 from vericoding |
+| [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 64 from AlgoVeri, 28 from vericoding |
 | [`gym/runs/`](gym/runs/) | One directory per run: `meta.json` holds the configuration and fingerprints, and `attempts.jsonl` every round of every attempt |
 | [`DECISIONS.md`](DECISIONS.md) | Every design decision, with its status |
 | [`ACTIVITY.md`](ACTIVITY.md) | What happened and the evidence for it, append-only |
@@ -142,7 +142,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 |---|---|---|---|---|---|
 | Seed, 3 samples | 20 textbook tasks | 60/60 | 60/60 | 60/60 | 60/60 |
 | AlgoVeri, 1 sample | 66 algorithm specs | 64/66 | 60/66 | 28/28 before its quota ran out | — |
-| AlgoVeri and vericoding, 1 sample | 93 tasks | in progress | in progress | — | in progress |
+| AlgoVeri and vericoding, 1 sample | 93 tasks | 92/93 | 90/93 | — | 49/49 before its balance ran out |
 
 The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-argon-high` and Grok `grok-4.7`, all at high effort. [ACTIVITY.md](ACTIVITY.md) has rounds, token costs and failure analyses for each run.
 
@@ -152,7 +152,7 @@ The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-a
 - **Ported tasks state integer ranges** (D42), in the terms the proof already uses (§10).
 - **An open question:** a functional spec can't tell Aho-Corasick from naive search, so the named algorithm is never enforced. That's the cost question D29 deferred.
 
-Seed tasks and AlgoVeri are near the ceiling for current models, so the harder tasks come from vericoding: tasks that at most a quarter of the models in its published results solved.
+Every set so far is near the ceiling for current models. The vericoding tasks were picked because at most a quarter of the models in its published results solved them, yet Claude and Codex verified all 28. Both of Claude's AlgoVeri failures in the first run, and its only failure in the second, were on specs no program can satisfy: `matrix_multiplication` and `rod_cutting`, both now removed. So the tasks hard enough to compare the two languages will have to be written (WP10).
 
 ## How work is recorded
 
