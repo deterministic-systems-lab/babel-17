@@ -20,9 +20,9 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 
 | WP | What | State |
 |---|---|---|
-| WP1a | B17-0 core semantics and the accept/reject suite | Drafted, v0.1 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)). Freezes once WP3's checker agrees with the suite (D44). |
+| WP1a | B17-0 core semantics and the accept/reject suite | Drafted, v0.1 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)). WP3's checker now agrees with every tier 0 label, which D44 makes the condition for freezing. |
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
-| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | In progress, on the parser and hasher. |
+| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite, so WP1a can freeze (D44). D66–D78 are proposed. |
 | WP4a | The spec language | Done once WP1a freezes (D62): B17-0's spec language is WP1a's. |
 | WP5 | Verifier: proof goals sent to Z3 | In progress: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. The goals come from the spike, [b17c/goals.py](b17c/goals.py), with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. |
@@ -72,6 +72,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`suite/`](suite/) | 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
+| [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78) |
 | [`b17c/core.b17`](b17c/core.b17) | The core library (WP16): `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
 | [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59) |
@@ -95,6 +96,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested
 uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits
 uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and the suite
+uv run --no-project b17c/test_check.py     # checker: the suite's labels exactly, every tier 0 code, every ownership rule
 uv run --no-project b17c/test_core.py      # core library: every law confirmed by the interpreter (WP16's witnesses)
 uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
@@ -105,6 +107,7 @@ uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 ```sh
 uv run --no-project b17c/syntax.py suite/accept/merge_sorted.b17     # canonical bytes, or E-PARSE-001 with line:col
 uv run --no-project b17c/hashing.py suite/accept/*.b17                # MODULE KIND NAME SPEC-HASH IMPL-HASH per item
+uv run --no-project b17c/check.py suite/reject/E-OWN-001-use-after-move.b17   # FILE:LINE:COL: CODE: message per diagnostic
 uv run --no-project b17c/interp.py --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5
 uv run --no-project b17c/verify.py suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part
 ```

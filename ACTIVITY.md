@@ -683,3 +683,69 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Owner decision:** accepted D65. B17-1 is part of Phase 1 and its gate, and the language grows in subsets alongside the phases.
 - **Records:** D21 is marked as amended by D65. That covers WP10's dependency on B17-1 for its AlgoVeri ports, and through it WP11's.
 - **Roadmap:** D65 is no longer marked proposed, and no decisions are waiting.
+## 2026-10-28 · WP3: the tier 0 checker
+- **Added, on branch `wp3-check`:**
+  - **`b17c/check.py`,** standard library only (D19), built on the parser's tree. `check(module)` returns diagnostics ordered by position, each with a §9 tier 0 code, a line and column, and a one-line message. It covers:
+    - names and scoping (§2), including core library names (D51);
+    - types and literal ranges (§3, D53);
+    - runtime and ghost code (§4);
+    - every ownership rule (§5);
+    - effects (§6);
+    - returns (D40);
+    - recursion (§7);
+    - last, D45's duplicate specs, through `hashing.hashes`.
+
+    `uv run --no-project b17c/check.py FILE` prints `FILE:LINE:COL: CODE: message` per diagnostic, a parse error included, and exits 1 if there are any.
+  - **`b17c/test_check.py`:** the suite's labels, a case of its own for every tier 0 code, a case for every ownership rule, and the accept-side cases most easily over-applied.
+  - **README:** the checker, its self-check and a CLI example.
+  - **CI:** `b17c/test_check.py` joins the Linux self-checks in `.github/workflows/check.yml`.
+- **Suite agreement (D44's condition for the freeze):**
+  - all 20 accept programs and all 9 `E-PROOF-*` programs pass tier 0 with no diagnostics;
+  - the 20 tier 0 rejects each fail with exactly the code their filename starts with, and nothing else;
+  - the `E-PARSE-001` reject fails in the parser.
+
+  No label disagrees with the checker.
+- **Independent review** of the checker against §2–§9 and the readings below reported 8 problems. Seven are fixed, each with a test:
+  - **Callees:** a parameter, local or binder used as a callee passed silently, as in `(call x)` or `(x 1)`. It is now `E-TYPE-001` (D67).
+  - **Crashes:** `check()` could raise RecursionError in two ways:
+    - `hashing.hashes` recurses along chains of item references, and D55 bounds only one item's nesting;
+    - the checker's own cycle search was recursive.
+
+    The checker now hands `hashes` the items in dependency order and searches iteratively (D78). Tests cover a 400-item chain and a 1,500-lemma chain.
+  - **Cascades:**
+    - a call to a def with no spec;
+    - uses of a name declared twice, whose diagnostics depended on declaration order;
+    - a slice `let` initialized by a borrow;
+    - a local declared twice;
+    - one `E-EFF-001` per statement.
+  - **Wrong code:** a borrow passed to a parameter that isn't a slice was `E-OWN-002`. It is now `E-TYPE-001`.
+  - **Literals:** `seq-lit` elements ignored an `i64` destination, against D70.
+
+  The eighth stays as it is: statements after a `return` don't accumulate moves, since §7 defines nothing after ⊥ (D77). The review also confirmed moves, ghost separation, effects, returns, scoping and positions, and 70,000 random parseable modules raised no other exception.
+- **Mutation check:** each of the checker's 65 diagnostic sites was disabled in turn, along with 24 changes to its logic. Among them are the move join at an `if`, the loop's outer-variable filter, block and branch scoping, the per-argument vector count, `i64 <: int`, ghost literals, lemma arguments, the D45 step, the dependency order for hashing, and each of the review's fixes. 88 of the 89 make the self-check fail. The other disables the fallback for a `HashError` other than a duplicate spec, which can't happen once the rest of tier 0 passes. 28 were caught only after tests were added for them.
+- **Mutation tool fix:** the first mutation run reported false misses. Python trusts a cached `.pyc` whose source has the same size and modification second, and mutants of one site differ in neither, so the tests sometimes ran a stale mutant. Runs now clear `__pycache__` and set `PYTHONDONTWRITEBYTECODE`. Re-run that way on `83fafcc`, the version logged, WP15's mutation check still gives 55 of 56.
+- **For `hashing.py`,** two changes the checker works around (D78):
+  - `HashError` should carry the item, since the checker now reads specs' names from its message;
+  - `hashes` should follow references in dependency order, since in source order a long chain of references overflows Python's stack.
+
+  `syntax.py` and `hashing.py` are unchanged.
+- **Proposed D66–D78,** the stricter readings where §2–§9 are silent:
+  - D66: block scoping, and results share D41 with parameters;
+  - D67: names of the wrong kind;
+  - D68: well-formed types;
+  - D69: slices and borrows;
+  - D70: ghost integers, literals and multisets;
+  - D71: comparing collections;
+  - D72: one argument per vector;
+  - D73: owned arguments are variables;
+  - D74: results are always bound;
+  - D75: which statement changes which binding;
+  - D76: the loop rule both ways;
+  - D77: loops may always end, and unreachable code is checked;
+  - D78: one diagnostic per error.
+
+  They were drafted as D60–D75 and renumbered on rebase, after D56–D62 reached main.
+- **Interfaces touched:** none. Diagnostics carry codes and positions only, until WP6 defines the schema and node IDs.
+- **Proofs and tests added:** `b17c/test_check.py`.
+- **Left admitted:** none.
+- **Not yet done:** WP5's proof goals and solver. WP6's diagnostic schema. The freeze of `docs/b17-0.md` and `suite/`, which is now the owner's call (D44).
