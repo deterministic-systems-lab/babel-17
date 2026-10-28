@@ -1224,7 +1224,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** five reject programs.
 - **Left admitted:** none.
 
-## 2026-10-28 · B17-1's parser (D101 proposed)
+## 2026-10-28 · B17-1's parser (D101 accepted)
 - **`b17c/syntax.py`:** reads B17-1's grammar (`docs/b17-1.md` §2) when given subset 1, and B17-0's exactly as before by default.
   - **The B17-1 forms:**
     - data items;
@@ -1237,7 +1237,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - D99's `forall` statement and D100's `obtain`.
   - **Reserved words:** B17-1's 20 new words are reserved only in subset 1, so a B17-0 program may still name a parameter `map`.
   - **The CLI** takes `--subset 1`.
-- **Proposed:** D101. Each tool takes the subset, 0 by default until B17-1 freezes. The reason: B17-1 reserves words that B17-0 programs may use, and it accepts types that B17-0's frozen labels reject.
+- **D101, proposed here and accepted by the owner:** each tool takes the subset, 0 by default until B17-1 freezes. The reason: B17-1 reserves words that B17-0 programs may use, and it accepts types that B17-0's frozen labels reject.
 - **Checked by `test_syntax.py`:**
   - **The suite:** every `suite/b17-1/` file parses and round-trips to the same canonical bytes, except its two `E-PARSE-001` rejects, which fail as labelled.
   - **B17-0's programs:** every B17-0 suite program gives the same tree under subset 1.

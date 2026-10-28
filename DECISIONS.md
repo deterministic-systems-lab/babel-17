@@ -1298,7 +1298,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Lemmas with results:** every call would bind them, and lemmas would stop being pure facts.
 - **Touches:** D41; D51; D90; D92; D99; B17-1 §2, §7 and §9; WP3; WP5; WP8; WP10.
 
-## D101 · How the toolchain picks a subset · Proposed
+## D101 · How the toolchain picks a subset · Accepted
 - **Date:** 2026-10-28
 - **Decision:** each `b17c` entry point takes the subset it reads, 0 or 1: `subset=` in Python, and `--subset N` on the command line.
   - **Subset 0** is B17-0 exactly as frozen: its reserved words, grammar, types and labels. **Subset 1** is B17-1's.

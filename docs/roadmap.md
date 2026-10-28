@@ -78,12 +78,10 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **D101, choosing a subset:** each `b17c` tool takes the subset it reads, 0 by default until B17-1 freezes. B17-1 reserves words that B17-0 programs may use, and accepts types that B17-0's frozen labels reject, so neither subset can stand in for the other.
-
-D79–D100 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D101 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99 and D100 accepted, and `suite/b17-1/`. The parser reads B17-1 under D101, and every suite file but its two parse rejects round-trips. The checker extends to B17-1 next, then the interpreter and verifier. It freezes once the checker agrees with every tier 0 label (D44). Six accept programs' proofs have a step that uses D99 or D100, written once the verifier reads B17-1.
+1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99 and D100 accepted, and `suite/b17-1/`. The parser reads B17-1 under D101 (accepted), and every suite file but its two parse rejects round-trips. The checker extends to B17-1 next, then the interpreter and verifier. It freezes once the checker agrees with every tier 0 label (D44). Six accept programs' proofs have a step that uses D99 or D100, written once the verifier reads B17-1.
 2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
