@@ -1,9 +1,9 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-10-27.
+Where the project stands, and what comes next. This is the state as of 2026-10-28.
 
 **How the plan works:**
-- **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module proved to the level its spec supports (D64, proposed). The phases build toward it from a small verified core.
+- **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64, proposed). The phases build toward it from a small verified core.
 - **Phases, ordered by risk:** Babel-17 is built in five phases, ordered by risk rather than by date.
 - **Gates:** each phase ends at a gate, and the next phase doesn't start until that gate passes.
 - **Benchmarks:** they steer the design, by showing which features help agents and which only cost tokens. They don't decide whether the language gets built (D14).

@@ -687,7 +687,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-10-28
 - **Decision:**
   - **The goal:** Babel-17 is an all-in-one, general-purpose language for AI agents to write. Its scope is every kind of program: services and command-line tools, applications and their user interfaces, data pipelines, scripts and machine learning, as well as verified algorithms. An agent shouldn't need another language for any part of a program.
-  - **Breadth through verification levels:** every module is written in Babel-17 and proved to the level its spec supports, from L0 (typed, effect-checked and memory-safe) to L3 (fully correct against its spec). Code whose intent can be stated precisely is proved. Code whose intent can't, such as a layout that must look right, is typed and has its contracts tested.
+  - **Breadth through verification levels:** every module is written in Babel-17 and held to the verification level its spec supports. The levels run from L0 (typed, effect-checked and memory-safe) and L1 (contracts present and tested) to L3 (full functional correctness proved against its spec, or L3-S while the solver is trusted, D24). Code whose intent can be stated precisely is proved. Code whose intent can't, such as a layout that must look right, is held to L0 or L1.
     - L0 and L1 arrive with B17-1, so no domain is shut out for lack of a precise spec.
     - How a goal a module doesn't prove behaves below L2, for example as a runtime check, is decided with B17-1.
   - **Other languages are a bridge.** The Rust backend (WP7) and calls into C, Rust or Python let Babel-17 work alongside existing code. Wrapped libraries are replaced by verified ports over time, as the design spec's "wrap, then replace" says.
@@ -701,7 +701,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Unchanged:** the language still grows from B17-0 in subsets, each added on evidence (D20), and the phases keep their order.
 - **Why:**
   - It's the owner's goal for the language.
-  - Bet 1 says the explicitness and proofs that keep verified languages in a niche cost agents little, so the reason for that niche doesn't apply.
+  - Bet 1 holds that the explicitness and proof effort that confine verified languages to a niche cost agents little. If M3 bears that out, that cost stops limiting where Babel-17 is used. The other limits remain: hard domains, missing features and libraries, which this decision and the roadmap list.
   - Verification levels let one language serve code with precise specs and code without them. Without them, Babel-17 would stay confined to the domains Dafny serves.
   - Recording the goal lets later design decisions be judged against it.
 - **Touches:** D14; D20; Summary; Type system; Verification model; Standard library; Training environment; WP7; WP10; WP11; `README.md`; `docs/roadmap.md`.

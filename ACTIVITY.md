@@ -639,3 +639,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - D63 and D64 under decisions waiting, since D63 was listed nowhere;
     - a new open question on reaching every domain;
     - WP5's front end (PR #11) and WP16's first part (PR #9) marked merged.
+- **Codex review** (`gpt-5.6-sol`) found 3 issues, all fixed:
+  - **Overclaiming:** the README said modules are "fully correct" where intent is precise, and folded contract testing into L0. It now names the levels in order and says what each gives. D64 says L3 means L3-S while the solver is trusted (D24).
+  - **Bet 1 as fact:** D64's rationale said the reason verified languages stay niche "doesn't apply". It now depends on M3 bearing Bet 1 out, and names the limits that remain.
+  - **Stale date:** the roadmap said 2026-10-27 while adding 2026-10-28 status.
+- **Not found:** no contradiction with D14 or D20, and the WP and PR numbers check out.
