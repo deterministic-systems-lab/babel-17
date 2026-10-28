@@ -1,12 +1,12 @@
 # B17-0: the agent reference manual (WP8)
 
-This manual is for the model writing B17-0. It gives every rule you need, every error code you can meet, and a minimal example of each. Every example states its outcome, and `b17c/test_manual.py` checks each one: in CI its tier 0 outcome, and wherever Z3 is installed its proof outcome too. So the manual can't drift from the language.
+This manual is for the model writing B17-0. It gives every rule you need, every error code you can meet, and a minimal example of each. Every example states its outcome, and `b17c/test_manual.py` checks each one: in CI its tier 0 outcome, and wherever Z3 is installed its proof outcome too. So the examples can't drift from the language. The prose is checked by review.
 
 The full semantics is `docs/b17-0.md`, cited here as §2 to §12. When the two disagree, `b17-0.md` wins, and the disagreement is a bug in this manual.
 
 **How a task reaches you** (§10). You get a module header, frozen `ghost-fn`s and one frozen `spec`. You return a `def` for that spec. You may add `lemma`s, `ghost-fn`s, and `spec`-and-`def` pairs for helpers. You never edit the task's spec.
 
-**How to use the toolchain** (§13 below). `b17c/agent.py check FILE` gives every error as JSON. For a failed proof it gives the goal, a counterexample the interpreter replays, and what it depends on.
+**How to use the toolchain** (§13 below). `b17c/agent.py check FILE` gives every error as JSON. For a failed proof it gives the goal, the items it depends on, and often a counterexample, with whether the interpreter reproduces it.
 
 ## 1. A module
 
@@ -31,7 +31,15 @@ The full semantics is `docs/b17-0.md`, cited here as §2 to §12. When the two d
 - **The header** comes first: `purpose`, `invariants` and `failures`, each a string.
 - **Items** follow in any order: `spec`, `def`, `ghost-fn` and `lemma`. A `def` implements the `spec` of the same name and never repeats its contracts (D39).
 - **The spec's clauses** are `params`, `returns`, then `requires` and `ensures` if present, and always `effects`. Leave out an empty `requires` or `ensures` rather than writing `(requires)` (D54).
-- **Layout** is free, but only whitespace may differ from the canonical form. There are no comments (§2).
+- **Clause order is fixed** (§2). A `ghost-fn` is `(ghost-fn NAME (param*) TYPE (requires e)* (decreases e)? (body e))`. A `lemma` is `(lemma NAME (params ...) (requires e*)? (ensures e*)? (decreases e)? (body stmt*))`. A `def` is `(def NAME (decreases e)? (body stmt*))`.
+- **Effects** appear at most once each, in the order `alloc`, `panic`, `io`.
+- **Layout** is free, but only whitespace may differ from the canonical form (§2):
+  - whitespace is space, tab, line feed or carriage return, and list elements need at least one between them;
+  - there are no comments;
+  - integers have no `+`, no leading zeros and no `-0`, and `(neg 5)` is written `-5`;
+  - strings escape only `\"` and `\\`, and hold no control characters;
+  - lists nest at most 128 deep.
+- **Items may refer to one another in any order.**
 
 The examples below show only items. Each sits in a module with a header, like the one above.
 
@@ -39,8 +47,10 @@ The examples below show only items. Each sits in a module with a header, like th
 
 - **Shape:** a name matches `[a-z][a-z0-9_]*`.
 - **Reserved:** every word of the grammar is reserved, such as `block`, `len` and `vec`, and using one as a name doesn't parse. The core library's names (§12 below) are reserved too, but declaring one is `E-TYPE-002`.
-- **No shadowing** (D41): parameter, result and local names are unique within an item, even across blocks, and none may reuse an item's name.
-- **Scope** (D66): a local is visible from its declaration to the end of its `block`, loop body or `if` branch. Results are visible only in `ensures`, so a `def` may name a local after its result.
+- **No shadowing** (D41): parameter and local names are unique within an item, even across separate blocks, and none may reuse an item's name.
+- **Results** are unique among the spec's parameters and results (D66). They're in scope only in `ensures`, so a `def` may give a local its result's name.
+- **Binders** of `forall`, `exists` and `fn` may not reuse any name in scope where they appear. Separate binders may share a name.
+- **Scope** (D66): a local is visible from its declaration to the end of its `block`, loop body or `if` branch. A branch is one statement, so a `let` that forms a whole branch is visible nowhere after it.
 
 <!-- expect: E-PARSE-001 -->
 ```lisp
@@ -68,7 +78,8 @@ The examples below show only items. Each sits in a module with a header, like th
 
 - **Collections don't nest** in B17-0, and there are no tuples, data types, strings or floats (§11).
 - **Runtime code has no conversions** (D34): `i64` never mixes with `bool`.
-- **In ghost code,** `i64` is a subtype of `int`, and a vector or slice is viewed as a `seq`.
+- **In ghost code,** `i64` is a subtype of `int`, a vector or slice is viewed as a `seq`, and `(seq T)` is a subtype of `(seq U)` when T is of U. Multisets have no subtyping, so `(multiset i64)` and `(multiset int)` don't compare (D70).
+- **Element types** are only `bool`, `i64` and, in ghost code, `int`. Anything else, such as `(seq (seq int))`, is `E-TYPE-001` (D68).
 - **A literal** is an `i64` in runtime code, and an `int` in ghost code unless its destination is an `i64` (D70).
 
 <!-- expect: E-TYPE-001 -->
@@ -87,7 +98,7 @@ The examples below show only items. Each sits in a module with a header, like th
 
 ## 4. Specs, defs and calls
 
-A spec may return several results. A caller binds them with `let`, one name per result, and must bind them all (D43, D74).
+A spec may return several results. A caller binds them all with `(let ((x T) ...) (call f e*))`, or `let-mut` for mutable locals, one name per result (D43, D74). A callee with no results is called with a bare `(call f e*)`. Arguments are evaluated left to right, and an owned vector argument must be a live variable, which moves (D73).
 
 <!-- expect: ok -->
 ```lisp
@@ -103,6 +114,7 @@ A spec may return several results. A caller binds them with `let`, one name per 
 ```
 
 - **Calls are modular:** the caller proves the callee's `requires` and assumes its `ensures`. It never sees the callee's body.
+- **Clauses are checked in order:** each `requires`, `ensures` or loop invariant may assume the ones before it, so a later clause may index with a value an earlier one bounds.
 - **`/` and `%` truncate toward zero,** as Rust's do (D37).
 - **A call is a statement,** never an expression. A ghost-fn call, written `(NAME e*)`, is an expression in ghost code only.
 
@@ -125,11 +137,15 @@ Every `def` implements a spec of the same name (D39).
 
 ## 5. Expressions
 
-- **Arithmetic:** `+`, `-`, `*`, `/`, `%` and `neg`. In runtime code each carries a goal that its result fits in `i64` (§11 below).
-- **Comparison and logic:** `<`, `<=`, `>`, `>=`, `==`, `!=`, `and`, `or`, `=>` and `not`. Operators are binary, so `(and a (and b c))`. `and`, `or` and `=>` short-circuit.
+- **Arithmetic:** `+`, `-`, `*`, `/`, `%` and `neg`.
+  - In runtime code, `+`, `-`, `*` and `neg` carry an `OVERFLOW` goal that the result fits in `i64`.
+  - `/` and `%` carry a `DIV` goal: a non-zero divisor and, in runtime code, not `-2^63` by `-1`, which Rust rejects even for `%`.
+  - In ghost code, arithmetic is on `int`, and only `/` and `%` have a goal.
+- **Comparison:** `<`, `<=`, `>` and `>=` take integers. `==` and `!=` take `bool` or integers, and collections in ghost code only (`E-GHOST-002` in runtime code, D71).
+- **Logic:** `and`, `or` and `=>` are binary, so `(and a (and b c))`, and they short-circuit. `not` takes one operand.
 - **`(if c a b)`** is an expression. In runtime code it can't produce a vector (`E-OWN-006`).
-- **Sequences:** `(len s)` and `(idx s i)` work everywhere. `seq-lit`, `take`, `drop`, `concat`, `last`, `contains`, `multiset`, `msum` and `occurrences` are ghost-only.
-- **Building a vector:** `(seq-build n (fn (i) e))` makes a vector of n elements, with `0 <= i < n` assumed inside e (D38). In runtime code it has effect `alloc`.
+- **Sequences:** `(len s)` and `(idx s i)` work everywhere, and `len` is an `i64` in runtime code and an `int` in ghost code. `seq-lit`, `take`, `drop`, `concat`, `last`, `contains`, `multiset`, `msum` and `occurrences` are ghost-only. `idx`, `take`, `drop` and `last` carry `BOUNDS` goals.
+- **Building:** `(seq-build n (fn (i) e))` has n elements, with `0 <= i < n` assumed inside e (D38), and a `BOUNDS` goal that n isn't negative. In runtime code it's a vector with effect `alloc`, and in ghost code a `seq`.
 
 <!-- expect: ok -->
 ```lisp
@@ -147,16 +163,17 @@ Every `def` implements a spec of the same name (D39).
 | Statement | Does |
 |---|---|
 | `(let x T e)`, `(let-mut x T e)` | Declares a local, mutable with `let-mut` |
-| `(set x e)` | Assigns a `let-mut` local |
-| `(set-idx v i e)`, `(push v e)` | Changes a `let-mut` vector in place; `push` has effect `alloc` |
+| `(set x e)` | Assigns a `let-mut` runtime local |
+| `(set-idx v i e)`, `(push v e)` | Changes a `let-mut` vector in place, with a `BOUNDS` goal for `set-idx`; `push` has effect `alloc` |
 | `(if c s1 s2)`, `(block s*)` | Branch and sequence; `(block)` does nothing |
 | `(while c (invariant e)* (decreases d) s*)` | A loop: invariants, then its measure, then its body |
-| `(call f e*)`, `(let ((x T)*) (call f e*))` | Calls a def or lemma, binding its results |
+| `(call f e*)`, `(let ((x T) ...) (call f e*))` | Calls a def or lemma, binding one name per result; bare when it has none |
 | `(return e*)` | Ends the def with one expression per result |
-| `(panic "text")`, `(print e)` | Effects `panic` and `io` |
+| `(panic "text")`, `(print e)` | Effects `panic` and `io`; `print` takes an `i64` |
 | `(assert e)`, `(ghost-let x T e)`, `(ghost-let-mut x T e)`, `(ghost-set x e)` | Ghost statements, erased before the program runs |
 
-Every loop needs a `decreases`: an integer that stays at least 0 and drops on every pass.
+- **Mutation** (D75): `set`, `set-idx` and `push` change `let-mut` runtime locals, and `ghost-set` changes `ghost-let-mut` locals. Changing a parameter or an immutable local is `E-OWN-003`, and changing a binding of the other kind is `E-GHOST-001`.
+- **Loops:** every loop needs a `decreases`, an integer that is at least 0 whenever the condition holds and drops across each pass that continues normally. A pass that returns or panics needn't decrease it.
 
 <!-- expect: ok -->
 ```lisp
@@ -190,7 +207,8 @@ Every loop needs a `decreases`: an integer that stays at least 0 and drops on ev
 Ghost code exists only for proofs and is erased before the program runs. It covers contracts, invariants, measures, `assert`, ghost locals, and the bodies of ghost-fns and lemmas. In it, arithmetic is on `int` and can't overflow, and quantifiers and sequence operations are allowed.
 
 - **A ghost-fn** is a pure function that specs use. Callers see its body. A recursive one needs a `decreases`.
-- **A lemma** states a fact and proves it. Its body holds only ghost statements and lemma calls, and an empty body proves what its `requires` imply.
+- **A lemma** states a fact and proves it. Its body holds only `assert`, ghost locals, lemma calls, `if`, `block`, `while` over ghost locals and `(return)`. Its `ensures` must hold at every `(return)` and at the end of the body, and an empty body proves only what its `requires` imply. A `return` with values in a lemma is `E-GHOST-003`.
+- **Ghost-fn calls** carry a `PRE` goal for the ghost-fn's `requires`, and each ghost-fn's body is proved well-defined under its own `requires`.
 - **`forall` and `exists`** bind `int` or `bool`, never `i64` (D68).
 
 <!-- expect: ok -->
@@ -233,11 +251,11 @@ A lemma is ghost code, so it can't call a def.
 Vectors are owned and move. Slices are borrows that never outlive the call they're passed to. There are no lifetimes (§5, D36).
 
 1. **Copying and moving.** `bool`, `i64` and slices are copied. Vectors move when used whole: as a `let` initializer, the right side of `set`, an owned argument or in `return`. `len`, `idx`, `borrow` and ghost code read a vector without moving it.
-2. **Use after move** is `E-OWN-001`, until `set` gives the variable a new value. Ghost code still sees a moved parameter's entry value.
-3. **Slices** come only from `(borrow v)`, as a def-call argument for a slice parameter. Anywhere else a slice is `E-OWN-002`.
+2. **Use after move** is `E-OWN-001`, until `set` gives the variable a new value. Ghost code may read any binding, moved or not, and a moved parameter still denotes its entry value.
+3. **Slices** come only from `(borrow v)` as a def-call argument for a slice parameter, or from a slice parameter passed straight through. Anywhere else a slice is `E-OWN-002`, and no local, result or ghost-fn may have a slice type.
 4. **Mutation** needs a `let-mut` local (`E-OWN-003`). To change an owned vector parameter, move it into one first.
-5. **A loop body** leaves every outer vector as it found it (`E-OWN-004`).
-6. **A vector appears in at most one argument** of a call, or one expression of a return (`E-OWN-005`). Bind `(len v)` to a local first.
+5. **Branches and loops.** After an `if`, a vector moved on either branch that continues is moved. A branch that returns or panics doesn't count. A loop body's normal exit leaves every outer vector as it found it, live or moved (`E-OWN-004`).
+6. **A vector appears in at most one argument** of a call, or one expression of a return, however it's used (`E-OWN-005`). Bind `(len v)` to a local first. Several uses inside one argument count once, and lemma calls are exempt (D72).
 7. **Only variables, `(vec-new)`, `seq-build` and call results** are vector expressions in runtime code. An `if` can't produce one (`E-OWN-006`).
 
 An in-place algorithm takes its vector by value and returns it:
@@ -303,7 +321,9 @@ Use an `if` statement with a `return` or a `set` in each branch instead.
 
 ## 9. Effects
 
-A spec's `effects` lists what its def may do, in the order `alloc`, `panic`, `io`. `push` and a runtime `seq-build` have `alloc`, `panic` has `panic`, `print` has `io`, and a call has its callee's effects. An empty `(effects)` promises none of them (§6).
+A spec's `effects` lists what its def may do, in the order `alloc`, `panic`, `io`. `push` and a runtime `seq-build` have `alloc`, `panic` has `panic`, `print` has `io`, `vec-new` has none, and a call has its callee's effects. A statement's effects include everything inside it. An empty `(effects)` promises none of them (§6).
+
+`ensures` constrain only normal returns. Leaving out `panic` rules out `(panic ...)`. The runtime errors the proof goals rule out, and allocation failure, which aborts, are outside the effects.
 
 <!-- expect: E-EFF-001 -->
 ```lisp
@@ -313,8 +333,8 @@ A spec's `effects` lists what its def may do, in the order `alloc`, `panic`, `io
 
 ## 10. Returns and recursion
 
-- **Every path** through a def ends in `return` or `panic` (`E-RET-001`). A loop may always end, so code after a loop needs its own `return`.
-- **Recursion** needs a `decreases` on the item (`E-TERM-001`). Mutual recursion isn't allowed (`E-TERM-002`).
+- **Every path** through a def ends in `return` or `panic` (`E-RET-001`). A loop may always end, so code after a loop needs its own `return`. Statements after a `return` are still checked for names and types (D77).
+- **Recursion** needs a `decreases` on the item (`E-TERM-001`). At each recursive call, the verifier proves `0 <= callee measure < caller measure` under the callee's `requires` (a `TERM` goal). Mutual recursion isn't allowed (`E-TERM-002`).
 
 <!-- expect: ok -->
 ```lisp
@@ -349,7 +369,7 @@ Once a module passes tier 0, the verifier sends one goal per obligation to Z3 (�
 (def first (body (return (idx a 0))))
 ```
 
-An index must be in range. Add `(requires (> (len a) 0))`.
+An index must be in range. Add `(requires (> (len a) 0))`. `BOUNDS` also covers `set-idx`, `take`, `drop`, `last`, and a negative `seq-build` length.
 
 <!-- expect: E-PROOF-OVERFLOW -->
 ```lisp
@@ -375,7 +395,7 @@ A divisor must be non-zero, and `-2^63 / -1` overflows. Also require `(not (and 
 (def caller (body (let ((r i64)) (call pos y)) (return r)))
 ```
 
-A call must establish its callee's `requires`. Require it of `caller` too, or check `y` first.
+A call must establish its callee's `requires`, for a def, a lemma or a ghost-fn alike. Require it of `caller` too, or check `y` first.
 
 <!-- expect: E-PROOF-INV-ENTRY -->
 ```lisp
@@ -399,7 +419,7 @@ An invariant must hold before the first pass. Here `i` starts at 0.
     (return i)))
 ```
 
-Every pass must keep each invariant. `(== i 0)` breaks after one pass. State what stays true, such as `(<= i n)`.
+Every pass must keep each invariant. `(== i 0)` breaks after one pass. Remove it: the first invariant already holds on every pass.
 
 <!-- expect: E-PROOF-TERM -->
 ```lisp
@@ -411,7 +431,7 @@ Every pass must keep each invariant. `(== i 0)` breaks after one pass. State wha
     (return i)))
 ```
 
-The measure must drop on every pass. `(+ n i)` grows. Use `(- n i)`.
+The measure must drop on every pass. `(+ n i)` grows. Use `(- n i)`. `TERM` also covers a measure going negative while the condition holds, and a recursive call that doesn't descend.
 
 <!-- expect: E-PROOF-POST -->
 ```lisp
@@ -419,7 +439,7 @@ The measure must drop on every pass. `(+ n i)` grows. Use `(- n i)`.
 (def f (body (return x)))
 ```
 
-Every `return` must establish the `ensures`.
+Every `return` must establish the `ensures`, and so must the end of a lemma's body.
 
 <!-- expect: E-PROOF-ASSERT -->
 ```lisp
@@ -459,29 +479,34 @@ An `assert` must follow from what's known at that point.
 In scope in every module, with names reserved (§9, D51):
 - **`(sorted s)`:** every element at most each later one.
 - **`(in_i64 x)`:** x lies in [-2^63, 2^63).
-- **`(seq_update s i e)`:** s with element i replaced by e.
-- **Laws, as lemmas you call:** the sequence facts §9 lists, such as `law_take_step` and `law_idx_concat`, and the laws of integer order, such as `law_le_trans`. The verifier already states every §9 fact, so you call a law only to point a proof at it.
+- **`(seq_update s i e)`:** s with element i replaced by e. WP16 added it to `b17c/core.b17`, after §9 was written.
+- **Laws, as lemmas you call:** `b17c/core.b17` holds 33, among them `law_take_step`, `law_idx_concat` and `law_le_trans`. Read their exact signatures there. The verifier already states §9's facts as axioms, so you call a law only to point a proof at a particular instance.
 
 ## 13. The toolchain
 
 ```sh
 uv run --no-project b17c/check.py FILE                 # tier 0: FILE:LINE:COL: CODE: message
-uv run --no-project b17c/verify.py FILE                # every goal, under 10 shuffled seeds
-uv run --no-project b17c/agent.py check FILE           # every error as JSON (interface 3)
+uv run --no-project b17c/verify.py FILE                # every goal, under the canonical seed and 10 shuffled ones
+uv run --no-project b17c/agent.py check FILE           # every error as JSON (interface 3); exit 1 if any
 uv run --no-project b17c/agent.py explain CODE         # a code's rule, with a labelled example
-uv run --no-project b17c/agent.py obligations FILE NAME
-uv run --no-project b17c/agent.py simulate FILE NAME ARG...   # a checked run
-uv run --no-project b17c/interp.py FILE NAME ARG...    # a plain run
+uv run --no-project b17c/agent.py obligations FILE NAME     # every goal of an item, with its verdict
+uv run --no-project b17c/agent.py impact FILE CHANGED       # which goals a changed spec breaks
+uv run --no-project b17c/agent.py search FILE QUERY         # specs that guarantee QUERY's spec
+uv run --no-project b17c/agent.py simulate FILE NAME ARG... # a checked run
+uv run --no-project b17c/interp.py --check FILE NAME ARG... # a run, contracts checked with --check
+uv run --no-project b17c/rust.py --run FILE NAME ARG...     # the same run, as emitted Rust
 ```
 
-**A diagnostic** (D93) holds:
-- `code` and `node`;
-- for a failed proof, the `goal` written over your names;
-- a `counterexample`, with `reproduced` saying whether a checked run on it fails too;
-- `context`: the items you need;
-- `dependents`: how many later goals assume this one. Fix the ones with the most dependents first.
+`agent.py`'s queries that solve take `--seeds N` and `--cache DIR`. Tier 0 errors come first: while any remain, no proof goals are generated.
 
-A counterexample that isn't reproduced usually means the proof needs a stronger invariant, not a code change.
+**A diagnostic** (D93) holds `code`, `severity`, `node` and `message`. A failed proof adds:
+- `goal`, written over your names;
+- `context`: the items you need, as `kind name`;
+- `dependents`: how many later goals of the same item assume this one. Fix the ones with the most dependents first;
+- `budget_used`, and `repairs`, which is empty for now;
+- often a `counterexample` for every parameter, with `reproduced`: `true` when a checked run on it fails too, `false` when it doesn't, and `null` when no run is possible.
+
+A reproduced counterexample is a real failing input. One that isn't may be spurious, since it's found against fewer axioms than the verdict. Trust the verdict, read the goal, and treat that model only as a hint.
 
 ## 14. Codes
 
@@ -499,3 +524,11 @@ A counterexample that isn't reproduced usually means the proof needs a stronger 
 | `E-TERM-001` | 10 | Recursion without `decreases` |
 | `E-TERM-002` | 10 | Mutual recursion |
 | `E-PROOF-*` | 11 | A proof goal that isn't discharged: `BOUNDS`, `OVERFLOW`, `DIV`, `PRE`, `INV-ENTRY`, `INV-KEEP`, `TERM`, `POST`, `ASSERT` |
+
+Some triggers the table doesn't name:
+- **`E-TYPE-001`** also covers a name of the wrong kind, such as an item used as a value, and a malformed type (D67, D68).
+- **`E-TYPE-002`** also covers two specs identical up to names (D45).
+- **`E-GHOST-001`** also covers a ghost local changed with `set`, or a runtime one with `ghost-set` (D75).
+- **`E-GHOST-002`** also covers `==` on collections in runtime code (D71).
+- **`E-GHOST-003`** also covers a `return` with values in a lemma.
+- **One error, one diagnostic** (D78): an expression that fails a check doesn't cascade, and a moved vector is reported at its first use only.
