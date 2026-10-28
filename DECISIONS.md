@@ -647,7 +647,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - When B17-0 gains data types or cost bounds, a new decision reopens WP4a for them.
 - **Touches:** D21; D30; WP4a; WP4b; WP5; WP6; WP10; WP16; `docs/roadmap.md`.
 
-## D63 · Interface 11 and the proof cache · Proposed
+## D63 · Interface 11 and the proof cache · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **Interface 11, version 0.1, Draft:** a goal's canonical query is the SMT-LIB 2 text `b17c` sends to Z3, in this order:
@@ -683,7 +683,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Trimming each query** to what it uses makes D22's invalidation exact. Measured on a two-function module: a callee's body edit re-verifies only the callee, and a spec edit re-verifies its callers too. Trimming changed no verdict on the suite or the core library.
 - **Touches:** D22–D25; D27 (interfaces 5 and 11); D45; D56; WP5; WP7.
 
-## D64 · Babel-17 is an all-purpose language for agents · Proposed
+## D64 · Babel-17 is an all-purpose language for agents · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **The goal:** Babel-17 is an all-in-one, general-purpose language for AI agents to write. Its scope is every kind of program: services and command-line tools, applications and their user interfaces, data pipelines, scripts and machine learning, as well as verified algorithms. An agent shouldn't need another language for any part of a program.

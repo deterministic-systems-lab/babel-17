@@ -644,3 +644,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Bet 1 as fact:** D64's rationale said the reason verified languages stay niche "doesn't apply". It now depends on M3 bearing Bet 1 out, and names the limits that remain.
   - **Stale date:** the roadmap said 2026-10-27 while adding 2026-10-28 status.
 - **Not found:** no contradiction with D14 or D20, and the WP and PR numbers check out.
+
+## 2026-10-28 · D63 and D64 accepted
+- **Owner decision:** accepted D63 (interface 11 and the proof cache) and D64 (Babel-17 is an all-purpose language for agents).
+- **README and roadmap:** D64 is no longer marked proposed, and no decisions are waiting.
