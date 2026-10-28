@@ -1198,6 +1198,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Spec text:** the finite-value rule is now a least fixed point. `E-TERM-002` now names distinct data items, so `(option node)` inside `node` is self-recursion.
   - **D99:** sound, but the arguments' own goals, such as an `idx`'s bounds, were missing. They are now goals for every binder value. D99 also now says how its clauses combine, and that the fact holds along the path.
 - **Ponytail review:** four invariants restated facts the loop never changes (b17-0 §9), and `trie_insert`'s one-caller `fresh` helper is folded into `node_of`. All cut, 12 lines.
+- **CI caught:** `test_syntax.py` and `test_check.py` collected `suite/` recursively, so they picked up B17-1's files, which B17-0's parser rejects. Both now read only `suite/accept/` and `suite/reject/`. The B17-1 checker will read `suite/b17-1/` once it exists.
 - **Updated:** the README's status and layout; the roadmap's progress, decisions waiting, next steps and B17-1 rows; `suite/README.md`.
 - **Interfaces touched:** none yet. D99 and D100 would each add a statement to interface 1.
 - **Proofs and tests added:** the suite's 52 programs.
