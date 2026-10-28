@@ -648,3 +648,38 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 ## 2026-10-28 · D63 and D64 accepted
 - **Owner decision:** accepted D63 (interface 11 and the proof cache) and D64 (Babel-17 is an all-purpose language for agents).
 - **README and roadmap:** D64 is no longer marked proposed, and no decisions are waiting.
+
+## 2026-10-28 · Proposed D65: the language grows alongside the phases
+- **Why:** the owner asked whether the roadmap reflects D64. It did only partly. It stated the goal and listed the missing features, but:
+  - its phases scheduled only tooling;
+  - B17-1, where D64 puts L0 and L1, appeared in no phase;
+  - the standard library had no place;
+  - every benchmark stayed an algorithm task.
+- **Proposed D65:**
+  - **Two tracks:** the language grows in subsets alongside the phases, each following B17-0's path to a D44 freeze.
+  - **B17-1 in Phase 1,** with §11's data types, tuples, generics and nested collections, and L0 and L1. WP10's AlgoVeri ports wait for it, and M3 can start on B17-0.
+  - **Later subsets** are ordered by benchmarks and continue past Phase 4.
+  - **The standard library** grows with the subsets.
+  - **Task sets beyond algorithms** arrive with the subsets that can express them.
+  - **WP11's curriculum** covers every domain reached.
+- **`docs/roadmap.md`:**
+  - a "Two tracks" line under "How the plan works";
+  - B17-1 in Phase 1's row and table;
+  - WP10's dependency on B17-1, and M3's start on B17-0;
+  - WP11's curriculum;
+  - a new section, "How the language grows";
+  - the "Reaching every domain" question narrowed to what follows B17-1;
+  - D65 listed as waiting.
+- **`README.md`:** its pointer to the roadmap mentions how the language grows.
+- **Codex review** (`gpt-5.6-sol`) found 6 issues, all fixed:
+  - **Phase 1 gate:** it didn't require B17-1. It now requires B17-1 frozen and its tasks emitted as Rust.
+  - **WP4a:** data types reopen it under D62. D65 now says B17-1's scope decision does, and the WP4a row says so.
+  - **Freeze rule:** "every label" contradicted D44, which needs only the tier 0 labels. It now says tier 0.
+  - **Critical path:** it still put WP10 off the path. A second path of the same length now runs through B17-1 and WP10, and M3's needs separate the seed ports from the AlgoVeri ports.
+  - **Prerequisites:** the later-subset list dropped §11's: mutual recursion waits for group hashing (D22), and vector capacity for allocation bounds (D30). Both are restored.
+  - **One subset at a time:** the roadmap said each subset freezes before the next starts, which D65 doesn't decide. Removed.
+
+## 2026-10-28 · D65 accepted
+- **Owner decision:** accepted D65. B17-1 is part of Phase 1 and its gate, and the language grows in subsets alongside the phases.
+- **Records:** D21 is marked as amended by D65. That covers WP10's dependency on B17-1 for its AlgoVeri ports, and through it WP11's.
+- **Roadmap:** D65 is no longer marked proposed, and no decisions are waiting.
