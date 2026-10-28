@@ -10,7 +10,7 @@
   (spec power
     (params (b i64) (e i64))
     (returns (p i64))
-    (requires (>= e 0) (forall ((i int)) (=> (and (<= 0 i) (<= i e)) (in_i64 (pow b i)))))
+    (requires (>= e 0) (forall ((i int)) (=> (and (<= 0 i) (< i e)) (in_i64 (* (pow b i) b)))))
     (ensures (== p (pow b e)))
     (effects))
   (def power

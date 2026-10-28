@@ -19,14 +19,14 @@ They contain no hints that a particular solver or seed needs. If WP5's verifier 
 
 ## Ported task ranges
 
-Seed tasks over Dafny's unbounded `int` gained ranges under D42 and §10's rule:
+Seed tasks over Dafny's unbounded `int` gained ranges under D42 and §10's rule, stated per loop step (D60):
 
 | Task | Added precondition |
 |---|---|
 | `abs` | `x > i64::MIN`, so `-x` fits |
-| `fib` | every `fib i` for `i <= n` fits |
-| `power` | every `pow b i` for `i <= e` fits |
-| `sum`, `prefix_sums` | every prefix sum fits |
+| `fib` | every `fib (i - 1) + fib i` for `1 <= i < n` fits |
+| `power` | every `pow b i * b` for `i < e` fits |
+| `sum`, `prefix_sums` | every prefix sum plus the next element fits |
 | `isqrt` | none: every `r` with `r * r <= n` already fits |
 
 `gcd`, `count` and the index-returning tasks need none. The Dafny versions in `gym/tasks/` take the same preconditions when the M3 task set is built.

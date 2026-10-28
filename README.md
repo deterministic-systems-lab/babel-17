@@ -21,10 +21,10 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP1a | B17-0 core semantics and the accept/reject suite | Drafted, v0.1 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)). Freezes once WP3's checker agrees with the suite (D44). |
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | In progress, on the parser and hasher. |
-| WP4a | The spec language | Proposed (D62): done when WP1a freezes, since B17-0 already has one. |
-| WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)). It checks the suite's proof labels: 17 of 20 accept programs prove under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled (D60, D61). |
-| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces) and D56–D59 are proposed. |
-| WP16 | Core spec library | In progress (D62): [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the goal spike proves each. |
+| WP4a | The spec language | Done once WP1a freezes (D62): B17-0's spec language is WP1a's. |
+| WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)), with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
+| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. |
+| WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the goal spike proves each. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
 
 [docs/roadmap.md](docs/roadmap.md) covers all five phases, what's left before the Phase 0 gate, and what comes after it.

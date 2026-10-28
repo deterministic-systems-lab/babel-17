@@ -9,7 +9,7 @@
   (spec prefix_sums
     (params (a (ref (slice i64))))
     (returns (p (vec i64)))
-    (requires (forall ((i int)) (=> (and (<= 0 i) (<= i (len a))) (in_i64 (sum_of (take a i))))))
+    (requires (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (in_i64 (+ (sum_of (take a i)) (idx a i))))))
     (ensures
       (== (len p) (+ (len a) 1))
       (forall ((i int)) (=> (and (<= 0 i) (<= i (len a))) (== (idx p i) (sum_of (take a i))))))

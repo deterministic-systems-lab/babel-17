@@ -148,7 +148,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44)
+## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62)
 - **Date:** 2026-10-26
 - **Decision:** WP4 splits:
   - **WP4a, the spec language:** depends on WP3.
@@ -507,7 +507,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §2 sets no limit, so the parser's real limit was Python's recursion depth, which varies by platform and by caller. A program could then parse, hash or print on one machine and fail on another, which D46's "hashes match across machines" rules out. A fixed limit makes every machine accept the same programs. 128 leaves room for the recursive printer, checker, hasher and tree comparison; at 253 levels, comparing two trees already overflowed. The deepest suite program nests 13 deep. Found by Codex's review of the parser.
 - **Touches:** WP2; D46; `docs/b17-0.md` §2.
 
-## D56 · Interface 10: interpreter traces and outcomes · Proposed
+## D56 · Interface 10: interpreter traces and outcomes · Accepted
 - **Date:** 2026-10-27
 - **Decision:** Interface 10, version 0.1, Draft. D27 names it without giving its contents; these are its contents.
   - **Trace:** the values `print` produced, in execution order across all calls. B17-0 has no other observable effect, so nothing else is traced. Every outcome carries the trace up to where the run stopped.
@@ -538,7 +538,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** WP7's differential tests compare the interpreter with the Rust Phase 1 emits (D18). A Rust binary shows its prints and how it ended, and nothing else, so that is what a trace holds. `err`'s reasons are §9's families, so a concrete failure names the goal the verifier should have failed to discharge. Child-index paths survive reformatting, which line numbers don't.
 - **Touches:** D22; D27 (interface 10); WP7; WP15; `docs/b17-0.md` §8.
 
-## D57 · What checking evaluates, and what a contract outcome reports · Proposed
+## D57 · What checking evaluates, and what a contract outcome reports · Accepted
 - **Date:** 2026-10-27
 - **Decision:** With checking off, the interpreter is §8: ghost code is erased and lemma calls do nothing. With checking on, it also evaluates the following in ghost context, where integers are unbounded and division truncates (D34, D37):
   - **Each call of a def or ghost-fn:**
@@ -563,7 +563,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Each check is one of §9's goals at a concrete state, so a contract outcome is a counterexample to that goal, named the way the verifier names it. Checking a lemma's claim where it's called gives WP16's witness examples something to run, and its proof stays the verifier's job. Memoizing ghost-fns changes no result and makes recursive specs such as `fib` linear to evaluate.
 - **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9.
 
-## D58 · A quantifier is evaluated only over a range read off its guard · Proposed
+## D58 · A quantifier is evaluated only over a range read off its guard · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - **Guard:** a `forall`'s guard is G when its body is `(=> G P)`. An `exists`'s guard is its body, when that's an `and`. Nested `and`s are flattened into a list of conjuncts in evaluation order.
@@ -583,7 +583,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Unknown left operands:** not evaluating the right operand costs a little precision, since `(and unknown false)` is unknown rather than false, but it never evaluates a guarded expression outside its guard.
 - **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9; `suite/accept/dedup_sorted.b17`.
 
-## D59 · Runs are bounded by fuel and call depth · Proposed
+## D59 · Runs are bounded by fuel and call depth · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - **Fuel:** a run has 1,000,000 steps by default. Each statement executed and each expression evaluated costs one step, in runtime and ghost code alike.
@@ -592,7 +592,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Settings:** both are arguments of `run()`, and the CLI's `--fuel N` sets the first.
 - **Why:** With checking off, nothing stops a loop whose measure doesn't drop. A checked run can meet a quantifier box too large to search. Steps and calls count the same way on every machine, so a run stops at the same node everywhere. A timeout wouldn't, and neither would Python's own recursion limit, which varies with platform and caller (D55's reasoning, applied to runs). The interpreter raises Python's limit in proportion to the depth limit, so the depth limit always stops a run first.
 - **Touches:** WP7; WP15; D55.
-## D60 · Ported ranges are stated per step · Proposed
+## D60 · Ported ranges are stated per step · Accepted
 - **Date:** 2026-10-27
 - **Decision:**
   - §10's porting rule keeps its aim, that every value a task computes fits in i64, but states it per step: for each loop step, the value that step computes fits, written in the terms the step uses.
@@ -611,7 +611,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
 - **Touches:** D42; `docs/b17-0.md` §10; `suite/accept/` `fib`, `power`, `sum` and `prefix_sums`; the ported-ranges table in `suite/README.md`; WP10.
 
-## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Proposed
+## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted
 - **Date:** 2026-10-27
 - **Decision:** for WP5 and interface 11, and replacing §9's line "vectors, slices and seqs become SMT sequences":
   - **Sequences:** vectors, slices and seqs are an uninterpreted sort per element type, and §9's background facts, with triggers, are their only axioms. SMT-LIB's sequence theory isn't used.
@@ -628,7 +628,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Recursive definitions:** a recursive definition given unconditionally could be contradictory where it doesn't terminate, as in `(+ (bad n) 1)`, and a contradiction proves every goal, including the termination goal that should catch it. Under its `requires` and left out of its own goals, the definition is consistent whenever its termination goal holds, and a definition that doesn't terminate fails that goal. Found while probing the spike's soundness.
 - **Touches:** `docs/b17-0.md` §9 (Encoding); D17; D23; interface 11; WP5.
 
-## D62 · For B17-0, the spec language is WP1a's, and WP4a ends when WP1a freezes · Proposed
+## D62 · For B17-0, the spec language is WP1a's, and WP4a ends when WP1a freezes · Accepted
 - **Date:** 2026-10-28
 - **Decision:**
   - **The spec language:** B17-0's spec language is the module header and the `spec`, `ghost-fn` and `lemma` items of `docs/b17-0.md`, with §7's well-formedness rules: clauses are checked in order, and ghost-fns are well-defined and terminate. WP4a adds nothing to it for Phase 1.
