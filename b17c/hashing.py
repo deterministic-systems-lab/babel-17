@@ -20,9 +20,22 @@ PROOF = {"decreases", "body"}  # a lemma's implementation part (D45)
 
 
 class HashError(Exception):
-    def __init__(self, code, reason):
-        self.code, self.reason = code, reason
+    """A tier 0 failure; names holds the items it's about, the one to report at first."""
+
+    def __init__(self, code, reason, names=()):
+        self.code, self.reason, self.names = code, reason, names
         super().__init__(f"{code}: {reason}")
+
+
+def _symbols(x):
+    out, stack = set(), [x]
+    while stack:
+        y = stack.pop()
+        if isinstance(y, Form):
+            stack.extend(y.items)
+        elif isinstance(y, Sym):
+            out.add(y.text)
+    return out
 
 
 class _Walk:
@@ -123,6 +136,24 @@ def hashes(module):
             return None
         return _digest("impl0:", spec_hash(name).encode() + b" " + _bytes(part))
 
+    # Hash every spec after the items it mentions, depth first with an explicit stack, so no
+    # walk recurses into another item's hash: a long chain of references can't overflow
+    # Python's stack, and recursion follows one item's nesting at a time (D55).
+    done = set()
+    for root in [it.items[1].text for it in module.items[3:]]:
+        if root in done:
+            continue
+        done.add(root)
+        stack = [(root, iter(sorted(_symbols(spec_part(root)) & defs.keys())))]
+        while stack:
+            name, rest = stack[-1]
+            nxt = next((n for n in rest if n not in done), None)
+            if nxt is None:
+                stack.pop()
+                spec_hash(name)
+            else:
+                done.add(nxt)
+                stack.append((nxt, iter(sorted(_symbols(spec_part(nxt)) & defs.keys()))))
     out = {}
     for it in module.items[3:]:
         name = it.items[1].text
@@ -133,7 +164,8 @@ def hashes(module):
     seen = {}
     for name, (kind, spec, _) in out.items():
         if kind == "spec" and seen.setdefault(spec, name) != name:
-            raise HashError("E-TYPE-002", f"spec '{name}' is identical to '{seen[spec]}' up to names")
+            raise HashError("E-TYPE-002", f"spec '{name}' is identical to '{seen[spec]}' up to names",
+                            (name, seen[spec]))
     return out
 
 

@@ -8,7 +8,6 @@ exiting 1 if there are any. A parse error prints the same way, as E-PARSE-001.
 check(module) returns the diagnostics in position order; an empty list means the module
 passes tier 0. Proof goals are WP5's: this checker generates none.
 """
-import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -152,46 +151,17 @@ class _Checker:
         return self.diags
 
     def duplicates(self):
-        """D45: no two specs share a spec hash. hashing.hashes recurses through every item a spec
-        refers to, so it gets the items in an order where each follows the ones it calls, and
-        recurses through one item's nesting at a time (D55, D78)."""
+        """D45: no two specs share a spec hash."""
         try:
-            hashes(self.ordered())
+            hashes(self.module)
         except HashError as e:
-            names = re.findall(r"'([a-z0-9_]+)'", e.reason)
-            specs = sorted((self.items[n].form.items[1].pos, n) for n in names if n in self.items)
+            specs = sorted((self.items[n].form.items[1].pos, n) for n in e.names if n in self.items)
             if e.code == "E-TYPE-002" and len(specs) == 2:  # placed at the later spec, as the module reads
                 (_, first), (_, later) = specs
                 self.report(e.code, self.items[later].form.items[1],
                             f"spec '{later}' is identical to '{first}' up to names (D45)")
             else:
                 self.report(e.code, self.module, e.reason)
-
-    def ordered(self):
-        """The module with its items reordered so that each follows the items it calls. Hashes
-        don't depend on the order of items (D45)."""
-        calls = {}
-        for caller, callee, _ in self.edges:
-            if caller != callee:
-                calls.setdefault(caller, []).append(callee)
-        order, done = [], set()
-        for root in dict.fromkeys(it.items[1].text for it in self.module.items[3:]):
-            if root in done:
-                continue
-            done.add(root)
-            stack = [(root, iter(calls.get(root, ())))]
-            while stack:  # depth first, iteratively: a long chain of calls mustn't overflow Python's stack
-                node, rest = stack[-1]
-                nxt = next((n for n in rest if n not in done), None)
-                if nxt is None:
-                    stack.pop()
-                    order.append(node)
-                else:
-                    done.add(nxt)
-                    stack.append((nxt, iter(calls.get(nxt, ()))))
-        rank = {name: k for k, name in enumerate(order)}
-        items = sorted(self.module.items[3:], key=lambda it: rank[it.items[1].text])
-        return Form(self.module.items[:3] + tuple(items), self.module.pos, self.module.end)
 
     def report(self, code, node, message):
         self.diags.add(Diagnostic(node.pos[0], node.pos[1], code, message))

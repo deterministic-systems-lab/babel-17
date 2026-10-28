@@ -749,3 +749,14 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** `b17c/test_check.py`.
 - **Left admitted:** none.
 - **Not yet done:** WP5's proof goals and solver. WP6's diagnostic schema. The freeze of `docs/b17-0.md` and `suite/`, which is now the owner's call (D44).
+
+## 2026-10-28 · WP3 rebased onto main; hashing's workarounds moved into `hashing.py`
+- **Rebased:** WP3's commit (`wp3-check`) was based on PR #8, before PRs #9–#14 merged. It's rebased onto main as `wp3-checker`. Its decisions are renumbered from D63–D75 to D66–D78, since main's D63–D65 are taken.
+- **Checked on main:**
+  - all five self-checks pass;
+  - the checker agrees with every label of the 50-program suite, including D60's per-step programs;
+  - main's core library, with its 33 laws and `seq_update`, which WP3 had never seen, has no diagnostics.
+- **D78's workarounds, fixed where they belong:**
+  - **The stack overflow:** `hashing.hashes` recursed through every item a spec refers to. With references in reverse order, 200 chained ghost-fns overflowed Python's stack. It now hashes each spec after the items it mentions, using an explicit stack, so a 3000-item reverse chain hashes in a fraction of a second, with the same hashes as in calling order. The golden hashes are unchanged.
+  - **`HashError.names`:** a duplicate-spec error now names both specs.
+  - **The checker** passes the module unchanged and drops its reordering pass and its parsing of error messages, 33 lines in all. D78's text is updated to match.

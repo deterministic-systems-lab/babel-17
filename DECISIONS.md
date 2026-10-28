@@ -841,9 +841,6 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Moves:** a moved vector's first runtime use is reported (`E-OWN-001`), and later uses aren't. A vector repeated in one call or return is reported once (`E-OWN-005`), with no use-after-move report on top.
   - **Effects:** each effect a spec leaves out is reported once, at the first statement that has it (`E-EFF-001`).
   - **Recursion:** `E-TERM-001` is reported at each recursive call. `E-TERM-002` is reported once per group of mutually recursive items, a strongly connected component of the call graph, at its first call by position.
-  - **Duplicate specs:**
-    - D45's check runs last, only once nothing else has failed, and its `E-TYPE-002` is placed at the later spec. `hashing.HashError` carries no position, so the checker reads the specs' names from its message.
-    - `hashing.hashes` recurses through every item a spec refers to, so a long enough chain of references overflows Python's stack, whatever D55 says about one item's nesting. The checker therefore passes it the module with each item after the items it calls. Hashes don't depend on the order of items, and the recursion then follows one item's nesting at a time.
-    - Both workarounds belong in `hashing.py` itself: a `HashError` that carries the item, and hashing that follows references in dependency order.
+  - **Duplicate specs:** D45's check runs last, only once nothing else has failed, and its `E-TYPE-002` is placed at the later spec. `hashing.HashError` names the two specs. `hashing.hashes` hashes each spec after the items it mentions, so a long chain of references doesn't overflow Python's stack, whatever D55 says about one item's nesting.
 - **Why:** The task asks for every independent error and none that merely follows from another. Positions on every diagnostic make the output usable until WP6 defines node IDs.
 - **Touches:** WP3; WP6; D45; D55; `b17c/hashing.py`.

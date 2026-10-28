@@ -76,5 +76,16 @@ error((SUITE / "reject/E-TYPE-002-duplicate-spec.b17").read_text(), "E-TYPE-002"
 HEAD = '(module m (header (purpose "p") (invariants "i") (failures "f"))'
 error(HEAD + " (ghost-fn f ((x int)) int (body (g x))))", "E-TYPE-002")
 error(HEAD + " (ghost-fn f ((x int)) int (body (g x))) (ghost-fn g ((x int)) int (body (f x))))", "E-TERM-002")
+# A duplicate names the later spec first, for the checker to report there.
+try:
+    of((SUITE / "reject/E-TYPE-002-duplicate-spec.b17").read_text())
+except h.HashError as e:
+    assert len(e.names) == 2 and all(f"'{n}'" in e.reason for n in e.names), e
+
+# A long chain of references, each item before the one it calls, hashes without
+# overflowing Python's stack, and gives the hashes it gives in calling order.
+CHAIN = ["(ghost-fn g0 ((x int)) int (body x))"] + [
+    f"(ghost-fn g{k} ((x int)) int (body (g{k - 1} x)))" for k in range(1, 3000)]
+assert of(HEAD + " " + " ".join(CHAIN[::-1]) + ")") == dict(reversed(of(HEAD + " " + " ".join(CHAIN) + ")").items()))
 
 print("hashing self-check passed")
