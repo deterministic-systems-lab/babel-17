@@ -1,7 +1,7 @@
 (module core
   (header
     (purpose "The core library (WP16, docs/b17-0.md §9): ghost-fns in scope in every B17-0 module, and the laws a proof may use about integers and collections, each a lemma.")
-    (invariants "Every ghost-fn is total on its parameter types. Every law is one of §9's background facts or the laws of integer order, or follows directly from them, and its witness examples are confirmed by the reference interpreter (b17c/test_core.py). The effects of push and set-idx are §9's statement facts, which no lemma can state.")
+    (invariants "Every ghost-fn is total on its parameter types. Every law is one of §9's background facts or the laws of integer order, or follows directly from them, and its witness examples are confirmed by the reference interpreter (b17c/test_core.py). Laws are stated for int elements: B17-0 has no polymorphism, and the encoding applies the same facts at bool. Three of §9's facts aren't lemmas. Push's effect is a statement fact. Set-idx's multiset effect, stated over seq_update, would need a fact §9 lacks: concat (take s k) (drop s k) = s. Multiset extensionality ranges over every int, which the interpreter can't evaluate (D58).")
     (failures "None. Ghost-fns and lemmas never run."))
   (ghost-fn sorted ((s (seq int))) bool
     (body (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i j)) (< j (len s))) (<= (idx s i) (idx s j))))))
@@ -10,6 +10,14 @@
   (ghost-fn seq_update ((s (seq int)) (i int) (e int)) (seq int)
     (requires (and (<= 0 i) (< i (len s))))
     (body (concat (take s i) (concat (seq-lit e) (drop s (+ i 1))))))
+  (lemma law_i64_range
+    (params (x i64))
+    (ensures (in_i64 x))
+    (body))
+  (lemma law_vec_len_range
+    (params (v (vec i64)))
+    (ensures (< (len v) 9223372036854775808))
+    (body))
   (lemma law_len_nonneg
     (params (s (seq int)))
     (ensures (>= (len s) 0))
@@ -58,7 +66,7 @@
     (body))
   (lemma law_take_none
     (params (s (seq int)))
-    (ensures (== (len (take s 0)) 0))
+    (ensures (== (take s 0) (seq-lit)))
     (body))
   (lemma law_take_take
     (params (s (seq int)) (k int) (j int))
@@ -102,6 +110,11 @@
   (lemma law_occurrences_none
     (params (s (seq int)) (x int))
     (ensures (== (occurrences (take s 0) x) 0))
+    (body))
+  (lemma law_multiset_occurrences
+    (params (s (seq int)) (t (seq int)) (x int))
+    (requires (== (multiset s) (multiset t)))
+    (ensures (== (occurrences s x) (occurrences t x)))
     (body))
   (lemma law_multiset_concat
     (params (s (seq int)) (t (seq int)))

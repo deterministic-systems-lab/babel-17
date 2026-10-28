@@ -12,8 +12,20 @@ from syntax import Form, Int, Sym, _head, parse_expr
 
 CORE = i.CORE
 PROGRAM = i._Program(CORE)  # built once; value() would rebuild it for every point
-SEQS = [()] + [s for n in (1, 2, 3) for s in itertools.product((0, 1, 2), repeat=n)]  # 40 sequences
-INTS = range(-1, 5)
+# Negative elements and two longer sequences, so laws such as "last s >= 0" or "len s <= 3" fail.
+SEQS = ([()] + [s for n in (1, 2, 3) for s in itertools.product((-1, 0, 2), repeat=n)]
+        + [(3, -2, 3, 0, -2), (5, 4, 3, 2, 1, 0)])
+INTS = range(-1, 7)
+I64 = list(INTS) + [i.MIN, i.MAX]
+LAWS = {
+    "law_i64_range", "law_vec_len_range", "law_len_nonneg", "law_len_unit", "law_len_concat",
+    "law_len_take", "law_len_drop", "law_idx_concat", "law_idx_take", "law_idx_drop", "law_last",
+    "law_take_all", "law_take_none", "law_take_take", "law_take_step", "law_seq_ext", "law_contains",
+    "law_contains_concat", "law_contains_unit", "law_contains_none", "law_occurrences_concat",
+    "law_occurrences_unit", "law_occurrences_none", "law_multiset_occurrences", "law_multiset_concat",
+    "law_update_len", "law_update_at", "law_update_other",
+    "law_le_refl", "law_le_trans", "law_le_antisym", "law_le_total", "law_lt_succ",
+}
 
 
 def term(v):
@@ -45,13 +57,15 @@ def holds(x):
 
 
 lemmas = [it for it in CORE.items[3:] if _head(it) == "lemma"]
-assert len(lemmas) == 30, len(lemmas)
+assert {it.items[1].text for it in lemmas} == LAWS, {it.items[1].text for it in lemmas} ^ LAWS
 for lemma in lemmas:
     name = lemma.items[1].text
     params = next(c for c in lemma.items if _head(c) == "params").items[1:]
     pre = conj(e for c in lemma.items if _head(c) == "requires" for e in c.items[1:])
-    post = conj(e for c in lemma.items if _head(c) == "ensures" for e in c.items[1:])
-    grids = [SEQS if _head(p.items[1]) == "seq" else INTS for p in params]
+    claims = [e for c in lemma.items if _head(c) == "ensures" for e in c.items[1:]]
+    assert claims and Sym("true") not in claims, f"{name} claims nothing"
+    post = conj(claims)
+    grids = [SEQS if isinstance(p.items[1], Form) else I64 if p.items[1].text == "i64" else INTS for p in params]
     witnesses = 0
     for point in itertools.product(*grids):
         env = {p.items[0].text: term(v) for p, v in zip(params, point)}

@@ -552,3 +552,22 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Suite results unchanged:** 17 of 20 accept programs and 9 of 9 rejects under 10 seeds.
   - `power`'s brute-force proof shifted again, with no change to `power` itself. That's more evidence for D60.
   - Adding a take-and-drop fact, `concat (take s k) (drop s k) = s`, to try to save the dropped law also flipped `fib`, so it was reverted.
+
+## 2026-10-28 · WP16 review: 33 laws
+- **Codex** (`gpt-5.6-sol`) reviewed the library and its witness test, and found 9 issues.
+  - **Added:**
+    - `law_i64_range` and `law_vec_len_range`, for §9's range facts;
+    - `law_multiset_occurrences`, which says equal multisets have equal counts.
+  - **Strengthened:** `law_take_none` now states `take s 0` equals the empty sequence, not only that its length is 0.
+  - **The test** now checks:
+    - the exact list of law names;
+    - that every law claims something;
+    - a grid with negative elements, two longer sequences and the i64 edges.
+
+    Three laws false only outside the old grid now fail it: `last s >= 0`, `len s <= 3`, and an empty claim.
+  - **Not added, with the reasons in the library's header:**
+    - **Bool versions of the laws:** B17-0 has no polymorphism, and the encoding applies the same facts at bool.
+    - **Multiset extensionality:** its precondition ranges over every `int`, so the interpreter can't give it witness examples (D58).
+    - **`set-idx`'s multiset effect over `seq_update`:** the interpreter confirms it, but the encoding can't prove it without `concat (take s k) (drop s k) = s`, which §9 doesn't have.
+- **Result:** the interpreter confirms all 33 laws on the grid in under 2 s, and the goal spike proves all 69 of the library's goals under 10 seeds.
+- **Open:** §9 has no take-and-drop decomposition fact. Adding one would let a library law state `set-idx`'s multiset effect. Once D60 removes the suite's brute-force proofs, the fact is cheap to add; until then it flips `fib`.
