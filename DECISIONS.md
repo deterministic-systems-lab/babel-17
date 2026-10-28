@@ -948,3 +948,166 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Unchecked contracts** keep a program's cost the one its code states. The tests check the contracts without that cost.
   - **Fixed seeds and counts** keep D23's rule that results don't depend on the machine.
 - **Touches:** D18; D23; D24; D25; D26; D29; D57; D58; D59; D63; D64; D65; interfaces 4 and 5; WP2; WP5; WP7; `docs/roadmap.md`.
+
+## D81 · B17-1's syntax for data types, tuples and match · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Data types:** `(data D (A*) (C (F type)*)+)` declares a type with its parameters and constructors. A constructor call is `(C e*)`, the same form as a ghost-fn call.
+  - **`match`:** `(match e (case (C x*) X)+)` is an expression or a statement, as `if` is. It has one arm per constructor, in declaration order, with no wildcards and no nested patterns. A missing, repeated or misplaced arm is `E-TYPE-001`. A tuple has one arm, `(case (tuple x+) X)`.
+  - **Reading one part:** `(is C e)` tests a constructor, and `(field e F)` reads a field, with a `FIELD` goal unless every constructor has F.
+  - **Tuples:** `(tuple e e+)` builds one, and `(get e K)` reads a component, with K a literal.
+- **Why:**
+  - **One way to write each match:** a fixed arm order and no wildcards mean one canonical form per match, as D47 wants of layout, and an agent can't forget a constructor.
+  - **No nested patterns:** they'd need an exhaustiveness check over pattern trees. A nested match does the same job.
+  - **The form of a constructor call:** it matches the ghost-fn call agents already write, and the name tells them apart.
+- **Touches:** D47; D79; `docs/b17-1.md` §2, §7; interfaces 1 and 6.
+
+## D82 · Types and values have separate namespaces · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Type names:** data types and type parameters are unique within a module. They may not be a built-in type word or the core library's `option`.
+  - **Value names:** they follow D41. Constructors are value names, unique among items and constructors.
+  - **Field names:** they're unique within one data type, across its constructors, and may repeat across types. `field` looks a field up in its operand's type.
+  - **A name may be both kinds,** so a parameter `tree` of type `tree` is allowed, and a single-constructor type may share its constructor's name.
+- **Why:** AlgoVeri's ports name parameters after their types (`graph: Graph`), and Dafny's `datatype Graph = Graph(...)` shares a type's name with its constructor. Names here are lowercase only, so one namespace would force renames on every such port. Types and values never appear in the same position, so keeping them apart costs no ambiguity.
+- **Touches:** D41; D51; `docs/b17-1.md` §2.
+
+## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Runtime types:** `bool`, `i64`, and a vector, tuple or data type whose components are all runtime types, as D79 lists them. A slice is a spec's parameter type only, and never sits inside another type. Every other type is a ghost type. A vector's element is a runtime type.
+  - **Copying:** a tuple or data value is copied when every type inside it is copied and its type isn't recursive. Everything else moves.
+  - **Well-formed data types:**
+    - every data type has a finite value;
+    - a data type is applied to as many types as it has parameters;
+    - two data types may not contain each other (`E-TERM-002`);
+    - a data type never contains itself inside an `iset`, `map` or `multiset`.
+  - **Subtyping, in ghost code:** tuples are covariant in their components, as `seq` is. `iset` and `map` have no rule, as `multiset` has none (D70). A data type is covariant in some parameters and invariant in the rest:
+    - a parameter is invariant when one of its occurrences in the fields sits inside an `iset`, `map` or `multiset`, or is the argument for an invariant parameter of any data-type application, the type's own recursive ones included;
+    - the module's variances are the largest assignment that satisfies this, found by starting with every parameter covariant.
+- **Why:**
+  - **Runtime types:** D79 asks that no runtime value hold a borrow or an unbounded integer. This is that rule stated over types.
+  - **Copying:** it matches what Rust can `Copy`. A recursive type holds a `Box`, which Rust never copies implicitly.
+  - **A finite value:** a type with none can't be constructed, and the property-test generator (D88) needs a smallest value to stop at.
+  - **Covariance:** `(option i64)` must compare with `(option int)` in specs, which the encoding gets for free, since `i64` and `int` share SMT's `Int`. A parameter used inside a set, map or multiset can't be covariant, or a wrapper around `(map i64 bool)` would pass for one around `(map int bool)`.
+  - **No recursion under arrays:** those three are arrays in the encoding (D89), and Z3 has no well-founded datatype that contains itself inside an array.
+- **Touches:** D34; D36; D68; D69; D70; D79; `docs/b17-1.md` §3, §5.
+
+## D84 · Places, replace, and what match may take · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Places:** a place is a variable, `(idx p i)`, `(get p K)` or `(field p F)`. Reading a copied value through one copies it. A moving value in a place can only be read further, under `len`, `idx`, `get`, `field` or `is`, or in ghost code.
+  - **Updating:** `set-idx` and `push` take a place rooted at a live `let-mut` local, and never one through a slice.
+  - **Taking a value out:** `(let x T (replace p e))` moves p's value into x and leaves e there. It's allowed only as a `let` or `let-mut` initializer, and it's the only way to move a value out of a place.
+  - **`match` in runtime code** takes a variable, which moves when its type does, or an expression of a copied type. Its arms bind the fields as owned locals.
+  - **`E-OWN-007`:** a moving value moved out of a place, whether used whole in an owned position or as a `match`'s scrutinee.
+  - **Generalized rules:** D72's one-argument rule and `E-OWN-006` now cover every moving value, constructor and `tuple` arguments included.
+  - **Moves only in owned positions:** in runtime code, a moving expression other than a variable appears only as an owned position's whole value, or as an argument of a constructor or `tuple` that does. So `if` and `match` expressions and loop conditions never move anything, and a `match` expression's scrutinee has a copied type.
+  - **Repeated bodies:** a runtime `seq-build`'s body may not move a variable declared outside it (`E-OWN-004`), as a loop body may not.
+  - **The root outlives the value:** in `set-idx`, `push` and `replace`, the indices and value are evaluated first, and the place's root must still be live after them (`E-OWN-001`).
+  - **Goals:** `replace` carries the same `BOUNDS` and `FIELD` goals as `set-idx`, for each `idx` and `field` its place passes through.
+- **Why:**
+  - **No lifetimes:** nested vectors and trees need reads and updates in place. A place lasts no longer than the statement that names it, so none is needed, as D36 intends.
+  - **`replace` as an initializer:** binding the old value to a name keeps expressions free of side effects, as in B17-0. Rust's `std::mem::replace` behaves the same way.
+  - **Moves at statement level:** move state then never needs joining inside an expression, so the checker tracks moves per statement as B17-0's does.
+  - **The other three rules** close holes a review found: a `seq-build` moving one value into every element, `(push (field x kids) x)` moving x into itself, and a `replace` at an unchecked index.
+- **Touches:** D36; D72; D73; D76; D79; `docs/b17-1.md` §5, §7; `b17c/check.py`.
+
+## D85 · Ghost sets and maps · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Types:** `(iset T)` is a set that may be infinite, and `(map K V)` a finite map.
+  - **Set operations:** `(iset-lit e*)`, `(iset-of ((x T)) e)`, `union`, `diff` and `inter`.
+  - **Map operations:** `(map-lit (k v)*)`, `(update m k v)`, `(lookup m k)` with a ghost `BOUNDS` goal that k is a key, and `(union m n)`, where n's value wins on a shared key. Each is typed over `(map K V)`, as `docs/b17-1.md` §7 states.
+  - **`contains`** tests membership in a sequence, a set or a map's keys.
+  - **Literals** take their element types from their destination when they have one.
+- **Why:**
+  - **The name `iset`:** `set` is already a statement, and `iset` is Dafny's name for exactly this type, which the ported tries use.
+  - **One `contains`:** a single membership word for all three keeps the vocabulary small.
+  - **A right-biased union:** it matches Dafny's `+` on maps, which the segment tree tasks use.
+  - **Literals from their destination:** without it, `(iset-lit v)` with v an `i64` couldn't be an `(iset int)`, since sets have no subtyping (D83).
+- **Touches:** D70; D79; `docs/b17-1.md` §2, §4, §7.
+
+## D86 · A constructor with a boxed field allocates · Proposed
+- **Date:** 2026-10-28
+- **Decision:** a field is boxed when its type mentions its own data type other than inside a vector. A constructor call has effect `alloc` when its constructor has a boxed field. `tuple`, `match`, `is`, `field`, `get` and `replace` have no effect.
+- **Why:** WP7 emits a boxed field as a Rust `Box`, which allocates. A vector already holds its elements on the heap, so a field that reaches its type only through one isn't boxed. An effect says what a function may do (D20), so the constructor carries `alloc` even when the field it fills is `none`.
+- **Touches:** D20; D30; D79; WP7; `docs/b17-1.md` §6.
+
+## D87 · rank is height, on every data value · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Where it applies:** `(rank e)` is defined for e of any data type, as D79 says. A tuple or any other type is `E-TYPE-001`.
+  - **Interpreter:** it computes height. A value with no data value inside it has rank 0, and any other value is one more than the greatest rank among the data values directly inside it, reached through tuple components and sequence elements.
+  - **Verifier:** it states only that rank is at least 0, and that a data value reached from a constructor's field, through tuple components and sequence elements, has a smaller rank than the value the constructor builds.
+- **Why:**
+  - **Agreement:** height satisfies every axiom, so the interpreter and the verifier agree.
+  - **Integer measures:** they keep §7's termination goal unchanged (D79).
+  - **Every data value:** an LLRB tree recurses on `(option node)`, which isn't itself recursive, so `rank` must reach it too.
+- **Touches:** D57; D79; `docs/b17-1.md` §7, §8, §9.
+
+## D88 · The property-test generator · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Generator:** SplitMix64. Its state starts at the first 16 hex digits after `spec0:` in the def's spec hash (D46), read as an unsigned 64-bit integer. `docs/b17-1.md` §10 gives the exact stream: the order of draws, how each value consumes it, and each type's smallest value.
+  - **Counts:** 100 inputs that satisfy the `requires`, from at most 10,000 draws. A draw whose `requires` is unknown is dropped.
+  - **Values:**
+    - **`bool`:** each value equally likely.
+    - **`i64`:** half the time uniform on [−10, 10]; a quarter of the time one of seven boundary values; otherwise uniform over all values.
+    - **Vectors:** a length uniform on [0, 8].
+    - **Tuples and data:** each part drawn independently. Data takes a constructor chosen uniformly, and at depth 4 its smallest finite value.
+- **Why:**
+  - **Seeding from the spec hash:** inputs depend only on what the spec says, so editing a body never changes which inputs test it. The same inputs on every machine keep D23's rule.
+  - **Small values and boundaries:** they find most contract failures in small programs, and the boundaries catch overflow.
+  - **Fixed counts:** they bound a test run's cost, as D59's fuel bounds a run.
+- **Touches:** D22; D23; D57; D59; D80; WP15; `docs/b17-1.md` §10.
+
+## D89 · Interface 11 version 0.2 encodes B17-1 · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Datatypes:** tuples and data types are SMT-LIB datatypes, generic ones parametric.
+  - **Sequences:** D61's encoding, instantiated for each element sort a query uses.
+  - **Arrays:**
+    - multisets are count arrays;
+    - sets are arrays to `Bool`, with `iset-of` as a lambda;
+    - maps are arrays from keys to `(option V)`.
+  - **Equality** is extensional everywhere. Sequences, and values holding them, compare through a per-sort equality predicate that implies SMT equality.
+  - **`rank`** is an uninterpreted function per data sort, with D87's axioms.
+  - **`match` and `is`:** in each arm, the scrutinee equals its constructor applied to the arm's binders.
+- **Why:**
+  - **Datatypes:** Z3 decides them natively, and array theory decides the set and map operations, so neither needs laws in the core library.
+  - **Maps as arrays to `option`:** `none` outside a map's keys makes array equality map equality.
+  - **The sequence equality predicate:** D61's sequences are uninterpreted, so SMT equality alone isn't extensional. Dafny's `Seq#Equal` solves the same problem.
+- **Touches:** D17; D61; D63; D79; WP5; interface 11; `docs/b17-1.md` §9.
+
+## D90 · Quantifiers bind only types the encoding states exactly · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **Allowed binder types:** a binder of `forall`, `exists` or `iset-of` has an exact type. `bool` and `int` are exact; a `seq`, `iset` or tuple is exact when its parts are; a data type is exact when every field type of every constructor is, after substitution, with its own recursive occurrences counting as exact unless reached through a `seq`, where D61's uninterpreted sequences would admit a cyclic value.
+  - **Rejected:** any other binder is `E-TYPE-001`, so `i64`, a vector, a slice, a `multiset` or a `map` anywhere inside, a data type's fields included, makes a binder fail. D68's `i64` binder rule is the same rule for B17-0's types.
+  - **Ports:** `edmond_karp` and `push_relabel`, which quantify over flows stated as maps, state a flow as a sequence of sequences of `int` instead.
+- **Why:**
+  - **Soundness:** the encoding admits values outside the rejected types. A map is an array to `option`, so it may have infinitely many keys. An `i64` field shares SMT's `Int`, so `(some 2^63)` is an `(option i64)` there. An `exists` over such a type could be proved with a witness no program has.
+  - **Exactness:** the allowed types' values are exactly the encoding's, since datatypes are finite trees, arrays to `Bool` are all sets, and D61's sequences are all finite sequences.
+  - **Evidence:** the surveyed specs quantify over sequences in 28 tasks, counting the tries' comprehensions over keys, and over flows in 2 and a matching in 1, which rewrite to sequences. `max_matching` also binds tuple edges, which are exact as `(tuple int int)`.
+- **Touches:** D61; D68; D79; D89; WP10; `docs/b17-1.md` §7, §11, §12.
+
+## D91 · L2's closure covers the ghost-fns a proof unfolds · Proposed (refines D80)
+- **Date:** 2026-10-28
+- **Decision:** a goal's canonical query includes the defining equations of the ghost-fns it uses (D63), and a proof may rest on any of them. It counts for L2 only once every goal of each such ghost-fn counts too: the well-definedness of its `requires`, its measure and its body, and its termination, and likewise, transitively, for the ghost-fns those goals' queries include. WP5 solves a goal again without an equation that doesn't count. This adds a fourth item to D80's list of what a proof may assume, after earlier goals on the path, callees' `ensures` and lemmas' claims.
+- **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
+- **Touches:** D63; D80; WP5; `docs/b17-1.md` §10.
+
+## D92 · How B17-1's data items and binders are hashed · Proposed (refines D45)
+- **Date:** 2026-10-28
+- **Decision:** the format stays version 0 (D46). B17-0's items hash as before, and these rules cover B17-1's new forms.
+  - **Data items** have only a spec hash, covering the whole item, as ghost-fns do. Inside one, its own name becomes `_`, its type parameters `$0`, `$1`, … in order, its constructors `#0`, `#1`, … in order, and its fields `.0`, `.1`, … across all its constructors in declaration order.
+  - **References:** a data type's name becomes its spec hash H, a constructor H's `#i`, and a field `.k`, wherever they're used.
+  - **Binders:** case-pattern names and `iset-of` variables are numbered with D45's other binders.
+  - **Namespaces:** names resolve in their own namespace (D82), so a data type and a ghost-fn named alike hash apart.
+  - **One data type per hash:** two data items with the same spec hash in a module are `E-TYPE-002`, as two specs are.
+- **Why:**
+  - **References by hash:** editing a data type then rehashes every spec that mentions it, as editing a ghost-fn does. A layout change must re-verify what depends on it.
+  - **Positions for names:** renaming a type, constructor or field changes no hash, as D22 asks of renames.
+  - **No coinciding types:** two types identical up to names would get one hash, and the references in specs couldn't tell them apart.
+- **Touches:** D22; D45; D46; WP2; `b17c/hashing.py`; `docs/b17-1.md` §2.
