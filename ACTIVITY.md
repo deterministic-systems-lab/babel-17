@@ -382,6 +382,67 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the implements list names D47–D55.
 - **Code:** unchanged. `b17c/syntax.py` already implements all nine, and both self-checks pass.
 
+## 2026-10-27 · WP15: the reference interpreter
+- **Added, on branch `wp15-interp`:**
+  - **`b17c/interp.py`,** standard library only (D19). `run(module, name, args, check=False)` executes a def per §8 and returns one of `ok`, `panic` or `err`, each carrying the print trace. Ghost code is erased unless `check=True`, which also evaluates contracts, invariants, measures, asserts, ghost locals, ghost-fn calls and lemma claims, and reports the first failure as a `contract` outcome (D57). A step limit and a call-depth limit give a `limit` outcome, which is outside §8 (D59). The CLI `uv run --no-project b17c/interp.py [--check] [--fuel N] FILE NAME ARG...` prints the trace and outcome in interface 10's text form (D56).
+  - **`b17c/test_interp.py`:** WP1a's conformance tests, derived from §8 and the suite.
+  - **`syntax.parse_expr`,** which reads one expression, for the CLI's arguments. `test_syntax.py` covers it.
+  - **README:** the interpreter, its self-check and a CLI example.
+- **Core library:** read from `b17c/core.b17`, the same prelude the hasher uses.
+- **Conformance tests:**
+  - **Accept programs:** all 20 return `ok` with `check=True` on 3 to 9 hand-picked inputs each, including empty sequences and the i64 edges their requires allow, such as `abs(MIN + 1)`, `fib(92)`, `power(-2, 63) = MIN`, `sum((MAX, MIN))` and `gcd` of fib 92 and fib 91. Each also matches its `check=False` run exactly. 15 of them also run on 40 seeded random inputs each, filtered by their requires, and 13 of those are compared with an independent Python oracle.
+  - **Requires:** 15 inputs that a requires rules out, such as `fib(93)` and `power(3, 40)`, stop on entry with `PRE`.
+  - **§8, rule by rule:**
+    - every `err` case, with the in-range edges beside each, and overflow in every runtime position: `let`, `print`, `push`, call arguments and a `seq-build` body;
+    - left-to-right evaluation of operands, call arguments and `set-idx`;
+    - truncating `/` and `%` in both contexts;
+    - short-circuiting `and`, `or`, `=>` and `if`;
+    - `panic`;
+    - the print trace's order across calls;
+    - several results (D43);
+    - early return (D40);
+    - `seq-build`'s index range (D38);
+    - each check-mode rule of D57, each quantifier rule of D58, and both limits of D59.
+  - **Reject programs:** every `E-PROOF-*` program shows its labelled fault on a concrete input:
+    - `OVERFLOW`: `succ(MAX)`;
+    - `DIV`: `rem(MIN, -1)`;
+    - `BOUNDS`: `first_nonneg((-1))`;
+    - `POST`: `bad_abs(-1)`;
+    - `PRE`: `caller(-1)`;
+    - `ASSERT`: `hopeful(0)`;
+    - `INV-ENTRY`: `loop_entry(n)` for every n;
+    - `INV-KEEP`: `loop_keep(1)`;
+    - `TERM`: `spin(1)`.
+
+    The first three are §8 `err`s with or without checking, and the other six are `contract` outcomes that disappear when ghost code is erased. Every label except `INV-ENTRY` also has an input that runs clean. No suite label disagreed with the interpreter.
+- **Independent review** of the interpreter against §7–§9 found 7 problems. All are fixed, and each now has a test:
+  - **Quantifier ranges:** bounds were taken from any conjunct of a guard, so a clause undefined at a skipped point could pass, such as `(idx a i)` sitting before `(< i (len a))`. An `exists` also stopped at its first witness, missing an undefined point after it. D58 now reads bounds only from the guard's leading conjuncts that can't fail, works ranges out binder by binder, and evaluates every point.
+  - **Crashes:**
+    - a `bool` binder used in an `int` binder's bound;
+    - a recursive call inside a ghost-fn's own `requires`, which is now `TERM`;
+    - a call to a spec with no def, which is now a clear refusal;
+    - a `(borrow ...)` command-line argument.
+  - **Missed `TERM`:** 0 ≤ callee measure wasn't checked when the caller's measure was unknown.
+  - **Unrecorded unknowns:** a ghost-fn whose `requires` was unknown wasn't listed as unchecked.
+  - **Order:** bound expressions were evaluated even where the guard's earlier conjuncts already ruled every point out, which evaluation from left to right never does.
+
+  The review also listed plausible bugs the tests didn't catch at the time. Each is now one of the mutants below.
+- **Mutation check:** 56 deliberate bugs in `interp.py`, one at a time. 55 make the tests fail, or hang where fuel was the only thing stopping a loop. The other pops one call frame where the code cuts the stack back to its depth before the call. The two differ only once the depth limit has already ended the run.
+- **Findings:**
+  - **`dedup_sorted` can't be fully checked.** Its `ensures` clause `(forall ((x int)) (== (contains a x) (contains r x)))` and the matching invariant range over every `int`, so D58 lists them as unchecked on every run. The rest of its contract is checked, and its results match the oracle. If the owner wants the clause checkable, an equivalent bounded statement is `(forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (contains r (idx a i))))` together with the same over `r`'s indices and `a`. The suite isn't changed.
+  - **`isqrt` can't be run at its i64 edge.** Its loop is linear in √n, so `n = MAX` takes about 3 billion iterations. The largest input tested is 10,000.
+- **Proposed D56–D59:**
+  - D56: interface 10 — the trace, the outcomes, node IDs, evaluation order and the text form;
+  - D57: what checking evaluates and what a contract outcome reports;
+  - D58: the quantifier range rule, and unknown clauses;
+  - D59: fuel and call-depth limits.
+
+  The brief numbered them from D55, but D55, the nesting cap, was taken first.
+- **Interfaces touched:** 10, defined at version 0.1, Draft. `docs/b17-0.md` and `suite/` are unchanged.
+- **Proofs and tests added:** `b17c/test_interp.py`, and `parse_expr` cases in `b17c/test_syntax.py`.
+- **Left admitted:** none.
+- **Second review (Codex, `gpt-5.6-sol`)** found one defect, now fixed with a test: checking evaluated a call's measure before its `requires`, against D57. A ghost-fn whose measure is costly or undefined outside its `requires` then hit `limit` instead of `PRE`. A caller's measure is now evaluated only once its `requires` hold, or when a recursive call inside them first needs it. No other defects were found in §8's semantics, value semantics, D56–D59, the tests or `parse_expr`.
+- **Not yet done:** WP7's differential tests against emitted Rust, which interface 10 is shaped for; WP16's witness examples; WP3's checker, without which the interpreter trusts that its input passes tier 0.
 ## 2026-10-27 · WP5 spike: the suite's proof labels checked with Z3
 - **Why:** under D44, WP1a freezes once WP3's checker agrees with the suite. A checker can't test the proof labels:
   - that accept programs prove without hints, using §9's facts alone;
@@ -404,12 +465,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Findings:**
   - **The porting rule (§10, D42) needs a hint in 4 programs.**
     - The overflow goal at a loop step needs the range precondition at the next index, a term the program never mentions before the step.
-    - Stating the range per step proves all four with no hint. Proposed as D56.
+    - Stating the range per step proves all four with no hint. Proposed as D60.
   - **The encoding matters more than the facts.**
     - Z3's own sequence theory timed out on 9 accept programs. The same §9 facts as axioms of an uninterpreted sequence sort prove them in milliseconds.
     - Division by a variable stalls Z3 unless it's encoded through D37's truncation facts.
     - Wall-clock limits made verdicts depend on load.
-    - Proposed as D57.
+    - Proposed as D61.
   - **Failing goals come back `unknown`, never `sat`.** With quantified axioms, Z3 can't build a counterexample, so WP6's `counterexample` field will usually be empty for these goals. Each failing goal also costs the whole budget.
 - **Not yet:**
   - D23's shuffled-seed runs;

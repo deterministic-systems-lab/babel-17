@@ -21,8 +21,8 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP1a | B17-0 core semantics and the accept/reject suite | Drafted, v0.1 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)). Freezes once WP3's checker agrees with the suite (D44). |
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Typed edits and the lockfile remain. |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Next, on top of the parser. |
-| WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)). It checks the suite's proof labels: 17 of 20 accept programs prove, and all 9 proof rejects fail as labelled (D56, D57). |
-| WP15 | Reference interpreter | In progress. |
+| WP5 | Verifier: proof goals sent to Z3 | Spike ([b17c/goals.py](b17c/goals.py)). It checks the suite's proof labels: 16 of 20 accept programs prove, and all 9 proof rejects fail as labelled (D60, D61). |
+| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces) and D56–D59 are proposed. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
 
 `b17c`, the toolchain, is a Python prototype until Phase 3 (D19). Phase 1 compiles to safe Rust (D18), and the solver is Z3, driven by goals `b17c` generates itself (D17).
@@ -68,6 +68,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
 | [`b17c/core.b17`](b17c/core.b17) | The core library prelude: `sorted` and `in_i64` |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
+| [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59) |
 | [`b17c/goals.py`](b17c/goals.py) | Spike: proof goals for the suite, checked with Z3 (§9) |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 65 from AlgoVeri, 28 from vericoding |
@@ -86,6 +87,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested
 uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits
+uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and the suite
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 ```
 
@@ -94,6 +96,7 @@ uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 ```sh
 uv run --no-project b17c/syntax.py suite/accept/merge_sorted.b17     # canonical bytes, or E-PARSE-001 with line:col
 uv run --no-project b17c/hashing.py suite/accept/*.b17                # MODULE KIND NAME SPEC-HASH IMPL-HASH per item
+uv run --no-project b17c/interp.py --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5
 ```
 
 Canonical bytes put the module name and header on the first line, then one item per line (D47). Hashes ignore names: binders become `$0`, `$1`, … in the order they're bound, an item's own name becomes `_`, and references become the callee's spec hash. Renames therefore change no hash, and a body edit doesn't rehash its callers (D22, D45).
