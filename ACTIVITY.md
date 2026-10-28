@@ -1133,3 +1133,30 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-28 · M3's B17-0 track (D98 accepted)
+- **Accepted by the owner:** D98.
+- **`gym/harness.py`:** the B17-0 track D98 describes, in the same loop as the Dafny track.
+  - **Tasks:** `b17/NAME`, one per seed program in `suite/accept/`. `load_b17_task` keeps the program's header, its one spec and the ghost-fns that spec reaches, cut from the source so its layout stays readable. Each task takes its difficulty from the matching Dafny task.
+  - **The prompt:** the manual, the task module, and the line the agent's items start on, since diagnostics count lines across the whole module.
+  - **`verify_b17`:** the agent's items join the task module. It's verified when tier 0 passes, every spec has a def, and `agent.py`'s diagnostics are empty, with every goal proved under 11 seeds.
+  - **The def rule:** specs are modular, so a helper spec with no def would let a call assume its `ensures`. `test_b17.py` shows that such a cheat is refused.
+  - **A `b17c` crash** is recorded as `checker_error` instead of stopping the run.
+  - **Records** carry `lang`, and summaries count B17-0 as `CLI/b17`, so Dafny summaries, old ones included, don't change.
+  - **Settings:** a run with B17-0 tasks also pins `b17c`'s sources, the prompts and the manual, so `resume` and `reverify` refuse if those changed.
+- **Checked:**
+  - `check-tasks --tasks b17/`: all 20 reference programs verify, and each task with no def is refused;
+  - `gym/test_b17.py`: the verdicts, the prompt, and one attempt end to end against a fake CLI, which fails, gets the diagnostics, and verifies in round 2;
+  - `gym/test_harness.py`: still passes, so the Dafny track is unchanged.
+- **Codex reviews** (`gpt-5.6-sol`), with all findings fixed and tested:
+  - **The first** confirmed that the joined module resists stray closing parens and a second module, since the parser takes one module and tier 0 rejects duplicate names. OpenAI's filter then stopped it. It had found that grading and `reverify` trusted the persistent proof cache, so a re-check wasn't independent. Each verdict now gets a fresh cache, as each Dafny verdict is solved anew.
+  - **The second**, framed as QA, found no way around the frozen spec in the 20 tasks. It found three bookkeeping faults:
+    - a `b17c` crash or a Z3 process error was scored against the agent. Both are now `infra_error`, retried on resume and left out of pass rates;
+    - a B17-0 run's settings recorded Dafny's version, so a Dafny upgrade blocked resuming it, and `reverify` didn't ignore the B17-0 prompt as it does Dafny's. Settings are now per language;
+    - the `panic` guard read the text, so a header could trip it. It now reads the spec's effects.
+- **A guard added:** `ensures` bind only normal returns, so a task spec that allows `panic` would be met by a def that always panics. `check-tasks` flags any such task. None of the 20 seed tasks allows it.
+- **Not run:** M3 itself, which spends the agents' subscriptions. It starts when the owner runs `harness.py run --clis claude,codex --samples 3 --tasks b17/`.
+- **Updated:** the README's layout, benchmark notes, commands and self-checks; the roadmap's decisions waiting, next steps and M3's needs; D98's status.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** `gym/test_b17.py`.
+- **Left admitted:** none.
