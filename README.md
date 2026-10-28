@@ -2,6 +2,8 @@
 
 Babel-17 is a programming language built for LLMs to write and machines to check. People state intent in English and sign formal specs. Agents write dense, fully typed implementations that a verifier proves meet those specs, so nobody needs to read the implementation line by line. The aim is to make model-generated code faster to produce and faster to run, and trustworthy because it's proven rather than reviewed.
 
+It's meant to be all-purpose: services, applications and their user interfaces, data pipelines, scripts and machine learning, not only verified algorithms (D64, proposed). Each module is proved to the level its spec supports: fully correct where intent can be stated precisely, and typed, memory-safe and contract-tested where it can't. Today's subset, B17-0, covers integer and array algorithms, and the language grows from it in subsets chosen on evidence.
+
 The design rests on three bets:
 - **Rigor is cheap for machines.** Dependent types, effect tracking and proofs slow people down, but cost an agent in a compile-fix loop with a fast verifier very little.
 - **A verifier replaces a training corpus.** No human-written Babel-17 exists, so models learn by generating code, checking it, and keeping what passes.

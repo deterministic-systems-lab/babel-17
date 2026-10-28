@@ -3,6 +3,7 @@
 Where the project stands, and what comes next. This is the state as of 2026-10-27.
 
 **How the plan works:**
+- **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module proved to the level its spec supports (D64, proposed). The phases build toward it from a small verified core.
 - **Phases, ordered by risk:** Babel-17 is built in five phases, ordered by risk rather than by date.
 - **Gates:** each phase ends at a gate, and the next phase doesn't start until that gate passes.
 - **Benchmarks:** they steer the design, by showing which features help agents and which only cost tokens. They don't decide whether the language gets built (D14).
@@ -46,19 +47,22 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
   - Claude, Codex, Gemini and Grok each verified all 60 seed attempts in Dafny.
   - On AlgoVeri, Claude verified 64 of 66 tasks and Codex 60 of 66.
   - Both sets are near the ceiling for current models, so a harder set from vericoding is running now, against Claude, Codex and Grok.
-- **WP16, the core spec library,** is under way (PR #9).
+- **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
   - **The goal spike proves every law** under 10 shuffled seeds.
   - **Not in the library:** three of §9's facts. `push`'s effect is a statement fact. `set-idx`'s multiset effect would need a take-and-drop fact §9 lacks. Multiset extensionality ranges over every `int`, which the interpreter can't evaluate.
-- **WP5's front end** (PR pending): `b17c/verify.py`.
+- **WP5's front end** is merged (PR #11): `b17c/verify.py`.
   - **What it does:** it sends canonical queries (interface 11, D63), caches every verdict under D22's key, and reports solver-trusted goals by node ID (D24, D25).
   - **WP5's three done-whens all hold** with the spike's goals: the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **What's left** is to generate goals from WP3's types instead of the spike's sort guesses.
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-None. D56–D62 were accepted on 2026-10-28.
+- **D63:** interface 11 and the proof cache: how a goal's query is made canonical, the cache key, and the trusted base report's contents.
+- **D64:** Babel-17 is an all-purpose language for agents. Verification levels L0 and L1 arrive with B17-1, and five missing features each get their own decision.
+
+D56–D62 were accepted on 2026-10-28.
 
 ### Left before the Phase 0 gate
 1. Build WP3's checker until it agrees with every tier 0 label in the suite.
@@ -119,3 +123,4 @@ Agents first learn B17-0 from the manual in context, and models are trained in P
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a counterexample, so WP6's diagnostics will often have none to show.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).
 - **Training resources.** Phase 2 needs open weights and compute that the project doesn't have yet.
+- **Reaching every domain.** D64's goal needs features the design spec doesn't have: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. It also needs task sets for applications, pipelines and machine learning to steer them, since every benchmark so far is an algorithm task.

@@ -623,3 +623,19 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Untested key:** the cache key's dependency hashes weren't tested on their own. The key is now a function with its own test.
   - **D63's wording:** it said interface 5 stays WP7's, but D25 gives the report to WP5. The text is corrected.
 - **Not found:** Codex found no trimming defect: closure is transitive, and a recursive ghost-fn keeps its declaration and `requires` while losing its own equation. No canonical-name collision either.
+
+## 2026-10-28 · Proposed D64: Babel-17 is an all-purpose language for agents
+- **Why:** the owner stated the goal: an all-in-one, all-purpose language for AI to use. Neither the README nor the decisions said so.
+- **Proposed D64:**
+  - the goal, covering services, applications and their user interfaces, pipelines, scripts and machine learning;
+  - breadth through verification levels, with L0 and L1 arriving in B17-1;
+  - other languages as a bridge, not the end state;
+  - five design gaps, each to be decided separately;
+  - benchmarks beyond algorithm tasks.
+- **Updated:**
+  - **`README.md`:** the introduction states the goal, and what B17-0 covers today.
+  - **`docs/roadmap.md`:**
+    - the goal, under "How the plan works";
+    - D63 and D64 under decisions waiting, since D63 was listed nowhere;
+    - a new open question on reaching every domain;
+    - WP5's front end (PR #11) and WP16's first part (PR #9) marked merged.

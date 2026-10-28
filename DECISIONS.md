@@ -682,3 +682,26 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Renaming:** making the query invariant under renaming extends D22's "renames never break references" to proofs, so a renamed definition reuses every proof.
   - **Trimming each query** to what it uses makes D22's invalidation exact. Measured on a two-function module: a callee's body edit re-verifies only the callee, and a spec edit re-verifies its callers too. Trimming changed no verdict on the suite or the core library.
 - **Touches:** D22–D25; D27 (interfaces 5 and 11); D45; D56; WP5; WP7.
+
+## D64 · Babel-17 is an all-purpose language for agents · Proposed
+- **Date:** 2026-10-28
+- **Decision:**
+  - **The goal:** Babel-17 is an all-in-one, general-purpose language for AI agents to write. Its scope is every kind of program: services and command-line tools, applications and their user interfaces, data pipelines, scripts and machine learning, as well as verified algorithms. An agent shouldn't need another language for any part of a program.
+  - **Breadth through verification levels:** every module is written in Babel-17 and proved to the level its spec supports, from L0 (typed, effect-checked and memory-safe) to L3 (fully correct against its spec). Code whose intent can be stated precisely is proved. Code whose intent can't, such as a layout that must look right, is typed and has its contracts tested.
+    - L0 and L1 arrive with B17-1, so no domain is shut out for lack of a precise spec.
+    - How a goal a module doesn't prove behaves below L2, for example as a runtime check, is decided with B17-1.
+  - **Other languages are a bridge.** The Rust backend (WP7) and calls into C, Rust or Python let Babel-17 work alongside existing code. Wrapped libraries are replaced by verified ports over time, as the design spec's "wrap, then replace" says.
+  - **Design gaps:** the design spec lacks several features that general-purpose code depends on. Each gets its own decision when evidence calls for it (D14, D20):
+    - closures and higher-order functions;
+    - interfaces or traits, for code that works over many types;
+    - asynchronous I/O;
+    - a user-interface model;
+    - tensors and automatic differentiation.
+  - **Benchmarks beyond algorithms:** task sets for applications, pipelines and machine learning join the algorithm sets, and steer which features come first (D14).
+  - **Unchanged:** the language still grows from B17-0 in subsets, each added on evidence (D20), and the phases keep their order.
+- **Why:**
+  - It's the owner's goal for the language.
+  - Bet 1 says the explicitness and proofs that keep verified languages in a niche cost agents little, so the reason for that niche doesn't apply.
+  - Verification levels let one language serve code with precise specs and code without them. Without them, Babel-17 would stay confined to the domains Dafny serves.
+  - Recording the goal lets later design decisions be judged against it.
+- **Touches:** D14; D20; Summary; Type system; Verification model; Standard library; Training environment; WP7; WP10; WP11; `README.md`; `docs/roadmap.md`.
