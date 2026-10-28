@@ -25,6 +25,8 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces) and D56–D59 are proposed. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
 
+[docs/roadmap.md](docs/roadmap.md) covers all five phases, what's left before the Phase 0 gate, and what comes after it.
+
 `b17c`, the toolchain, is a Python prototype until Phase 3 (D19). Phase 1 compiles to safe Rust (D18), and the solver is Z3, driven by goals `b17c` generates itself (D17).
 
 ## A first look at B17-0
