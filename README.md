@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1's spec text is drafted ([docs/b17-1.md](docs/b17-1.md)), and WP6, the agent protocol, and WP7, the Rust backend, are done for B17-0. B17-1's labelled suite and WP8, the agent reference manual, come next.
+Phase 1, the embedded MVP, has begun. B17-1's spec text is drafted ([docs/b17-1.md](docs/b17-1.md)), and WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0. B17-1's labelled suite comes next.
 
 | WP | What | State |
 |---|---|---|
@@ -29,6 +29,7 @@ Phase 1, the embedded MVP, has begun. B17-1's spec text is drafted ([docs/b17-1.
 | WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
 | WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on the suite, corner cases and generated programs. Its readings are D95–D97, accepted. B17-1 extends it (D79). |
+| WP8 | Agent reference manual | Done for B17-0 ([docs/manual.md](docs/manual.md)): every rule and all 25 error codes with a minimal example, each checked against its stated outcome by `test_manual.py`. |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. |
 | WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the verifier proves each. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Baselines are in for the seed, AlgoVeri and vericoding sets; Gemini and Grok have tasks left. |
@@ -73,6 +74,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | Path | What |
 |---|---|
 | [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.0 Frozen |
+| [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v0.1 Draft |
 | [`suite/`](suite/) | 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55) |
@@ -98,7 +100,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 - To build emitted Rust: rustc 1.99.1, the version CI pins (`rustup toolchain install 1.99.1`), with the platform's linker.
 - To run benchmarks: Dafny 4.11.0 with Z3 5.3.2, plus the agent CLIs you want to compare: `claude`, `codex`, `agy` or `grok`.
 
-**Self-checks.** Each one prints a line ending in "passed". CI runs the first seven on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
+**Self-checks.** Each one prints a line ending in "passed". CI runs the first eight on Linux for every pull request ([check.yml](.github/workflows/check.yml)).
 
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: the suite round-trips, and every lexical rule is tested
@@ -108,6 +110,7 @@ uv run --no-project b17c/test_check.py     # checker: the suite's labels exactly
 uv run --no-project b17c/test_core.py      # core library: every law confirmed by the interpreter (WP16's witnesses)
 uv run --no-project b17c/test_agent.py     # agent protocol: diagnostics and the five queries (Z3 for the queries that solve)
 uv run --no-project b17c/test_rust.py      # Rust backend: emitted crates compile, and runs match the interpreter (needs rustc)
+uv run --no-project b17c/test_manual.py    # agent manual: every example has its stated outcome, every code has one (Z3 for proofs)
 uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 ```

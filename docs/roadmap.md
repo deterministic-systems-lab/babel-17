@@ -71,14 +71,17 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Diagnostics** carry interface 3's fields (D93). That includes the goal over the program's names, a counterexample the interpreter replays, the slice of items needed to fix it, and how many goals depend on it.
   - **The five queries answer** (interface 8, D94). `search` finds specs by what they guarantee, by verifying a def that only calls each candidate.
   - **Not yet:** repairs, which wait for WP2's typed edits.
-- **CI** runs seven `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
+- **WP8, the agent reference manual,** is done for B17-0: `docs/manual.md`.
+  - **Every rule and every code:** it covers all 25 codes of §9, each with a minimal example and the fix, along with the rules an agent writing B17-0 needs.
+  - **Every example is checked:** `test_manual.py` holds each of its 37 examples to its stated outcome, tier 0 in CI and proofs with Z3, and fails if a code loses its example.
+- **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
 None new. D79–D97 were accepted on 2026-10-28: B17-1's scope and spec text, WP6's interfaces and WP7's readings. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text** is drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92 accepted. Its labelled suite in `suite/b17-1/` comes next. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
-2. **WP8**, the agent reference manual, builds on WP6: every rule and code with an example that passes `b17c check`.
+2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. It needs a B17-0 track in the harness, with agents learning from the manual in context (D8), set against the Dafny baselines already recorded.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0. It extends to B17-1 with the rest of the toolchain, emitting data types as Rust enums (D79).
@@ -89,7 +92,7 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
 
 ## Phase 1
 
-From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5 and WP6 are done for B17-0, and WP16 is under way, so what's left of the first path is WP8 and WP11, and of the second B17-1, WP10 and WP11.
+From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11, and of the second B17-1, WP10 and WP11.
 
 | WP | What | Depends on | Done when |
 |---|---|---|---|
@@ -100,14 +103,14 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8). Done for B17-0 (D93, D94), except repairs, which wait for WP2's typed edits. |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97). |
-| WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check` |
+| WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
 | B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text drafted, with D81–D92 accepted; the suite is next. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.
 - **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It can start on B17-0's tasks and add B17-1's when B17-1 freezes (D65).
 - **What it measures:** the success metrics: verified pass rate, repair rounds and tokens per verified task.
-- **What it needs:** WP8, now that WP5 and WP6 are done for B17-0, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
+- **What it needs:** a B17-0 track in the harness, now that WP5, WP6 and WP8 are done for B17-0, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
 - **How it's used:** its results steer the design (D14).
 
 ## Phase 2

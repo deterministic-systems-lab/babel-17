@@ -22,3 +22,4 @@ jobs:
       - run: uv run --no-project --python 3.12 b17c/test_agent.py
       - run: rustup toolchain install 1.99.1 --profile minimal && rustup default 1.99.1
       - run: uv run --no-project --python 3.12 b17c/test_rust.py
+      - run: uv run --no-project --python 3.12 b17c/test_manual.py
