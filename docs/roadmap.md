@@ -143,7 +143,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 ## Open questions that shape the plan
 
-- **Hard enough tasks.** No set so far separates today's models in Dafny. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be written (WP10). What makes a task hard for them, and how to show it before M3 runs, is open.
+- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). What makes a task hard for them, and how to show it before M3 runs, is open.
 - **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost, and M3 will show whether agents pay it.
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a counterexample, so WP6's diagnostics will often have none to show.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).

@@ -13,7 +13,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 
 ## Status
 
-**Phase 0, as of 2026-10-27.** Phase 0 builds the smallest language that can express real verified programs, and the tools to check it. Its gate (D16) has three parts:
+**Phase 0, as of 2026-10-28.** Phase 0 builds the smallest language that can express real verified programs, and the tools to check it. Its gate (D16) has three parts:
 1. WP1a's semantics and suite are frozen;
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
@@ -27,7 +27,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 | WP5 | Verifier: proof goals sent to Z3 | In progress: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. The goals come from the spike, [b17c/goals.py](b17c/goals.py), with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. |
 | WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the goal spike proves each. |
-| WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Benchmarks are running. |
+| WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Baselines are in for the seed, AlgoVeri and vericoding sets; Gemini and Grok have tasks left. |
 
 [docs/roadmap.md](docs/roadmap.md) covers all five phases, what's left before the Phase 0 gate, what comes after it, and how the language grows from B17-0 toward D64's scope.
 
@@ -117,7 +117,7 @@ Canonical bytes put the module name and header on the first line, then one item 
 **The benchmark harness:**
 
 ```sh
-uv run --no-project gym/harness.py check-tasks                       # every task solvable, non-trivial and well-formed
+uv run --no-project gym/harness.py check-tasks                       # reference solutions verify; contracts well-formed, non-trivial
 uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks abs,fib
 uv run --no-project gym/harness.py run --clis claude,codex,grok --samples 1 --jobs 6 --tasks algoveri/,vericoding/
 uv run --no-project gym/harness.py reverify RUN_ID                   # re-check every recorded verdict
@@ -134,7 +134,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 - **Isolation:** each CLI runs through its own subscription (D13), with tools, web search, user configuration, hooks and MCP servers turned off. The exception is Grok's X search: it runs server-side and can't be disabled, so the harness counts every use.
 - **Frozen contracts:** the agent's code is checked against the task's frozen contracts through a generated wrapper, so it can't weaken them.
 - **Verdicts:** banned constructs (`assume`, `{:axiom}`, `{:verify false}`, `decreases *`, and similar) fail outright, and an exhausted resource budget counts as a failure, never a pass.
-- **Re-checking:** `reverify` re-runs every recorded verdict, and so far each one has reproduced exactly.
+- **Re-checking:** `reverify` re-runs every recorded verdict, and so far each one has reproduced exactly. One did only when run alone: under load, it hit the verifier's wall-clock timeout before Dafny's resource limit, so that timeout is now a 2-hour backstop.
 
 **Results so far:**
 
@@ -152,7 +152,7 @@ The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-a
 - **Ported tasks state integer ranges** (D42), in the terms the proof already uses (§10).
 - **An open question:** a functional spec can't tell Aho-Corasick from naive search, so the named algorithm is never enforced. That's the cost question D29 deferred.
 
-Every set so far is near the ceiling for current models. The vericoding tasks were picked because at most a quarter of the models in its published results solved them, yet Claude and Codex verified all 28. Both of Claude's AlgoVeri failures in the first run, and its only failure in the second, were on specs no program can satisfy: `matrix_multiplication` and `rod_cutting`, both now removed. So the tasks hard enough to compare the two languages will have to be written (WP10).
+Every set so far is near the ceiling for current models. The vericoding tasks were picked because at most a quarter of the models in its published results solved them, yet Claude and Codex verified all 28. Both of Claude's AlgoVeri failures in the first run, and its only failure in the second, were on specs no program can verify: `matrix_multiplication` is ill-formed and `rod_cutting` unsatisfiable, and both are now removed. The models still differ in rounds and tokens, but barely in what they verify. So the tasks hard enough to compare the two languages will have to be found elsewhere or written (WP10).
 
 ## How work is recorded
 

@@ -770,16 +770,16 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
 
 ## 2026-10-28 · The hard run: AlgoVeri and vericoding
-- **Run `20261027T162910Z-claude-codex-grok`:** 65 AlgoVeri and 28 vericoding tasks × 3 CLIs × 1 sample, up to 8 rounds, 6 jobs, from 2026-10-27 16:29 UTC into 2026-10-28.
+- **Run `20261027T162910Z-claude-codex-grok`:** 65 AlgoVeri and 28 vericoding tasks × 3 CLIs × 1 sample, up to 8 rounds, 6 jobs, from 2026-10-27 16:29 UTC to 2026-10-28 11:09 UTC.
 
   | CLI | AlgoVeri | vericoding | Mean rounds | Tokens per verified task |
   |---|---|---|---|---|
   | Claude (`claude-opus-5-5`) | 64/65 | 28/28 | 1.28 | 17,094 |
   | Codex (`gpt-5.6-sol`) | 62/65 | 28/28 | 2.03 | 48,872 |
   | Grok (`grok-4.7`) | 49/49 finished | — | 2.18 | 207,684 |
-- **Grok's balance ran out** at `algoveri/prim`: from there every call returned `402 Payment Required: Grok Build usage balance exhausted`, 41 attempts in all. 3 more (`dijkstra`, `edmond_karp`, `kruskal`) timed out at 30 minutes in their first round. On the 49 tasks Grok finished, Claude and Codex also verified 49/49, so these results can't rank it. Its calls averaged 22 minutes, against Claude's 75 seconds, and no call used X search.
+- **Grok's balance ran out** at `algoveri/prim`: from there its calls returned `402 Payment Required: Grok Build usage balance exhausted`, and 41 attempts ended on that error. 3 more (`dijkstra`, `edmond_karp`, `kruskal`) ended in their first round, every retry timing out at 30 minutes. On the 49 tasks Grok finished, Claude and Codex also verified 49/49, so these results can't rank it. Its calls averaged 22 minutes, against Claude's 75 seconds, and no call used X search.
 - **Grok's seed run** (`20261027T161708Z-grok`, from the earlier entry): 60/60 in 1.18 rounds, 41,134 tokens per verified task.
-- **`reverify`:** REVERIFY
+- **`reverify`:** 447/448 recorded verdicts reproduced. The other, Claude's first `bfs` round, recorded as out of resource, hit the verifier's 30-minute timeout instead under 6 parallel jobs. Alone, it ran out of resource again, after 18 minutes. Dafny's resource limit is deterministic but the wall clock isn't, so load could change a verdict.
 - **Failures (all after 8 rounds):**
   - **Claude:** `rod_cutting` (proof failed).
   - **Codex:**
@@ -788,13 +788,15 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - `edmond_karp` (rejected, then out of resource).
 - **Findings:**
   - **`rod_cutting`'s spec is unsatisfiable.** Codex said so in its first reply: `n` has no lower bound, and at `n = -1` every precondition holds but no strategy of positive cuts sums to `-1`, so the existence postcondition is false. A Dafny lemma confirms it. AlgoVeri's Verus and Lean versions take `n` as a `usize` and a `Nat`, and its Dafny version dropped the bound. `check-tasks` can't catch this: a body of `assume {:axiom} false` proves the contracts well-formed, not satisfiable. Claude's and Codex's `rod_cutting` failures in the earlier run came from it too.
-  - **The harness had no way to hear it.** Codex answered with the missing precondition instead of a program, 8 times, and got a parse error back each time. An agent that finds a spec bug needs a way to report one, in Babel-17 too.
-  - **Vericoding's difficulty doesn't carry over.** Its tasks were picked because at most a quarter of nine 2025 models solved each, yet Claude verified 27 of 28 in its first round and Codex 21. With `rod_cutting` out, Claude verified every solvable AlgoVeri task, and Codex all but `kruskal` and `edmond_karp`. No set so far separates the models, so M3's hard tasks will have to be written (WP10).
-  - **Codex spends 2.9× Claude's tokens** per verified task, and Grok 12× on the tasks it finished.
+  - **The harness had no way to hear it.** Codex answered with the missing precondition instead of a program, 8 times, and got a parse or resolution error back each time. An agent that finds a spec bug needs a way to report one, in Babel-17 too.
+  - **Vericoding's difficulty doesn't carry over.** Its tasks were picked because at most a quarter of the 2025 models in its published results, eight or nine per task, solved each, yet Claude verified 27 of 28 in its first round and Codex 21. With `rod_cutting` out, Claude verified every solvable AlgoVeri task, and Codex all but `kruskal` and `edmond_karp`. The models differ in rounds (72 against 54 tasks verified in the first round) and tokens, but barely in what they verify: 92/92 against 90/92 solvable tasks. M3's hard tasks will have to be found elsewhere or written (WP10).
+  - **Codex spends 2.9× Claude's tokens** per verified task. On the 49 tasks Grok finished, Grok spent 186,021 per task against Claude's 14,745, 12.6×.
   - **Codex improved on two tasks** it failed in the first AlgoVeri run, `prim` and `push_relabel`, and failed the same two others, `kruskal` and `edmond_karp`.
-- **Fixed after the run:** `import_algoveri.py` lists `rod_cutting` as broken, and its task file is removed. 64 AlgoVeri tasks remain.
-- **Consequences:** the task files no longer match this run's fingerprint, so it can't be resumed or re-verified in place. Grok's remaining 44 tasks run as a new run once its balance is topped up, as Gemini's will after its quota resets.
-- **Updated:** the README's results and task counts, and the roadmap's baselines, remaining Phase 0 work and "Hard enough tasks" question.
+- **Fixed after the run:**
+  - **`rod_cutting`:** `import_algoveri.py` lists it as broken, and its task file is removed. 64 AlgoVeri tasks remain.
+  - **The verifier's timeout** is now 2 hours, a backstop for a hang. The resource limit bounds the work.
+- **Consequences:** the task files no longer match this run's fingerprint, so it can't be resumed or re-verified in place. Grok's 43 remaining tasks (44, less `rod_cutting`) run as a new run once its balance is topped up, as Gemini's will after its quota resets.
+- **Updated:** the README's results, task counts, date, `check-tasks` comment, WP17 row and re-checking note, and the roadmap's baselines, remaining Phase 0 work and "Hard enough tasks" question.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
