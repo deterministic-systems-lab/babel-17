@@ -77,11 +77,13 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D97 were accepted on 2026-10-28: B17-1's scope and spec text, WP6's interfaces and WP7's readings. D2–D10, carried over from the design spec, are still Proposed.
+- **D98, M3's B17-0 track:** how the seed tasks are posed in the harness, with the manual in context, and what counts as verified.
+
+D79–D97 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text** is drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92 accepted. Its labelled suite in `suite/b17-1/` comes next. Then the checker, interpreter and verifier extend to it, and it freezes once the checker agrees with every tier 0 label (D44).
-2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. It needs a B17-0 track in the harness, with agents learning from the manual in context (D8), set against the Dafny baselines already recorded.
+2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. It needs a B17-0 track in the harness, proposed as D98, with agents learning from the manual in context (D8). It's set against the Dafny baselines already recorded.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0. It extends to B17-1 with the rest of the toolchain, emitting data types as Rust enums (D79).

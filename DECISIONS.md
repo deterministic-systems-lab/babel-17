@@ -1232,3 +1232,29 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Generated programs** reach combinations the suite and the corner cases don't.
   - **Pinning:** D23 pins the solver for the same reason. A newer rustc can add lints or change code generation, and the report must name the toolchain a binary came from (D25).
 - **Touches:** D18; D23; D25; D59; WP7; `.github/workflows/check.yml`.
+
+## D98 · M3's B17-0 track in the harness · Proposed
+- **Date:** 2026-10-28
+- **Decision:** `gym/harness.py` gains a B17-0 track. It runs the same CLIs, isolation, samples and round limit as the Dafny track (WP17), so only the language differs.
+  - **Tasks:** the 20 seed tasks, from `suite/accept/`. Each poses:
+    - the module's header;
+    - its one spec;
+    - the ghost-fns that spec refers to, transitively.
+
+    Its def, and any lemma or ghost-fn only a proof uses, are left out. `isqrt`'s lemma is the one such item today. The Dafny seed tasks already take the same preconditions (D42).
+  - **The prompt:** `docs/manual.md` in full, then the task, then the rules:
+    - write the def for the spec, with any lemmas, ghost-fns, and spec-and-def pairs for helpers;
+    - don't restate the task's items;
+    - reply in one ```lisp block.
+  - **Verified:** the task's items and the agent's, in one module, pass tier 0, and every goal is proved under the canonical seed and 10 shuffled seeds (D23).
+    - Redeclaring a task item is `E-TYPE-002`, so the frozen spec can't be weakened.
+    - B17-0 has no `assume` or `admit`, so nothing needs banning.
+  - **Feedback:** between rounds, the agent gets `agent.py check`'s JSON (D93), truncated as Dafny's output is.
+  - **Recorded:** as for Dafny: the verdict, rounds, tokens and time per attempt, in the same `attempts.jsonl`, with the language as a field.
+  - **Running it** spends the agents' subscriptions, so the owner starts each run.
+- **Why:**
+  - **The comparison M3 needs:** the same tasks, CLIs, round limit and recording as the Dafny baselines (D28, D32). A difference in pass rate, rounds or tokens is then the language's.
+  - **The manual in context:** it tests D8, that agents learn a new language from its manual in context.
+  - **Structured feedback:** it's part of what Babel-17 offers agents. Dafny's track gives Dafny's raw output, which is what Dafny offers.
+  - **The seed tasks first:** the suite already ports them, and they verify. The AlgoVeri ports wait for B17-1 (D65).
+- **Touches:** D8; D13; D23; D28; D32; D42; D65; D93; WP10; WP17; M3; `gym/harness.py`.

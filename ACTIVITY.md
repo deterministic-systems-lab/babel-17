@@ -1124,3 +1124,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** `test_manual.py`, in CI.
 - **Left admitted:** none.
+
+## 2026-10-28 · M3's B17-0 track proposed (D98)
+- **Proposed:** D98, how M3 poses the seed tasks in B17-0. It uses the same harness, CLIs, round limit and recording as the Dafny baselines, with the manual in the prompt, and verdicts from tier 0 and every goal under 11 seeds. Between rounds, the agent gets `agent.py check`'s JSON.
+- **Why it's a decision:** the setup decides what M3 measures, so it goes to the owner before the harness changes.
+- **Checked:** every seed program in `suite/accept/` has exactly one spec, so each task's spec is unambiguous. Only `isqrt` carries a proof lemma, which its task leaves out.
+- **Updated:** the roadmap's decisions waiting and next steps.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.
