@@ -1084,3 +1084,19 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-28 · WP8, the agent reference manual
+- **`docs/manual.md`:** B17-0 written for the model that writes it, as the design spec asks of WP8.
+  - **What it covers:** how a task is posed; names, types, specs and calls, expressions and statements; ghost code; the seven ownership rules; effects; returns and recursion; every proof goal with its fix; stating ranges (D60); the core library; the toolchain and D93's diagnostic fields; and an index of codes.
+  - **The source:** `docs/b17-0.md` stays the semantics. The manual cites it, and a disagreement between them is a bug in the manual.
+- **`b17c/test_manual.py`:** WP8's done-when, that every rule and error code has an example, and every example passes `b17c check`.
+  - **Each example** is a block after `<!-- expect: OUTCOME -->`, where the outcome is `ok`, a tier 0 code, or a proof family. A block that isn't a whole module is checked inside one.
+  - **Proof outcomes:** with Z3, `ok` means every goal is proved, and `E-PROOF-X` means exactly family X fails.
+  - **Coverage:** it fails if any code in §9's tables has no example.
+  - **The results:** all 37 examples have their stated outcomes, and all 25 codes are covered.
+  - **The test can fail:** a mutation check confirmed it. A wrong expectation, an example broken so its proof fails, and a code with its only example removed were each reported. CI runs the tier 0 part.
+- **Next on the roadmap:** with WP5, WP6 and WP8 done, M3 can start on the seed tasks, which the suite has already ported. It needs a B17-0 track in the harness.
+- **Updated:** the README's status, WP table, layout and self-checks, now eight in CI; the roadmap's work in progress, next steps, critical path, WP8 row and M3's needs; CI.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** `test_manual.py`, in CI.
+- **Left admitted:** none.
