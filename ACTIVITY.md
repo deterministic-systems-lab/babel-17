@@ -766,3 +766,4 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **False reject, move records:** a local's move record outlived its block, so a later `fn` binder reusing the name was reported as a use after move. Records now end with their scope (D66).
   - **Wrong code:** `(borrow v)` for a non-slice parameter was `E-TYPE-001`, and its test expected that. D69 makes any borrow outside a slice parameter `E-OWN-002`, so code and test now follow D69.
 - **After the fixes:** all five self-checks pass, and the suite still matches 50 of 50.
+- **Roadmap:** WP3's checker is listed under work in progress, D66–D78 under decisions waiting, and the steps left before the Phase 0 gate are now: merge WP3, decide D66–D78 and write them into `b17-0.md`, then freeze WP1a.

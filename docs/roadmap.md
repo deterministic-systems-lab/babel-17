@@ -35,12 +35,15 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 
 | Gate item | State |
 |---|---|
-| **WP1a frozen** | B17-0 v0.1 ([b17-0.md](b17-0.md)) and the 50-program [suite](../suite/) are drafted, and owner decisions are applied through D62, including D60's per-step ranges. Under D44, they freeze once WP3's checker agrees with every tier 0 label. That waits for WP3. |
+| **WP1a frozen** | B17-0 v0.1 ([b17-0.md](b17-0.md)) and the 50-program [suite](../suite/) are drafted, and owner decisions are applied through D62, including D60's per-step ranges. Under D44, they freeze once WP3's checker agrees with every tier 0 label. It now does (PR pending): the freeze waits on D66–D78, the readings the checker settled, which go into `b17-0.md` once decided. |
 | **WP2's round-trip tests pass** | Done. The parser and canonical printer round-trip the whole suite. The hasher's golden file reproduces on Linux CI, so content hashes match across machines (D46). |
 | **WP15 passes its conformance tests** | Done. The interpreter is merged (PR #2) and passes WP1a's conformance tests. |
 
 ### Work in progress
-- **WP3, the tier 0 checker,** is being built in a separate session, on the parser and hasher. It's the next step on the critical path.
+- **WP3, the tier 0 checker** (PR pending): `b17c/check.py`.
+  - **It agrees with every label** of the 50-program suite: the 20 accept programs and 9 proof rejects pass tier 0, and each of the other 21 rejects fails with exactly its code, one of them at the parser.
+  - **D66–D78** record the readings it settled where §2–§9 are silent, such as block scoping, which types are well formed, and where a borrow may appear.
+  - **Review:** a Codex bug hunt ran 29,694 random modules through it with no crash, and found 4 bugs, all fixed. Two were false accepts, one a false reject and one a wrong code.
 - **Proof labels, checked mechanically.** A spike of WP5's goal generator, `b17c/goals.py`, runs the suite through Z3 under 10 shuffled seeds (D23).
   - **Proof rejects:** all 9 `E-PROOF-*` programs fail exactly their labelled goal.
   - **Accept programs:** all 20 prove every goal under every seed, with no hints. Before D60, four didn't, or did only by luck.
@@ -60,11 +63,14 @@ Where the project stands, and what comes next. This is the state as of 2026-10-2
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-None. D56–D65 were accepted on 2026-10-28.
+- **D66–D78:** the tier 0 readings WP3's checker settled (PR pending).
+
+D56–D65 were accepted on 2026-10-28.
 
 ### Left before the Phase 0 gate
-1. Build WP3's checker until it agrees with every tier 0 label in the suite.
-2. Freeze WP1a under D44.
+1. Merge WP3's checker, which agrees with every tier 0 label in the suite.
+2. Decide D66–D78, and write the accepted readings into `b17-0.md`.
+3. Freeze WP1a under D44.
 
 These belong to Phase 0 but aren't part of its gate:
 - **The rest of WP2:** the manifest and lockfile schemas (interface 7, D26) and typed edit operations (interface 2).
