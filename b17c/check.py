@@ -47,11 +47,13 @@ def check(module):
 
 def types(module):
     """The type tier 0 gives each expression of module and of the core library, by node id,
-    for WP5's goals. Raises ValueError, listing the diagnostics, if module fails tier 0."""
-    c = _Checker(module)
-    if diags := sorted(c.run(core=True)):
+    for WP5's goals and WP7's backend. Raises ValueError, listing the diagnostics, if module
+    fails tier 0. The core library is typed on its own, as check() leaves it, since its
+    binders, such as sorted's i and j, may share a name with an item of module (§2)."""
+    c, core = _Checker(module), _Checker(CORE)
+    if diags := sorted(c.run()) or sorted(core.run(core=True)):
         raise ValueError("\n".join(map(str, diags)))
-    return c.types
+    return core.types | c.types
 
 
 def show(t):
