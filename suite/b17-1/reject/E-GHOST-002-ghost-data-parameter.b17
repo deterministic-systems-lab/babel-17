@@ -1,0 +1,9 @@
+(module ghost_param
+  (header
+    (purpose "(option int) holds an int, so it's a ghost type and can't be a spec's parameter.")
+    (invariants "None.")
+    (failures "None."))
+  (spec present
+    (params (o (option int)))
+    (returns (r bool))
+    (effects)))

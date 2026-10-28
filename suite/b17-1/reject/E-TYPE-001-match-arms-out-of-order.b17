@@ -1,0 +1,10 @@
+(module arm_order
+  (header
+    (purpose "A match's arms follow the type's constructor order.")
+    (invariants "None.")
+    (failures "None."))
+  (data shape () (dot) (square (side i64)))
+  (ghost-fn area ((s shape)) int
+    (body (match s
+      (case (square k) (* k k))
+      (case (dot) 0)))))

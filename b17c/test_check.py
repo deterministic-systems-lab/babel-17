@@ -54,7 +54,7 @@ def bad(text, code, snippet, count=1, skip=0):
 
 # The suite's labels, exactly (§12, D44).
 seen = Counter()
-for path in sorted(SUITE.rglob("*.b17")):
+for path in sorted(SUITE.glob("*/*.b17")):  # B17-0's accept/ and reject/; suite/b17-1/ waits for B17-1's checker
     ds = diagnose(path.read_bytes())
     if path.parent.name == "accept" or path.name.startswith("E-PROOF-"):
         assert ds == [], (path.name, [str(d) for d in ds])

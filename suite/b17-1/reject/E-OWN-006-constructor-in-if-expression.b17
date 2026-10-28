@@ -1,0 +1,12 @@
+(module pick
+  (header
+    (purpose "A moving value never comes out of an if expression.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec pick
+    (params (b bool) (x tree))
+    (returns (t tree))
+    (effects alloc))
+  (def pick
+    (body (return (if b (node 1 x (leaf)) (leaf))))))

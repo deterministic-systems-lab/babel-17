@@ -1,0 +1,12 @@
+(module root
+  (header
+    (purpose "A leaf has no val.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec root
+    (params (t tree))
+    (returns (r i64))
+    (effects))
+  (def root
+    (body (return (field t val)))))

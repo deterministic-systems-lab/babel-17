@@ -1,0 +1,11 @@
+(module same_pair
+  (header
+    (purpose "Runtime equality compares only bool and i64.")
+    (invariants "None.")
+    (failures "None."))
+  (spec same
+    (params (a (tuple i64 i64)) (b (tuple i64 i64)))
+    (returns (r bool))
+    (effects))
+  (def same
+    (body (return (== a b)))))

@@ -1,0 +1,7 @@
+(module map_binder
+  (header
+    (purpose "A quantifier can't bind a map, since the encoding admits infinite ones.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn some_map_lacks_zero () bool
+    (body (exists ((m (map int int))) (not (contains m 0))))))

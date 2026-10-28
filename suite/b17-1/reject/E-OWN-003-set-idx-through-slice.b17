@@ -1,0 +1,14 @@
+(module clear
+  (header
+    (purpose "A slice is a parameter, so a place rooted at one can't be updated.")
+    (invariants "None.")
+    (failures "None."))
+  (spec clear
+    (params (rows (ref (slice (vec i64)))))
+    (returns (n i64))
+    (requires (> (len rows) 0) (> (len (idx rows 0)) 0))
+    (effects))
+  (def clear
+    (body
+      (set-idx (idx rows 0) 0 0)
+      (return 0))))

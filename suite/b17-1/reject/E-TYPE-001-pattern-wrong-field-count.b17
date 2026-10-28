@@ -1,0 +1,10 @@
+(module pattern_fields
+  (header
+    (purpose "A pattern names every field of its constructor.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn top ((t tree)) int
+    (body (match t
+      (case (leaf) 0)
+      (case (node v l) v)))))

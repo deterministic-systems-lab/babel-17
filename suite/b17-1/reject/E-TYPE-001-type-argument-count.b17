@@ -1,0 +1,7 @@
+(module arity
+  (header
+    (purpose "A data type takes exactly as many types as it has parameters.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn holds ((o (option int int))) bool
+    (body (is some o))))

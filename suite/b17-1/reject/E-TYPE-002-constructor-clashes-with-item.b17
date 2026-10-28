@@ -1,0 +1,8 @@
+(module ctor_clash
+  (header
+    (purpose "A constructor is a value name, so no item may share it.")
+    (invariants "None.")
+    (failures "None."))
+  (data shape () (dot) (square (side i64)))
+  (ghost-fn dot () int
+    (body 0)))

@@ -1,0 +1,9 @@
+(module slice_pair
+  (header
+    (purpose "No type contains a slice, a tuple included.")
+    (invariants "None.")
+    (failures "None."))
+  (spec first
+    (params (p (tuple (ref (slice i64)) i64)))
+    (returns (r i64))
+    (effects)))

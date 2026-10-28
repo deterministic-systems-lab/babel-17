@@ -1,0 +1,7 @@
+(module same_shape
+  (header
+    (purpose "Two data types with the same hash can't be told apart.")
+    (invariants "None.")
+    (failures "None."))
+  (data point () (point (x i64) (y i64)))
+  (data pair () (pair (a i64) (b i64))))

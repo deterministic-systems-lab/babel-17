@@ -1,0 +1,84 @@
+(module bfs
+  (header
+    (purpose "Find the length of a shortest path between two vertices of a directed graph, or report that none exists.")
+    (invariants "A distance is the length of a shortest path; none means the target is unreachable.")
+    (failures "Allocation failure aborts."))
+  (data graph () (graph (adj (vec (vec i64)))))
+  (ghost-fn well_formed ((g graph)) bool
+    (body (forall ((u int) (i int))
+      (=> (and (and (<= 0 u) (< u (len (field g adj)))) (and (<= 0 i) (< i (len (idx (field g adj) u)))))
+          (and (<= 0 (idx (idx (field g adj) u) i)) (< (idx (idx (field g adj) u) i) (len (field g adj))))))))
+  (ghost-fn size ((g graph)) int
+    (body (len (field g adj))))
+  (ghost-fn has_edge ((g graph) (u int) (v int)) bool
+    (body (exists ((i int))
+      (and (and (and (<= 0 u) (< u (len (field g adj)))) (and (<= 0 i) (< i (len (idx (field g adj) u)))))
+           (== (idx (idx (field g adj) u) i) v)))))
+  (ghost-fn is_path ((g graph) (p (seq int))) bool
+    (body (and (> (len p) 0)
+               (forall ((i int)) (=> (and (<= 0 i) (< i (- (len p) 1))) (has_edge g (idx p i) (idx p (+ i 1))))))))
+  (ghost-fn reachable ((g graph) (start int) (end int)) bool
+    (body (exists ((p (seq int)))
+      (and (and (is_path g p) (== (idx p 0) start)) (== (idx p (- (len p) 1)) end)))))
+  (ghost-fn is_shortest_distance ((g graph) (start int) (end int) (d int)) bool
+    (body (and
+      (exists ((p (seq int)))
+        (and (and (and (is_path g p) (== (idx p 0) start)) (== (idx p (- (len p) 1)) end)) (== (len p) (+ d 1))))
+      (forall ((p (seq int)))
+        (=> (and (and (is_path g p) (== (idx p 0) start)) (== (idx p (- (len p) 1)) end)) (>= (len p) (+ d 1)))))))
+  (spec bfs_shortest_path
+    (params (g graph) (start i64) (target i64))
+    (returns (res (option i64)))
+    (requires
+      (well_formed g)
+      (<= (size g) 10000)
+      (and (<= 0 start) (< start (size g)))
+      (and (<= 0 target) (< target (size g))))
+    (ensures
+      (match res
+        (case (none) (not (reachable g start target)))
+        (case (some d) (is_shortest_distance g start target d))))
+    (effects alloc))
+  (def bfs_shortest_path
+    (body
+      (let n i64 (len (field g adj)))
+      (let-mut dist (vec i64) (seq-build n (fn (j) -1)))
+      (set-idx dist start 0)
+      (let-mut queue (vec i64) (vec-new))
+      (push queue start)
+      (let-mut head i64 0)
+      (while (< head (len queue))
+        (invariant (and (<= 0 head) (<= head (len queue))))
+        (invariant (== (len dist) n))
+        (invariant (== (+ (len queue) (occurrences dist -1)) n))
+        (invariant (forall ((w int)) (=> (and (<= 0 w) (< w n)) (>= (idx dist w) -1))))
+        (invariant (forall ((k int))
+          (=> (and (<= 0 k) (< k (len queue)))
+              (and (and (<= 0 (idx queue k)) (< (idx queue k) n))
+                   (and (<= 0 (idx dist (idx queue k))) (<= (idx dist (idx queue k)) k))))))
+        (decreases (+ (* 2 (occurrences dist -1)) (- (len queue) head)))
+        (let u i64 (idx queue head))
+        (let deg i64 (len (idx (field g adj) u)))
+        (let-mut i i64 0)
+        (while (< i deg)
+          (invariant (and (<= 0 i) (<= i deg)))
+          (invariant (< head (len queue)))
+          (invariant (== (len dist) n))
+          (invariant (== (+ (len queue) (occurrences dist -1)) n))
+          (invariant (forall ((w int)) (=> (and (<= 0 w) (< w n)) (>= (idx dist w) -1))))
+          (invariant (forall ((k int))
+            (=> (and (<= 0 k) (< k (len queue)))
+                (and (and (<= 0 (idx queue k)) (< (idx queue k) n))
+                     (and (<= 0 (idx dist (idx queue k))) (<= (idx dist (idx queue k)) k))))))
+          (decreases (- deg i))
+          (let v i64 (idx (idx (field g adj) u) i))
+          (if (== (idx dist v) -1)
+            (block
+              (set-idx dist v (+ (idx dist u) 1))
+              (push queue v))
+            (block))
+          (set i (+ i 1)))
+        (set head (+ head 1)))
+      (if (== (idx dist target) -1)
+        (return (none))
+        (return (some (idx dist target)))))))

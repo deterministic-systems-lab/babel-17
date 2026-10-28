@@ -1,0 +1,16 @@
+(module first_root
+  (header
+    (purpose "A runtime match can't move its scrutinee out of a place.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (data pair () (pair (fst tree) (snd tree)))
+  (spec first_root
+    (params (p pair))
+    (returns (r i64))
+    (effects))
+  (def first_root
+    (body
+      (match (field p fst)
+        (case (leaf) (return 0))
+        (case (node v l r) (return v))))))

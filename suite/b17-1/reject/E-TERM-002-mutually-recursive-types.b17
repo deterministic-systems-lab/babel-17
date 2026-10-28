@@ -1,0 +1,7 @@
+(module forest
+  (header
+    (purpose "Two data types may not contain each other.")
+    (invariants "None.")
+    (failures "None."))
+  (data forest () (empty) (grove (first tree) (rest forest)))
+  (data tree () (tree (val i64) (kids forest))))

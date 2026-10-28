@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1's spec text is drafted ([docs/b17-1.md](docs/b17-1.md)), and WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0. B17-1's labelled suite comes next.
+Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), and WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0. The checker extends to B17-1 next.
 
 | WP | What | State |
 |---|---|---|
@@ -76,7 +76,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.0 Frozen |
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v0.1 Draft |
-| [`suite/`](suite/) | 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code |
+| [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 52, checked by review until the checker reads B17-1 |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
 | [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78) |

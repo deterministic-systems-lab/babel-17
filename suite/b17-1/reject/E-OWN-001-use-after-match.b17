@@ -1,0 +1,16 @@
+(module again
+  (header
+    (purpose "A match statement moves its scrutinee.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec again
+    (params (t tree))
+    (returns (r tree))
+    (effects))
+  (def again
+    (body
+      (match t
+        (case (leaf) (block))
+        (case (node v l r) (block)))
+      (return t))))

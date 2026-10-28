@@ -1,0 +1,8 @@
+(module seq_binder
+  (header
+    (purpose "A quantifier can't bind a type that contains itself through a sequence.")
+    (invariants "None.")
+    (failures "None."))
+  (data rose () (bud) (rose (kids (seq rose))))
+  (ghost-fn some_bud () bool
+    (body (exists ((r rose)) (is bud r)))))

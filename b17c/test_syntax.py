@@ -24,7 +24,7 @@ def at(text, snippet):
 
 
 # Every suite file parses and round-trips, except the one parse reject.
-files = sorted(SUITE.rglob("*.b17"))
+files = sorted(SUITE.glob("*/*.b17"))  # B17-0's accept/ and reject/; suite/b17-1/ waits for B17-1's parser
 assert len([f for f in files if f.parent.name == "accept"]) == 20, files
 assert PARSE_REJECT in files
 for f in files:

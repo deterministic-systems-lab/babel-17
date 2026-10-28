@@ -1,0 +1,7 @@
+(module option_binder
+  (header
+    (purpose "A quantifier can't bind an (option i64), since it holds an i64.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn some_present () bool
+    (body (exists ((o (option i64))) (is some o)))))

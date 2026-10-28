@@ -1,0 +1,8 @@
+(module no_such_field
+  (header
+    (purpose "A field is read only from a type that has it.")
+    (invariants "None.")
+    (failures "None."))
+  (data point () (point (x i64) (y i64)))
+  (ghost-fn depth ((p point)) int
+    (body (field p z))))

@@ -1,0 +1,7 @@
+(module tuple_index
+  (header
+    (purpose "A pair has components 0 and 1 only.")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn third ((p (tuple int int))) int
+    (body (get p 2))))

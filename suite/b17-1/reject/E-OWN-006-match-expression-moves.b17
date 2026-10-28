@@ -1,0 +1,12 @@
+(module leaf_test
+  (header
+    (purpose "A runtime match expression can't take a moving scrutinee; is reads it without moving.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec is_leaf
+    (params (t tree))
+    (returns (b bool))
+    (effects))
+  (def is_leaf
+    (body (return (match t (case (leaf) true) (case (node v l r) false))))))

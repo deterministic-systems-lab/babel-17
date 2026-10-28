@@ -1,0 +1,12 @@
+(module runtime_rank
+  (header
+    (purpose "rank is ghost-only.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec is_node
+    (params (t tree))
+    (returns (b bool))
+    (effects))
+  (def is_node
+    (body (if (> (rank t) 0) (return true) (return false)))))

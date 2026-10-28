@@ -1,0 +1,12 @@
+(module single
+  (header
+    (purpose "Building a node boxes its subtrees, which allocates.")
+    (invariants "None.")
+    (failures "None."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (spec single
+    (params (x i64))
+    (returns (t tree))
+    (effects))
+  (def single
+    (body (return (node x (leaf) (leaf))))))

@@ -1,0 +1,8 @@
+(module field_binder
+  (header
+    (purpose "A quantifier can't bind a data type with an i64 field.")
+    (invariants "None.")
+    (failures "None."))
+  (data cell () (cell (x i64)))
+  (ghost-fn some_positive () bool
+    (body (exists ((c cell)) (> (field c x) 0)))))

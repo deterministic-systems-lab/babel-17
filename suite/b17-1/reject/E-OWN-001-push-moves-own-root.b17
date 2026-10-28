@@ -1,0 +1,15 @@
+(module grow
+  (header
+    (purpose "A push can't move the vector's own root into it.")
+    (invariants "None.")
+    (failures "None."))
+  (data trie () (trie (kids (vec trie))))
+  (spec grow
+    (params (x trie))
+    (returns (r trie))
+    (effects alloc))
+  (def grow
+    (body
+      (let-mut y trie x)
+      (push (field y kids) y)
+      (return y))))
