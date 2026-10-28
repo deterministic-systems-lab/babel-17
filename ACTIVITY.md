@@ -818,6 +818,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the roadmap's gate table, work in progress, decisions waiting, next steps, the WP3 and WP4a rows, and the B17-0 and B17-1 rows;
   - `suite/README.md`'s note on how labels are checked;
   - `b17c/goals.py`'s docstring.
+- **Codex review** (`gpt-5.6-sol`) found 8 issues, all fixed:
+  - **A checker bug:** a malformed collection type in a runtime place, such as a `(seq (seq int))` parameter, was `E-GHOST-002`. D68 makes it `E-TYPE-001`, and only a well-formed ghost type is `E-GHOST-002`. `check.py` now checks element types first, and §4 says "well-formed".
+  - **§5:** it said Rust requires binding `(len v)` before `(call g (borrow v) (len v))`. Rust allows that call, and rejects only the owned case, `f(v, v.len())`, which is what D72 cites.
+  - **§12 and the suite README:** the accept suite is 20 programs, the worked example among them. And only WP3 checks tier 0 labels: WP5 checks proof labels, and WP15 runs the accept programs and shows each proof reject's fault.
+  - **Roadmap:** WP3 sat under "Work in progress", now "Recent and current work". "No decisions waiting" now notes that D2–D10, from the design spec, are still Proposed.
+  - **README:** its roadmap pointer still mentioned what's left before the Phase 0 gate.
+  - **Suite README:** its "Checking until b17c exists" heading is now "How labels are checked".
 - **Interfaces touched:** 6 and B17-0's part of 1, now Frozen at version 1.0.
-- **Proofs and tests added:** none. Every `b17c` self-check passes.
+- **Proofs and tests added:** a `test_check.py` case for the malformed runtime type. Every `b17c` self-check passes.
 - **Left admitted:** none.

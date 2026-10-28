@@ -41,7 +41,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 | **WP2's round-trip tests pass** | Done. The parser and canonical printer round-trip the whole suite. The hasher's golden file reproduces on Linux CI, so content hashes match across machines (D46). |
 | **WP15 passes its conformance tests** | Done. The interpreter is merged (PR #2) and passes WP1a's conformance tests. |
 
-### Work in progress
+### Recent and current work
 - **WP3, the tier 0 checker,** is merged (PR #15): `b17c/check.py`.
   - **It agrees with every label** of the 50-program suite: the 20 accept programs and 9 proof rejects pass tier 0, and each of the other 21 rejects fails with exactly its code, one of them at the parser.
   - **D66–D78** record the readings it settled where §2–§9 were silent, such as block scoping, which types are well formed, and where a borrow may appear. They're accepted and written into `b17-0.md`.
@@ -66,7 +66,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs the `b17c` self-checks on Linux for every pull request, including the core library's witnesses.
 
 ### Decisions waiting for the owner
-None. D56–D78 were accepted on 2026-10-28.
+None new. D56–D78 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's scope** is decided now that B17-0 is frozen (D65). The decision reopens WP4a for data-type invariants and refinement links.

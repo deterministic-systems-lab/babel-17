@@ -234,13 +234,13 @@ class _Checker:
             return {"bool": BOOL, "i64": I64, "int": INT}[node.text]
         head = node.items[0].text
         inner = node.items[1].items[1] if head == "ref" else node.items[1]
-        if head in ("seq", "multiset") and runtime:
-            self.report("E-GHOST-002", node, f"({head} T) is a ghost type (§3)")
-            return ERR
         allowed = ("bool", "i64") if head in ("vec", "ref") else ("bool", "i64", "int")
         if not isinstance(inner, Sym) or inner.text not in allowed:
             self.report("E-TYPE-001", inner, f"a {'vector or slice' if head in ('vec', 'ref') else head} holds "
                                              f"{' or '.join(allowed)}; B17-0 has no nested collections (§3, §11)")
+            return ERR
+        if head in ("seq", "multiset") and runtime:  # only a well-formed type is a ghost type (D68)
+            self.report("E-GHOST-002", node, f"({head} T) is a ghost type (§3)")
             return ERR
         elem = {"bool": BOOL, "i64": I64, "int": INT}[inner.text]
         if head == "ref":

@@ -1,6 +1,6 @@
 # B17-0 accept/reject suite
 
-WP1a's labelled programs (`docs/b17-0.md` §12). WP3's checker, WP5's verifier and WP15's interpreter must each agree with every label.
+WP1a's labelled programs (`docs/b17-0.md` §12). WP3's checker must agree with every tier 0 label, and WP5's verifier with every proof label. WP15's interpreter runs the accept programs, and shows each `E-PROOF-*` program's fault on a concrete input.
 
 ## Layout
 
@@ -31,6 +31,6 @@ Seed tasks over Dafny's unbounded `int` gained ranges under D42 and §10's rule,
 
 `gcd`, `count` and the index-returning tasks need none. The Dafny versions in `gym/tasks/` take the same preconditions when the M3 task set is built.
 
-## Checking until b17c exists
+## How labels are checked
 
 The labels were first checked by review: by the author, and by an independent model reading the suite against `docs/b17-0.md`. WP3's checker, `b17c/check.py`, now checks every tier 0 label by execution, and the suite and `docs/b17-0.md` froze at version 1.0 once it agreed with all of them (D44). `E-PROOF-*` labels and the proof goals of accept programs are checked by WP5's goal spike until WP5's verifier generates its own goals.

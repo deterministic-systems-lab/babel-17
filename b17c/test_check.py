@@ -309,6 +309,8 @@ ok(f("", "(r (vec i64))", "(block (let a (vec i64) (vec-new)) (let b (vec i64) a
      effects="alloc"))
 ok(f("(x i64)", "(r i64)", "(let y i64 (idx (vec-new) 0)) (return y)"))  # an absurd but well-typed read
 ok(module("(ghost-fn g () bool (body (=> false (== (last (seq-lit)) 5))))"))
+# A malformed type is a type error even in a runtime place; only a well-formed one is a ghost type (D68).
+bad(f("(x (seq (seq int)))", "(r i64)", "(return 0)"), "E-TYPE-001", "(seq int)")
 
 # The command line.
 for name, want in [("accept/abs.b17", (0, "")),
