@@ -1,6 +1,6 @@
 """WP5's verifier: goals from WP3's types, cached and reported (D17, D22-D25, D63).
 
-    uv run --no-project b17c/verify.py [--seeds N] [--cache DIR] [--report FILE] FILE
+    uv run --no-project b17c/verify.py [--subset 1] [--seeds N] [--cache DIR] [--report FILE] FILE
 
 checks every goal of FILE, prints each one that isn't proved, and a summary. A FILE that
 fails tier 0 has no goals: its diagnostics are printed instead, as `b17c/check.py` prints them. With
@@ -30,9 +30,10 @@ from syntax import Form, ParseError, Sym, _head, canonical as canonical_bytes
 HERE = Path(__file__).resolve().parent
 SEEDS = 10
 CACHE = Path(".b17c/cache")
-RUNTIME = {"BOUNDS", "OVERFLOW", "DIV", "PRE", "TERM"}  # L2's "no runtime errors" families
+RUNTIME = {"BOUNDS", "OVERFLOW", "DIV", "PRE", "TERM", "FIELD"}  # L2's "no runtime errors" families
 # b17c's generated SMT names: constants (x!12), bound variables (k!b3), ghost-fn parameters
-# (n!p), and ghost-fn functions and requires (g!fib, p!fib).
+# (n!p), ghost-fn functions and requires (g!fib, p!fib), and B17-1's sorts, constructors,
+# selectors and functions (d!3, c!4, f!5, s!6, len!6, rank!7).
 GENERATED = re.compile(r"(?<![\w.!])(?:[a-z_][a-z0-9_]*!(?:b?\d+|p)|[gp]![a-z_][a-z0-9_]*)(?![\w.!])")
 
 
@@ -118,18 +119,18 @@ def _write(path, entry):
     os.replace(tmp, path)
 
 
-def verify(module, seeds=SEEDS, cache=CACHE):
+def verify(module, seeds=SEEDS, cache=CACHE, subset=0):
     """Every goal of module: its node, contract clause, family, verdict, resource units and
     whether it came from the cache, plus the run's configuration. Raises ValueError, listing
     the diagnostics, if module fails tier 0."""
-    return verify_goals(module, seeds, cache)[2:]
+    return verify_goals(module, seeds, cache, subset)[2:]
 
 
-def verify_goals(module, seeds=SEEDS, cache=CACHE):
+def verify_goals(module, seeds=SEEDS, cache=CACHE, subset=0):
     """verify(), with the goal generator and its goals, one per row, for WP6's diagnostics."""
-    gen = G.Gen(module)
+    gen = G.Gen(module, subset)
     goals = gen.check(module)
-    hashes, core = H.hashes(module), H.hashes(G.CORE)
+    hashes, core = H.hashes(module, subset), H.hashes(G.CORE)
     ids, cfg, items = _node_ids(module, G.CORE), config(seeds), set(gen.defs)
 
     def check(g):
@@ -194,21 +195,24 @@ def report(module, rows, cfg):
 
 
 def main(argv):
-    seeds, cache, out = SEEDS, CACHE, None
-    while argv and argv[0] in ("--seeds", "--cache", "--report"):
+    seeds, cache, out, subset = SEEDS, CACHE, None, 0
+    while argv and argv[0] in ("--subset", "--seeds", "--cache", "--report") and len(argv) > 1:
         flag, val, argv = argv[0], argv[1], argv[2:]
-        if flag == "--seeds":
+        if flag == "--subset" and val in ("0", "1"):
+            subset = int(val)
+        elif flag == "--seeds":
             seeds = int(val)
         elif flag == "--cache":
             cache = Path(val)
         else:
             out = Path(val)
     if len(argv) != 1:
-        print("usage: uv run --no-project b17c/verify.py [--seeds N] [--cache DIR] [--report FILE] FILE", file=sys.stderr)
+        print("usage: uv run --no-project b17c/verify.py [--subset 1] [--seeds N] [--cache DIR] [--report FILE] FILE",
+              file=sys.stderr)
         return 2
     try:
-        module = G.read(argv[0])
-        rows, cfg = verify(module, seeds, cache)
+        module = G.read(argv[0], subset)
+        rows, cfg = verify(module, seeds, cache, subset)
     except ParseError as e:
         print(f"{argv[0]}:{e.line}:{e.col}: {e.code}: {e.reason}")
         return 1

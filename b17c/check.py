@@ -98,6 +98,14 @@ def _args(item, head):
     return [a for c in item.items[2:] if _head(c) == head for a in c.items[1:]]
 
 
+def _subforms(t):
+    """Every form inside type form t, itself included."""
+    if isinstance(t, Form):
+        yield t
+        for a in t.items[1:]:
+            yield from _subforms(a)
+
+
 def _elem(t):
     return t[1] if t[0] in COLLECTIONS else None
 
@@ -377,6 +385,11 @@ class _Checker:
                     self.report("E-TYPE-002", f.items[0], f"field '{f.items[0].text}' is already a field of "
                                                           f"{name} (D82)")
                 fields.add(f.items[0].text)
+                for x in _subforms(f.items[1]):  # D104: regular recursion, so finitely many instances
+                    if x.items[0].text == name and [a.text if isinstance(a, Sym) else None for a in x.items[1:]] != d.params:
+                        self.report("E-TYPE-001", x, f"{name} may use itself only as "
+                                                     f"{'(' + ' '.join([name, *d.params]) + ')' if d.params else name}, "
+                                                     f"its parameters in order, so that it has finitely many instances (D104)")
 
     def data_types(self):
         """Read every data type's field types, then §3's module-wide rules: finite values, no type
@@ -1012,7 +1025,7 @@ class _Checker:
         if g:
             t = self.expr(e, True)
         elif isinstance(e, Sym):
-            t = self.var(e, False)
+            t = self.types[id(e)] = self.var(e, False)  # read whole, so not by expr, but typed for WP5 and WP7
             if t != ERR and self.moving(t) and self.lookup(e.text) is not None:
                 self.moves[e.text] = e
         else:

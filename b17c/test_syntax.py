@@ -24,7 +24,7 @@ def at(text, snippet):
 
 
 # Every suite file parses and round-trips, except the one parse reject.
-files = sorted(SUITE.glob("*/*.b17"))  # B17-0's accept/ and reject/; suite/b17-1/ waits for B17-1's parser
+files = sorted(SUITE.glob("*/*.b17"))  # B17-0's accept/ and reject/; suite/b17-1/ is read below, with subset 1
 assert len([f for f in files if f.parent.name == "accept"]) == 20, files
 assert PARSE_REJECT in files
 for f in files:
@@ -163,7 +163,7 @@ for f in sorted((SUITE / "b17-1").rglob("*.b17")):
         continue
     tree = s.parse(text, 1)
     assert s.parse(s.canonical(tree), 1) == tree and s.canonical(s.parse(s.canonical(tree), 1)) == s.canonical(tree), f
-assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 57
+assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 58
 # Every B17-0 suite program is a B17-1 program with the same tree (docs/b17-1.md, opening).
 assert all(s.parse(f.read_text(), 1) == s.parse(f.read_text()) for f in files if f != PARSE_REJECT)
 # B17-1's reserved words are exactly those docs/b17-1.md §2 adds; B17-0 still reads them as names.
