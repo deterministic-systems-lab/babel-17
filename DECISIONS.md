@@ -1316,3 +1316,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The subset in the module text:** that changes B17-0's frozen grammar and every hash.
   - **A toolchain per subset:** that duplicates every tool.
 - **Touches:** D44; D65; D98; interface 4; WP2; WP3; WP5; WP7; WP8; WP15; M3.
+
+## D102 · Membership in a finite collection bounds a quantifier's binder · Proposed
+- **Date:** 2026-10-29
+- **Decision:** D58 gains one kind of conjunct that can't fail and gives bounds, in both subsets.
+  - **The conjunct:** `(contains E x)`, where x is an unassigned binder, E mentions no unassigned binder, and E is defined here, with a finite set, a sequence or a map as its value.
+  - **The bound:** x takes only E's members, or a map's keys, intersected across such conjuncts. For an `int` binder, the comparisons' bounds apply too. The binder may have any type, so this is how a quantifier over a type B17-1 adds is evaluated.
+  - **What doesn't bound:** a set built by `iset-of` is kept as its predicate (`docs/b17-1.md` §8), and evaluating its membership might fail, so a conjunct testing membership in one ends the list, as any conjunct that might fail does.
+  - **Evaluation:** members are taken in a fixed order, the value order the interpreter prints sets in, so a run stops at the same point everywhere.
+- **Why:**
+  - **The suite:** B17-1's specs say what a tree or trie holds as a set, and quantify over its members: `bst_insert`'s `is_bst` reads `(forall ((x int)) (=> (contains (view l) x) (< x v)))`. D58 reads no range off that guard, so `is_bst` was unknown on every tree but a leaf.
+    - Every `insert` and `search` precondition went unchecked.
+    - An input that isn't a search tree then ran, and its failure was charged to the `def`'s `ensures` instead of the input.
+    - With D102, every clause of `bst_insert` and `bst_search` is evaluated on the suite's inputs, and so is `trie_insert`'s range for its key's bytes.
+  - **Sound by D58's argument:** the conjunct can't fail once E is defined and finite, and a point outside E makes it false. So skipping the point changes nothing and hides nothing.
+  - **L1 needs it:** D80 counts a goal as tested only when checking evaluates it, so without D102 no property test could cover a set-based spec.
+- **Alternatives:**
+  - **B17-1 only:** B17-0's spec text says nothing about checking, which D57 and D58 define for the tools. No B17-0 suite program has such a guard, so its outcomes are unchanged, and an agent writing B17-0 gets the same precision.
+  - **Enumerating whole types:** booleans and tuples of them are finite, but data and sequence types aren't, and a bound read off the guard covers what the suite needs.
+- **Touches:** D57; D58; D80; WP15; `docs/b17-1.md` §8.

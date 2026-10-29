@@ -79,3 +79,4 @@ Each proof is finished against WP5 once it extends to B17-1. A proof that fails 
 - **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
 - **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 57.
 - **Proof labels:** WP5 checks them once it reads B17-1.
+- **Runs:** WP15's interpreter runs every accept program on inputs its `requires` allows, with `--subset 1`. It shows the fault of the three proof rejects that have a def or ghost-fn on a concrete input. The other two are lemmas, whose bodies never run (D57), so only WP5 can show theirs.

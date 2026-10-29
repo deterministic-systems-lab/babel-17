@@ -710,6 +710,10 @@ SETS = ["(== (union (iset-lit 1 2) (iset-lit 2 3)) (iset-lit 3 2 1))", "(== (dif
         "(== (multiset (seq-lit (some 1) (none) (some 1))) (multiset (seq-lit (none) (some 1) (some 1))))"]
 for clause in SETS:
     is_ok(go1(f1("(a i64)", "(r i64)", "(return a)", clauses=f"(ensures {clause})"), 5, check=True), 5)
+# A ghost-fn takes such a set like any value, and isn't memoized on it.
+holds = ["(ghost-fn has ((s (iset int)) (y int)) bool (body (contains s y)))"]
+unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (has (iset-of ((x int)) (> x 0)) a) "
+               "(not (has (iset-of ((x int)) (> x a)) a)))", extra=holds), 5, check=True))
 for clause in ["(== (iset-of ((x int)) (> x a)) (iset-of ((x int)) (> x a)))",
                "(contains (iset-lit (iset-of ((x int)) true)) (iset-lit))"]:
     unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses=f"(ensures {clause})"), 5, check=True), "POST")

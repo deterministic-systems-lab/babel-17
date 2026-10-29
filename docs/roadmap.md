@@ -64,7 +64,8 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
 - **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted.
-- **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 47 programs to reject, one per rule. Its labels are checked by review until the checker reads B17-1. Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
+- **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 47 programs to reject, one per rule. The checker agrees with every tier 0 label (PR #30). Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
+- **WP15, the interpreter, reads B17-1** with `--subset 1`: data values, tuples, places, `match`, sets and maps, and `rank`. It runs all 10 accept programs, and shows the fault of each proof reject that has a def or ghost-fn. D102, proposed, lets a quantifier range over a finite collection its guard names, so set-based specs such as `is_bst` are checked rather than left unknown.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.
   - **Runs match the interpreter:** 8,875 differential runs print exactly the interpreter's text, across the suite, corner cases and generated programs, with rustc 1.99.1 pinned. Fuzzing and a mutation check found no mismatch left.
@@ -78,10 +79,10 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+D102: membership in a finite collection bounds a quantifier's binder, so the interpreter checks set-based specs (WP15). D79–D101 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99 and D100 accepted, and `suite/b17-1/`. The parser, hasher and checker read B17-1 under D101, and the checker agrees with every tier 0 label in the suite. That meets D44's condition for B17-1 to freeze, which is the owner's call. The interpreter and verifier extend to it next. Six accept programs' proofs have a step that uses D99 or D100, written once the verifier reads B17-1.
+1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99 and D100 accepted, and `suite/b17-1/`. The parser, hasher, checker and interpreter read B17-1 under D101, and the checker agrees with every tier 0 label in the suite. That meets D44's condition for B17-1 to freeze, which is the owner's call. The verifier extends to it next. Six accept programs' proofs have a step that uses D99 or D100, written once the verifier reads B17-1.
 2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
@@ -105,7 +106,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99 and D100 accepted. The checker agrees with every tier 0 label, so it can freeze. |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99 and D100 accepted. The checker agrees with every tier 0 label, so it can freeze, and the interpreter runs its accept programs. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.

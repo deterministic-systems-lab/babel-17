@@ -88,9 +88,6 @@ class Pred:
         raise _Undecided
 
 
-# Finite sets are frozensets.
-
-
 def _key(v):
     """An order on values of one type, so that equal collections are built and printed alike."""
     if isinstance(v, int):
@@ -1061,15 +1058,19 @@ class _Run:
         if any(a is UNKNOWN for a in args):
             return UNKNOWN
         fenv, key = dict(zip(fn.params, args)), (fn.name, args)
+        try:
+            hash(key)
+        except _Undecided:  # an argument holds a set kept as its predicate, so the call isn't memoized
+            key = None
         caller = self.frames[-1] if self.frames else None
-        if key in self.active:  # g(A) needs g(A) again, so the recursion can't descend
+        if key is not None and key in self.active:  # g(A) needs g(A) again, so the recursion can't descend
             m = self.quiet(fn.decreases, fenv) if fn.decreases is not None else None
             if m is not None:
                 self.term(fn, m, m, x)  # fails, since m < m doesn't hold
             clause = fn.decreases if fn.decreases is not None else fn.item
             raise _Stop(Contract("TERM", self.p.node(clause), self.p.node(x),
                                  "a recursive call with its caller's own arguments"))
-        if key in self.memo:  # its requires held before; a recursive call still checks its measure
+        if key is not None and key in self.memo:  # its requires held before; a recursive call still checks its measure
             if self.check and fn.decreases is not None and caller is not None and caller[0] is fn:
                 m = self.ghost(fn.decreases, fenv)
                 if m is UNKNOWN:
@@ -1078,7 +1079,8 @@ class _Run:
                     self.term(fn, m, self.old(caller), x)
             return self.memo[key]
         depth = len(self.frames)
-        self.active.add(key)
+        if key is not None:
+            self.active.add(key)
         try:
             if not self.enter(fn, fenv, x):
                 return UNKNOWN
@@ -1086,7 +1088,8 @@ class _Run:
         finally:
             del self.frames[depth:]
             self.active.discard(key)
-        self.memo[key] = v
+        if key is not None:
+            self.memo[key] = v
         return v
 
 
