@@ -1617,3 +1617,32 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_verify.py` already covers D105.
 - **Left admitted:** none.
+
+## 2026-10-29 · The bounds of `bfs` and `kruskal`, and an attempt at `bfs`'s correctness
+- **Asked by the owner:** continue with the remaining proofs.
+- **`bfs`'s bounds and termination now verify,** with every goal but the two correctness postconditions proved.
+  - **Termination:** the outer measure counts `-1`s in `dist`, and stays at least 0 only if that count never goes negative. Two lemmas, by induction over `take` prefixes and §9's step fact, show a count is never negative and an element counts at least once. `count_member` is called before the inner loop's `set-idx`, which turns a `-1` into a distance. The first `set-idx`, for `start`, needs no call, since D105's fact for the constant `seq-build` gives the count exactly there.
+  - **No new encoding fact:** I had said §9 lacked the element fact. It's provable from §9's step fact, so no new encoding fact or decision is needed.
+  - **The inner loop** needed invariants keeping `dist[u]` fixed, for the overflow goal, and the queue from shrinking, for the outer measure's drop.
+- **`kruskal`:** its insertion sort's inner loop needed an invariant that `cands` keeps its length, without which the outer measure's drop failed. Its bounds and termination now verify.
+- **`coin_change`'s bounds and termination** already verified.
+- **`bfs`'s correctness, attempted and set aside:**
+  - **The proof:**
+    - ghost state for each vertex's position in the queue and a witness path;
+    - invariants for the queue's order and span, for closure, where every neighbour of a processed vertex is found no farther than one more step, and for minimality;
+    - a lemma `reach`, by induction along any path, applied with D99 at every path, both on discovering a vertex and after the loop.
+  - **What proved:** `reach` and most of the goals, 446 of 457 at best.
+  - **What didn't:** the inner loop's maintenance goals.
+    - **Their size:** each query carries about 400 facts, with some twenty quantified invariants. `is_path` and `has_edge` are inlined everywhere, an existential inside a universal.
+    - **At 15 times the budget,** three of them made 4.8, 5.7 and 8.2 million quantifier instantiations and still returned unknown.
+    - **Branch `assert`s didn't help:** asserting the invariants at the end of each branch moved the failures around, but didn't remove them.
+  - **One measured improvement, not kept:** naming a quantifier's bound variables after its own text, so two copies of one invariant, like an outer and an inner loop's, encode alike. Z3 then matches them without instantiating, and four goals that failed only for that reason proved. It changes every B17-0 query's bytes, and is kept out until a proof needs it.
+  - **The attempt is kept** in the session's scratchpad, not in the suite, since a partly proved accept program would mislead.
+- **For the owner,** a choice on how to finish these proofs:
+  - **Restructure** each maintenance step into a small lemma with only the facts it needs, as `trie_insert`'s did. That's many lemmas per program.
+  - **An encoding feature** that keeps a ghost-fn folded until a proof unfolds it, as Dafny's opaque functions do, so loop goals don't drag every definition in.
+  - **Replace** `kruskal`'s minimum-weight claim, the hardest of the three, with a smaller task showing tuples in a vector.
+- **Updated:** `suite/README.md`'s proof table and findings; the roadmap's next steps.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** `bfs`'s two count lemmas and its invariants; `kruskal`'s invariant.
+- **Left admitted:** none.

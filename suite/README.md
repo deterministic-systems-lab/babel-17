@@ -52,12 +52,12 @@ The labels were first checked by review: by the author, and by an independent mo
 | `segmenttree_query` | Ghost maps; `replace` on a node's fields | Verified, with D100's `obtain` naming each witness |
 | `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Verified, with D99 applying a lemma at every key |
 | `lca` | `option` throughout | Verified, with D99 applying three induction lemmas at every value |
-| `bfs` | A graph record, nested vectors, a quantifier over paths | Bounds only, not yet proved |
-| `kruskal` | Tuples in a vector | Bounds only, not yet proved |
-| `coin_change` | A quantifier over sequences | Bounds only, not yet proved |
+| `bfs` | A graph record, nested vectors, a quantifier over paths | Bounds only: verified |
+| `kruskal` | Tuples in a vector | Bounds only: verified |
+| `coin_change` | A quantifier over sequences | Bounds only: verified |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
-- **Bounds only:** the invariants are meant to cover bounds, overflow and termination. Correctness takes D99's `forall` statement and D100's `obtain`, since these proofs quantify over every path, spanning tree or change, and name witnesses.
+- **Bounds only:** every bounds, overflow and termination goal proves, and only the correctness postconditions are open. Correctness takes D99's `forall` statement and D100's `obtain`, since these proofs quantify over every path, spanning tree or change, and name witnesses.
 
 D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
@@ -66,9 +66,10 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 - **Encoding gaps, now closed (D105):**
   - `trie_insert`'s view of its keys, and `insert`'s use of it, needed a set literal of sequences to compare members by their elements.
   - `bfs`'s invariant counting the `-1`s in its `dist` vector needed the multiset of a constant `seq-build`.
-- **`bfs` isn't finished, even for bounds:**
-  - **Termination:** its measure stays at least 0 only if the count of `-1`s never goes negative. That needs §9's fact that a sequence's multiset counts each of its elements at least once, which the encoding lacks.
-  - **Its inner loop** needs an invariant that keeps `dist[u]` fixed.
+- **Bounds that review had missed, now proved:**
+  - **`bfs`:** its measure stays at least 0 only if the count of `-1`s never goes negative. Two lemmas prove, by induction over `take` prefixes, that a count is never negative and that an element counts at least once. Its inner loop also needed invariants keeping `dist[u]` fixed and the queue from shrinking.
+  - **`kruskal`:** the insertion sort's inner loop needed an invariant that `cands` keeps its length.
+- **Correctness, not yet proved:** a full proof of `bfs` was written, with witness paths, the queue's order, closure and an induction lemma along paths. Its lemma proves, but the inner loop's maintenance goals don't. Each carries about 400 facts and some twenty quantified invariants, and at 15 times the budget Z3 makes 5–8 million quantifier instantiations and still returns unknown. The attempt is described in `ACTIVITY.md`.
 - **Restated without changing its meaning:** `trie_insert`'s `well_formed` now states a child's length before calling `is_empty` on it. A recursive ghost-fn's own goals can't use its own definition (D61), so `is_empty`'s `requires` couldn't otherwise be shown there.
 
 **How the ports differ from AlgoVeri's Dafny:**
