@@ -1700,7 +1700,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **The gap:** AlgoVeri's spec says "undirected" in its comment but never requires an edge to be listed from both ends. So a graph with one-way edges satisfies every `requires`.
   - **The bug:** the port collected only edges `(u, v)` with `u < v` from `u`'s list, ignoring an edge listed only from its larger end.
   - **Shown by the interpreter:** on the cycle `0 → 2 → 1 → 0`, it returned one edge for three vertices.
-- **The new implementation:** each round, it scans every adjacency entry, in both directions, for the lightest edge joining two components. It adds that edge and relabels one component to the other, and stops when no edge crosses components.
+- **The new implementation:** each round, it scans every stored adjacency entry for the lightest edge joining two components, treating each as joining its endpoints whichever way it's listed. It adds that edge and relabels one component to the other, and stops when no edge crosses components.
   - **Kruskal's rule:** that's Kruskal's greedy rule without a separate sort, so it picks the same tree up to ties.
   - **The spec is unchanged.**
 - **Stage 1's proof:** 305 of 306 goals prove under 10 shuffled seeds. The open one is the postcondition's minimum-weight half.
@@ -1714,6 +1714,11 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Paths:** `conn_extend`, `conn_join` and `conn_sym` build tree paths. `path_comp` and `one_comp` carry a component along a graph path, applied at every vertex with D99, so the graph's connectivity puts every vertex in one component.
   - **Unpacking lemmas:** `label_of` and `cross_of` turn a folded predicate's content into ground facts where it's needed. Without them, two bounds goals after the relabel loop proved under only some seeds.
 - **Mutants:** four broke the relabel, the edge's orientation, the stopping rule and the crossing test. Each left a goal unproved beyond the postcondition.
+- **Codex review:** two wording findings in `suite/README.md` and this entry, both fixed. Codex confirmed:
+  - the spec is unchanged;
+  - the old implementation's bug is real;
+  - the lemmas are true, with premises that hold where they're called;
+  - picking the globally lightest crossing edge each round gives a minimum spanning tree, by the cut property, even with one-way entries and different weights in each direction.
 - **Tests:**
   - **`test_interp.py`:** the cycle case, and `kruskal`'s new unchecked clauses.
   - **`test_verify.py`:** checks that only the postcondition is open.

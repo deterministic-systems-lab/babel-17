@@ -57,7 +57,7 @@ The labels were first checked by review: by the author, and by an independent mo
 | `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
-- **Spanning tree verified:** every goal proves, including an `assert` that the result is a spanning tree: its edges are the graph's, it connects every pair of vertices, and it has n − 1 edges. Only the postcondition's other half is open, that no spanning tree weighs less.
+- **Spanning tree verified:** every goal but the postcondition proves, including an `assert` that the result is a spanning tree: its edges are the graph's, it connects every pair of vertices, and it has n − 1 edges. Only the postcondition's other half is open, that no spanning tree weighs less.
 
 D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
@@ -70,7 +70,7 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
   - **`kruskal`:** the insertion sort's inner loop needed an invariant that `cands` keeps its length. That loop is gone now; see below.
 - **`kruskal`'s implementation was wrong for its spec.**
   - **The bug:** AlgoVeri's spec calls the graph undirected, but never requires an edge to be listed from both ends, so a graph whose edges run one way satisfies every `requires`. The port collected only edges `(u, v)` with `u < v` from `u`'s list, so it ignored an edge listed only from its larger end. On the cycle `0 → 2 → 1 → 0` it returned one edge for three vertices.
-  - **The fix:** it now adds, round by round, the lightest edge joining two components, scanning every entry in both directions. That's Kruskal's greedy rule without a separate sort. It's a test case in `test_interp.py`.
+  - **The fix:** it now adds, round by round, the lightest edge joining two components. It scans each stored entry once, and treats it as joining its two endpoints whichever way it's listed. That's Kruskal's greedy rule without a separate sort. It's a test case in `test_interp.py`.
 - **How the large proofs fit (D106):**
   - **First attempt:** `bfs`'s first full proof didn't verify. Each of its loop's goals carried some twenty quantified invariants, with `is_path` inlined into each, and Z3 ran out of budget.
   - **Two changes made it verify.** In B17-1, a non-recursive ghost-fn is folded, so it unfolds only where a proof applies it (D106). And each invariant became a folded predicate, such as `(sorted_q dist queue)`, with each update's effect on it proved by a small lemma.
