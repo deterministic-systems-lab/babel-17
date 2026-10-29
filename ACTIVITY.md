@@ -1346,7 +1346,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - A `forall` statement checks nothing.
     - `obtain` records its ∃ as an unchecked `ASSERT`, and its binders are unknown.
   - **B17-0's words stay free in subset 0:** a B17-0 ghost-fn named `union` still runs.
-- **D102, proposed:** a leading guard conjunct `(contains E x)`, with E a finite set, a sequence or a map, ranges binder x over E's members, whatever x's type. It applies in both subsets.
+- **D102, proposed:** a leading guard conjunct `(contains E x)`, with E a finite set, a sequence or a map, ranges binder x over E's members, for x of any type but `bool`, which already ranges over both values. An empty E makes the guard hold nowhere. It applies in both subsets.
   - **Why:** without it, `bst_insert`'s `is_bst` was unknown on every tree but a leaf, so every precondition went unchecked. A non-search-tree input then failed the def's `ensures`, not the `requires`.
   - **Effect:** every clause of `bst_insert` and `bst_search` is now evaluated on the suite's inputs.
   - **B17-0:** its suite has no such guard, so its outcomes are unchanged.
@@ -1355,6 +1355,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Unchecked clauses:** these are the ones that quantify over paths, sequences, every int, or a ghost-fn's predicate.
   - **Proof rejects:** of the five, three have a def or ghost-fn, and each shows its fault on a concrete input: `replace` out of range, a field the constructor lacks, and a lookup outside the map. The other two are lemmas, whose bodies never run (D57).
   - **B17-0's suite** gives the same outcomes under subset 1.
+- **Codex review, first pass:** five findings. Three were fixed:
+  - **A recursive ghost-fn call** with a set built by `iset-of` as its argument ran to the depth limit, instead of failing `TERM` at once (D57). Such arguments now key the memo by identity, and the key keeps its value alive, so no other value takes its id.
+  - **Arguments with the wrong number of fields,** such as `(some 1 2)`, were accepted as data values.
+  - **An empty membership collection** for a later binder left the quantifier unknown. It now makes the guard hold nowhere, as an empty range from comparisons does.
+- **Declined from the first pass:**
+  - **That `(== s s)` should be unknown** when s holds an `iset-of` set. The two sides are the same value, so the clause holds by reflexivity. A predicate set is now equal to itself directly too, as it already was inside a tuple.
+  - **That D102 should bound `bool` binders.** Their two values are always listed, and a point outside the guard makes `=>` false before the body runs, so bounding them saves only fuel. D102 now names `bool` as the exception.
 - **Updated:** the README's status, WP15 row, layout and commands; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s checking notes; `docs/b17-1.md` §8 and §14.
 - **Interfaces touched:** interface 10 gains tuple and data values and the `FIELD` reason, as `docs/b17-1.md` §8 already said.
 - **Proofs and tests added:** B17-1's section of `test_interp.py`: the suite, each §8 rule, D102, the text form, argument checks and the command line.

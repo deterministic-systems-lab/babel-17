@@ -1321,8 +1321,9 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-10-29
 - **Decision:** D58 gains one kind of conjunct that can't fail and gives bounds, in both subsets.
   - **The conjunct:** `(contains E x)`, where x is an unassigned binder, E mentions no unassigned binder, and E is defined here, with a finite set, a sequence or a map as its value.
-  - **The bound:** x takes only E's members, or a map's keys, intersected across such conjuncts. For an `int` binder, the comparisons' bounds apply too. The binder may have any type, so this is how a quantifier over a type B17-1 adds is evaluated.
+  - **The bound:** x takes only E's members, or a map's keys, intersected across such conjuncts. For an `int` binder, the comparisons' bounds apply too. The binder may have any type but `bool`, which ranges over both its values already (D58), so this is how a quantifier over a type B17-1 adds is evaluated.
   - **What doesn't bound:** a set built by `iset-of` is kept as its predicate (`docs/b17-1.md` §8), and evaluating its membership might fail, so a conjunct testing membership in one ends the list, as any conjunct that might fail does.
+  - **No members:** an empty E makes the guard hold nowhere, whichever binder it names, as an empty range from comparisons does (D58).
   - **Evaluation:** members are taken in a fixed order, the value order the interpreter prints sets in, so a run stops at the same point everywhere.
 - **Why:**
   - **The suite:** B17-1's specs say what a tree or trie holds as a set, and quantify over its members: `bst_insert`'s `is_bst` reads `(forall ((x int)) (=> (contains (view l) x) (< x v)))`. D58 reads no range off that guard, so `is_bst` was unknown on every tree but a leaf.

@@ -82,10 +82,26 @@ class Pred:
         self.test = test
 
     def __eq__(self, other):
+        if other is self:
+            return True  # every set equals itself, as Python's own identity shortcut in tuples already says
         raise _Undecided
 
     def __hash__(self):
         raise _Undecided
+
+
+class _Same:
+    """A memo key compared by identity, for arguments that can't be hashed. The key keeps its
+    value alive, so no other value takes its id."""
+
+    def __init__(self, v):
+        self.v = v
+
+    def __eq__(self, other):
+        return self.v is other.v
+
+    def __hash__(self):
+        return id(self.v)
 
 
 def _key(v):
@@ -398,7 +414,7 @@ class _Program:
             return False
         inner = {a.text: (u, params) for a, u in zip(item.items[2].items, args)}
         (c,) = [c for c in item.items[3:] if c.items[0].text == v.ctor]
-        return all(self.fits(x, f.items[1], inner) for x, f in zip(v.fields, c.items[1:]))
+        return len(v.fields) == len(c.items) - 1 and all(self.fits(x, f.items[1], inner) for x, f in zip(v.fields, c.items[1:]))
 
 
 class _Stop(Exception):
@@ -915,8 +931,8 @@ class _Run:
         range or list, or None if it has no finite bounds (D58). Bounds come only from the
         guard's leading conjuncts that can't fail, so a point they exclude makes the guard
         false at a conjunct whose evaluation can't fail, and skipping it hides nothing. An int
-        binder is bounded by comparisons, and a binder of any type by membership in a finite
-        collection (D102)."""
+        binder is bounded by comparisons, and a binder of any type but bool by membership in a
+        finite collection (D102)."""
         lo = {n: None for n in free if n in ints}
         hi = dict(lo)
         steps = []  # (a, b, gap): a + gap <= b, between binders not yet fixed
@@ -927,6 +943,8 @@ class _Run:
                 s = None if _mentions(c.items[1], free) else self.quiet(c.items[1], env)
                 if not isinstance(s, (tuple, frozenset, Map)):
                     break  # it might fail, or test membership in a set kept as its predicate, which might
+                if not s:
+                    return range(0)  # no member, so the guard holds nowhere
                 if c.items[2].text == x:
                     among = [v for v in sorted(set(s), key=_key) if among is None or v in among]
                     if not among:
@@ -1060,17 +1078,17 @@ class _Run:
         fenv, key = dict(zip(fn.params, args)), (fn.name, args)
         try:
             hash(key)
-        except _Undecided:  # an argument holds a set kept as its predicate, so the call isn't memoized
-            key = None
+        except _Undecided:  # an argument holds a set kept as its predicate: memoize by identity
+            key = (fn.name, tuple(map(_Same, args)))
         caller = self.frames[-1] if self.frames else None
-        if key is not None and key in self.active:  # g(A) needs g(A) again, so the recursion can't descend
+        if key in self.active:  # g(A) needs g(A) again, so the recursion can't descend
             m = self.quiet(fn.decreases, fenv) if fn.decreases is not None else None
             if m is not None:
                 self.term(fn, m, m, x)  # fails, since m < m doesn't hold
             clause = fn.decreases if fn.decreases is not None else fn.item
             raise _Stop(Contract("TERM", self.p.node(clause), self.p.node(x),
                                  "a recursive call with its caller's own arguments"))
-        if key is not None and key in self.memo:  # its requires held before; a recursive call still checks its measure
+        if key in self.memo:  # its requires held before; a recursive call still checks its measure
             if self.check and fn.decreases is not None and caller is not None and caller[0] is fn:
                 m = self.ghost(fn.decreases, fenv)
                 if m is UNKNOWN:
@@ -1079,8 +1097,7 @@ class _Run:
                     self.term(fn, m, self.old(caller), x)
             return self.memo[key]
         depth = len(self.frames)
-        if key is not None:
-            self.active.add(key)
+        self.active.add(key)
         try:
             if not self.enter(fn, fenv, x):
                 return UNKNOWN
@@ -1088,8 +1105,7 @@ class _Run:
         finally:
             del self.frames[depth:]
             self.active.discard(key)
-        if key is not None:
-            self.memo[key] = v
+        self.memo[key] = v
         return v
 
 

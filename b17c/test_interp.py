@@ -714,6 +714,13 @@ for clause in SETS:
 holds = ["(ghost-fn has ((s (iset int)) (y int)) bool (body (contains s y)))"]
 unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (has (iset-of ((x int)) (> x 0)) a) "
                "(not (has (iset-of ((x int)) (> x a)) a)))", extra=holds), 5, check=True))
+# ...and a recursive call with the same such set is still caught at once (D57).
+RECUR = ["(ghost-fn recur ((s (iset int))) bool (requires (recur s)) (decreases 0) (body true))"]
+is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (recur (iset-of ((x int)) true)))", extra=RECUR),
+                5, check=True, depth=5), "TERM")
+# A set equals itself, so a value holding it does too.
+unknown(go1(f1("(a i64)", "(r i64)", "(ghost-let p (iset int) (iset-of ((x int)) true)) (assert (== p p))"
+               " (assert (== (seq-lit p) (seq-lit p))) (return a)"), 5, check=True))
 for clause in ["(== (iset-of ((x int)) (> x a)) (iset-of ((x int)) (> x a)))",
                "(contains (iset-lit (iset-of ((x int)) true)) (iset-lit))"]:
     unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses=f"(ensures {clause})"), 5, check=True), "POST")
@@ -730,6 +737,9 @@ for clause, a, want in [("(forall ((x int)) (=> (contains a x) (> x 0)))", (3, 1
         is_ok(go1(claimed, a, check=True), True)
     else:
         is_contract(go1(claimed, a, check=True), "POST")
+# An empty collection makes the guard hold nowhere, whichever binder it bounds.
+unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)",
+               clauses="(ensures (forall ((x int) (y int)) (=> (contains (seq-lit) y) false)))"), (), check=True))
 for clause in ["(forall ((s (seq int))) (=> (> (len s) 0) (>= (len s) 1)))",
                "(forall ((x int)) (=> (contains (iset-of ((y int)) (> y 0)) x) (> x 0)))"]:
     unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures {clause})"), (), check=True), "POST")
@@ -747,7 +757,8 @@ is_ok(go1(named, 5), 5)
 # parameter types.
 assert i.text_of(go1(f1("(t (option (tuple i64 bool)))", "(r (option (tuple i64 bool)))", "(return t)"),
                      some(T((1, False))))) == "ok (some (tuple 1 false))"
-for bad in [some(T((1, 2))), some(T((MAX + 1, True))), D("leaf", ()), T((1, False))]:
+for bad in [some(T((1, 2))), some(T((MAX + 1, True))), D("leaf", ()), T((1, False)), D("some", ()),
+            D("some", (T((1, False)), T((1, False))))]:
     try:
         go1(f1("(t (option (tuple i64 bool)))", "(r bool)", "(return true)"), bad)
     except ValueError as e:
