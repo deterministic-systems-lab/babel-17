@@ -74,6 +74,10 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.
   - **Runs match the interpreter:** 8,875 differential runs print exactly the interpreter's text, across the suite, corner cases and generated programs, with rustc 1.99.1 pinned. Fuzzing and a mutation check found no mismatch left.
+- **WP7 reads B17-1** with `--subset 1` (D110–D112, proposed).
+  - **Data types become Rust enums,** with boxed recursive fields and only the type parameters a value holds. Updates through places happen in place, in the interpreter's order, and `replace` is `std::mem::replace`.
+  - **Runs match the interpreter:** every accept program on its spec's inputs, the two proof rejects whose defs reach `err BOUNDS` and `err FIELD`, corner cases and generated programs. B17-0's crates are unchanged, byte for byte.
+  - **One refusal:** a data type that grows its type arguments as it recurses has no Rust type, so the backend refuses it (D112). No surveyed task has one.
 - **WP6, the agent protocol,** is done for B17-0: `b17c/agent.py`.
   - **Diagnostics** carry interface 3's fields (D93). That includes the goal over the program's names, a counterexample the interpreter replays, the slice of items needed to fix it, and how many goals depend on it.
   - **The five queries answer** (interface 8, D94). `search` finds specs by what they guarantee, by verifying a def that only calls each candidate.
@@ -84,14 +88,14 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28, and D102–D104 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
+D110–D112, proposed on 2026-10-29: how WP7 lowers B17-1, what its differential tests compare, and the one shape of data type it refuses. D79–D101 were accepted on 2026-10-28, and D102–D104 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D104 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. What's left is to finish six accept programs' proofs: the D99 and D100 steps of three, and the correctness of `bfs`, `kruskal` and `coin_change`.
 2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
-Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0. It extends to B17-1 with the rest of the toolchain, emitting data types as Rust enums (D79).
+Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D110–D112, proposed).
 
 ### Phase 0 work outside the gate
 - **The rest of WP2:** the manifest and lockfile schemas (interfaces 4 and 7, D26) and typed edit operations (interface 2).
@@ -109,9 +113,9 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. Done for B17-0. |
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8). Done for B17-0 (D93, D94), except repairs, which wait for WP2's typed edits. |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
-| WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97). |
+| WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110–D112, proposed). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99, D100 and D102–D104 accepted. The checker agrees with every tier 0 label, so it can freeze. The interpreter runs its accept programs, and the verifier checks its proof labels. |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99, D100 and D102–D104 accepted. The checker agrees with every tier 0 label, so it can freeze. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.
