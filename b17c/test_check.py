@@ -343,7 +343,7 @@ for path in sorted((SUITE / "b17-1").rglob("*.b17")):
         seen["accept" if path.parent.name == "accept" else "proof"] += 1
     else:
         code = re.match(r"E-[A-Z]+-\d+", path.name).group()
-        assert ds and all(d.code == code for d in ds), (path.name, [str(d) for d in ds])
+        assert [d.code for d in ds] == [code], (path.name, [str(d) for d in ds])  # one error, one diagnostic (D78)
         seen["parse" if code == "E-PARSE-001" else "tier 0"] += 1
 assert seen == {"accept": 10, "proof": 5, "tier 0": 40, "parse": 2}, seen
 
@@ -440,6 +440,25 @@ ok1("(lemma l (params (k int)) (requires (> k 0)) (ensures (> (* k k) 0)) (body)
     "(lemma m (params) (body (forall ((k int)) (call l k)) (obtain ((j int)) (> j 5)) (assert (> j 0))))")
 bad1("E-TYPE-002", "(lemma m (params) (body (forall ((k int)) (call nowhere k))))")
 bad1("E-TYPE-002", "(lemma m (params) (body (obtain ((k int)) (> k 0)) (obtain ((k int)) (> k 1))))")
+# Codex's review: argument-dependent properties are fixed points, so they reach through other types.
+bad1("E-TYPE-001", "(data vbox (a) (vboxc (v (vec a))))", "(data wrap (a) (wrapc (x (vbox a))))",
+     "(ghost-fn f ((x (wrap int))) bool (body true))")  # a vector of int, through vbox
+bad1("E-TYPE-001", "(data box (t) (mkbox (s (iset t))))", "(data bad () (base) (mkbad (x (box bad))))")  # a set of itself
+bad1("E-TYPE-001", "(data d (a) (c (x a)) (v (xs (vec a))))", "(ghost-fn f () int (body (rank (c 1))))")  # inferred (d int)
+bad1("E-TYPE-001", "(data d (a) (empty) (full (v (vec a))))", "(ghost-fn f () int (body (rank (empty))))")  # open: int (§4)
+ok1("(data d (a) (base) (next (x (d (option a)))))", spec("f", "(x (d bool))", ""))  # recursion at a growing instance
+bad1("E-GHOST-002", "(data f (a) (b) (n (x a) (y (f int))))", spec("g", "(x (f bool))", ""))  # an int inside
+ok1("(data pair (a) (mkpair (x a) (y a)))", "(ghost-fn f ((r i64)) bool (body (== (mkpair r (+ r 0)) (mkpair (+ r 0) r))))")
+ok1(TREE, "(spec f (params (x tree)) (returns) (requires (== (tuple x x) (tuple x x))) (effects))")  # ghost moves nothing
+bad1("E-OWN-006", spec("f", "", "(n i64)"), "(def f (body (return (len (vec-new)))))")  # §5 rule 7: no temporaries
+bad1("E-TYPE-001", "(data d () (c))", "(lemma l (params) (body (forall ((x int)) (call c))))")
+if len(diagnose(module(TREE, spec("consume", "(x tree)", ""), spec("f", "", ""), "(def f (body (call consume (leaf)) (return)))"), 1)) != 1:
+    failures.append("a constructor argument's E-OWN-006 was reported twice")
+# Every B17-0 suite program has the same diagnostics under subset 1.
+for path in sorted(SUITE.glob("*/*.b17")):
+    where = lambda subset: [(d.line, d.col, d.code) for d in diagnose(path.read_bytes(), subset)]
+    if path.name != "E-PARSE-001-while-without-decreases.b17" and where(0) != where(1):  # messages cite b17-1.md
+        failures.append(f"{path.name} differs under subset 1: {where(0)} {where(1)}")
 # B17-0 keeps its rules: no data types, no nested collections, B17-1's words as names (D101).
 assert [d.code for d in diagnose(module("(ghost-fn map ((field int)) int (body field))"))] == []
 assert [d.code for d in diagnose(module("(ghost-fn g ((s (seq (seq int)))) int (body 0))"))] == ["E-TYPE-001"]

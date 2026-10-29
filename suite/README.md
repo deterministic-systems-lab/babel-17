@@ -75,4 +75,7 @@ Each proof is finished against WP5 once it extends to B17-1. A proof that fails 
 
 **Reject:** 47 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 42 with a tier 0 code and 5 with a proof family.
 
-**How the labels are checked:** by review for now, as B17-0's first were. The parser, checker and verifier don't read B17-1 yet, so nothing here runs. When WP3 extends to B17-1, it checks the tier 0 labels by execution, and WP5 checks the proof labels.
+**How the labels are checked:**
+- **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
+- **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 57.
+- **Proof labels:** WP5 checks them once it reads B17-1.
