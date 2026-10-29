@@ -1451,7 +1451,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - `docs/b17-1.md`'s status line and §14;
   - the roadmap's decisions waiting, next steps and B17-1 row;
   - the roadmap's WP5 status, now that the soundness fixes reach B17-0 and the suite's queries are unchanged;
-  - the README's WP5 row, which now says so too, its verify.py row and interface 11's line;
+  - the README's WP5 row, which now says so too, its `verify.py` row and interface 11's line;
   - `docs/b17-1.md` §9's encoding heading, which now names D103.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_verify.py` and `test_check.py` already cover both decisions.
