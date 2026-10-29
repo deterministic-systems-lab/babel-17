@@ -31,7 +31,7 @@ import tempfile
 from pathlib import Path
 
 import interp
-from check import _Checker
+from check import _Checker, show
 from check import types as tier0_types
 from syntax import Form, Int, ParseError, Sym, _head, _print, canonical, parse
 
@@ -51,7 +51,6 @@ UNRAW = {"crate", "self", "super"}
 ARITH = {"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "rem"}
 COMPARE = {"<", "<=", ">", ">=", "==", "!="}
 GHOST = {"assert", "ghost-let", "ghost-let-mut", "ghost-set", "forall", "obtain"}  # the last two are B17-1's
-READS = {"idx", "len", "field", "get"}  # B17-1: they read a value where it is (§5 rule 3)
 # Lints that valid B17-0 programs trigger: a helper the module doesn't use, a local it never
 # reads or a let-mut it never sets, (while true ...), recursion a proof bounds, a comparison
 # with an i64 limit, and a name with two underscores in a row (D95).
@@ -77,12 +76,14 @@ def emit(module, subset=0):
         found = str(e).splitlines()
         more = f" (and {len(found) - 1} more)" if len(found) > 1 else ""
         raise ValueError(f"the module doesn't pass tier 0: {found[0]}{more}") from None
-    datas = {}
-    if subset:
-        checker = _Checker(module, subset)
-        checker.collect()  # the data types' summaries (§3, §5, §6), as tier 0 derives them
-        datas = checker.datas
-    return _Emitter(module, typed, subset, datas).crate()
+    return _Emitter(module, typed, subset, data_types(module) if subset else {}).crate()
+
+
+def data_types(module):
+    """B17-1 module's data types, with what §3, §5 and §6 derive from them, as tier 0 reads them."""
+    checker = _Checker(module, 1)
+    checker.collect()
+    return checker.datas
 
 
 def rid(name):
@@ -115,9 +116,8 @@ def _type(t):
     h = t.items[0].text
     if h == "ref":
         return ("slice", _type(t.items[1].items[1]))
-    if h in ("vec", "seq", "multiset", "iset", "map", "tuple"):
-        return (h,) + tuple(_type(a) for a in t.items[1:])
-    return ("data", h) + tuple(_type(a) for a in t.items[1:])
+    head = (h,) if h in ("vec", "seq", "multiset", "iset", "map", "tuple") else ("data", h)
+    return head + tuple(_type(a) for a in t.items[1:])
 
 
 def _args(item, head):
@@ -143,6 +143,12 @@ def _untyped(x):
     return isinstance(x, Int) or (_head(x) == "if" and _untyped(x.items[2]) and _untyped(x.items[3]))
 
 
+def _parens(parts):
+    """A variant's fields or a call's arguments, (a, b), or nothing when there are none."""
+    parts = list(parts)
+    return f"({', '.join(parts)})" if parts else ""
+
+
 def _mentions(t, name):
     """Field type t mentions data type name other than inside a vector: a boxed field (D86)."""
     if t[0] == "vec":
@@ -151,8 +157,8 @@ def _mentions(t, name):
 
 
 class _Emitter:
-    def __init__(self, module, typed, subset=0, datas=None):
-        self.module, self.typed, self.sub, self.datas = module, typed, subset, datas or {}
+    def __init__(self, module, typed, subset, datas):
+        self.module, self.typed, self.sub, self.datas = module, typed, subset, datas
         self.specs, self.defs, self.lemmas, self.ids = {}, {}, set(), {}
         for m in (interp.CORE, module):
             for it in m.items[3:]:
@@ -169,7 +175,7 @@ class _Emitter:
         self.uses = set()
         # B17-1 (D110): constructors, and what the crate's data module and runtime need.
         self.ctors = {c.text: (name, k) for name, d in self.datas.items() for k, (c, _) in enumerate(d.ctors)}
-        self.wanted = {}     # data type name -> None, in first-use order
+        self.wanted = []     # data type names, in first-use order
         self.accessors = {}  # (data type, field, mutable) -> None
         self.arities = set()  # of the tuple types the crate reads and prints
 
@@ -189,11 +195,8 @@ class _Emitter:
         defs = [it for it in self.module.items[3:] if it.items[0].text == "def"]
         fns = [line for d in defs for line in self.fn(d)]
         arms = [line for d in defs for line in self.arm(d)]
-        if self.wanted:
-            self.uses.add("data")
-        uses = [f"    use crate::{p};" for p, used in (("rt", "rt"), ("rt::SetIdx", "SetIdx"), ("data", "data"))
-                if used in self.uses]
-        data = self.data_module() if self.sub else []
+        uses = [f"    use crate::{p};" for p in ("rt", "rt::SetIdx", "data") if p in self.uses]
+        data = self.data_module()
         return "\n".join([
             f"// Emitted by b17c's Rust backend (WP7, D95{', D110' if self.sub else ''}) from "
             f"{'B17-1 ' if self.sub else ''}module {name}. Emit it again rather",
@@ -297,12 +300,14 @@ class _Emitter:
         infinitely many Rust types, which rustc refuses (D112)."""
         if name in self.wanted:
             return
-        self.wanted[name] = None
+        self.wanted.append(name)
+        self.uses.add("data")
         for _, fs in self.datas[name].ctors:
             for _, ft in fs:
-                for o in self.held(ft, name):
-                    if any(a[0] != "param" and self.held(a, None) for a in self.rust_args(o)):
-                        raise ValueError(f"data type {name} holds a {_show(o)} inside itself, which grows its type "
+                for o in self.inner(ft):
+                    if o[:2] == ("data", name) and any(
+                            a[0] != "param" and any(p[0] == "param" for p in self.inner(a)) for a in self.rust_args(o)):
+                        raise ValueError(f"data type {name} holds a {show(o)} inside itself, which grows its type "
                                          f"arguments as it recurses, so Rust's generics can't lower it (D112)")
 
     def rust_args(self, t):
@@ -310,12 +315,11 @@ class _Emitter:
         d = self.datas[t[1]]
         return [a for a, p in zip(t[2:], d.params) if p in d.stored]
 
-    def held(self, t, name):
-        """The parts of type t that are applications of data type name, or type parameters when
-        name is None, as Rust sees t: through vectors, tuples and the type arguments it keeps."""
-        here = [t] if (t[0] == "param" if name is None else t[:2] == ("data", name)) else []
-        inner = self.rust_args(t) if t[0] == "data" else t[1:] if t[0] in ("vec", "slice", "tuple") else []
-        return here + [o for a in inner for o in self.held(a, name)]
+    def inner(self, t):
+        """Field type t and the types in it, as Rust sees t: through vectors, tuples and the type
+        arguments it keeps."""
+        kept = self.rust_args(t) if t[0] == "data" else t[1:] if t[0] in ("vec", "tuple") else []
+        return [t] + [o for a in kept for o in self.inner(a)]
 
     def boxed(self, name):
         """Per constructor of data type name, which of its fields are boxed (D86)."""
@@ -357,7 +361,7 @@ class _Emitter:
         if h == "set":
             return [f"{pad}{rid(it[1].text)} = {self.top(it[2])};"]
         if h == "set-idx":  # the index, then the value, then the check (D56)
-            self.uses.add("SetIdx")
+            self.uses.add("rt::SetIdx")
             v = it[1].text
             return [f"{pad}{rid(v)}.set_idx({self.top(it[2])}, {self.top(it[3])}, {string(v)}, {self.node(s)});"]
         if h == "push":
@@ -433,7 +437,7 @@ class _Emitter:
         if pat.items[0].text == "tuple":
             return f"({', '.join(names)})", []
         path, boxes = self.ctor(pat.items[0].text)
-        return (f"{path}({', '.join(names)})" if names else path), [n for n, b in zip(names, boxes) if b]
+        return path + _parens(names), [n for n, b in zip(names, boxes) if b]
 
     def indices(self, p, pad):
         """The lets that evaluate place p's idx indices into temporaries, from its root out,
@@ -443,25 +447,20 @@ class _Emitter:
             if p.items[0].text == "idx":
                 steps.insert(0, p)
             p = p.items[1]
-        temps = {id(f): f"_i{k}" for k, f in enumerate(steps)}
-        return [f"{pad}    let {temps[id(f)]}: i64 = {self.top(f.items[2])};" for f in steps], temps
+        lets = [f"{pad}    let _i{k}: i64 = {self.top(f.items[2])};" for k, f in enumerate(steps)]
+        return lets, {id(f): f"_i{k}" for k, f in enumerate(steps)}
 
     def update(self, s, depth):
         """(set-idx place i e) or (push place e), for a place that isn't a variable."""
         pad, it, h = "    " * depth, s.items, s.items[0].text
         lets, temps = self.indices(it[1], pad)
-        elem = self.rtype(self.typed[id(it[1])][1])
-        out = [pad + "{", *lets]
+        elem, call = self.rtype(self.typed[id(it[1])][1]), "push(_v)"
         if h == "set-idx":
-            out.append(f"{pad}    let _i: i64 = {self.top(it[2])};")
-        out.append(f"{pad}    let _v: {elem} = {self.top(it[-1])};")
-        target = self.place(it[1], temps)[1]
-        if h == "set-idx":
-            self.uses.add("SetIdx")
-            out.append(f"{pad}    {target}.set_idx(_i, _v, {string(_print(it[1]))}, {self.node(s)});")
-        else:
-            out.append(f"{pad}    {target}.push(_v);")
-        return out + [pad + "}"]
+            self.uses.add("rt::SetIdx")
+            lets.append(f"{pad}    let _i: i64 = {self.top(it[2])};")
+            call = f"set_idx(_i, _v, {string(_print(it[1]))}, {self.node(s)})"
+        lets.append(f"{pad}    let _v: {elem} = {self.top(it[-1])};")
+        return [pad + "{", *lets, f"{pad}    {self.place(it[1], temps)[1]}.{call};", pad + "}"]
 
     def replace(self, s, depth):
         """(let x T (replace place e)): the place's old value, with e left where it was (§5 rule 3)."""
@@ -520,7 +519,7 @@ class _Emitter:
         if isinstance(x, Sym):
             return (x.text if x.text in ("true", "false") else rid(x.text)), False
         h, it = _head(x), x.items
-        if self.sub and (h in READS or h in ("is", "tuple", "match") or h in self.ctors):
+        if self.sub and (h in ("len", "idx", "field", "get", "is", "tuple", "match") or h in self.ctors):
             return self.expr1(x)
         if h in ARITH:
             self.uses.add("rt")
@@ -568,10 +567,7 @@ class _Emitter:
         h, it = _head(x), x.items
         if h == "len":
             return f"({self.place(it[1])[1]}.len() as i64)", True
-        if h == "idx":  # a copied element, by value; read() reaches a moving one
-            self.uses.add("rt")
-            return f"rt::idx({self.pointer(it[1])}, {self.top(it[2])}, {self.node(x)})", False
-        if h in ("field", "get"):
+        if h in ("idx", "field", "get"):
             kind, code = self.place(x)
             return (f"*{code}" if kind == "ref" else code), False
         if h == "is":
@@ -585,62 +581,53 @@ class _Emitter:
         path, args = self.data_type(self.typed[id(x)])  # a constructor call, whose type arguments Rust can't always infer
         boxes = self.ctor(h)[1]
         values = [f"Box::new({self.top(a)})" if b else self.top(a) for a, b in zip(it[1:], boxes)]
-        ctor = f"{path}{'::' + args if args else ''}::{rid(h)}"
-        return (f"{ctor}({', '.join(values)})" if values else ctor), False
+        return f"{path}{'::' + args if args else ''}::{rid(h)}{_parens(values)}", False
 
     # B17-1's data module: an enum per data type the crate uses, with what reads, prints and
     # parses its values (D110).
 
     def data_module(self):
-        out, done = [], 0
-        while done < len(self.wanted):  # a type's fields may need more types
-            out += self.declare(list(self.wanted)[done])
-            done += 1
-        if not out:
+        if not self.wanted:
             return []
+        out = []
+        for name in self.wanted:  # declaring a type may want more, which this loop reaches too
+            out += self.declare(name)
         return ["mod data {", "    //! The data types the program uses, as enums (D110).", *out,
                 "}", ""]
 
     def declare(self, name):
-        d, kept = self.datas[name], self.kept(name)
-        params = f"<{', '.join(f'T{k}' for k in range(len(kept)))}>" if kept else ""
-        bounded = (lambda trait: f"<{', '.join(f'T{k}: crate::rt::{trait}' for k in range(len(kept)))}>"
-                   if kept else "")
-        me = rid(name) + params
+        d, ts = self.datas[name], [f"T{k}" for k in range(len(self.kept(name)))]
+        generics = lambda bound="": f"<{', '.join(t + bound for t in ts)}>" if ts else ""
+        me = rid(name) + generics()
         where = "the core library's" if name == "option" else f"line {d.form.pos[0]}"  # docs/b17-1.md §9
         out = ["", f"    /// data {name}, {where}"]
         if not d.mv_base:
             out.append("    #[derive(Clone, Copy)]")  # copied (§5 rule 1); Rust adds T: Copy for each parameter
         out.append(f"    pub enum {me} {{")
-        shapes = []
         for (c, fs), boxes in zip(d.ctors, self.boxed(name)):
             types = [self.rtype(ft, name) for _, ft in fs]
             types = [f"Box<{t}>" if b else t for t, b in zip(types, boxes)]
             names = f" // {', '.join(f.text for f, _ in fs)}" if fs else ""
-            out.append(f"        {rid(c.text)}{f'({', '.join(types)})' if types else ''},{names}")
-            shapes.append((c.text, len(fs)))
+            out.append(f"        {rid(c.text)}{_parens(types)},{names}")
         out.append("    }")
-        terms = [f"                Self::{rid(c)}{self.binders(n)} => crate::rt::form({string(c)}, &["
+        shapes = [(c.text, len(fs)) for c, fs in d.ctors]
+        terms = [f"                Self::{rid(c)}{_parens(f'a{k}' for k in range(n))} => crate::rt::form({string(c)}, &["
                  f"{', '.join(f'crate::rt::Term::term(a{k})' for k in range(n))}]),"
                  for c, n in shapes]
         reads = [f"                ({string(c)}, {n}) => Some(Self::{rid(c)}"
-                 f"{'(' + ', '.join(f'crate::rt::Arg::from_sx(&a[{k}])?' for k in range(n)) + ')' if n else ''}),"
+                 f"{_parens(f'crate::rt::Arg::from_sx(&a[{k}])?' for k in range(n))}),"
                  for c, n in shapes]
-        out += [f"    impl{bounded('Term')} crate::rt::Term for {me} {{",
+        out += [f"    impl{generics(': crate::rt::Term')} crate::rt::Term for {me} {{",
                 "        fn term(&self) -> String {", "            match self {", *terms, "            }",
                 "        }", "    }",
-                f"    impl{bounded('Arg')} crate::rt::Arg for {me} {{",
+                f"    impl{generics(': crate::rt::Arg')} crate::rt::Arg for {me} {{",
                 "        fn from_sx(sx: &crate::rt::Sx) -> Option<Self> {",
                 "            let (c, a) = sx.form()?;", "            match (c, a.len()) {", *reads,
                 "                _ => None,", "            }", "        }", "    }"]
         methods = [m for (t, f, mutable) in self.accessors if t == name for m in self.read_field(name, f, mutable)]
         if methods:
-            out += [f"    impl{params} {me} {{", *methods, "    }"]
+            out += [f"    impl{generics()} {me} {{", *methods, "    }"]
         return out
-
-    @staticmethod
-    def binders(n):
-        return f"({', '.join(f'a{k}' for k in range(n))})" if n else ""
 
     def read_field(self, name, f, mutable):
         """The method that reaches field f of a name value, or stops the run with err FIELD."""
@@ -658,7 +645,7 @@ class _Emitter:
                 parts = "(..)" if fs else ""
                 arms.append(f"                Self::{rid(c.text)}{parts} => crate::rt::no_field(node, "
                             f"{string(f'a {c.text} value has no field {f}')}),")
-        return [f"        pub fn _{'m' if mutable else 'r'}_{f}({'&mut self' if mutable else '&self'}, node: crate::rt::Node) "
+        return [f"        pub fn _{'m' if mutable else 'r'}_{f}({ref}self, node: crate::rt::Node) "
                 f"-> {ref}{self.rtype(t, name)} {{", "            match self {", *arms, "            }", "        }"]
 
     def runtime(self):
@@ -679,17 +666,6 @@ class _Emitter:
                 f"Some(({', '.join(f'A{k}::from_sx(a{k})?' for k in range(n))})),",
                 "                _ => None,", "            }", "        }", "    }", ""]
         return _RT_HEAD + _RT_PLACES + _RT_DRIVER + _RT_ARG_1 + _RT_TERM + _RT_TERM_1 + "\n".join(tuples) + "}\n"
-
-
-def _show(t):
-    """A type as B17-1 writes it."""
-    if t[0] == "data":
-        return t[1] if len(t) == 2 else f"({' '.join([t[1]] + [_show(a) for a in t[2:]])})"
-    if t[0] in ("param",):
-        return t[1]
-    if len(t) == 1:
-        return t[0]
-    return f"({' '.join([t[0]] + [_show(a) for a in t[1:]])})"
 
 
 # The runtime every emitted crate carries (D95, D96).
@@ -1012,7 +988,7 @@ RUNTIME = _RT_HEAD + _RT_DRIVER + _RT_ARG + _RT_TERM + "}\n"
 # in, its argument reader replaced, and Term and Arg for each tuple arity the crate uses.
 _RT_PLACES = r"""    // B17-1's places and fields (docs/b17-1.md §5, §8).
 
-    /// A node's ID, as the data module's field readers take it.
+    /// A node's ID, as the data module's field readers take it. There, str may name a data type.
     pub type Node = &'static str;
 
     /// Element i of s, read where it is, as a moving value is (§5 rule 3).
@@ -1042,8 +1018,7 @@ _RT_ARG_1 = r"""    /// Argument k, read as a value of its parameter's type, as 
     /// canonical integer, true or false, or a form such as (seq-lit 1 2), (tuple 1 false)
     /// or (some 3) (D96, D110).
     pub fn arg<T: Arg>(args: &[String], k: usize, param: &str, ty: &str) -> Result<T, String> {
-        let text = args[k].trim_matches([' ', '\t', '\n', '\r']); // B17's whitespace, and no other (D48)
-        Sx::read(text)
+        Sx::read(&args[k])
             .and_then(|sx| T::from_sx(&sx))
             .ok_or_else(|| format!("argument {}: {} is not a value of type {}", param, args[k], ty))
     }
@@ -1055,7 +1030,8 @@ _RT_ARG_1 = r"""    /// Argument k, read as a value of its parameter's type, as 
     }
 
     impl Sx {
-        /// text as one term, with only B17's four whitespace characters between its parts.
+        /// text as one term, with only B17's four whitespace characters around and between its
+        /// parts (D48).
         fn read(text: &str) -> Option<Sx> {
             let mut open = vec![Vec::new()];
             let mut atom = String::new();

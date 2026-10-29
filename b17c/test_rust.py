@@ -19,7 +19,7 @@ from pathlib import Path
 
 import interp as i
 import rust as r
-from check import _Checker, check, subst
+from check import check, show, subst
 from syntax import ParseError, parse
 
 SUITE = Path(__file__).resolve().parent.parent / "suite"
@@ -101,12 +101,13 @@ def value(rng, t):
     return tuple(items)
 
 
-def cases(m, rng, per_def):
-    out = []
+def cases(m, rng, per_def, subset=0):
+    datas, out = r.data_types(m) if subset else None, []
     for it in m.items[3:]:
         if it.items[0].text == "def":
             types = signature(m, it.items[1].text)
-            out += [(it.items[1].text, [value(rng, t) for t in types]) for _ in range(per_def)]
+            out += [(it.items[1].text, [value1(rng, t, datas) if subset else value(rng, t) for t in types])
+                    for _ in range(per_def)]
     return out
 
 
@@ -575,11 +576,11 @@ def module1(*items):
     return parse(HEAD + "\n" + "\n".join(items) + ")", 1)
 
 
-def datas_of(m):
-    """B17-1 module m's data types, as tier 0 reads them, to draw arguments of their types."""
-    checker = _Checker(m, 1)
-    checker.collect()
-    return checker.datas
+def instance(datas, t):
+    """Data type t's constructors, [(name, [(field, type)])], with its type arguments in place."""
+    d = datas[t[1]]
+    env = dict(zip(d.params, t[2:]))
+    return [(c.text, [(f.text, subst(ft, env)) for f, ft in fs]) for c, fs in d.ctors]
 
 
 def value1(rng, t, datas, depth=0):
@@ -593,27 +594,16 @@ def value1(rng, t, datas, depth=0):
         return tuple(value1(rng, t[1], datas, depth + 1) for _ in range(n))
     if t[0] == "tuple":
         return i.Tup(tuple(value1(rng, a, datas, depth + 1) for a in t[1:]))
-    d = datas[t[1]]
-    env = dict(zip(d.params, t[2:]))
-    ctors = [(c, [subst(ft, env) for _, ft in fs]) for c, fs in d.ctors]
+    ctors = instance(datas, t)
     if depth >= 4:
-        holding = lambda c: sum(map(holds_data, c[1]))
+        holding = lambda c: sum(holds_data(ft) for _, ft in c[1])
         ctors = [c for c in ctors if holding(c) == min(map(holding, ctors))]
     c, fields = rng.choice(ctors)
-    return i.Data(c.text, tuple(value1(rng, ft, datas, depth + 1) for ft in fields))
+    return i.Data(c, tuple(value1(rng, ft, datas, depth + 1) for _, ft in fields))
 
 
 def holds_data(t):
     return t[0] == "data" or any(holds_data(a) for a in t[1:] if isinstance(a, tuple))
-
-
-def cases1(m, rng, per_def):
-    datas, out = datas_of(m), []
-    for it in m.items[3:]:
-        if it.items[0].text == "def":
-            types = signature(m, it.items[1].text)
-            out += [(it.items[1].text, [value1(rng, t, datas) for t in types]) for _ in range(per_def)]
-    return out
 
 
 SUITE_1 = SUITE / "b17-1"
@@ -965,54 +955,33 @@ class Gen1:
              "(data bag () (bag (items (vec i64)) (tag (option i64)) (kids (vec tree))))",
              "(data pair (a b) (mk (fst a) (snd b)))",
              "(data wrap (a) (empty) (full (inner a) (more (vec a))))"]
-    A, B = ("param", "a"), ("param", "b")
+    DATAS = r.data_types(module1(*DECLS))  # option's from the core library
     PT, SH, TREE, BAG = ("data", "pt"), ("data", "sh"), ("data", "tree"), ("data", "bag")
-    DATAS = {  # each data type's parameters and constructors, option's from the core library
-        "pt": ([], [("pt", [("x", I64), ("y", BOOL)])]),
-        "sh": ([], [("dot", []), ("circ", [("r", I64)]), ("rect", [("w", I64), ("h", I64)])]),
-        "tree": ([], [("leaf", []), ("node", [("val", I64), ("left", TREE), ("right", TREE)])]),
-        "bag": ([], [("bag", [("items", VEC_I), ("tag", ("data", "option", I64)), ("kids", ("vec", TREE))])]),
-        "pair": (["a", "b"], [("mk", [("fst", A), ("snd", B)])]),
-        "wrap": (["a"], [("empty", []), ("full", [("inner", A), ("more", ("vec", A))])]),
-        "option": (["t"], [("none", []), ("some", [("value", ("param", "t"))])]),
-    }
     OPT_I, OPT_T = ("data", "option", I64), ("data", "option", TREE)
     PAIR_IB, PAIR_VI = ("data", "pair", I64, BOOL), ("data", "pair", VEC_I, I64)
     TUP_IB, TUP_VI, TUP_PS = ("tuple", I64, BOOL), ("tuple", VEC_I, I64), ("tuple", PT, SH)
-    COPIED = [I64, I64, BOOL, PT, SH, OPT_I, PAIR_IB, TUP_IB, TUP_PS]
+    COPIED_DATA = [PT, SH, OPT_I, PAIR_IB]
+    SCRUTINEES = COPIED_DATA + [TUP_IB, TUP_PS]  # copied, so a match may take a new one
+    COPIED = [I64, I64, BOOL] + SCRUTINEES
     MOVING = [VEC_I, VEC_B, TREE, BAG, OPT_T, PAIR_VI, ("data", "wrap", I64), ("data", "wrap", PT), TUP_VI,
               ("vec", PT), ("vec", TREE), ("vec", VEC_I), ("vec", TUP_IB), ("vec", OPT_T)]
     SLICES = [SLICE_I, ("slice", PT), ("slice", TREE), ("slice", VEC_I)]
 
+    __init__, fresh, block, branches = Gen.__init__, Gen.fresh, Gen.block, Gen.branches
+    show = staticmethod(show)
+
     def ctors(self, t):
-        """[(constructor, [(field, type)])] of data type t, its type arguments substituted."""
-        params, cs = self.DATAS[t[1]]
-        env = dict(zip(params, t[2:]))
-        return [(c, [(f, subst(ft, env)) for f, ft in fs]) for c, fs in cs]
+        """[(constructor, [(field, type)])] of data type t, its type arguments substituted; a
+        tuple type's one constructor is tuple."""
+        return [("tuple", [(None, a) for a in t[1:]])] if t[0] == "tuple" else instance(self.DATAS, t)
 
     def moving(self, t):
         """§5 rule 1: vectors, recursive data types, and anything holding them move."""
         if t[0] in ("vec", "tuple"):
             return t[0] == "vec" or any(self.moving(a) for a in t[1:])
         if t[0] == "data":
-            return t[1] in ("tree", "bag", "wrap") or any(self.moving(ft) for _, fs in self.ctors(t) for _, ft in fs)
+            return self.DATAS[t[1]].mv_base or any(self.moving(ft) for _, fs in self.ctors(t) for _, ft in fs)
         return False
-
-    def show(self, t):
-        if t[0] == "slice":
-            return f"(ref (slice {self.show(t[1])}))"
-        if t[0] == "data" and len(t) == 2:
-            return t[1]
-        if t[0] in ("vec", "tuple", "data"):
-            return f"({' '.join([t[1] if t[0] == 'data' else t[0]] + [self.show(a) for a in t[1 + (t[0] == 'data'):]])})"
-        return t[0]
-
-    def __init__(self, rng):
-        self.rng, self.count = rng, 0
-
-    def fresh(self, prefix):
-        self.count += 1
-        return f"{prefix}{self.count}"
 
     def module(self, count):
         items, self.sigs = self.DECLS + ["(lemma l0 (params (n int)) (body))"], []
@@ -1032,15 +1001,6 @@ class Gen1:
         self.results, self.outer = results, None  # outer: the variables a loop body may not move (E-OWN-004)
         stmts, ended = self.block(self.rng.randint(2, 7), 0)
         return " ".join(stmts + ([] if ended else [self.ret()]))
-
-    def block(self, n, depth):
-        out = []
-        for _ in range(n):
-            s, ended = self.stmt(depth)
-            out.append(s)
-            if ended:
-                return out, True
-        return out, False
 
     def live(self, pred=lambda t: True, movable=False):
         return [n for n, (t, _, alive) in self.vars.items()
@@ -1115,10 +1075,10 @@ class Gen1:
     def place(self, want):
         """A place rooted at a live let-mut variable whose type passes want: (text, type, root)."""
         roots = [n for n, (t, settable, alive) in self.vars.items() if settable and alive]
+        if not roots:
+            return None
         rng = self.rng
         for _ in range(6):
-            if not roots:
-                return None
             root = rng.choice(roots)
             p, t = root, self.vars[root][0]
             for _ in range(rng.choice([0, 1, 1, 2, 3])):
@@ -1157,37 +1117,22 @@ class Gen1:
             t = self.vars[e][0]
             self.take(e)
         else:
-            t = rng.choice([self.PT, self.SH, self.OPT_I, self.PAIR_IB, self.TUP_IB, self.TUP_PS])
+            t = rng.choice(self.SCRUTINEES)
             e = self.expr(t)
         before = {n: list(v) for n, v in self.vars.items()}
         arms = []
-        cases = [("tuple", [(None, a) for a in t[1:]])] if t[0] == "tuple" else self.ctors(t)
-        for c, fs in cases:
+        for c, fs in self.ctors(t):
             self.vars = {n: list(v) for n, v in before.items()}
             binders = [self.fresh("b") for _ in fs]
             for b, (_, ft) in zip(binders, fs):
                 self.vars[b] = [ft, False, True]
             stmts, ended = self.block(rng.randint(0, 3), depth + 1)
-            arms.append((f"(case ({' '.join([c] + binders)}) (block {' '.join(stmts)}))", ended,
-                         {n: v for n, v in self.vars.items() if n in before}))
+            arms.append((f"(case ({' '.join([c] + binders)}) (block {' '.join(stmts)}))", ended, self.vars))
         going = [vs for _, ended, vs in arms if not ended]
-        self.vars = {n: v for n, v in before.items()}
+        self.vars = before
         for n in self.vars:  # moved in any arm that goes on: moved after (§5 rule 5)
             self.vars[n][2] = all(vs[n][2] for vs in going) if going else self.vars[n][2]
         return f"(match {e} {' '.join(a for a, _, _ in arms)})", not going
-
-    def branches(self, depth):
-        cond, before = self.expr(BOOL), {n: list(v) for n, v in self.vars.items()}
-        arms = []
-        for _ in range(2):
-            self.vars = {n: list(v) for n, v in before.items()}
-            stmts, ended = self.block(self.rng.randint(0, 3), depth + 1)
-            arms.append((f"(block {' '.join(stmts)})", ended, self.vars))
-        going = [vs for _, ended, vs in arms if not ended]
-        self.vars = {n: v for n, v in before.items()}
-        for n in self.vars:
-            self.vars[n][2] = all(vs[n][2] for vs in going) if going else self.vars[n][2]
-        return f"(if {cond} {arms[0][0]} {arms[1][0]})", not going
 
     def loop(self, depth):
         c, limit = self.fresh("c"), self.rng.randint(1, 3)
@@ -1222,7 +1167,7 @@ class Gen1:
                 args.append(self.expr(t, avoid=taken, seen=seen))
                 taken |= seen
         for a, t in zip(args, params):
-            if self.moving(t) and t[0] != "slice":
+            if self.moving(t):
                 self.vars[a][2] = False
         call = f"(call {name} {' '.join(args)})"
         if not results:
@@ -1286,7 +1231,7 @@ class Gen1:
             seen |= s
         return f"({' '.join([head] + args)})"
 
-    def reads(self, avoid, depth=2):
+    def reads(self, avoid):
         """Expressions that read the live variables through places, with their types."""
         rng, out = self.rng, []
         for v in self.live():
@@ -1294,13 +1239,20 @@ class Gen1:
                 continue
             p, t = v, self.vars[v][0]
             out.append((p, t, v))
-            for _ in range(depth):
+            for _ in range(2):
                 step = self.step(p, t)
                 if step is None:
                     break
                 p, t = step
                 out.append((p, t, v))
         return out
+
+    def pick(self, found, seen):
+        """One of found's (place, type, root) reads, its root added to seen if it moves: (place, type)."""
+        p, u, v = self.rng.choice(found)
+        if self.moving(self.vars[v][0]):
+            seen.add(v)
+        return p, u
 
     def expr(self, t, depth=0, avoid=frozenset(), seen=None):
         """A runtime expression of copied type t that reads no moving variable in avoid, adding
@@ -1309,13 +1261,10 @@ class Gen1:
         sub = lambda u: self.expr(u, depth + 1, avoid, seen)
         if t[0] == "slice" or self.moving(t):
             raise AssertionError(t)
-        reads = [(p, v) for p, u, v in self.reads(avoid) if u == t and (not self.moving(self.vars[v][0]) or v not in avoid)]
+        reads = [x for x in self.reads(avoid) if x[1] == t]
         if depth >= 3 or rng.random() < 0.35:
             if reads and rng.random() < 0.7:
-                p, v = rng.choice(reads)
-                if self.moving(self.vars[v][0]):
-                    seen.add(v)
-                return p
+                return self.pick(reads, seen)[0]
             if t == BOOL:
                 return rng.choice(["true", "false"])
             if t == I64:
@@ -1325,11 +1274,10 @@ class Gen1:
         if k == 0:
             return f"(if {sub(BOOL)} {sub(t)} {sub(t)})"
         if k == 1:
-            u = rng.choice([self.PT, self.SH, self.OPT_I, self.PAIR_IB, self.TUP_IB, self.TUP_PS])
+            u = rng.choice(self.SCRUTINEES)
             scrut = sub(u)
-            cases = [("tuple", [(None, a) for a in u[1:]])] if u[0] == "tuple" else self.ctors(u)
             arms = []
-            for c, fs in cases:
+            for c, fs in self.ctors(u):
                 binders = [self.fresh("m") for _ in fs]
                 for b, (_, ft) in zip(binders, fs):
                     self.vars[b] = [ft, False, True]
@@ -1338,32 +1286,24 @@ class Gen1:
                     del self.vars[b]
             return f"(match {scrut} {' '.join(arms)})"
         if k == 2 and reads:
-            p, v = rng.choice(reads)
-            if self.moving(self.vars[v][0]):
-                seen.add(v)
-            return p
+            return self.pick(reads, seen)[0]
         if t[0] in ("data", "tuple"):
             return self.build(t, avoid, seen, depth + 1, False, own=False)
         if t == I64:
             if k == 3:
-                seqs = [(p, v) for p, u, v in self.reads(avoid) if u[0] in ("vec", "slice")]
+                seqs = [x for x in self.reads(avoid) if x[1][0] in ("vec", "slice")]
                 if seqs:
-                    p, v = rng.choice(seqs)
-                    if self.moving(self.vars[v][0]):
-                        seen.add(v)
-                    return f"(len {p})"
+                    return f"(len {self.pick(seqs, seen)[0]})"
             if k == 4:
                 a = sub(I64)
                 return f"(neg {a})" if a[0] == "(" or a[0].isalpha() else f"(neg (+ {a} 0))"
             return f"({rng.choice(['+', '-', '*', '/', '%'])} {sub(I64)} {sub(I64)})"
         if k == 3:
-            datas = [(p, u, v) for p, u, v in self.reads(avoid) if u[0] == "data"]
+            datas = [x for x in self.reads(avoid) if x[1][0] == "data"]
             if datas and rng.random() < 0.7:
-                p, u, v = rng.choice(datas)
-                if self.moving(self.vars[v][0]):
-                    seen.add(v)
+                p, u = self.pick(datas, seen)
             else:
-                u = rng.choice([self.PT, self.SH, self.OPT_I, self.PAIR_IB])
+                u = rng.choice(self.COPIED_DATA)
                 p = sub(u)
             return f"(is {rng.choice(self.ctors(u))[0]} {p})"
         if k == 4:
@@ -1422,45 +1362,38 @@ def words(text):
     return out + [word] * bool(word)
 
 
-runs = [(w[0], w[1:]) for w in (words(line) for line, _ in EXPECT)]
-for (line, want), (name, args), got in zip(EXPECT, runs, r.batch(binaries["corners"], runs, timeout=120)):
-    try:
-        values = [i.value(CORNERS, a) for a in args]
-    except (ValueError, ParseError):
-        values = None
-    text = "refused" if values is None else interpreted(CORNERS, name, values)
-    if want.startswith("refused"):
-        ok = text == "refused" and got.startswith(want)
-    else:
-        ok = text == got and (re.fullmatch(want, got, re.S) is not None if "err " in want else got == want)
-    if not ok:
-        failures.append(f"corners: {line}\n    expected:    {want!r}\n    interpreter: {text!r}\n    rust:        {got!r}")
+def expected(m, binary, expect, label, subset=0):
+    """Each line of expect: a run, then what the interpreter and the binary must both print."""
+    runs = [(w[0], w[1:]) for w in (words(line) for line, _ in expect)]
+    for (line, want), (name, args), got in zip(expect, runs, r.batch(binary, runs, timeout=120)):
+        try:
+            values = [i.value(m, a, subset) for a in args]
+        except (ValueError, ParseError):
+            values = None
+        text = "refused" if values is None else interpreted(m, name, values, subset)
+        if want.startswith("refused"):
+            ok = text == "refused" and got.startswith(want)
+        else:
+            ok = text == got and (re.fullmatch(want, got, re.S) is not None if "err " in want else got == want)
+        if not ok:
+            failures.append(f"{label}: {line}\n    expected:    {want!r}\n    interpreter: {text!r}\n    rust:        {got!r}")
+
+
+expected(CORNERS, binaries["corners"], EXPECT, "corners")
 
 
 # B17-1's runs: the suite on its own examples and on random inputs, the corners, and the
 # generated programs. The proof rejects' runs reach the faults their labels name (§8).
 for name, m in programs_1.items():
-    differential(m, binaries[name], named_1.get(name, []) + cases1(m, random.Random(name), 40), name, subset=1)
+    differential(m, binaries[name], named_1.get(name, []) + cases(m, random.Random(name), 40, 1), name, subset=1)
 assert interpreted(programs_1["suite1-E-PROOF-BOUNDS-replace-out-of-range"], "swap_in", [(), 5], 1) == \
     "err BOUNDS at def swap_in/2.2.3.1@13:27: (idx v 0) on a vector of length 0"
 assert interpreted(programs_1["suite1-E-PROOF-FIELD-wrong-constructor"], "root", [LEAF], 1) == \
     "err FIELD at def root/2.1.1@12:19: a leaf value has no field val"
 for name, m in generated_1.items():
-    differential(m, binaries[name], cases1(m, random.Random(name), 25), name, subset=1)
-differential(CORNERS_1, binaries["corners1"], cases1(CORNERS_1, random.Random(11), 30), "corners1", subset=1)
-runs = [(w[0], w[1:]) for w in (words(line) for line, _ in EXPECT_1)]
-for (line, want), (name, args), got in zip(EXPECT_1, runs, r.batch(binaries["corners1"], runs, timeout=120)):
-    try:
-        values = [i.value(CORNERS_1, a, 1) for a in args]
-    except (ValueError, ParseError):
-        values = None
-    text = "refused" if values is None else interpreted(CORNERS_1, name, values, 1)
-    if want.startswith("refused"):
-        ok = text == "refused" and got.startswith(want)
-    else:
-        ok = text == got and (re.fullmatch(want, got, re.S) is not None if "err " in want else got == want)
-    if not ok:
-        failures.append(f"corners1: {line}\n    expected:    {want!r}\n    interpreter: {text!r}\n    rust:        {got!r}")
+    differential(m, binaries[name], cases(m, random.Random(name), 25, 1), name, subset=1)
+differential(CORNERS_1, binaries["corners1"], cases(CORNERS_1, random.Random(11), 30, 1), "corners1", subset=1)
+expected(CORNERS_1, binaries["corners1"], EXPECT_1, "corners1", 1)
 # A list a million long, past what the interpreter's steps allow: Rust drops it by recursion,
 # which the run's stack holds (D96).
 assert r.batch(binaries["corners1"], [("chain", ["1000000", "false"]), ("chain", ["1000000", "true"])],
