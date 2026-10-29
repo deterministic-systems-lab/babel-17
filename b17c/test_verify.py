@@ -212,6 +212,11 @@ assert open_(run1(H0 + "(lemma bad (params) (ensures false) (body (obtain ((k in
 assert open_(run(H0 + "(ghost-fn n ((k int)) int (requires (>= k 0)) (body (len (seq-build k (fn (i) 0)))))\n"
                       "(spec ok (params) (returns (r i64)) (ensures (== (n 2) 2) (forall ((k int)) (=> (and (<= 0 k) (< k 4)) "
                       "(== (len (seq-build k (fn (i) (* i i)))) k)))) (effects)) (def ok (body (return 0))))")) == []
+# The second pass: a recursive call in a ghost-fn's requires gets its TERM goal (D57), and a lifted
+# seq-build may call the recursive ghost-fn whose body it's in.
+assert open_(run(H0 + "(ghost-fn f ((n int)) bool (requires (or (f n) true)) (decreases n) (body true)))")) == ["TERM"]
+assert open_(run(H0 + "(ghost-fn f ((n int)) int (requires (>= n 0)) (decreases n) (body (if (== n 0) 0 "
+                      "(len (seq-build 1 (fn (i) (f (- n 1))))))))\n(lemma good (params) (ensures (== (f 1) 1)) (body)))")) == []
 # The rest of that review: a data value's i64s fit (a validity predicate per data type), nested
 # sequences compare by elements, a multiset of an empty sequence of data, and the multiset fact of
 # an update through a place.

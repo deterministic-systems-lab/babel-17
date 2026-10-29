@@ -1424,6 +1424,11 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - nested sequences now compare by elements;
     - an update through a place now keeps §9's multiset fact;
     - a multiset of an empty sequence of data no longer gives an ill-sorted query.
+- **Codex review, second pass:** OpenAI's content filter cut off the first attempt. A rerun with plainer wording found nothing that proves a false claim.
+  - **Confirmed:** the validity predicate's axioms are consistent, and no fact mentions a variable outside its binder. All 29 B17-0 suite files give byte-identical queries.
+  - **Two findings, both fixed:**
+    - **A recursive call in a ghost-fn's own `requires` or measure** had no `TERM` goal, since the caller's measure was set only after them. This was a gap in B17-0 too, which the interpreter already closed (D57).
+    - **A lifted `seq-build` that calls its own recursive ghost-fn** was declared before that function, so the query was malformed.
 - **Updated:** the README's status, WP5 row, layout, commands and self-check lines; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s verdicts and checking notes; `docs/b17-1.md` §9 and §14.
 - **Interfaces touched:** interface 11 v0.2, as D103 refines it.
 - **Proofs and tests added:** B17-1's section of `test_verify.py`:

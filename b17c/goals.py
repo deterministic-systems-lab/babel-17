@@ -777,10 +777,10 @@ class Gen:
             body, _ = self.expr(clauses(f, "body")[0][0], st, True, every, want=self.sort(f.items[3]))
             pre = [self.expr(c[0], st, True, every)[0] for c in clauses(f, "requires")]
             self.quiet = q
-            out.extend(self.lifting)
-            self.lifting = None
+            lifted, self.lifting = self.lifting, None
             ret, pre = self.sort(f.items[3]), f"(and true {' '.join(pre)})"
             if name not in self.calls(f):
+                out.extend(lifted)
                 out.append((None, f"(define-fun g!{name} ({' '.join(ps)}) {ret} {body})"))
                 out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
                 return
@@ -790,6 +790,7 @@ class Gen:
             sorts = " ".join(p.split(" ", 1)[1][:-1] for p in ps)
             args = [p[1:].split(" ", 1)[0] for p in ps]
             out.append((None, f"(declare-fun g!{name} ({sorts}) {ret})"))
+            out.extend(lifted)  # after the declaration, since a lifted seq-build may call it
             out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
             # Its measure is proved only for values of its parameter types, so its equation holds
             # only for those: an SMT value may have an i64 field out of range, where recursion
@@ -1131,9 +1132,13 @@ class Gen:
             if kind == "ghost-fn":
                 ps = it.items[2].items
                 self.params(st, ps)
+                dec = clauses(it, "decreases")
+                if dec:  # a recursive call in its requires or measure is one too (D57), against this measure
+                    q, self.quiet = self.quiet, True
+                    self.item = (name, self.expr(dec[0][0], st, True)[0], ps)
+                    self.quiet = q
                 for c in clauses(it, "requires"):
                     st.facts.append(self.expr(c[0], st, True)[0])
-                dec = clauses(it, "decreases")
                 d0 = self.expr(dec[0][0], st, True)[0] if dec else None
                 self.item = (name, d0, ps)
                 self.expr(clauses(it, "body")[0][0], st, True)
