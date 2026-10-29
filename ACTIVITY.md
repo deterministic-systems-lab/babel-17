@@ -1603,3 +1603,17 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the three proofs;
   - in `test_verify.py`: the seven verified programs, D105's literal and map cases, and the constant `seq-build`'s counts.
 - **Left admitted:** none.
+
+## 2026-10-29 · D105 accepted
+- **The owner accepted D105:** literals of sequences compare by elements, a constant `seq-build` counts its body `n` times, and validity covers only `i64`s.
+- **Headings:**
+  - D103 now records that D105 refines it;
+  - D61 records it too, since the constant `seq-build`'s count is a fact about sequences and holds in B17-0;
+  - D105's own heading and its B17-0 note say the same.
+- **Updated:**
+  - **`docs/b17-1.md`:** the status line, §9's encoding heading and §14.
+  - **The roadmap:** the WP5 status, decisions waiting, next steps and B17-1 row.
+  - **The README:** the WP5 row, which now counts the verified accept programs, and interface 11's line.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_verify.py` already covers D105.
+- **Left admitted:** none.
