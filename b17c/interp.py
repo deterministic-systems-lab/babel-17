@@ -87,7 +87,7 @@ class _Deep:
                 return False
             if len(pa) != len(pb):
                 return False
-            todo += zip(pa, pb)
+            todo += reversed(list(zip(pa, pb)))  # left to right, as Python compares, so a constructor decides first
         return True
 
 
@@ -165,10 +165,29 @@ def _ident(v):
     return tuple(map(_ident, v)) if isinstance(v, tuple) else v
 
 
+_CLOSE = object()  # where a compound value ends, in _key's walk
+
+
 def _key(v):
     """An order on values of one type, so that equal collections are built and printed alike:
-    an integer's own, and otherwise its term, which equal values share and others don't."""
-    return v if isinstance(v, int) else _term(v)
+    compound values by their parts, left to right, a shorter one first. It's a flat list of
+    tokens, so comparing two keys never recurses, however deep the values are."""
+    if isinstance(v, int):
+        return v
+    out, todo = [], [v]
+    while todo:
+        x = todo.pop()
+        if x is _CLOSE:
+            out.append((0,))
+        elif isinstance(x, (int, str)):  # a constructor's name is a str
+            out.append((1, x) if isinstance(x, int) else (2, x))
+        else:
+            parts = (x if isinstance(x, tuple) else x.parts() if isinstance(x, _Deep) else x.counts if isinstance(x, Multiset)
+                     else sorted(x, key=_key) if isinstance(x, frozenset) else sorted(x.items(), key=lambda kv: _key(kv[0])))
+            out.append((3,))
+            todo.append(_CLOSE)
+            todo += reversed(parts)
+    return out
 
 
 @dataclass(frozen=True)

@@ -1543,3 +1543,23 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-29 · The interpreter handles values nested to any depth
+- **The bug,** reported by the agent that built WP7 for B17-1: `interp.py` couldn't print a value nested more than about 600 deep, such as a long list, so `text_of` and the command line ended in a `RecursionError`. The Rust binary printed it.
+- **What else was wrong:** printing was one of three recursive operations on values, and the other two fail inside runs, not just after them.
+  - **Equality:** the generated `__eq__` fails at about 2,000 deep, even inside a run's raised recursion limit, since Python compares nested tuples in C. A ghost `==` on such values, with checking on, crashed instead of giving an outcome.
+  - **Hashing,** used by the ghost-fn memo and by sets, fails at about 20,000 deep, and so does the sort key.
+  - **A loop can build such a value** within the default fuel: a list 125,000 long takes about 8 steps an element.
+- **The fix, in `b17c/interp.py`:**
+  - **Hashes:** tuples and data values compute their hash once, when built, from their parts' hashes, which are already known. A value holding a set built by `iset-of` has none, as before.
+  - **Equality** walks both values with a stack of its own, left to right, as Python compares. So a constructor still decides before a predicate set is reached.
+  - **Printing:** `_term` prints with a stack of its own, and its output is unchanged.
+  - **The sort key** for set, map and multiset elements is a flat list of tokens in the old structural order. Comparing two keys never recurses, and B17-0's multisets of integers order as before.
+- **Checked:**
+  - **Depth:** a run that builds two lists 50,000 long prints them. With checking on, it compares them, hashes them in a ghost-fn call and a set, and tells them from a list with a different head.
+  - **Before and after:** collections of compound values print in the same order as before, and differently built equal values compare equal.
+  - **Self-checks:** every one but `test_rust.py`, which needs rustc, passes here. CI runs it, and it compares the binary's text with the interpreter's, so it checks that printing is unchanged.
+- **Codex review:** two findings, both mine and both fixed. Equality compared parts right to left, so `(a p) == (b q)` with predicate sets p and q came out unknown instead of false. The first sort key ordered integers as text, so `(seq-lit 10)` came before `(seq-lit 2)`. Codex found nothing else in `b17c` that relied on the old dataclass equality, hashing or order.
+- **Interfaces touched:** none. Interface 10's text is unchanged.
+- **Proofs and tests added:** the deep-value run and the two ordering cases in `test_interp.py`.
+- **Left admitted:** none.

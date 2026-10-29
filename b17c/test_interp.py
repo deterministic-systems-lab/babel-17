@@ -797,6 +797,15 @@ out = is_ok(i.run(DEEP, "two", (50_000,), check=True, subset=1, fuel=5_000_000),
 text = i.text_of(out)
 assert text.startswith("ok (cons 49999 (cons 49998 ") and text.endswith("(cons 0 (nil))" + ")" * 49_999), text[-60:]
 assert i._term(i.Data("cons", (1, i.Data("nil", ())))) == "(cons 1 (nil))"
+# Equality still decides left to right, so different constructors are unequal before any set kept
+# as its predicate is reached; and collections still order their elements as values, not as text.
+TWO_SETS = "(data d () (a (p (iset int))) (b (q (iset int))))"
+is_ok(go1(f1("(x i64)", "(r i64)", "(return x)", extra=[TWO_SETS],
+             clauses="(ensures (!= (a (iset-of ((z int)) true)) (b (iset-of ((z int)) true))))"), 1, check=True), 1)
+unknown(go1(f1("(x i64)", "(r i64)", "(return x)", extra=[TWO_SETS],
+               clauses="(ensures (!= (a (iset-of ((z int)) true)) (a (iset-of ((z int)) true))))"), 1, check=True), "POST")
+assert i._term(frozenset({(2,), (10,), (2, 1)})) == "(iset-lit (seq-lit 2) (seq-lit 2 1) (seq-lit 10))"
+assert i._term(i.Map({(10,): 1, (2,): 2})) == "(map-lit ((seq-lit 2) 2) ((seq-lit 10) 1))"
 # Interface 10's text form gains tuples and data values (D56), and run() checks them against the
 # parameter types.
 assert i.text_of(go1(f1("(t (option (tuple i64 bool)))", "(r (option (tuple i64 bool)))", "(return t)"),
