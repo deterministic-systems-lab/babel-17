@@ -1255,3 +1255,81 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** interface 1, B17-1's part, now implemented by the parser.
 - **Proofs and tests added:** B17-1's cases in `test_syntax.py`.
 - **Left admitted:** none.
+
+## 2026-10-28 · B17-1's hasher and tier 0 checker
+- **`b17c/hashing.py`** hashes B17-1 under D92, with `subset=1`.
+  - **What becomes what:** a data item becomes `_` in its own spec hash, with type parameters `$k`, constructors `#i` and fields `.k`. A reference to a data type becomes its hash, a constructor `H#i`, and a field its index in its operand's type.
+  - **The checker's types:** those indexes come from them.
+  - **Namespaces:** types and values are apart (D82), so a data type's key is `("data", NAME)`.
+  - **B17-0 unchanged:** every B17-0 item hashes as before under subset 1.
+- **`b17c/core1.b17`:** the core library's `option` (docs/b17-1.md §9). It's a file of its own, since B17-0's parser can't read a data item.
+- **`b17c/check.py`** checks B17-1 with `subset=1`, and B17-0 exactly as before by default (D101).
+  - **Names (D82):** types and values are apart. Constructors are value names, and field names are per type.
+  - **Well-formed types (D83, §3):**
+    - arity;
+    - vectors of runtime types;
+    - finite values, as a least fixed point;
+    - no type inside a set, map or multiset of itself, through other types too;
+    - no two types containing each other;
+    - variances, with ghost subtyping by them.
+  - **Derived properties:** whether a type is runtime, whether it moves, whether it's exact, and which arguments a vector field needs to be runtime.
+    - Each is a fixed point over the module's types, with a base and the parameters it depends on.
+    - So a type recursing at a growing instance, such as `(d (option a))`, or a chain of 1,100 types, is never expanded.
+  - **Expressions and statements:** all of B17-1's.
+    - **Constructor calls:** type arguments are inferred from every argument, then the destination. With neither, they default to `int` or `i64` (§4).
+    - **`match`:** arms are checked by constructor order and field count.
+    - **The rest:** places, `replace`, `forall` and `obtain`.
+  - **Ownership (§5):**
+    - every moving value moves, not only vectors;
+    - a moving value can't come whole out of a place (`E-OWN-007`);
+    - a place's root outlives its value;
+    - a `match` statement's arms join as an `if`'s branches do;
+    - a `seq-build` body moves no outer variable;
+    - a new vector is never read as a temporary (rule 7).
+  - **Effects (§6):** a constructor with a boxed field allocates.
+  - **Duplicate data types:** two identical up to names are `E-TYPE-002` (D92).
+- **Readings, recorded here:**
+  - **A copy of `option`:** a module's data type identical to the core library's `option` is `E-TYPE-002` too. References to the two would hash alike, which is D92's reason for the rule.
+  - **Owned call arguments:** an owned call argument of a moving type is still a variable, as D73 says for B17-0. Rule 7 doesn't widen what a call takes.
+  - **Branches:** a moving value inside an `if` or `match` expression's branch is reported once, at the `if` or `match` (D78).
+  - **Type parameters:** a type parameter may reuse another data type's name, since D82 bars only its own item's type names.
+- **Spec text fixed:** `docs/b17-1.md`'s opening said every B17-0 program is a B17-1 program. Not quite: B17-0 allows `(len (vec-new))`, which rule 7 rejects. It now says this holds for the suite and the core library, and why D101 keeps the subsets apart.
+- **Checked:**
+  - **The labels:** the checker agrees with all 57 labels of `suite/b17-1/`, each reject with exactly one diagnostic.
+  - **B17-0's suite:** all 50 programs give the same codes and positions under subset 1.
+  - **Each new rule:** `test_check.py` holds cases for every one, valid and invalid. `test_hashing.py` holds D92's properties.
+  - **Unchanged:** every B17-0 self-check, `gym/test_b17.py` and `test_verify.py` pass.
+- **Codex review** (`gpt-5.6-sol`), all findings fixed and tested:
+  - **First pass:** 12 findings, and no D92 hashing defect.
+    - **Silent acceptances:**
+      - a vector of a ghost type, or a set of itself, reached through a generic type;
+      - an ill-formed inferred type;
+      - an open parameter left unresolved;
+      - a new vector read as a temporary.
+    - **Wrong diagnostics:**
+      - `E-OWN-005` in ghost code;
+      - inference that depended on argument order;
+      - `(call c)` on a constructor reported as undefined;
+      - one error reported twice.
+    - **A crash:** infinite recursion on `(data d (a) (base) (next (x (d (option a)))))`.
+    - **A B17-0 regression:** a ghost-fn named `field` was misread in subset 0.
+    - **Declined:** one finding read D82 as barring a type parameter from reusing any type's name. Its order-dependence had already been removed.
+  - **Second pass:** OpenAI's filter cut it off. Its log showed two more faults:
+    - field vectors were checked before the type summaries were known;
+    - `moving()` and `exact()` still expanded instances, so a long chain overflowed Python's stack.
+    Both are now fixed points.
+  - **Third pass:** five findings. Four were fixed:
+    - **Finite values** ignored type arguments, so `(loopc (x (box loop)))` passed. They are now a fixed point over which parameters' arguments need values. A type has a value when any one of its constructors has one.
+    - **A nested open constructor,** such as `(hold (empty))`, didn't default. Open parameters now always default when nothing fixes them. A literal operand of `==`, `union`, `diff` or `inter` takes the other operand's type, as §4 says.
+    - **Exactness** missed a sequence reached through a generic type. It now tracks which parameters a type holds under a sequence.
+    - **A mismatched `if` or `match`** dropped the ownership error of a moving branch.
+  - **Declined from the third pass:** that a type argument a data type never stores, as in `(phantom b)`, shouldn't count toward mutual containment, recursion or boxing. The checker counts every type a declaration mentions, for three reasons:
+    - §3's containment rule and §6's boxed fields are written in terms of mention;
+    - D92 hashes a type over every type it mentions, so two types that mention each other have no hash;
+    - a boxed field moves in the emitted Rust.
+- **Ponytail review:** the unused field table and a duplicated ownership tail were cut.
+- **D44's condition for B17-1 to freeze is met:** the checker agrees with every tier 0 label. Freezing is the owner's call. It would make subset 1 the default (D101), so the B17-0 track and B17-0's tests would then name subset 0.
+- **Updated:** the README's status, WP3 row, layout, commands and self-check lines; the roadmap's next steps and B17-1 row; `suite/README.md`'s checking notes.
+- **Interfaces touched:** none. Interfaces 1 and 6, B17-1's parts, are now implemented by the checker.
+- **Proofs and tests added:** B17-1's cases in `test_check.py` and `test_hashing.py`.
+- **Left admitted:** none.

@@ -88,4 +88,43 @@ CHAIN = ["(ghost-fn g0 ((x int)) int (body x))"] + [
     f"(ghost-fn g{k} ((x int)) int (body (g{k - 1} x)))" for k in range(1, 3000)]
 assert of(HEAD + " " + " ".join(CHAIN[::-1]) + ")") == dict(reversed(of(HEAD + " " + " ".join(CHAIN) + ")").items()))
 
+# B17-1 (D92). Every B17-0 item hashes as before under subset 1.
+for f in sorted((SUITE / "accept").glob("*.b17")):
+    assert h.report(parse(f.read_bytes())) == h.report(parse(f.read_bytes(), 1), 1), f
+of1 = lambda text: {k: v[1] for k, v in h.hashes(parse(HEAD + " " + text + ")", 1), 1).items()}
+for f in sorted((SUITE / "b17-1" / "accept").glob("*.b17")):  # a field's index comes from the checker's types
+    assert h.report(parse(f.read_bytes(), 1), 1), f
+TREE = "(data tree () (leaf) (node (val i64) (left tree) (right tree)))"
+SIZE = "(ghost-fn size ((t tree)) int (decreases (rank t)) (body (match t (case (leaf) 0) (case (node v l r) (+ 1 (size l))))))"
+base = of1(TREE + " " + SIZE + " (ghost-fn top ((t tree)) int (requires (is node t)) (body (field t val)))")
+# Renaming a type, a constructor, a field or a binder changes no hash.
+renamed = of1("(data bush () (bare) (fork (key i64) (lo bush) (hi bush)))"
+              " (ghost-fn size ((u bush)) int (decreases (rank u)) (body (match u (case (bare) 0) (case (fork w p q) (+ 1 (size p))))))"
+              " (ghost-fn top ((u bush)) int (requires (is fork u)) (body (field u key)))")
+assert list(base.values()) == list(renamed.values()), (base, renamed)
+# Editing a data type rehashes every item that mentions it.
+edited = of1(TREE.replace("(right tree)", "(right tree) (mark bool)")
+             + " " + SIZE.replace("(node v l r)", "(node v l r m)") + " (ghost-fn top ((t tree)) int (requires (is node t)) (body (field t val)))")
+assert all(base[k] != edited[k] for k in base), (base, edited)
+# A field is its index in its own type: the same name in two types, at different places, hashes apart.
+two = of1("(data p () (p (a i64) (b i64))) (data q () (q (b i64))) (ghost-fn fp ((x p)) int (body (field x b)))"
+          " (ghost-fn fq ((x q)) int (body (field x b)))")
+assert two["fp"] != two["fq"]
+# A type and a value may share a name, and hash apart; references use the core library's option.
+apart = of1("(data tree () (leaf)) (ghost-fn tree ((t tree)) bool (body (is leaf t)))")
+assert set(apart) == {("data", "tree"), "tree"} and apart[("data", "tree")] != apart["tree"]
+# Two data types identical up to names are one data type too many (E-TYPE-002).
+try:
+    of1("(data point () (point (x i64) (y i64))) (data pair () (pair (a i64) (b i64)))")
+except h.HashError as e:
+    assert e.code == "E-TYPE-002" and e.names == (("data", "pair"), ("data", "point")), e
+else:
+    raise AssertionError("identical data types hashed")
+try:  # a copy of the core library's option is one too, since references to the two would hash alike
+    of1("(data opt (a) (no) (yes (x a)))")
+except h.HashError as e:
+    assert e.code == "E-TYPE-002" and ("data", "option") in e.names, e
+else:
+    raise AssertionError("a copy of option hashed")
+
 print("hashing self-check passed")

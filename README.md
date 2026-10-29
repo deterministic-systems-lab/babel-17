@@ -18,13 +18,13 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), and WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0. The checker extends to B17-1 next.
+Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), and its parser, hasher and checker agree with every tier 0 label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0.
 
 | WP | What | State |
 |---|---|---|
 | WP1a | B17-0 core semantics and the accept/reject suite | Done: frozen at v1.0 on 2026-10-28 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)), once WP3's checker agreed with every tier 0 label (D44). |
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
-| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. |
+| WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. With `--subset 1` it checks B17-1 too, and agrees with every tier 0 label of `suite/b17-1/`. |
 | WP4a | The spec language | Done (D62, D79): B17-0's spec language is WP1a's, and B17-1 adds no data-type invariants or refinement links. |
 | WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
 | WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). Repairs wait for WP2's typed edits. |
@@ -78,9 +78,10 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v0.1 Draft |
 | [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 57, checked by review until the checker reads B17-1 |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar with `--subset 1` (D101) |
-| [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46) |
-| [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78) |
+| [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46); B17-1's data types and binders (D92) |
+| [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78); B17-1's with `--subset 1` |
 | [`b17c/core.b17`](b17c/core.b17) | The core library (WP16): `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas |
+| [`b17c/core1.b17`](b17c/core1.b17) | B17-1's addition to the core library: the `option` type |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
 | [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59) |
 | [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97) |
@@ -104,9 +105,9 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: both suites round-trip, and every lexical and grammar rule is tested
-uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits
+uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits, B17-1's D92
 uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and the suite
-uv run --no-project b17c/test_check.py     # checker: the suite's labels exactly, every tier 0 code, every ownership rule
+uv run --no-project b17c/test_check.py     # checker: both suites' labels exactly, every tier 0 code, every ownership rule
 uv run --no-project b17c/test_core.py      # core library: every law confirmed by the interpreter (WP16's witnesses)
 uv run --no-project b17c/test_agent.py     # agent protocol: diagnostics and the five queries (Z3 for the queries that solve)
 uv run --no-project b17c/test_rust.py      # Rust backend: emitted crates compile, and runs match the interpreter (needs rustc)
@@ -123,6 +124,7 @@ uv run --no-project b17c/syntax.py suite/accept/merge_sorted.b17     # canonical
 uv run --no-project b17c/syntax.py --subset 1 suite/b17-1/accept/bst_insert.b17   # the same for B17-1 (D101)
 uv run --no-project b17c/hashing.py suite/accept/*.b17                # MODULE KIND NAME SPEC-HASH IMPL-HASH per item
 uv run --no-project b17c/check.py suite/reject/E-OWN-001-use-after-move.b17   # FILE:LINE:COL: CODE: message per diagnostic
+uv run --no-project b17c/check.py --subset 1 suite/b17-1/reject/E-OWN-007-match-on-moving-field.b17   # the same for B17-1
 uv run --no-project b17c/interp.py --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5
 uv run --no-project b17c/rust.py --run suite/accept/abs.b17 abs -5       # the same, from emitted Rust: ok 5
 uv run --no-project b17c/rust.py -o abs suite/accept/abs.b17             # the binary; with FILE alone, the Rust it's built from
