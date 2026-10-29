@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), and its parser, hasher and checker agree with every tier 0 label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0.
+Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), its parser, hasher and checker agree with every tier 0 label, and its interpreter runs every accept program. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0.
 
 | WP | What | State |
 |---|---|---|
@@ -30,7 +30,7 @@ Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are d
 | WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on the suite, corner cases and generated programs. Its readings are D95–D97, accepted. B17-1 extends it (D79). |
 | WP8 | Agent reference manual | Done for B17-0 ([docs/manual.md](docs/manual.md)): every rule and all 25 error codes with a minimal example, each checked against its stated outcome by `test_manual.py`. |
-| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. |
+| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. With `--subset 1` it runs B17-1 too, including every accept program of `suite/b17-1/`. |
 | WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the verifier proves each. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Baselines are in for the seed, AlgoVeri and vericoding sets; Gemini and Grok have tasks left. |
 
@@ -76,14 +76,14 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.0 Frozen |
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v0.1 Draft |
-| [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 57, checked by review until the checker reads B17-1 |
+| [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 57, which the checker agrees with too |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar with `--subset 1` (D101) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46); B17-1's data types and binders (D92) |
 | [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78); B17-1's with `--subset 1` |
 | [`b17c/core.b17`](b17c/core.b17) | The core library (WP16): `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas |
 | [`b17c/core1.b17`](b17c/core1.b17) | B17-1's addition to the core library: the `option` type |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
-| [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59) |
+| [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59); B17-1's with `--subset 1` |
 | [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97) |
 | [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels |
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63) |
@@ -106,7 +106,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 ```sh
 uv run --no-project b17c/test_syntax.py    # parser: both suites round-trip, and every lexical and grammar rule is tested
 uv run --no-project b17c/test_hashing.py   # hasher: golden file, worked examples, invariance under renames and edits, B17-1's D92
-uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and the suite
+uv run --no-project b17c/test_interp.py    # interpreter: WP1a's conformance tests, from §8 and both suites
 uv run --no-project b17c/test_check.py     # checker: both suites' labels exactly, every tier 0 code, every ownership rule
 uv run --no-project b17c/test_core.py      # core library: every law confirmed by the interpreter (WP16's witnesses)
 uv run --no-project b17c/test_agent.py     # agent protocol: diagnostics and the five queries (Z3 for the queries that solve)
@@ -126,6 +126,7 @@ uv run --no-project b17c/hashing.py suite/accept/*.b17                # MODULE K
 uv run --no-project b17c/check.py suite/reject/E-OWN-001-use-after-move.b17   # FILE:LINE:COL: CODE: message per diagnostic
 uv run --no-project b17c/check.py --subset 1 suite/b17-1/reject/E-OWN-007-match-on-moving-field.b17   # the same for B17-1
 uv run --no-project b17c/interp.py --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5
+uv run --no-project b17c/interp.py --subset 1 --check suite/b17-1/accept/discrete_logarithm.b17 discrete_log_naive 2 8 11   # ok (some 3)
 uv run --no-project b17c/rust.py --run suite/accept/abs.b17 abs -5       # the same, from emitted Rust: ok 5
 uv run --no-project b17c/rust.py -o abs suite/accept/abs.b17             # the binary; with FILE alone, the Rust it's built from
 uv run --no-project b17c/verify.py suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part

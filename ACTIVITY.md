@@ -1333,3 +1333,54 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none. Interfaces 1 and 6, B17-1's parts, are now implemented by the checker.
 - **Proofs and tests added:** B17-1's cases in `test_check.py` and `test_hashing.py`.
 - **Left admitted:** none.
+
+## 2026-10-29 · B17-1's interpreter (D102 proposed)
+- **`b17c/interp.py`** runs B17-1 with `subset=1`, or `--subset 1` on the command line, and B17-0 exactly as before by default (D101).
+  - **Values (§8):**
+    - tuples and data values, printed as `(tuple 1 false)` and `(some 3)` in interface 10's text form;
+    - finite sets and maps, as values;
+    - a set built by `iset-of`, kept as its predicate. Membership evaluates the body, and equality with it is unknown. So is any set, map or multiset that would hold it.
+  - **Places:** `set-idx`, `push` and `replace` take places through `idx`, `get` and `field`. They evaluate the indices in source order and then the value, and check each step on the way down, as B17-0's `set-idx` does. An update builds the new root with one part replaced.
+  - **Expressions and statements:** `match`, `is`, `field`, `tuple`, `get`, `rank` as height, and the set and map operations.
+    - A field the constructor lacks is `err FIELD` in runtime code and a `FIELD` contract outcome in ghost code. A lookup outside a map is a ghost `BOUNDS`.
+    - A `forall` statement checks nothing.
+    - `obtain` records its ∃ as an unchecked `ASSERT`, and its binders are unknown.
+  - **B17-0's words stay free in subset 0:** a B17-0 ghost-fn named `union` still runs.
+- **D102, proposed:** a leading guard conjunct `(contains E x)`, with E a finite set, a sequence or a map, ranges binder x over E's members, for x of any type but `bool`, which already ranges over both values. An empty E makes the guard hold nowhere. It applies in both subsets.
+  - **Why:** without it, `bst_insert`'s `is_bst` was unknown on every tree but a leaf, so every precondition went unchecked. A non-search-tree input then failed the def's `ensures`, not the `requires`.
+  - **Effect:** every clause of `bst_insert` and `bst_search` is now evaluated on the suite's inputs.
+  - **B17-0:** its suite has no such guard, so its outcomes are unchanged.
+- **The suite:**
+  - **Accept programs:** all 10 run, on one to four inputs each, with the results the specs fix. The same runs with checking off agree.
+  - **Unchecked clauses:** these are the ones that quantify over paths, sequences, every int, or a ghost-fn's predicate.
+  - **Proof rejects:** of the five, three have a def or ghost-fn, and each shows its fault on a concrete input: `replace` out of range, a field the constructor lacks, and a lookup outside the map. The other two are lemmas, whose bodies never run (D57).
+  - **B17-0's suite** gives the same outcomes under subset 1.
+- **Codex review, first pass:** five findings. Three were fixed:
+  - **A recursive ghost-fn call** with a set built by `iset-of` as its argument ran to the depth limit, instead of failing `TERM` at once (D57). Such arguments now key the memo by identity, and the key keeps its value alive, so no other value takes its id.
+  - **Arguments with the wrong number of fields,** such as `(some 1 2)`, were accepted as data values.
+  - **An empty membership collection** for a later binder left the quantifier unknown. It now makes the guard hold nowhere, as an empty range from comparisons does.
+- **Declined from the first pass:**
+  - **That `(== s s)` should be unknown** when s holds an `iset-of` set. The two sides are the same value, so the clause holds by reflexivity. A predicate set is now equal to itself directly too, as it already was inside a tuple.
+  - **That D102 should bound `bool` binders.** Their two values are always listed, and a point outside the guard makes `=>` false before the body runs, so bounding them saves only fuel. D102 now names `bool` as the exception.
+- **Codex review, second pass:** six findings, all fixed:
+  - **A set built by `iset-of` lost its context.** A member is often tested after the ghost-fn that built the set has returned. A recursive call inside its body then wasn't seen as recursive, and ran to the step limit instead of failing `TERM`. A failure there was also charged to the clause that tested the member, not to that ghost-fn's body (D57). Testing a member now runs inside the calls and the clause that built the set.
+  - **The identity key was shallow:** a new sequence holding the same predicate set wasn't seen as the same argument. Only the predicate sets inside a value are now keyed by identity.
+  - **Membership didn't reach comparisons:** in `(and (== x y) (contains (seq-lit 1) y))`, y's members didn't bound x. Members now bound an `int` binder's range like a comparison does.
+  - **A sequence of predicate sets** couldn't bound a binder, since its members were deduplicated by hashing. A sequence's members are now taken in order. A repeated member is evaluated twice, which changes nothing.
+  - **`--subset 0` was refused** by `interp.py`, `check.py` and `hashing.py`, though D101 names both values. All four tools now take it, as `syntax.py` already did.
+- **Codex review, third pass:** four findings, all fixed:
+  - **The calls in progress:** a set's restored context brought back the frames but not the calls in progress. With an unknown measure, a same-argument call inside the set still ran to the step limit. It now restores those too.
+  - **Shared frames counted twice:** testing a member in the call that built the set counted the calls both stacks share twice, and could reach the depth limit early. They now count once.
+  - **Map values:** a map's values can hold a predicate set, since only its keys are hashed when it's built. The memo key now reaches them.
+  - **`hashing.py --subset 0`** still chose subset 1. `test_hashing.py` and `test_check.py` now run both CLIs with each subset.
+- **Updated:** the README's status, WP15 row, layout and commands; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s checking notes; `docs/b17-1.md` §8 and §14.
+- **Interfaces touched:** interface 10 gains tuple and data values and the `FIELD` reason, as `docs/b17-1.md` §8 already said.
+- **Proofs and tests added:** B17-1's section of `test_interp.py`: the suite, each §8 rule, D102, every review finding, the text form, argument checks and the command line. `test_check.py` and `test_hashing.py` run their CLIs with `--subset 0` and `--subset 1`.
+- **Left admitted:** none.
+
+## 2026-10-29 · D102 accepted
+- **The owner accepted D102:** membership in a finite collection bounds a quantifier's binder, of any type but `bool`, when the interpreter checks a run. It extends D58, in both subsets.
+- **Updated:** D102's status in `DECISIONS.md`; `docs/b17-1.md`'s status line and §14; the roadmap's status and decisions waiting.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_interp.py` already covers D102.
+- **Left admitted:** none.

@@ -1,6 +1,7 @@
 """Self-check for the tier 0 checker: uv run --no-project b17c/test_check.py"""
 import io
 import re
+import tempfile
 from collections import Counter
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -333,6 +334,14 @@ for name, want in [("accept/abs.b17", (0, "")),
     with redirect_stdout(out):
         code = c.main([str(SUITE / name)])
     assert code == want[0] and want[1] in out.getvalue(), (name, code, out.getvalue())
+# --subset picks the subset (D101): B17-0 may name a ghost-fn as B17-1 reserves.
+with tempfile.TemporaryDirectory() as tmp:
+    named = Path(tmp) / "union.b17"
+    named.write_text('(module t (header (purpose "p") (invariants "i") (failures "f"))'
+                     ' (ghost-fn union ((n int)) bool (body (>= n 0))))')
+    for flags, want in [(["--subset", "0"], 0), ([], 0), (["--subset", "1"], 1)]:
+        with redirect_stdout(io.StringIO()):
+            assert c.main([*flags, str(named)]) == want, flags
 
 # B17-1 (subset 1, D101): the suite's labels, exactly, as for B17-0 (D44).
 seen = Counter()
