@@ -1012,7 +1012,7 @@ class _Checker:
         if g:
             t = self.expr(e, True)
         elif isinstance(e, Sym):
-            t = self.var(e, False)
+            t = self.types[id(e)] = self.var(e, False)  # read whole, so not by expr, but typed for WP5 and WP7
             if t != ERR and self.moving(t) and self.lookup(e.text) is not None:
                 self.moves[e.text] = e
         else:

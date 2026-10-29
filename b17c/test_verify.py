@@ -116,4 +116,81 @@ entry = next(CACHE.rglob("*.json"))
 entry.write_text('{"verdict": "pro')
 assert v._read(entry) is None
 
+# B17-1 (subset 1, D101): D89's encoding as D103 refines it.
+def run1(text, seeds=1):
+    return v.verify(parse(text, 1), seeds, CACHE, 1)[0]
+
+
+def open_(rows):
+    """The families of the goals that aren't proved."""
+    return sorted({r["family"] for r in rows if r["verdict"] != "proved"})
+
+
+# The suite: every written proof verifies, and each proof reject fails only its label's family.
+for name in ("bst_insert", "bst_search", "discrete_logarithm", "longest_palindrome_substring"):
+    assert open_(run1((SUITE / "b17-1/accept" / f"{name}.b17").read_text())) == [], name
+for path in sorted((SUITE / "b17-1/reject").glob("E-PROOF-*.b17")):
+    assert open_(run1(path.read_text())) == [path.name.split("-")[2]], path.name
+# ...and breaking a written proof leaves its goal unproved, so the encoding isn't vacuous.
+insert = (SUITE / "b17-1/accept/bst_insert.b17").read_text()
+for old, new in [("(call insert l x)) (return (node v l2 r))", "(call insert r x)) (return (node v l l2))"),
+                 ("(requires (>= x 0) (is_bst t))", "(requires (>= x 0))")]:
+    assert open_(run1(insert.replace(old, new))) == ["POST"], old
+
+H1 = '(module t (header (purpose "p") (invariants "i") (failures "f"))\n  (data tree () (leaf) (node (val i64) (left tree) (right tree)))\n'
+# rank: a structural recursion terminates, and one on its own argument doesn't (D87, D89).
+assert open_(run1(H1 + "(ghost-fn size ((t tree)) int (decreases (rank t)) (body (match t (case (leaf) 0)"
+                       " (case (node v l r) (+ 1 (+ (size l) (size r))))))))")) == []
+assert open_(run1(H1 + "(ghost-fn size ((t tree)) int (decreases (rank t)) (body (match t (case (leaf) 0)"
+                       " (case (node v l r) (size t))))))")) == ["TERM"]
+# field carries FIELD unless every constructor has the field; is and match supply it.
+assert open_(run1(H1 + "(ghost-fn top ((t tree)) int (body (field t val))))")) == ["FIELD"]
+assert open_(run1(H1 + "(ghost-fn top ((t tree)) int (body (if (is node t) (field t val) 0))))")) == []
+# Tuples, sets (extensional, with iset-of as a predicate) and maps (D85, D89).
+assert open_(run1(H1 + """(spec f (params (a i64) (b bool)) (returns (r (tuple i64 bool)))
+    (ensures (== (get r 0) a) (== (match r (case (tuple x y) y)) b)
+             (forall ((q int)) (== (union (iset-lit q) (iset-lit 1)) (union (iset-lit 1) (iset-lit q))))
+             (contains (diff (iset-of ((z int)) (> z a)) (iset-lit (+ a 2))) (+ a 1))
+             (not (contains (inter (iset-lit a) (iset-of ((z int)) (> z a))) a))
+             (== (lookup (update (map-lit (1 2)) a 7) a) 7) (contains (union (map-lit (1 2)) (map-lit (a 3))) 1)
+             (== (lookup (union (map-lit (a 2)) (map-lit (a 3))) a) 3))
+    (effects))
+  (def f (body (return (tuple a b)))))""")) == []
+# Places: an update through field, idx and get changes that part only; replace takes the old one.
+assert open_(run1(H1 + """(data box () (box (xs (vec (tuple i64 i64))) (n i64)))
+  (spec f (params (b box)) (returns (r box) (old (tuple i64 i64)))
+    (requires (> (len (field b xs)) 0))
+    (ensures (== (len (field r xs)) (len (field b xs))) (== (idx (field r xs) 0) (tuple 1 5)) (== (field r n) (field b n))
+             (== old (tuple 1 2)))
+    (effects))
+  (spec g (params (p (tuple (vec i64) i64))) (returns (r (tuple (vec i64) i64)))
+    (requires (< (len (get p 0)) 100))
+    (ensures (== (len (get r 0)) (+ (len (get p 0)) 1)) (== (get r 1) (get p 1)) (== (last (get r 0)) 7))
+    (effects alloc))
+  (def f (body (let-mut c box b) (set-idx (field c xs) 0 (tuple 1 2))
+               (let y (tuple i64 i64) (replace (idx (field c xs) 0) (tuple 1 5))) (return c y)))
+  (def g (body (let-mut q (tuple (vec i64) i64) p) (push (get q 0) 7) (return q))))""")) == []
+# A match statement's arms join as an if's branches do.
+assert open_(run1(H1 + """(spec f (params (t tree)) (returns (r i64)) (ensures (=> (is node t) (== r (field t val))) (=> (is leaf t) (== r 0)))
+    (effects))
+  (def f (body (let-mut x i64 0) (match t (case (leaf) (block)) (case (node v l r) (set x v))) (return x))))""")) == []
+# D99: a forall statement gives a lemma's fact at every value, which induction alone needs;
+# and a lemma applying itself through one must still decrease.
+SUM = """(ghost-fn sum ((n int)) int (requires (>= n 0)) (decreases n) (body (if (== n 0) 0 (+ n (sum (- n 1))))))
+  (lemma sum_ge (params (n int)) (requires (>= n 0)) (ensures (>= (sum n) n)) (decreases n)
+    (body (if (> n 0) (call sum_ge (- n 1)) (block))))"""
+USE = "\n(lemma all_ge (params) (ensures (forall ((m int)) (=> (>= m 0) (>= (sum m) m)))) (body {}))"
+assert open_(run1(H1 + SUM + USE.format("(forall ((m int)) (call sum_ge m))") + ")")) == []
+assert open_(run1(H1 + SUM + USE.format("") + ")")) == ["POST"]
+assert open_(run1(H1 + "(lemma l (params (n int)) (requires (> n 0)) (decreases n) (body (forall ((k int)) (call l k)))))")) == ["TERM"]
+# D100: obtain proves its ∃, then names a witness the rest of the path may use.
+assert open_(run1(H1 + """(lemma w (params (s (seq int))) (requires (> (len s) 0)) (ensures (exists ((i int)) (and (<= 0 i) (== i (- (len s) 1)))))
+    (body (obtain ((k int)) (and (<= 0 k) (< k (len s)))) (assert (< k (len s))))))""")) == []
+# Renaming a data type, a constructor and a field changes no canonical query (D63, D92).
+first = run1(insert)
+renamed = insert
+for old, new in [("tree", "bst"), ("leaf", "empty"), ("val", "key")]:
+    renamed = re.sub(rf"\b{old}\b", new, renamed)
+assert all(r["cached"] for r in run1(renamed)), [r for r in run1(renamed) if not r["cached"]]
+
 print("verifier self-check passed")
