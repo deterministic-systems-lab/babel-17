@@ -1376,7 +1376,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-10-29
 - **Decision:** with subset 1 (D101), `b17c/rust.py` turns each B17-1 module that passes tier 0 into one crate, as D95 does for B17-0. Without a subset, its output is the same, byte for byte, as before B17-1.
   - **Data types:** each data type the program uses becomes an enum in a module of its own, `data`, with a variant per constructor and its fields in order. Names Rust reserves become raw identifiers, as D95 says for values.
-  - **Type parameters:** a parameter is a Rust type parameter only when a value can hold a value of its type, through fields, vectors, tuples and other data types. Tier 0 already computes that set for D90. The others are dropped, so `(ph int)` is the Rust type `ph`.
+  - **Type parameters:** a parameter is a Rust type parameter only when a value can hold a value of its type, through fields, vectors, tuples and other data types. Tier 0 already computes that set for D90. The others are dropped, so `(ph int)` is the Rust type `ph`. Since D104 makes recursion regular, a module uses finitely many instances, and each is a Rust type.
   - **Boxed fields:** a field whose type mentions its own data type other than inside a vector is a `Box` (D86). A `match` arm's binder for one takes the value out of its box, since the binder owns it (§5 rule 4).
   - **Copying:** a data type that moves only through its arguments, or never, derives `Clone` and `Copy`. Rust bounds each parameter by `Copy`, so `(option i64)` is copied and `(option tree)` moves, as §5 rule 1 says. A type that moves whatever its arguments, being recursive or holding a vector, derives neither. Tuples are Rust tuples, of any arity.
   - **Reading:** `field` calls a method of the data type that matches the value's constructor, and stops the run with `err FIELD` and the interpreter's detail where the constructor lacks the field. `idx`, `field` and `get` read a moving value through a reference, so it never leaves its place (§5 rule 3), and copy a copied one. `is` is `matches!`.
@@ -1392,7 +1392,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Places through references:** they update in place, as §8 says Rust does. The temporaries keep the interpreter's order, so an index's or a value's own `err` comes before any check on the place's way down.
   - **One method per field:** the data type is the one place that knows which constructors have a field, and it gives the interpreter's message.
   - **Literals:** without a type, `(tuple 1 9223372036854775807)` would be a tuple of `i32`, which rustc rejects.
-- **Touches:** D18; D79; D82; D83; D84; D86; D90; D95; D96; D101; WP7; `docs/b17-1.md` §3, §5, §6, §8.
+- **Touches:** D18; D79; D82; D83; D84; D86; D90; D95; D96; D101; D104; WP7; `docs/b17-1.md` §3, §5, §6, §8.
 
 ## D111 · What WP7's differential tests compare for B17-1 · Proposed (extends D97)
 - **Date:** 2026-10-29
@@ -1403,26 +1403,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
     - **Random inputs:** 40 per def.
   - **Corners:** a module of cases, each with the text both must print:
     - names Rust reserves or uses, as types, constructors and fields;
-    - parameters no value holds, recursion through a swapped instance and through `option`;
+    - parameters no value holds, and recursion through `option`, which is boxed;
     - `FIELD` and `BOUNDS` in expressions and through places, and the order of a place update's evaluation and checks;
     - `replace`, `match`, tuples, open type arguments, and arguments that must be refused;
     - a list a million long, which only the binary runs, since the interpreter's steps can't reach it.
   - **Generated programs:** 96 defs, from random B17-1 programs that pass tier 0 by construction, with 25 inputs per def. Their data types are copied, recursive and boxed, holding vectors, and generic, and their bodies use places, `replace`, `match`, constructors, tuples, `seq-build` of data and calls.
   - **Inputs** are drawn for each type, with data values a few levels deep.
-  - **Refusals:** `emit()` refuses every tier 0 reject of `suite/b17-1/`, and a type D112 can't lower.
+  - **Refusals:** `emit()` refuses every tier 0 reject of `suite/b17-1/`, D104's recursion at a growing instance among them.
   - **The command line:** `rust.py --subset 1 --run` prints what `interp.py --subset 1` prints, with the same exit code.
 - **Why:** the same as D97's. Places and data values add failures at new nodes, `FIELD` among them, and a new order of evaluation, which only whole texts compare.
-- **Touches:** D97; D101; D110; D112; WP7; `.github/workflows/check.yml`.
-
-## D112 · A data type that grows its type arguments as it recurses can't be lowered · Proposed
-- **Date:** 2026-10-29
-- **Decision:** `emit()` refuses a module whose runtime code holds a data type that contains itself at an instance with growing type arguments, and names the type. `(data d (a) (base (v a)) (next (x (d (option a)))))` is one: a `(d i64)` holds a `(d (option i64))`, which holds a `(d (option (option i64)))`, and so on. The same type is fine where only ghost code uses it, or where the argument that grows is one no value holds (D110).
-- **Why:**
-  - **Rust can't express it:** Rust compiles one copy of a generic type per instance, so such a type has no finite set of Rust types. rustc refuses it at drop check (E0320), whatever code uses it.
-  - **Refusing at build time** is D96's rule for a call no binary can make.
-  - **No surveyed task needs one:** `Option` is the only generic declaration in AlgoVeri (D79).
-- **Alternatives:**
-  - **A dynamic representation for such types alone:** complete, but it is a second lowering. Reading an argument of such a type also needs a type checker in the runtime, since its values have no Rust type to read into.
-  - **Erasing only the field that grows,** behind a trait object: values built in code work, but an argument of any depth would still need every instance.
-  - **Rejecting such types in tier 0:** that changes B17-1's semantics for a limit of one backend.
-- **Touches:** D79; D83; D96; D110; WP7.
+- **Touches:** D97; D101; D104; D110; WP7; `.github/workflows/check.yml`.

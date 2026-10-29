@@ -31,7 +31,7 @@ import tempfile
 from pathlib import Path
 
 import interp
-from check import _Checker, show
+from check import _Checker
 from check import types as tier0_types
 from syntax import Form, Int, ParseError, Sym, _head, _print, canonical, parse
 
@@ -295,31 +295,16 @@ class _Emitter:
         return [a for a in d.params if a in d.stored]
 
     def need(self, name):
-        """The crate declares data type name. One that grows its own type arguments as it
-        recurses, as (data d (a) (base (v a)) (next (x (d (option a))))) does, would need
-        infinitely many Rust types, which rustc refuses (D112)."""
-        if name in self.wanted:
-            return
-        self.wanted.append(name)
-        self.uses.add("data")
-        for _, fs in self.datas[name].ctors:
-            for _, ft in fs:
-                for o in self.inner(ft):
-                    if o[:2] == ("data", name) and any(
-                            a[0] != "param" and any(p[0] == "param" for p in self.inner(a)) for a in self.rust_args(o)):
-                        raise ValueError(f"data type {name} holds a {show(o)} inside itself, which grows its type "
-                                         f"arguments as it recurses, so Rust's generics can't lower it (D112)")
+        """The crate declares data type name. D104 makes a data type's recursion regular, so a
+        module's instances, and the Rust types for them, are finite."""
+        if name not in self.wanted:
+            self.wanted.append(name)
+            self.uses.add("data")
 
     def rust_args(self, t):
         """The type arguments of data type t that Rust keeps: those for the parameters a value holds."""
         d = self.datas[t[1]]
         return [a for a, p in zip(t[2:], d.params) if p in d.stored]
-
-    def inner(self, t):
-        """Field type t and the types in it, as Rust sees t: through vectors, tuples and the type
-        arguments it keeps."""
-        kept = self.rust_args(t) if t[0] == "data" else t[1:] if t[0] in ("vec", "tuple") else []
-        return [t] + [o for a in kept for o in self.inner(a)]
 
     def boxed(self, name):
         """Per constructor of data type name, which of its fields are boxed (D86)."""

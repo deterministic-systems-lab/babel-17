@@ -1,6 +1,6 @@
 """WP7's self-check: emitted Rust compiles, forbids unsafe code, and matches the reference
 interpreter on differential tests (D18, D95-D97), for B17-0 and for B17-1 under subset 1
-(D101, D110-D112): uv run --no-project b17c/test_rust.py
+(D101, D110, D111): uv run --no-project b17c/test_rust.py
 
 Needs rustc on PATH. CI installs the version the README pins.
 """
@@ -673,11 +673,10 @@ CORNERS_1 = module1(
     "(data type () (loop) (self (crate i64) (super (vec type))))",
     "(data rt () (rt (std i64)))",
     "(data str () (usize (u8 bool)) (main))",
-    # A parameter no value holds, which Rust would reject, alone and beside one that's held;
-    # recursion through a swapped instance, which Rust's types close over; and through option.
+    # A parameter no value holds, which Rust would reject, alone and beside one that's held,
+    # and recursion through option, which is boxed.
     "(data ph (a) (pc (x i64)))",
     "(data pp (a b) (pp (v a)))",
-    "(data sw (a b) (end (x a) (y b)) (flip (z (sw b a))))",
     "(data lst () (lst (head i64) (tail (option lst))))",
     "(data tree () (leaf) (node (val i64) (left tree) (right tree)))",
     "(data sh () (dot) (circ (r i64)) (rect (w i64) (h i64)))",
@@ -701,15 +700,6 @@ CORNERS_1 = module1(
     """(def phantom (body
       (let x (ph int) (pc (+ (field p x) 1)))
       (match q (case (pp v) (return x (pp (not v)))))))""",
-    "(spec swap (params (s (sw i64 bool)) (k i64)) (returns (r (sw i64 bool)) (n i64)) (effects alloc))",
-    """(def swap (body
-      (if (<= k 0)
-        (return s 0)
-        (block
-          (let t (sw bool i64) (flip s))
-          (match t
-            (case (end x y) (return (end y x) 0))
-            (case (flip z) (block (let n i64 (field z x)) (return z n))))))))""",
     "(spec count (params (l lst)) (returns (n i64)) (effects))",
     """(def count (decreases (rank l))
       (body
@@ -873,9 +863,6 @@ EXPECT_1 = [
     ("names (rt 4) (usize true)", "ok 4 (usize false)"),
     ("names (rt 4) (main)", "ok -4 (main)"),
     ("phantom (pc 3) (pp true)", "ok (pc 4) (pp false)"),
-    ("swap (end 1 true) 1", "ok (end 1 true) 1"),
-    ("swap (flip (end false 7)) 2", r"err FIELD at def swap/\S+: a flip value has no field x"),
-    ("swap (flip (flip (end 3 true))) 0", "ok (flip (flip (end 3 true))) 0"),
     ("count (lst 1 (some (lst 2 (some (lst 3 (none))))))", "ok 3"),
     ("make 4", "ok (lst 4 (some (lst 3 (some (lst 2 (some (lst 1 (none))))))))"),
     ("peek (lst 5 (none)) (bag (seq-lit 1 2) (some 9)) 1", "ok 7 false (some 9)"),
@@ -1439,9 +1426,8 @@ p = subprocess.run([str(binaries["corners"]), "--batch"], input=b"arith \xff 1\n
 lines = p.stdout.decode().split("\n")
 assert p.returncode == 0 and lines[0].startswith("refused: ") and lines[1:] == ["ok 1 5 -6 -1 1 -3", ""], p
 
-# B17-1: every tier 0 reject of its suite, and a data type that grows its own type
-# arguments as it recurses, which would need infinitely many Rust types (D112). That type is
-# fine where no runtime code holds it, or where the argument that grows is one no value holds.
+# B17-1: every tier 0 reject of its suite, among them D104's recursion at a growing instance,
+# which would need infinitely many Rust types.
 for p in sorted((SUITE_1 / "reject").glob("E-*.b17")):
     if not p.name.startswith("E-PROOF-"):
         try:
@@ -1449,20 +1435,6 @@ for p in sorted((SUITE_1 / "reject").glob("E-*.b17")):
         except (ParseError, ValueError):
             continue
         failures.append(f"emitted {p.name}, which fails tier 0")
-GROWS = "(data d (a) (base (v a)) (next (x (d (option a)))))"
-try:
-    r.emit(module1(GROWS, "(spec f (params (x (d i64))) (returns (r bool)) (effects))", "(def f (body (return (is base x))))"), 1)
-except ValueError as e:
-    assert "data type d holds a (d (option a)) inside itself, which grows its type arguments" in str(e), e
-else:
-    failures.append("emitted a data type that grows its type arguments")
-r.emit(module1(GROWS, "(ghost-fn g ((x (d int))) bool (body (is base x)))"), 1)
-held = module1("(data d (a) (base) (next (x (d (option a)))))",
-               "(spec f (params (x (d i64))) (returns (r bool) (s (d bool))) (effects alloc))",
-               "(def f (body (return (is base x) (next (next (base))))))")
-binary = r.build(r.emit(held, 1), TMP / "held", flags=STRICT)
-assert r.batch(binary, [("f", ["(next (base))"])]) == [interpreted(held, "f", [D("next", (D("base", ()),))], 1)] == \
-    ["ok false (next (next (base)))"]
 
 
 # 6. The command line: the same text and exit code as interp.py's.
@@ -1525,7 +1497,7 @@ if failures:
         print(f)
     raise SystemExit(1)
 total = sum(n for k, n in compared.items() if not k.startswith("skipped"))
-print(f"Rust backend self-checks passed: {len(sources) + 2} crates built with warnings denied; "
+print(f"Rust backend self-checks passed: {len(sources) + 1} crates built with warnings denied; "
       f"{total:,} differential runs matched the interpreter, {compared_1[1]:,} of them B17-1's "
       f"({', '.join(f'{k} {n:,}' for k, n in sorted(compared.items()))}); "
       f"{r.toolchain()['rustc']}")
