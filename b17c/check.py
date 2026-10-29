@@ -174,6 +174,9 @@ class _Data:
     ex_base: bool = True     # exact (D90)
     ex_params: set = field(default_factory=set)
     wf_params: set = field(default_factory=set)  # the arguments a vector field needs runtime (§3)
+    stored: set = field(default_factory=set)     # the parameters a value can hold
+    seq_params: set = field(default_factory=set)  # those it holds under a sequence (D90)
+    finite: frozenset = frozenset()  # the sets of parameters whose arguments having values gives it one (§3)
 
 
 @dataclass
@@ -386,6 +389,15 @@ class _Checker:
                 for f in c.items[1:]:
                     d.ctors[i][1].append((f.items[0], self.well_formed(f.items[1], False, tuple(d.params))))
         pending, self.pending = self.pending, None
+        changed = True  # D90: which parameters a value can hold, and which of them under a sequence
+        while changed:
+            changed = False
+            for d in self.datas.values():
+                held = [self.held(t, False) for _, fs in d.ctors for _, t in fs]
+                stored = {a for h in held for a, _ in h}
+                under = {a for h in held for a, s in h if s}
+                if (stored, under) != (d.stored, d.seq_params):
+                    d.stored, d.seq_params, changed = stored, under, True
         graph = {}
         for d in self.datas.values():
             named = [e for _, fs in d.ctors for _, t in fs for e in self.mentions(t)]
@@ -397,15 +409,18 @@ class _Checker:
             later = max((self.datas[n].form.items[1] for n in scc), key=lambda x: x.pos)
             self.report("E-TERM-002", later, f"data types {' and '.join(sorted(scc))} contain each other "
                                              f"(docs/b17-1.md §3)")
-        finite, changed = set(), True  # §3: a least fixed point
+        changed = True  # §3: a least fixed point, over which parameters' arguments need values
         while changed:
             changed = False
             for d in self.datas.values():
-                if d.name not in finite and any(all(self.inhabited(t, finite) for _, t in fs) for _, fs in d.ctors):
-                    finite.add(d.name)
-                    changed = True
+                options = set()
+                for _, fs in d.ctors:
+                    options |= _conj([self.inhabited(t) for _, t in fs])
+                options = _minimal(options)
+                if options != d.finite:
+                    d.finite, changed = options, True
         for d in self.datas.values():
-            if d.name not in finite:
+            if not d.finite:
                 self.report("E-TYPE-001", d.form.items[1], f"data type {d.name} has no finite value: every constructor "
                                                            f"needs one already (docs/b17-1.md §3)")
         changed = True  # §3: the largest assignment of variances, starting covariant
@@ -461,7 +476,8 @@ class _Checker:
             d = self.datas[t[1]]
             if prop == "ex" and t[1] == own:  # D90: its own recursion is exact, except through a sequence
                 return not inside_seq, set()
-            rs = [self.summary(parts(t)[k], prop, req, both, own, inside_seq) for k in sorted(getattr(d, prop + "_params"))]
+            rs = [self.summary(parts(t)[k], prop, req, both, own, inside_seq or d.params[k] in d.seq_params)
+                  for k in sorted(getattr(d, prop + "_params"))]
             return both([getattr(d, prop + "_base")] + [ok for ok, _ in rs]), set().union(*(ps for _, ps in rs))
         return req(t, own, inside_seq)
 
@@ -527,18 +543,36 @@ class _Checker:
         return True
 
     def mentions(self, t, through_vec=True):
-        """The data types mentioned anywhere in t; through_vec False skips what's inside a
-        vector, for §6's boxed fields."""
+        """The data types t mentions, type arguments included; through_vec False skips what's inside a
+        vector, for §6's boxed fields. Mention, not storage: §3 and §6 are written that way, and D92
+        hashes a type over every type it mentions, so two types mentioning each other have no hash."""
         if t[0] == "vec" and not through_vec:
             return []
         return ([t[1]] if t[0] == "data" else []) + [e for a in parts(t) for e in self.mentions(a, through_vec)]
 
-    def inhabited(self, t, finite):
-        if t[0] == "data":
-            return t[1] in finite or t[1] in CORE1_TYPES
+    def held(self, t, seq):
+        """The (parameter, under a sequence) pairs a value of field type t can hold."""
+        if t[0] == "param":
+            return {(t[1], seq)}
+        if t[0] == "data" and t[1] in self.datas:
+            d = self.datas[t[1]]
+            return {h for k, a in enumerate(parts(t)) if d.params[k] in d.stored
+                    for h in self.held(a, seq or d.params[k] in d.seq_params)}
+        return {h for a in parts(t) for h in self.held(a, seq or t[0] in ("seq", "iset"))}
+
+    def inhabited(self, t):
+        """The sets of parameters whose arguments having values gives t one; empty if none does."""
+        if t[0] == "param":
+            return frozenset({frozenset({t[1]})})
+        if t[0] == "data" and t[1] in self.datas:
+            d = self.datas[t[1]]
+            out = set()
+            for option in d.finite:  # each of d's parameters in option, replaced by what its argument needs
+                out |= _conj([self.inhabited(parts(t)[d.params.index(a)]) for a in option])
+            return _minimal(out)
         if t[0] == "tuple":
-            return all(self.inhabited(a, finite) for a in parts(t))
-        return True  # bool, i64, int, a parameter, and every collection, which may be empty
+            return _conj([self.inhabited(a) for a in parts(t)])
+        return frozenset({frozenset()})  # bool, i64, int, and every collection, which may be empty
 
     def invariant_params(self, t, inside):
         """The type parameters occurring in t in an invariant position (§3)."""
@@ -1317,8 +1351,12 @@ class _Checker:
             self.boolean(b, g)
             return BOOL
         if h in ("==", "!="):
-            ta = self.expr(a, g)
-            tb = self.expr(b, g, want=ta if ta[0] in COLLECTIONS or self.sub and ta not in (BOOL, I64, INT) else None)
+            if self.sub and self.literal(a) and not self.literal(b):  # §4: the literal takes the other's type
+                tb = self.expr(b, g)
+                ta = self.expr(a, g, want=tb)
+            else:
+                ta = self.expr(a, g)
+                tb = self.expr(b, g, want=ta if ta[0] in COLLECTIONS or self.sub and ta not in (BOOL, I64, INT) else None)
             if ERR in (ta, tb):
                 return BOOL
             if self.sub:  # docs/b17-1.md §7: ghost code compares joinable values; runtime code bool and i64
@@ -1353,6 +1391,8 @@ class _Checker:
         t = self.join(a, b) if g else (b if a == ERR or ANY in a else a) if self.fits(a, b, False) else None
         if t is None:
             self.report("E-TYPE-001", x, f"the branches of if are {show(a)} and {show(b)}")
+            if branch and any(u != ERR and self.moving(u) for u in (a, b)):
+                self.report("E-OWN-006", x, "a moving value can't come out of an if expression (§7)")
             return ERR
         if not g and (self.moving(t) if self.sub else t[0] == "vec"):
             self.report("E-OWN-006", x, f"a {'vector' if t[0] == 'vec' else 'moving value'} can't come out of an if "
@@ -1548,8 +1588,7 @@ class _Checker:
         for a in args[len(fs):]:
             self.expr(a, g)
         self.quiet = quiet
-        if want is None:  # §4: an open type with no destination is int in ghost code, i64 in runtime code
-            env = {a: env.get(a, INT if g else I64) for a in d.params}
+        env = {a: env.get(a, INT if g else I64) for a in d.params}  # §4: open with no destination
         t = ("data", dname) + tuple(env.get(a, ANY) for a in d.params)
         if not self.has_any(t) and not self.check_app(x, t):
             return ERR
@@ -1609,6 +1648,9 @@ class _Checker:
                 j = self.join(out, u) if g else out if self.fits(u, out, False) else None
                 if j is None:
                     self.report("E-TYPE-001", body, f"this arm is {show(u)}, and an earlier one {show(out)}")
+                    if not g and any(v != ERR and self.moving(v) for v in (u, out)):
+                        self.report("E-OWN-006", x, "a moving value can't come out of a match expression "
+                                                    "(docs/b17-1.md §5 rule 7)")
                     return ERR
                 out = j
         out = ERR if out is None else out
@@ -1665,6 +1707,11 @@ class _Checker:
                                                          f"arms (§7)")
             return errs
         return [[ft for _, ft in fs] for _, fs in ctors]
+
+    def literal(self, x):
+        """A literal or a constructor call, whose open types come from its destination (§4)."""
+        h = _head(x)
+        return h in ("iset-lit", "map-lit", "seq-lit", "vec-new") or h in self.ctors
 
     def data_operand(self, x, what):
         """The type of x, which must be a data value; ERR, reported, if it isn't."""
@@ -1760,10 +1807,12 @@ class _Checker:
         """The two operands of union, diff or inter, one of the kinds, of the same type; a literal
         operand takes the other's type (§4)."""
         a, b = x.items[1], x.items[2]
-        ta = self.expr(a, True)
-        tb = self.expr(b, True, want=ta)
-        if self.has_any(ta) and not self.has_any(tb):
+        if self.literal(a) and not self.literal(b):
+            tb = self.expr(b, True)
             ta = self.expr(a, True, want=tb)
+        else:
+            ta = self.expr(a, True)
+            tb = self.expr(b, True, want=ta)
         for e, t in ((a, ta), (b, tb)):
             if t != ERR and t[0] not in kinds:
                 self.report("E-TYPE-001", e, f"{x.items[0].text} takes {' or '.join(kinds)}s, not {show(t)} (§7)")
@@ -1869,6 +1918,18 @@ _FORMS_1 = {h: "e_" + h.replace("-", "_") for h in ("tuple", "match", "is", "fie
 _FORMS = {h: "e_" + h.replace("-", "_") for h in ("not", "neg", "if", "len", "idx", "borrow", "vec-new", "seq-build", "forall",
                                                 "exists", "seq-lit", "take", "drop", "concat", "last", "contains",
                                                 "multiset", "msum", "occurrences")}
+
+
+def _conj(options):
+    """All of several requirements, each a set of alternative parameter sets: their pairwise unions."""
+    out = {frozenset()}
+    for alts in options:
+        out = {a | b for a in out for b in alts}
+    return _minimal(out)
+
+
+def _minimal(sets):
+    return frozenset(x for x in sets if not any(y < x for y in sets))
 
 
 def _components(graph):

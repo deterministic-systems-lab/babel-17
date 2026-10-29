@@ -464,6 +464,18 @@ bad1("E-OWN-001", BOX, spec("f", "(x (box (vec i64)))", "(r (box (vec i64)))"), 
 ok1(BOX, spec("f", "(x (box i64))", "(r (box i64))"), "(def f (body (let y (box i64) x) (return x)))")
 ok1(*[f"(data d{i} () (z{i}) (n{i} (x d{i + 1})))" for i in range(1100)], "(data d1100 () (z1100))",
     spec("f", "(x d0)", "(r d0)"), "(def f (body (return x)))")
+# Codex's third pass: finite values through type arguments, open parameters, D90 through a generic
+# sequence, and an ownership error kept when branches disagree.
+bad1("E-TYPE-001", "(data box (a) (boxc (x a)))", "(data loop () (loopc (x (box loop))))")
+ok1("(data either (a b) (l (x a)) (r (y b)))", "(data t () (tc (x (either t i64))))")  # either side gives a value
+bad1("E-TYPE-001", "(data d (a) (empty) (full (v (vec a))))", "(data holder (a) (hold (x a)))",
+     "(ghost-fn g () int (body (rank (hold (empty)))))")  # (empty) is (d int)
+ok1(TREE, "(ghost-fn g ((o (option tree))) bool (body (== (none) o)))")  # a literal takes the other operand's type
+bad1("E-TYPE-001", "(data wrap (a) (wrapc (xs (seq a))))", "(data d () (stop) (step (w (wrap d))))",
+     "(ghost-fn g () bool (body (forall ((x d)) true)))")
+bad1("E-TERM-002", "(data phantom (t) (p))", "(data a () (ca (x (phantom b))))", "(data b () (cb (x a)))")  # mention (D92)
+if codes1(spec("f", "(c bool)", "(r i64)"), "(def f (body (return (if c (vec-new) 0))))") != ["E-OWN-006", "E-TYPE-001"]:
+    failures.append("a moving branch of a mistyped if was dropped")
 # Every B17-0 suite program has the same diagnostics under subset 1.
 for path in sorted(SUITE.glob("*/*.b17")):
     where = lambda subset: [(d.line, d.col, d.code) for d in diagnose(path.read_bytes(), subset)]

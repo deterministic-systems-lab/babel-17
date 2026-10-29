@@ -1318,6 +1318,15 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
     - field vectors were checked before the type summaries were known;
     - `moving()` and `exact()` still expanded instances, so a long chain overflowed Python's stack.
     Both are now fixed points.
+  - **Third pass:** five findings. Four were fixed:
+    - **Finite values** ignored type arguments, so `(loopc (x (box loop)))` passed. They are now a fixed point over which parameters' arguments need values. A type has a value when any one of its constructors has one.
+    - **A nested open constructor,** such as `(hold (empty))`, didn't default. Open parameters now always default when nothing fixes them. A literal operand of `==`, `union`, `diff` or `inter` takes the other operand's type, as §4 says.
+    - **Exactness** missed a sequence reached through a generic type. It now tracks which parameters a type holds under a sequence.
+    - **A mismatched `if` or `match`** dropped the ownership error of a moving branch.
+  - **Declined from the third pass:** that a type argument a data type never stores, as in `(phantom b)`, shouldn't count toward mutual containment, recursion or boxing. The checker counts every type a declaration mentions, for three reasons:
+    - §3's containment rule and §6's boxed fields are written in terms of mention;
+    - D92 hashes a type over every type it mentions, so two types that mention each other have no hash;
+    - a boxed field moves in the emitted Rust.
 - **Ponytail review:** the unused field table and a duplicated ownership tail were cut.
 - **D44's condition for B17-1 to freeze is met:** the checker agrees with every tier 0 label. Freezing is the owner's call. It would make subset 1 the default (D101), so the B17-0 track and B17-0's tests would then name subset 0.
 - **Updated:** the README's status, WP3 row, layout, commands and self-check lines; the roadmap's next steps and B17-1 row; `suite/README.md`'s checking notes.
