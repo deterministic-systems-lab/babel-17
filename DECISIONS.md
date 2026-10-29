@@ -1161,7 +1161,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Examples from the suite:** every code already has a labelled program, which WP3 and WP5 check. WP8's manual can reuse them.
 - **Touches:** D45; D56; D57; D63; interface 8; WP6; WP8; `suite/`.
 
-## D95 · How B17-0 lowers to safe Rust · Accepted
+## D95 · How B17-0 lowers to safe Rust · Accepted (extended by D110)
 - **Date:** 2026-10-28
 - **Decision:** WP7's backend, `b17c/rust.py`, turns each module that passes tier 0 into one Rust crate.
   - **Safety:** the crate carries `#![forbid(unsafe_code)]` and holds no unsafe code (D18).
@@ -1213,7 +1213,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Refusing at build time:** a binary can't call a function that doesn't exist. A stub that refused at run time would let a module build that can't run its own calls.
 - **Touches:** D21; D29; D48; D56; D57; D59; D80; WP7; WP11; interface 10.
 
-## D97 · What WP7's differential tests compare, and the pinned toolchain · Accepted
+## D97 · What WP7's differential tests compare, and the pinned toolchain · Accepted (extended by D111)
 - **Date:** 2026-10-28
 - **Decision:**
   - **What's compared:** for every run, the interpreter's text, with checking off, and the binary's must be equal line for line: each `print`, then the outcome with its reason, node and detail. A run the interpreter can't finish in 20,000 steps is skipped, since a binary has no `limit` to show (D59).
@@ -1373,7 +1373,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Alternatives:** a verifier error for such a module. That would be a type the checker accepts but no other tool can handle.
 - **Touches:** D83; D103; WP3; WP5; WP7; `docs/b17-1.md` §3 and §13; `suite/b17-1/`.
 
-## D110 · How B17-1 lowers to safe Rust · Proposed (extends D95)
+## D110 · How B17-1 lowers to safe Rust · Accepted (extends D95)
 - **Date:** 2026-10-29
 - **Decision:** with subset 1 (D101), `b17c/rust.py` turns each B17-1 module that passes tier 0 into one crate, as D95 does for B17-0. Without a subset, its output is the same, byte for byte, as before B17-1.
   - **Data types:** each data type the program uses becomes an enum in a module of its own, `data`, with a variant per constructor and its fields in order. Names Rust reserves become raw identifiers, as D95 says for values.
@@ -1395,7 +1395,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Literals:** without a type, `(tuple 1 9223372036854775807)` would be a tuple of `i32`, which rustc rejects.
 - **Touches:** D18; D79; D82; D83; D84; D86; D90; D95; D96; D101; D104; WP7; `docs/b17-1.md` §3, §5, §6, §8.
 
-## D111 · What WP7's differential tests compare for B17-1 · Proposed (extends D97)
+## D111 · What WP7's differential tests compare for B17-1 · Accepted (extends D97)
 - **Date:** 2026-10-29
 - **Decision:** `b17c/test_rust.py` checks B17-1 under subset 1 as D97 checks B17-0, comparing the interpreter's text with checking off and the binary's, line for line. B17-0's part is unchanged.
   - **The suite:** the 15 programs of `suite/b17-1/` that pass tier 0, which are the 10 accept programs and the 5 proof rejects.

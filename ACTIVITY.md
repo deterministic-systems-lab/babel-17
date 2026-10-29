@@ -1529,3 +1529,17 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. The refactor is covered by the existing self-checks and the byte comparisons above.
 - **Left admitted:** none.
+
+## 2026-10-29 · D110 and D111 accepted
+- **The owner accepted:**
+  - **D110:** how B17-1 lowers to safe Rust;
+  - **D111:** what WP7's differential tests compare for B17-1.
+- **Headings:** following the log's convention, D95 and D97 now record that D110 and D111 extend them.
+- **Updated:**
+  - **The README:** the WP7 row and the `rust.py` row.
+  - **The roadmap:** WP7's status, decisions waiting, the off-path line and the WP7 row.
+  - **`suite/README.md`:** its B17-1 section now says how WP7's tests run the suite, as its B17-0 section already did.
+  - **`docs/b17-1.md`:** not changed. Like D95–D97 for B17-0, D110 and D111 are the backend's decisions, not the subset's.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.

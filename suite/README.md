@@ -82,4 +82,5 @@ D99 and D100 are accepted, and WP5 now reads B17-1. The steps that use them are 
 - **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
 - **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 58.
 - **Proof labels:** WP5's verifier, `b17c/verify.py --subset 1`, checks them. Each of the 5 fails exactly its labelled goal.
+- **Rust:** WP7's differential tests build each B17-1 program that passes tier 0 as a Rust crate, with `--subset 1`, and compare its runs with the interpreter's (D111). They cover the accept programs on the interpreter's inputs, and the two proof rejects whose defs reach `err BOUNDS` and `err FIELD`.
 - **Runs:** WP15's interpreter runs every accept program on inputs its `requires` allows, with `--subset 1`. It shows the fault of the three proof rejects that have a def or ghost-fn on a concrete input. The other two are lemmas, whose bodies never run (D57), so only WP5 can show theirs.
