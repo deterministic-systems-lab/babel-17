@@ -59,6 +59,32 @@
                  (=> (is_common_ancestor t x p q)
                      (and (and (is some (spec_get_depth t x)) (is some (spec_get_depth t a)))
                           (<= (field (spec_get_depth t x) value) (field (spec_get_depth t a) value))))))))
+  (lemma holds_view (params (t tree) (y int))
+    (ensures (== (holds t y) (contains (view t) y)))
+    (decreases (rank t))
+    (body (match t
+      (case (nil) (block))
+      (case (node v l r) (block (call holds_view l y) (call holds_view r y))))))
+  (lemma facts (params (t tree) (x int))
+    (ensures
+      (== (is node (spec_get_subtree t x)) (holds t x))
+      (== (is some (spec_get_depth t x)) (holds t x))
+      (=> (holds t x) (== (field (spec_get_subtree t x) val) x))
+      (=> (holds t x) (>= (field (spec_get_depth t x) value) 0)))
+    (decreases (rank t))
+    (body (match t
+      (case (nil) (block))
+      (case (node v l r) (block (call facts l x) (call facts r x))))))
+  (lemma sub_in (params (t tree) (x int) (y int))
+    (requires (is node (spec_get_subtree t x)) (holds (spec_get_subtree t x) y))
+    (ensures (holds t y))
+    (decreases (rank t))
+    (body (match t
+      (case (nil) (block))
+      (case (node v l r)
+        (if (== v x)
+          (block)
+          (if (is node (spec_get_subtree l x)) (call sub_in l x y) (call sub_in r x y)))))))
   (spec find
     (params (t tree) (p i64) (q i64))
     (returns (out (option i64)))
@@ -74,6 +100,16 @@
       (match t
         (case (nil) (return (none)))
         (case (node v l r)
+          (block
+          (forall ((x int)) (call facts t x))
+          (forall ((x int)) (call facts l x))
+          (forall ((x int)) (call facts r x))
+          (forall ((x int)) (call sub_in l x p))
+          (forall ((x int)) (call sub_in l x q))
+          (forall ((x int)) (call sub_in r x p))
+          (forall ((x int)) (call sub_in r x q))
+          (forall ((y int)) (call holds_view l y))
+          (forall ((y int)) (call holds_view r y))
           (if (or (== v p) (== v q))
             (return (some v))
             (block
@@ -81,7 +117,7 @@
               (let ((b (option i64))) (call find r p q))
               (if (and (is some a) (is some b))
                 (return (some v))
-                (if (is some a) (return a) (return b)))))))))
+                (if (is some a) (return a) (return b))))))))))
   (def lowest_common_ancestor
     (body
       (let ((res (option i64))) (call find root p q))

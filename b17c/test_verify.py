@@ -127,7 +127,8 @@ def open_(rows):
 
 
 # The suite: every written proof verifies, and each proof reject fails only its label's family.
-for name in ("bst_insert", "bst_search", "discrete_logarithm", "longest_palindrome_substring"):
+for name in ("bst_insert", "bst_search", "discrete_logarithm", "longest_palindrome_substring", "lca", "segmenttree_query",
+             "trie_insert"):
     assert open_(run1((SUITE / "b17-1/accept" / f"{name}.b17").read_text())) == [], name
 for path in sorted((SUITE / "b17-1/reject").glob("E-PROOF-*.b17")):
     assert open_(run1(path.read_text())) == [path.name.split("-")[2]], path.name
@@ -229,5 +230,21 @@ assert open_(run1(H0 + """(data box () (box (xs (vec i64))))
   (spec f (params (b box)) (returns (r box)) (requires (> (len (field b xs)) 0) (== (idx (field b xs) 0) 1))
     (ensures (== (occurrences (field r xs) 2) (+ (occurrences (field b xs) 2) 1))) (effects))
   (def f (body (let-mut c box b) (set-idx (field c xs) 0 2) (return c))))""")) == []
+
+# D105: a set or map literal of sequences holds its members by their elements, as == compares
+# them; and a seq-build whose body doesn't use its index counts that body n times.
+assert open_(run1(H0 + """(lemma l (params (s (seq int)) (t (seq int)))
+    (requires (> (len s) 0) (== t (drop s 0)))
+    (ensures (== (iset-lit (drop s 0)) (iset-lit s)) (contains (iset-lit t) s)
+             (== (lookup (update (map-lit (t 1)) s 2) t) 2) (not (contains (iset-lit (drop s 1)) s)))
+    (body)))""")) == []
+assert open_(run1(H0 + """(spec f (params (n i64)) (returns (r (vec i64))) (requires (>= n 0))
+    (ensures (== (occurrences r -1) n) (== (occurrences r 0) 0)) (effects alloc))
+  (def f (body (return (seq-build n (fn (j) -1))))))""")) == []
+
+# Validity says only that a data value's i64s fit, not its vectors' lengths (D105).
+assert open_(run1(H0 + """(data box () (end (tag i64) (xs (vec bool))) (more (next box)))
+  (ghost-fn all_ok ((b box)) bool (decreases (rank b)) (body (match b (case (end tag xs) true) (case (more next) (all_ok next)))))
+  (lemma l (params (m (map int (vec bool)))) (requires (contains m 0)) (ensures (all_ok (end 0 (lookup m 0)))) (body)))""")) == []
 
 print("verifier self-check passed")

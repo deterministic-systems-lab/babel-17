@@ -593,7 +593,8 @@ GRAPH = D("graph", (((1,), (2,), (), (0,)),))
 WEIGHTED = D("weighted_graph", (((T((1, 4)), T((2, 1))), (T((0, 4)), T((2, 2))), (T((0, 1)), T((1, 2)))),))
 # Each accept program on inputs its requires allows: ok, and the same with check=False. The
 # clauses left unchecked are those whose quantifiers range over paths, sequences, every int, or
-# the members a ghost-fn's predicate picks out, which no guard bounds (D58, D102).
+# the members a ghost-fn's predicate picks out, which no guard bounds (D58, D102), and a proof's
+# asserts that read an obtain's witness, which the run can't name (§8).
 ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the first input)
     "bst_insert": ("insert", [((LEAF, 5), (node(5),)), ((BST, 8), (node(5, node(2), node(9, node(7, LEAF, node(8)))),)),
                               ((BST, 5), (BST,))], []),
@@ -604,9 +605,9 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
                                                                         (((),), (T((0, 0)),)),
                                                                         (((4, 4),), (T((0, 2)),))],
                                      ["INV-KEEP", "INV-ENTRY", "INV-KEEP", "POST"]),
-    "segmenttree_query": ("query", [((SEG, 1, 3), (4,)), ((SEG, 0, 4), (4,)), ((SEG, 3, 4), (1,))], ["PRE"] * 5),
+    "segmenttree_query": ("query", [((SEG, 1, 3), (4,)), ((SEG, 0, 4), (4,)), ((SEG, 3, 4), (1,))], ["PRE"] * 3 + ["ASSERT"] * 2 + ["PRE"] * 2 + ["ASSERT"] * 6),
     "trie_insert": ("insert", [((NONE, (1, 2)), (trie((1, 2)),)), ((some(trie((5,))), (5, 7)), (trie((5,), (5, 7)),)),
-                               ((some(trie((5,))), ()), (trie((5,), ()),))], ["POST"] * 4),
+                               ((some(trie((5,))), ()), (trie((5,), ()),))], ["POST", "ASSERT", "POST", "ASSERT", "POST", "POST"]),
     "lca": ("lowest_common_ancestor", [((TREE, 4, 5), (some(2),)), ((TREE, 4, 3), (some(1),)),
                                        ((TREE, 2, 4), (some(2),))], ["POST"] * 3),
     "bfs": ("bfs_shortest_path", [((GRAPH, 0, 2), (some(2),)), ((GRAPH, 2, 0), (NONE,)), ((GRAPH, 3, 3), (some(0),))],

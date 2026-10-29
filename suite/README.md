@@ -45,28 +45,31 @@ The labels were first checked by review: by the author, and by an independent mo
 
 | Program | Shows | Proof |
 |---|---|---|
-| `bst_insert` | §1's program: data types, `match`, `rank`, allocation | Written |
-| `bst_search` | A recursive read, which consumes its tree | Written |
-| `discrete_logarithm` | An optional result | Written |
-| `longest_palindrome_substring` | A tuple result | Written |
-| `segmenttree_query` | Ghost maps; `replace` on a node's fields | Needs D100 for the witness step |
-| `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Needs D99 for the view step |
-| `lca` | `option` throughout | Needs D99 for `find`'s postcondition |
-| `bfs` | A graph record, nested vectors, a quantifier over paths | Bounds only |
-| `kruskal` | Tuples in a vector | Bounds only |
-| `coin_change` | A quantifier over sequences | Bounds only |
+| `bst_insert` | §1's program: data types, `match`, `rank`, allocation | Verified |
+| `bst_search` | A recursive read, which consumes its tree | Verified |
+| `discrete_logarithm` | An optional result | Verified |
+| `longest_palindrome_substring` | A tuple result | Verified, one goal under 9 of 10 seeds |
+| `segmenttree_query` | Ghost maps; `replace` on a node's fields | Verified, with D100's `obtain` naming each witness |
+| `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Verified, with D99 applying a lemma at every key |
+| `lca` | `option` throughout | Verified, with D99 applying three induction lemmas at every value |
+| `bfs` | A graph record, nested vectors, a quantifier over paths | Bounds only, not yet proved |
+| `kruskal` | Tuples in a vector | Bounds only, not yet proved |
+| `coin_change` | A quantifier over sequences | Bounds only, not yet proved |
 
-- **Written:** the invariants and hints cover every goal, as far as review can tell.
-- **Needs D99:** one step proves a fact for every sequence or unbounded integer, which takes D99's `forall` statement.
-- **Needs D100:** one step names the witness of an ∃, which takes D100's `obtain`.
-- **Bounds only:** the invariants cover bounds, overflow and termination. Correctness takes both statements, since these proofs quantify over every path, spanning tree or change, and name witnesses.
+- **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
+- **Bounds only:** the invariants are meant to cover bounds, overflow and termination. Correctness takes D99's `forall` statement and D100's `obtain`, since these proofs quantify over every path, spanning tree or change, and name witnesses.
 
-D99 and D100 are accepted, and WP5 now reads B17-1. The steps that use them are written against it, as each fails or passes. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
+D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
-**WP5's verdicts so far:**
-- **The written proofs:** `bst_insert`, `bst_search` and `discrete_logarithm` prove every goal under 10 shuffled seeds (D23).
-- **`longest_palindrome_substring`:** every goal proves, but one of its outer loop's invariants proves under only 9 of 10 seeds. Its query uses only B17-0's encoding. This is a finding.
-- **`bfs`:** its bounds and termination goals don't all prove yet. Its measure counts `-1`s in a vector built by `seq-build`, and §9's multiset facts don't cover such a vector. That is a finding against the encoding.
+**Findings so far:**
+- **Brittle:** one of `longest_palindrome_substring`'s outer-loop invariants proves under only 9 of 10 seeds. Its query uses only B17-0's encoding.
+- **Encoding gaps, now closed (D105):**
+  - `trie_insert`'s view of its keys, and `insert`'s use of it, needed a set literal of sequences to compare members by their elements.
+  - `bfs`'s invariant counting the `-1`s in its `dist` vector needed the multiset of a constant `seq-build`.
+- **`bfs` isn't finished, even for bounds:**
+  - **Termination:** its measure stays at least 0 only if the count of `-1`s never goes negative. That needs §9's fact that a sequence's multiset counts each of its elements at least once, which the encoding lacks.
+  - **Its inner loop** needs an invariant that keeps `dist[u]` fixed.
+- **Restated without changing its meaning:** `trie_insert`'s `well_formed` now states a child's length before calling `is_empty` on it. A recursive ghost-fn's own goals can't use its own definition (D61), so `is_empty`'s `requires` couldn't otherwise be shown there.
 
 **How the ports differ from AlgoVeri's Dafny:**
 - **Contracts:** kept, AlgoVeri's u64 constraints included, as `requires`. So §1's `insert` takes `(>= x 0)`.

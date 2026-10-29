@@ -150,6 +150,14 @@ def in_i64(t):
     return f"(and (<= {MIN} {t}) (< {t} {LIM}))"
 
 
+def _walk(x):
+    """Every node of x, itself included."""
+    yield x
+    if isinstance(x, Form):
+        for c in x.items:
+            yield from _walk(c)
+
+
 def _binds(decl):
     """The (name, sort) pairs of an SMT binder list such as "(x!b1 Int) (s!b2 (Array Int Bool))"."""
     out, depth, start = [], 0, 0
@@ -232,34 +240,38 @@ class Gen:
         st.facts += self.type_facts(c, typ)
         return c
 
-    def type_facts(self, t, typ):
+    def type_facts(self, t, typ, lengths=True):
         """Background facts that term t is a value of its type: every i64 fits, and so does
-        every vector or slice length (§9), inside tuples, data values and sequences too."""
+        every vector or slice length (§9), inside tuples, data values and sequences too. Inside
+        a data value only the i64s count, so lengths=False there (D105)."""
         typ = self.ty(typ)
         if typ == C.I64:
             return [in_i64(t)]
         if typ[0] == "tuple":
             T = self.tuple(len(typ) - 1)
-            return [f for i, u in enumerate(typ[1:]) for f in self.type_facts(f"(get.{T}.{i} {t})", u)]
+            return [f for i, u in enumerate(typ[1:]) for f in self.type_facts(f"(get.{T}.{i} {t})", u, lengths)]
         if typ[0] == "data":
             return [f"({self.ok(typ)} {t})"] if self.needs(typ) else []
         if typ[0] not in C.SEQUENCES:
             return []
         srt = self.sort(typ)
-        out = [] if typ[0] == "seq" else [f"(< {fn('len', srt, t)} {LIM})"]
+        out = [] if typ[0] == "seq" or not lengths else [f"(< {fn('len', srt, t)} {LIM})"]
         if self.needs(typ[1]):
             k = self.bound("k")
-            each = self.type_facts(fn("nth", srt, t, k), typ[1])
+            each = self.type_facts(fn("nth", srt, t, k), typ[1], lengths)
             out.append(f"(forall (({k} Int)) (! (=> (and (<= 0 {k}) (< {k} {fn('len', srt, t)})) "
                        f"{each[0] if len(each) == 1 else '(and ' + ' '.join(each) + ')'}) :pattern ({fn('nth', srt, t, k)})))")
         return out
 
     def needs(self, t, seen=()):
-        """Whether a value of type t has facts to be one: an i64 or a vector inside it."""
+        """Whether a value of type t has facts to be one inside it: an i64 there, which must fit.
+        A vector's own length fact is its variable's, not part of what holds it, so a recursive
+        type with a vector field but no i64, such as a trie's node, has no validity predicate
+        guarding its ghost-fns' equations."""
         t = self.ty(t)
-        if t == C.I64 or t[0] in ("vec", "slice"):
+        if t == C.I64:
             return True
-        if t[0] in ("seq", "tuple"):
+        if t[0] in C.SEQUENCES or t[0] == "tuple":
             return any(self.needs(u, seen) for u in C.parts(t))
         if t[0] != "data" or t in seen:
             return False
@@ -286,12 +298,12 @@ class Gen:
             for c, fs in d["ctors"].values():
                 own = [next(types)[1] for _ in fs]
                 for f, u in zip(fs, own):  # a valid value's fields are valid
-                    for fact in self.type_facts(f"({f[1]} x)", u):
+                    for fact in self.type_facts(f"({f[1]} x)", u, False):
                         axioms.append(f"(assert (forall ((x {D})) (! (=> (and ({P} x) ((_ is {c}) x)) {fact}) "
                                       f":pattern (({P} x) ({f[1]} x)))))")
                 xs = [f"(a{j} {f[3]})" for j, f in enumerate(fs)]
                 built = app(c, [f"a{j}" for j in range(len(fs))])
-                facts = [g for j, u in enumerate(own) for g in self.type_facts(f"a{j}", u)]
+                facts = [g for j, u in enumerate(own) for g in self.type_facts(f"a{j}", u, False)]
                 axioms.append(f"(assert ({P} {built}))" if not xs else  # and valid fields build a valid value
                               f"(assert (forall ({' '.join(xs)}) (! (=> (and true {' '.join(facts)}) ({P} {built})) :pattern ({built}))))")
             self.declare(4, {P}, "\n".join(axioms))
@@ -584,10 +596,15 @@ class Gen:
             body, srt = self.expr(a[1].items[2], inner, ghost, guard + (("all", f"({i} Int)"), ("if", rng)))
             ss = self.seq(srt)
             bound = [b for k, d in guard if k == "all" for b in _binds(d)]
+            # A body that doesn't use its index gives every element: the multiset is it, n times.
+            same = not any(isinstance(y, Sym) and y.text == name for y in _walk(a[1].items[2]))
+            counted = lambda r: f"(= {fn('ms', ss, r)} (store ((as const (Array {srt} Int)) 0) {body} {n}))"
             if not bound and self.lifting is None:
                 r = self.fresh("seq", ss)
                 self.fact(st, guard, f"(= {fn('len', ss, r)} {n})")
                 self.fact(st, guard, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")
+                if same:
+                    self.fact(st, guard, counted(r))
                 return r, ss
             # Under binders, a function of them, with its facts at every point where the length
             # is defined; in a ghost-fn's body, an axiom beside its definition.
@@ -596,6 +613,7 @@ class Gen:
             under = guard + (("if", f"(>= {n} 0)"),)
             facts = [wrap(under, f"(= {fn('len', ss, r)} {n})"),
                      wrap(under, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")]
+            facts += [wrap(under, counted(r))] if same else []
             decl = f"(declare-fun {f} ({' '.join(srt for _, srt in bound)}) {ss})"
             if self.lifting is not None:
                 self.lifting.append((None, "\n".join([decl, *(f"(assert {x})" for x in facts)])))
@@ -678,10 +696,14 @@ class Gen:
                 out = f"(ite {test} {body} {out})"
             return out, srt
         if h == "iset-lit":
-            srt = self.tsort(t)
+            srt, es = self.tsort(t), self.tsort(t[1])
+            members = [e(y, w=es)[0] for y in a]
+            if es in self.elems and members:  # sequences are equal by their elements, so members are too (D105)
+                y = self.bound("y")
+                return f"(lambda (({y} {es})) (or {' '.join(self.equal(es, y, m) for m in members)}))", srt
             out = f"((as const {srt}) false)"
-            for y in a:
-                out = f"(store {out} {e(y, w=self.tsort(t[1]))[0]} true)"
+            for m in members:
+                out = f"(store {out} {m} true)"
             return out, srt
         if h == "iset-of":  # D89: a lambda, whose body's goals hold at every member
             decl, inner = self.binders(a[0].items, st)
@@ -693,12 +715,12 @@ class Gen:
             ks, vs = self.tsort(m[1]), self.tsort(m[2])
             if h == "map-lit":
                 out = f"((as const {self.tsort(m)}) {none})"
-                for pair in a:
-                    out = f"(store {out} {e(pair.items[0], w=ks)[0]} ({some} {e(pair.items[1], w=vs)[0]}))"
+                for pair in a:  # a later entry wins
+                    out = self.store(out, ks, e(pair.items[0], w=ks)[0], f"({some} {e(pair.items[1], w=vs)[0]})")
                 return out, self.tsort(m)
             if h == "update":
                 (mt, srt), (k, _), (v, _) = e(a[0]), e(a[1], w=ks), e(a[2], w=vs)
-                return f"(store {mt} {k} ({some} {v}))", srt
+                return self.store(mt, ks, k, f"({some} {v})"), srt
             if h == "lookup":
                 (mt, _), (k, _) = e(a[0]), e(a[1], w=ks)
                 self.goal(st, guard, "BOUNDS", x, f"((_ is {some}) (select {mt} {k}))")
@@ -713,6 +735,13 @@ class Gen:
         ly, ry = f"(select {l} {y})", f"(select {r} {y})"
         body = f"(or {ly} {ry})" if h == "union" else f"(and {ly} {ry})" if h == "inter" else f"(and {ly} (not {ry}))"
         return f"(lambda (({y} {self.tsort(t[1])})) {body})", srt
+
+    def store(self, m, ks, k, v):
+        """Map m with key k mapped to v. A sequence key is one by its elements (D105)."""
+        if ks not in self.elems:
+            return f"(store {m} {k} {v})"
+        y = self.bound("y")
+        return f"(lambda (({y} {ks})) (ite {self.equal(ks, y, k)} {v} (select {m} {y})))"
 
     def arms(self, scrutinee, s, cases):
         """Each arm's test, None where the type has one constructor, and its binders as (name,

@@ -66,9 +66,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted.
 - **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 48 programs to reject, one per rule. The checker agrees with every tier 0 label (PR #30). Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
 - **WP15, the interpreter, reads B17-1** with `--subset 1`: data values, tuples, places, `match`, sets and maps, and `rank`. It runs all 10 accept programs, and shows the fault of each proof reject that has a def or ghost-fn. D102 lets a quantifier range over a finite collection its guard names, so set-based specs such as `is_bst` are checked rather than left unknown.
-- **WP5, the verifier, reads B17-1** with `--subset 1`, encoding it as D89 says, refined by D103.
+- **WP5, the verifier, reads B17-1** with `--subset 1`, encoding it as D89 says, refined by D103 and D105.
   - **Proof labels:** each of the 5 proof rejects fails exactly its labelled goal.
-  - **Accept programs:** the 4 whose proofs are written verify. One of `longest_palindrome_substring`'s invariants proves under 9 of 10 shuffled seeds. Its query uses only B17-0's encoding, and it's recorded as a finding.
+  - **Accept programs:** 7 of the 10 verify. That includes `lca`, `segmenttree_query` and `trie_insert`, whose proofs use D99's `forall` statement and D100's `obtain`. One of `longest_palindrome_substring`'s invariants proves under 9 of 10 shuffled seeds. Its query uses only B17-0's encoding, and it's recorded as a finding.
   - **Soundness fixes that reach B17-0:** a review found two ways the verifier proved `false`, in B17-0 too. One was a recursive ghost-fn's equation holding outside its parameter types. The other was a `seq-build` under a quantifier being one constant. Both are fixed (D103).
   - **B17-0's suite is unchanged:** every one of its 511 queries is byte-identical, so no suite proof relied on either hole.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
@@ -87,10 +87,10 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28, and D102–D104, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D101 were accepted on 2026-10-28, and D102–D105, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D104 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. What's left is to finish six accept programs' proofs: the D99 and D100 steps of three, and the correctness of `bfs`, `kruskal` and `coin_change`.
+1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D105 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. Seven of its ten accept programs verify. What's left is the proofs of `bfs`, `coin_change` and `kruskal`: `bfs` still needs its bounds and termination, and all three need correctness. `kruskal`'s minimum-weight claim needs an exchange argument, and may prove impractical.
 2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
@@ -114,7 +114,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99, D100 and D102–D104 accepted. The checker agrees with every tier 0 label, so it can freeze. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99, D100 and D102–D105 accepted. The checker agrees with every tier 0 label, so it can freeze. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.

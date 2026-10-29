@@ -1563,3 +1563,57 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none. Interface 10's text is unchanged.
 - **Proofs and tests added:** the deep-value run and the two ordering cases in `test_interp.py`.
 - **Left admitted:** none.
+
+## 2026-10-29 · Three of B17-1's remaining proofs, and D105 proposed
+- **Asked by the owner:** finish the six accept programs' proofs, starting with the three that need one D99 or D100 step.
+- **`lca`:** all 69 goals prove.
+  - **Three induction lemmas:**
+    - `holds_view`: `holds` agrees with `view`.
+    - `facts`: `spec_get_subtree` finds a node, and `spec_get_depth` a depth, exactly when the tree holds the value. The node has that value, and the depth is at least 0.
+    - `sub_in`: whatever a found subtree holds, the tree holds.
+  - **D99:** `forall` statements apply them at every value, for the node, both children, `p` and `q`. `find`'s four returns then prove that the result is a common ancestor no other is deeper than.
+- **`segmenttree_query`:** all 68 goals prove. Each recursive result's ∃ in its `ensures` is named with D100's `obtain`, and an `assert` gives the parent's map at that key. The leaf case's witness is `ql` itself.
+- **`trie_insert`:** all 100 goals prove under every one of the 10 seeds.
+  - **Lemmas:**
+    - `wf_body` and `wf_from_body`: well-formedness after a child is replaced, proved in two steps.
+    - `wf_same`: well-formedness after the children are moved to a new node.
+    - `view_at` and `view_end`: per key, which keys the new node holds, applied at every key with D99.
+  - **Why so many:** `well_formed` nests `is_empty`'s quantifier inside its own. Unfolding it against a negated goal cost 17–38M units, so each proof concludes from its body through `wf_from_body`, and every brittle goal along the way was split so.
+  - **Restated with the same meaning:** `well_formed` states a child's length before calling `is_empty` on it. A recursive ghost-fn's own goals can't use its definition (D61), so `is_empty`'s `requires` couldn't otherwise be shown there.
+- **D105, proposed:** three refinements of D103, each needed by a proof.
+  - **Literals of sequences** compare members by their elements, as `==` does. Without this, `(iset-lit (drop key 0))` and `(iset-lit key)` couldn't be proved equal, nor `trie_insert`'s view.
+  - **A constant `seq-build`** counts its body `n` times. `bfs`'s invariant on entry needed it.
+  - **The validity predicate covers only `i64`s,** not vector lengths. With them, the trie's `node` got one, and guarding `well_formed`'s equation by it made well-formedness of a newly built node unprovable. Soundness is unchanged, since the guard still matches the facts each termination proof used.
+- **B17-0 unchanged:** all 511 of its queries are byte-identical, and the seven written B17-1 proofs and five proof labels check as before.
+- **Mutants:** breaking each new proof in one place, whether in a return, a recursive call's arguments, or a missing `forall` or `obtain`, leaves its goal unproved.
+- **Not yet:**
+  - **`bfs`:** its bounds need an invariant keeping `dist[u]` fixed in the inner loop, and §9's fact that a sequence's multiset counts each element at least once, which the encoding lacks.
+  - **`coin_change` and `kruskal`:** correctness, still to do.
+- **Codex review:** one finding, fixed. The validity predicate still included a vector field's length when its type also held an unrelated `i64`, against D105. So a goal about a value built from a vector whose length nothing bounded didn't prove. Field facts inside a data value now leave lengths out at every depth, and the case is in `test_verify.py`. Codex also confirmed:
+  - nothing proves a false claim;
+  - sequence literals and array equality agree;
+  - a zero-length constant `seq-build` gets the empty multiset, and a negative one still fails `BOUNDS`;
+  - the three programs' specs are unchanged, and `well_formed`'s added conjunct is redundant;
+  - every goal of the three proves under three shuffled seeds of its own.
+- **Ponytail review:** nothing to cut. The new helpers are `store` for sequence-keyed maps, `_walk`, and the `lengths` flag, and each has more than one use.
+- **`test_interp.py`:** `segmenttree_query`'s and `trie_insert`'s expected unchecked clauses now include their proof `assert`s, which read an `obtain`'s witness or quantify over sequences. The run can evaluate neither (§8).
+- **Updated:** `docs/b17-1.md` §9 and §14; `suite/README.md`'s proof table and findings; the roadmap's WP5 status, decisions waiting and next steps.
+- **Interfaces touched:** interface 11 v0.2, as D105 refines it.
+- **Proofs and tests added:**
+  - the three proofs;
+  - in `test_verify.py`: the seven verified programs, D105's literal and map cases, and the constant `seq-build`'s counts.
+- **Left admitted:** none.
+
+## 2026-10-29 · D105 accepted
+- **The owner accepted D105:** literals of sequences compare by elements, a constant `seq-build` counts its body `n` times, and validity covers only `i64`s.
+- **Headings:**
+  - D103 now records that D105 refines it;
+  - D61 records it too, since the constant `seq-build`'s count is a fact about sequences and holds in B17-0;
+  - D105's own heading and its B17-0 note say the same.
+- **Updated:**
+  - **`docs/b17-1.md`:** the status line, §9's encoding heading and §14.
+  - **The roadmap:** the WP5 status, decisions waiting, next steps and B17-1 row.
+  - **The README:** the WP5 row, which now counts the verified accept programs, and interface 11's line.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_verify.py` already covers D105.
+- **Left admitted:** none.

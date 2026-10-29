@@ -611,7 +611,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
 - **Touches:** D42; `docs/b17-0.md` §10; `suite/accept/` `fib`, `power`, `sum` and `prefix_sums`; the ported-ranges table in `suite/README.md`; WP10.
 
-## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103)
+## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103 and D105)
 - **Date:** 2026-10-27
 - **Decision:** for WP5 and interface 11, and replacing §9's line "vectors, slices and seqs become SMT sequences":
   - **Sequences:** vectors, slices and seqs are an uninterpreted sort per element type, and §9's background facts, with triggers, are their only axioms. SMT-LIB's sequence theory isn't used.
@@ -1337,7 +1337,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Enumerating whole types:** booleans and tuples of them are finite, but data and sequence types aren't, and a bound read off the guard covers what the suite needs.
 - **Touches:** D57; D58; D80; WP15; `docs/b17-1.md` §8.
 
-## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89)
+## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89; refined by D105)
 - **Date:** 2026-10-29
 - **Decision:** WP5 implements interface 11 v0.2 as D89 says, with four changes.
   - **A datatype per instance:** each instance of a data type, such as `(option int)` or `(option node)`, is a monomorphic SMT datatype, not one parametric datatype per data item. Instances are keyed by their sorts, so `i64` is `int` and vectors and slices are sequences. An instance is declared together with the instances it refers to and that refer back to it, as `node` and `(option node)` do. Tuples stay one parametric datatype per arity.
@@ -1414,3 +1414,16 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The command line:** `rust.py --subset 1 --run` prints what `interp.py --subset 1` prints, with the same exit code.
 - **Why:** the same as D97's. Places and data values add failures at new nodes, `FIELD` among them, and a new order of evaluation, which only whole texts compare.
 - **Touches:** D97; D101; D104; D110; WP7; `.github/workflows/check.yml`.
+
+## D105 · Literals of sequences compare by elements, and other refinements of D103 · Accepted (refines D61 and D103)
+- **Date:** 2026-10-29
+- **Decision:** three refinements of D103's encoding, each found while finishing the suite's proofs.
+  - **Literals of sequences:** a set literal whose elements are sequences is a lambda. Its members are the sequences equal to one of its elements, compared by length and elements as `==` compares sequences. A map literal or `update` with sequence keys matches a key the same way. Literals of other element types keep D103's stores.
+  - **A constant `seq-build`:** when a `seq-build`'s body doesn't use its index, every element is the body. So its multiset is the body counted `n` times, and the verifier says so.
+  - **Validity covers `i64`s only:** D103's validity predicate says a data value's `i64`s fit, through tuples and sequences, and no longer says its vectors' lengths fit. A data type with no `i64` inside, such as a trie's `node`, has none, and its recursive ghost-fns' equations aren't guarded by one. A vector parameter still has its own length fact, as in B17-0.
+- **Why:**
+  - **Literals:** a store keyed by an SMT sequence term holds that term, but sequences are equal by their elements. So `(iset-lit (drop key 0))` and `(iset-lit key)` couldn't be proved equal, and `trie_insert`'s view of its keys couldn't be proved at all. With members compared by elements, both prove.
+  - **Constant `seq-build`:** `bfs` counts the `-1`s in a vector built by `(seq-build n (fn (j) -1))`. §9's multiset facts cover only empty, one-element and concatenated sequences, so the count had no value. With this fact, its invariant holds on entry.
+  - **Validity:** guarding a recursive ghost-fn's equation by a vector-length fact made `trie_insert`'s `well_formed` unprovable on a newly built node, since showing a node valid meant proving a quantified fact about its vector. The guard has to match only the facts the ghost-fn's termination proof used. Those now leave out lengths inside data values, so soundness is unchanged.
+- **B17-0:** the constant `seq-build`'s count is a fact about sequences, so it holds in B17-0 too, refining D61. The other two refinements are B17-1's alone, since B17-0 has no sets, maps or data values. All 511 of B17-0's suite queries are byte-identical, since its one `seq-build` uses its index.
+- **Touches:** D61; D89; D103; WP5; `docs/b17-1.md` §9; `suite/b17-1/accept/`.
