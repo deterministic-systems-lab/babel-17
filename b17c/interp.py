@@ -1,10 +1,12 @@
-"""B17-0's reference interpreter (docs/b17-0.md §8, D28, D56-D59).
+"""The reference interpreter: B17-0's (docs/b17-0.md §8, D28, D56-D59), and B17-1's with
+--subset 1 (docs/b17-1.md §8, D101).
 
-    uv run --no-project b17c/interp.py [--check] [--fuel N] FILE NAME ARG...
+    uv run --no-project b17c/interp.py [--subset 1] [--check] [--fuel N] FILE NAME ARG...
 
-runs the def NAME in FILE on the ARGs, each a closed B17-0 expression such as 5 or
-(seq-lit 1 2 3), and prints the run's trace and outcome in interface 10's text form
-(D56). It exits 0 on ok, 1 on any other outcome, and 2 when the run can't start.
+runs the def NAME in FILE on the ARGs, each a closed expression such as 5,
+(seq-lit 1 2 3) or, in B17-1, (some 5), and prints the run's trace and outcome in
+interface 10's text form (D56). It exits 0 on ok, 1 on any other outcome, and 2 when the
+run can't start.
 
 run() assumes the program passes tier 0 (WP3). With check=False it is §8: ghost code is
 erased. With check=True it also evaluates contracts, invariants, measures, asserts,
@@ -21,6 +23,7 @@ from pathlib import Path
 from syntax import Form, Int, ParseError, Str, Sym, _head, _print, parse, parse_expr
 
 CORE = parse((Path(__file__).parent / "core.b17").read_bytes())
+CORE1 = parse((Path(__file__).parent / "core1.b17").read_bytes(), 1)  # B17-1's option (docs/b17-1.md §9)
 MIN, MAX = -2**63, 2**63 - 1
 FUEL, DEPTH = 1_000_000, 1_000  # D59: steps per run, and nested def and ghost-fn calls
 
@@ -41,10 +44,68 @@ class Multiset:
 
     @staticmethod
     def of(counter):
-        return Multiset(tuple(sorted(counter.items())))
+        return Multiset(tuple(sorted(counter.items(), key=lambda c: _key(c[0]))))
 
     def count(self, x):
         return dict(self.counts).get(x, 0)
+
+
+@dataclass(frozen=True)
+class Tup:
+    """A B17-1 tuple. Sequences and vectors are Python tuples."""
+    items: tuple
+
+
+@dataclass(frozen=True)
+class Data:
+    """A data value: its constructor's name and its fields' values, in order."""
+    ctor: str
+    fields: tuple
+
+
+class Map(dict):
+    """A ghost map, never changed once built, so it can be hashed and compared as a value."""
+
+    def __hash__(self):
+        return hash(frozenset(self.items()))
+
+
+class _Undecided(Exception):
+    """Comparing or hashing a set kept as its predicate, which only membership can read (§8)."""
+
+
+class Pred:
+    """A set built by iset-of, kept as its membership test, which gives a bool or UNKNOWN.
+    Equality with it is unknown, and so is any value holding it in a set, map or multiset."""
+
+    def __init__(self, test):
+        self.test = test
+
+    def __eq__(self, other):
+        raise _Undecided
+
+    def __hash__(self):
+        raise _Undecided
+
+
+# Finite sets are frozensets.
+
+
+def _key(v):
+    """An order on values of one type, so that equal collections are built and printed alike."""
+    if isinstance(v, int):
+        return v
+    if isinstance(v, Data):
+        return (v.ctor, *map(_key, v.fields))
+    if isinstance(v, Tup):
+        return tuple(map(_key, v.items))
+    if isinstance(v, Multiset):
+        return tuple((_key(x), n) for x, n in v.counts)
+    if isinstance(v, frozenset):
+        return tuple(sorted(map(_key, v)))
+    if isinstance(v, Map):
+        return tuple(sorted((_key(k), _key(x)) for k, x in v.items()))
+    return tuple(map(_key, v))
 
 
 @dataclass(frozen=True)
@@ -114,12 +175,13 @@ class Unchecked:
     node: Node
 
 
-def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH):
+def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH, subset=0):
     """Run the def name of module (a tree, or source text) on args per §8, or with check=True
-    with its contracts evaluated too (D57). Args are bools, ints and tuples (or lists)."""
+    with its contracts evaluated too (D57). Args are bools, ints, tuples (or lists) for
+    sequences, and in B17-1 Tups and Datas."""
     if not isinstance(module, Form):
-        module = parse(module)
-    p = _Program(module)
+        module = parse(module, subset)
+    p = _Program(module, subset)
     fn = p.fns.get(name)
     if fn is None or fn.kind != "def":
         raise ValueError(f"no def named {name!r}")
@@ -127,11 +189,11 @@ def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH):
     if len(args) != len(fn.params):
         raise ValueError(f"{name} takes {len(fn.params)} argument{'' if len(fn.params) == 1 else 's'}, "
                          f"got {len(args)}")
-    for a, t, param in zip(args, fn.types, fn.params):
-        if not _fits(a, t):
-            raise ValueError(f"argument {param}: {_term(a)} is not a value of type {_print(t)}")
     r = _Run(p, check, fuel, depth)
     with _deep(depth):
+        for a, t, param in zip(args, fn.types, fn.params):
+            if not p.fits(a, t, {}):
+                raise ValueError(f"argument {param}: {_term(a)} is not a value of type {_print(t)}")
         try:
             out = Ok(r.invoke(fn, args, fn.item))
         except _Stop as e:
@@ -141,10 +203,10 @@ def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH):
     return replace(out, trace=tuple(r.trace), unchecked=tuple(r.unchecked))
 
 
-def value(module, text):
-    """The value of a closed B17-0 expression, such as a command-line argument, in ghost context."""
-    tree = parse_expr(text)
-    r = _Run(_Program(module), True, FUEL, DEPTH)
+def value(module, text, subset=0):
+    """The value of a closed expression, such as a command-line argument, in ghost context."""
+    tree = parse_expr(text, subset)
+    r = _Run(_Program(module, subset), True, FUEL, DEPTH)
     with _deep(DEPTH):
         try:
             v = r.eval(tree, {}, True)
@@ -175,7 +237,7 @@ def text_of(out):
 
 
 def _term(v):
-    """A value as a B17-0 term."""
+    """A value as a term."""
     if v is True or v is False:
         return "true" if v else "false"
     if isinstance(v, int):
@@ -184,6 +246,14 @@ def _term(v):
         return "(" + " ".join(["seq-lit"] + [_term(x) for x in v]) + ")"
     if isinstance(v, Multiset):
         return f"(multiset {_term(tuple(x for x, n in v.counts for _ in range(n)))})"
+    if isinstance(v, Tup):
+        return "(" + " ".join(["tuple"] + [_term(x) for x in v.items]) + ")"
+    if isinstance(v, Data):
+        return "(" + " ".join([v.ctor] + [_term(x) for x in v.fields]) + ")"
+    if isinstance(v, frozenset):
+        return "(" + " ".join(["iset-lit"] + [_term(x) for x in sorted(v, key=_key)]) + ")"
+    if isinstance(v, Map):
+        return "(" + " ".join(["map-lit"] + [f"({_term(k)} {_term(v[k])})" for k in sorted(v, key=_key)]) + ")"
     return "unknown"
 
 
@@ -191,14 +261,30 @@ def _value(a):
     return tuple(_value(x) for x in a) if isinstance(a, (list, tuple)) else a
 
 
-def _fits(v, t):
-    """Whether v is a value of the runtime or ghost type t."""
-    if isinstance(t, Sym):
-        if t.text == "bool":
-            return type(v) is bool
-        return type(v) is int and (t.text == "int" or MIN <= v <= MAX)
-    inner = t.items[1].items[1] if t.items[0].text == "ref" else t.items[1]
-    return type(v) is tuple and all(_fits(x, inner) for x in v)
+def _rank(v):
+    """A data value's height (§8): 0 with no data value directly inside it, and otherwise one
+    more than the greatest rank among those, which its fields reach through tuples and sequences."""
+    r, todo = 0, list(v.fields)
+    while todo:
+        x = todo.pop()
+        if isinstance(x, Data):
+            r = max(r, _rank(x) + 1)
+        elif isinstance(x, Tup):
+            todo += x.items
+        elif isinstance(x, tuple):
+            todo += x
+    return r
+
+
+def _not(p):
+    return UNKNOWN if p is UNKNOWN else not p
+
+
+def _and(p, q):
+    """Three-valued and, for set operations on predicates, which evaluate both sides."""
+    if p is False or q is False:
+        return False
+    return UNKNOWN if p is UNKNOWN or q is UNKNOWN else True
 
 
 @contextmanager
@@ -248,15 +334,20 @@ def _types(params):
 
 
 class _Program:
-    """A module's runnable items, with the core library's, and the ID of every node (D56)."""
+    """A module's runnable items and data types, with the core library's, and the ID of every node (D56)."""
 
-    def __init__(self, module):
+    def __init__(self, module, subset=0):
         self.fns, self.ids, specs, defs = {}, {}, {}, {}
-        for m in (CORE, module):
+        self.sub, self.datas, self.ctors = subset, {}, {}  # data name -> item; constructor -> (item, field names)
+        for m in (CORE, CORE1, module) if subset else (CORE, module):
             for item in m.items[3:]:
                 kind, name = item.items[0].text, item.items[1].text
                 self._index(item, f"{kind} {name}", ())
-                if kind == "spec":
+                if kind == "data":
+                    self.datas[name] = item
+                    for c in item.items[3:]:
+                        self.ctors[c.items[0].text] = (item, _names(c.items[1:]))
+                elif kind == "spec":
                     specs[name] = item
                 elif kind == "def":
                     defs[name] = item
@@ -289,6 +380,29 @@ class _Program:
         item, path = self.ids.get(id(x), ("argument", ()))
         return Node(item, path, x.pos)
 
+    def fits(self, v, t, params):
+        """Whether v is a value of the type t, a spec's parameter type, whose type parameters
+        params maps to their (type, params) (§3)."""
+        if isinstance(t, Sym) and t.text in params:
+            return self.fits(v, *params[t.text])
+        if isinstance(t, Sym) and t.text == "bool":
+            return type(v) is bool
+        if isinstance(t, Sym) and t.text in ("int", "i64"):
+            return type(v) is int and (t.text == "int" or MIN <= v <= MAX)
+        h, args = (t.text, ()) if isinstance(t, Sym) else (t.items[0].text, t.items[1:])
+        if h == "tuple":
+            return type(v) is Tup and len(v.items) == len(args) and all(self.fits(x, u, params)
+                                                                        for x, u in zip(v.items, args))
+        if h in ("vec", "seq", "ref"):
+            inner = args[0].items[1] if h == "ref" else args[0]
+            return type(v) is tuple and all(self.fits(x, inner, params) for x in v)
+        item = self.datas.get(h)
+        if item is None or type(v) is not Data or self.ctors.get(v.ctor, (None,))[0] is not item:
+            return False
+        inner = {a.text: (u, params) for a, u in zip(item.items[2].items, args)}
+        (c,) = [c for c in item.items[3:] if c.items[0].text == v.ctor]
+        return all(self.fits(x, f.items[1], inner) for x, f in zip(v.fields, c.items[1:]))
+
 
 class _Stop(Exception):
     """Ends a run with an outcome other than ok."""
@@ -305,7 +419,8 @@ class _Unbound(Exception):
         self.name, self.node, self.why = name, node, why
 
 
-# Running. Values are bools, ints, tuples (sequences) and Multisets; UNKNOWN only in ghost code.
+# Running. Values are bools, ints, tuples (sequences) and Multisets, and in B17-1 Tups, Datas,
+# Maps, frozensets and Preds (sets); UNKNOWN only in ghost code.
 # Expressions are evaluated with g, true in ghost context: integers are unbounded there and a
 # failed goal is a contract outcome, while in runtime context integers are i64 and a failed
 # goal is err. Recursive paths avoid generator calls, which would use C stack (D59).
@@ -319,6 +434,7 @@ class _Run:
         self.memo = {}       # (ghost-fn name, args) -> value; ghost-fns are pure
         self.active = set()  # (ghost-fn name, args) of the ghost-fn calls in progress
         self.clause = None   # the clause being evaluated, to which a failure inside it belongs
+        self.exprs = _EXPRS | _EXPRS_1 if program.sub else _EXPRS  # B17-0 may name a ghost-fn union (D101)
 
     def tick(self, x):
         self.fuel -= 1
@@ -364,21 +480,40 @@ class _Run:
             if isinstance(it[1], Form):  # (let ((x T) ...) (call f e*)), one name per result (D43)
                 for p, v in zip(it[1].items, self.call(it[2], env)):
                     env[p.items[0].text] = v
+            elif _head(it[3]) == "replace":  # (let x T (replace p e)): p's old value, with e left in its place
+                x = it[3]
+                root, steps = self.place(x.items[1], env)
+                v, old = self.eval(x.items[2], env, False), []
+                env[root] = self.put(env[root], steps, lambda o: old.append(o) or v)
+                env[it[1].text] = old[0]
             else:
                 env[it[1].text] = self.eval(it[3], env, False)
         elif h == "set":
             env[it[1].text] = self.eval(it[2], env, False)
         elif h == "set-idx":
+            root, steps = self.place(it[1], env)
             i, v = self.eval(it[2], env, False), self.eval(it[3], env, False)
-            old = env[it[1].text]
-            if not 0 <= i < len(old):
-                self.fail("BOUNDS", s, f"(set-idx {it[1].text} {i} ...) on a vector of length {len(old)}", False)
-            env[it[1].text] = old[:i] + (v,) + old[i + 1:]
+
+            def store(old):
+                if not 0 <= i < len(old):
+                    self.fail("BOUNDS", s, f"(set-idx {_print(it[1])} {i} ...) on a vector of length {len(old)}", False)
+                return old[:i] + (v,) + old[i + 1:]
+            env[root] = self.put(env[root], steps, store)
         elif h == "push":
+            root, steps = self.place(it[1], env)
             v = self.eval(it[2], env, False)
-            env[it[1].text] = env[it[1].text] + (v,)
+            env[root] = self.put(env[root], steps, lambda old: old + (v,))
         elif h == "if":
             return self.stmt(it[2] if self.eval(it[1], env, False) else it[3], env)
+        elif h == "match":
+            return self.stmt(self.arm(s, self.eval(it[1], env, False), env), env)
+        elif h == "forall":
+            pass  # its binders range over whole types, so the run checks nothing (§8)
+        elif h == "obtain":
+            if self.check:  # the run finds no witness (§8), so the ∃ is unchecked and its binders unknown
+                self.note("ASSERT", it[2], s)
+                for b in it[1].items:
+                    env[b.items[0].text] = UNKNOWN
         elif h == "block":
             return self.block(it[1:], env)
         elif h == "while":
@@ -404,6 +539,48 @@ class _Run:
             else:
                 env[it[1].text] = self.ghost(it[-1], env)
         return None
+
+    def place(self, p, env):
+        """Place p's root, and its steps from the root out as (form, index), with each index
+        evaluated in source order (§5 rule 3)."""
+        forms = []
+        while isinstance(p, Form):
+            forms.append(p)
+            p = p.items[1]
+        return p.text, [(f, self.eval(f.items[2], env, False) if f.items[0].text == "idx" else None)
+                        for f in reversed(forms)]
+
+    def put(self, v, steps, change):
+        """v with the part at steps replaced by change(part), as a new value (§8)."""
+        if not steps:
+            return change(v)
+        (f, i), rest = steps[0], steps[1:]
+        h = f.items[0].text
+        if h == "idx":
+            if not 0 <= i < len(v):
+                self.fail("BOUNDS", f, f"(idx {_print(f.items[1])} {i}) on a vector of length {len(v)}", False)
+            return v[:i] + (self.put(v[i], rest, change),) + v[i + 1:]
+        if h == "get":
+            k = f.items[2].value
+            return Tup(v.items[:k] + (self.put(v.items[k], rest, change),) + v.items[k + 1:])
+        k = self.slot(v, f, False)
+        return Data(v.ctor, v.fields[:k] + (self.put(v.fields[k], rest, change),) + v.fields[k + 1:])
+
+    def slot(self, v, x, g):
+        """The index in data value v of x's field, where x is (field e F): FIELD if v's constructor lacks it."""
+        names, f = self.p.ctors[v.ctor][1], x.items[2].text
+        if f not in names:
+            self.fail("FIELD", x, f"a {v.ctor} value has no field {f}", g)
+        return names.index(f)
+
+    def arm(self, x, v, env):
+        """The arm of match x for v, with its pattern's names bound to v's parts (§8)."""
+        for c in x.items[2:]:
+            pat = c.items[1]
+            if type(v) is Tup or pat.items[0].text == v.ctor:
+                for name, part in zip(pat.items[1:], v.items if type(v) is Tup else v.fields):
+                    env[name.text] = part
+                return c.items[2]
 
     def loop(self, s, env):
         """§9's while rule, run: invariants on entry and after each normal pass, and a measure
@@ -549,10 +726,13 @@ class _Run:
                 return False
             return self.var(x, env)
         h = x.items[0].text
-        if h in _BINARY:
-            return self.binary(h, x, env, g)
-        method = _EXPRS.get(h)
-        return method(self, x, env, g) if method else self.apply(x, env)
+        try:
+            if h in _BINARY:
+                return self.binary(h, x, env, g)
+            method = self.exprs.get(h) or (_Run.construct if h in self.p.ctors else _Run.apply)
+            return method(self, x, env, g)
+        except _Undecided:  # an operation that compares or hashes a set kept as its predicate (§8)
+            return UNKNOWN
 
     def operands(self, x, env, g):
         """The values of x's operands, left to right, or None if one is unknown."""
@@ -678,7 +858,11 @@ class _Run:
 
     def e_contains(self, x, env, g):
         v = self.operands(x, env, g)
-        return UNKNOWN if v is None else v[1] in v[0]
+        return UNKNOWN if v is None else self.member(*v)
+
+    def member(self, s, y):
+        """Whether y is in sequence s, or in set s, or a key of map s."""
+        return s.test(y) if isinstance(s, Pred) else y in s
 
     def e_multiset(self, x, env, g):
         s = self.eval(x.items[1], env, g)
@@ -695,21 +879,22 @@ class _Run:
         return UNKNOWN if v is None else v[0].count(v[1])  # a sequence's count, or a multiset's
 
     def e_quantifier(self, x, env, g):
-        """forall or exists over the ranges its guard gives its binders, at every point (D58)."""
+        """forall or exists over the ranges its guard gives its binders, at every point (D58, D102)."""
         q, binders, body = x.items[0].text, x.items[1].items, x.items[2]
         names = [b.items[0].text for b in binders]
-        ints = {b.items[0].text for b in binders if b.items[1].text == "int"}
+        ints, bools = ({b.items[0].text for b in binders if _print(b.items[1]) == t} for t in ("int", "bool"))
         if q == "forall":
             guard = body.items[1] if _head(body) == "=>" else None
         else:
             guard = body if _head(body) == "and" else None
         seen = [False, False]  # a point that decides the result; a point or range that's unknown
-        self.points(q == "exists", names, ints, [] if guard is None else _conjuncts(guard), body, dict(env), 0, seen)
+        self.points(q == "exists", names, ints, bools, [] if guard is None else _conjuncts(guard), body, dict(env), 0,
+                    seen)
         if seen[0]:
             return q == "exists"  # forall has a false point, or exists a true one
         return UNKNOWN if seen[1] else q == "forall"
 
-    def points(self, want, names, ints, guard, body, env, k, seen):
+    def points(self, want, names, ints, bools, guard, body, env, k, seen):
         """Evaluate body at every point, fixing the binders in order. Points after the result
         is decided are still evaluated, so that an undefined one is found (D58)."""
         if k == len(names):
@@ -720,24 +905,36 @@ class _Run:
                 seen[0] = True
             return
         x = names[k]
-        values = self.span(x, names[k:], ints, guard, env) if x in ints else (False, True)
+        values = (False, True) if x in bools else self.span(x, names[k:], ints, guard, env)
         if values is None:
             seen[1] = True
             return
         for v in values:
             env[x] = v
-            self.points(want, names, ints, guard, body, env, k + 1, seen)
+            self.points(want, names, ints, bools, guard, body, env, k + 1, seen)
 
     def span(self, x, free, ints, guard, env):
-        """The values the guard allows int binder x, with the binders before it fixed in env:
-        a range, or None if it has no finite bounds (D58). Bounds come only from the guard's
-        leading conjuncts that can't fail, so a point they exclude makes the guard false at
-        a conjunct whose evaluation can't fail, and skipping it hides nothing."""
+        """The values the guard allows binder x, with the binders before it fixed in env: a
+        range or list, or None if it has no finite bounds (D58). Bounds come only from the
+        guard's leading conjuncts that can't fail, so a point they exclude makes the guard
+        false at a conjunct whose evaluation can't fail, and skipping it hides nothing. An int
+        binder is bounded by comparisons, and a binder of any type by membership in a finite
+        collection (D102)."""
         lo = {n: None for n in free if n in ints}
         hi = dict(lo)
         steps = []  # (a, b, gap): a + gap <= b, between binders not yet fixed
+        among = None  # the members x may take, in order
         for c in guard:
             op = _head(c)
+            if op == "contains" and isinstance(c.items[2], Sym) and c.items[2].text in free:
+                s = None if _mentions(c.items[1], free) else self.quiet(c.items[1], env)
+                if not isinstance(s, (tuple, frozenset, Map)):
+                    break  # it might fail, or test membership in a set kept as its predicate, which might
+                if c.items[2].text == x:
+                    among = [v for v in sorted(set(s), key=_key) if among is None or v in among]
+                    if not among:
+                        return range(0)
+                continue
             if op not in _FLIP or len(c.items) != 3:  # not a comparison
                 v = None if _mentions(c, free) else self.quiet(c, env)
                 if v is False:
@@ -777,11 +974,84 @@ class _Run:
                 return range(0)  # no point passes the conjuncts so far, so later ones never run
         if not _settle(lo, hi, steps):
             return range(0)
-        if lo[x] is None or hi[x] is None:
+        if among is not None:
+            return [v for v in among if x not in lo or ((lo[x] is None or lo[x] <= v) and (hi[x] is None or v <= hi[x]))]
+        if x not in lo or lo[x] is None or hi[x] is None:
             return None
         return range(lo[x], hi[x] + 1)
 
-    def apply(self, x, env):
+    # B17-1's expressions (docs/b17-1.md §7, §8).
+
+    def construct(self, x, env, g):
+        v = self.operands(x, env, g)
+        return UNKNOWN if v is None else Data(x.items[0].text, tuple(v))
+
+    def e_match(self, x, env, g):
+        v = self.eval(x.items[1], env, g)
+        return UNKNOWN if v is UNKNOWN else self.eval(self.arm(x, v, env), env, g)
+
+    def e_is(self, x, env, g):
+        v = self.eval(x.items[2], env, g)
+        return UNKNOWN if v is UNKNOWN else v.ctor == x.items[1].text
+
+    def e_field(self, x, env, g):
+        v = self.eval(x.items[1], env, g)
+        return UNKNOWN if v is UNKNOWN else v.fields[self.slot(v, x, g)]
+
+    def e_tuple(self, x, env, g):
+        v = self.operands(x, env, g)
+        return UNKNOWN if v is None else Tup(tuple(v))
+
+    def e_get(self, x, env, g):
+        v = self.eval(x.items[1], env, g)
+        return UNKNOWN if v is UNKNOWN else v.items[x.items[2].value]
+
+    def e_rank(self, x, env, g):
+        v = self.eval(x.items[1], env, g)
+        return UNKNOWN if v is UNKNOWN else _rank(v)
+
+    def e_iset_lit(self, x, env, g):
+        v = self.operands(x, env, g)
+        return UNKNOWN if v is None else frozenset(v)
+
+    def e_iset_of(self, x, env, g):
+        name, body, snap = x.items[1].items[0].items[0].text, x.items[2], dict(env)
+        return Pred(lambda y: self.eval(body, {**snap, name: y}, True))
+
+    def e_map_lit(self, x, env, g):
+        v = [(self.eval(c.items[0], env, g), self.eval(c.items[1], env, g)) for c in x.items[1:]]
+        return UNKNOWN if any(a is UNKNOWN or b is UNKNOWN for a, b in v) else Map(v)  # a later key wins
+
+    def e_sets(self, x, env, g):
+        """union, diff and inter of sets, and union of maps, where the right one's values win."""
+        v = self.operands(x, env, g)
+        if v is None:
+            return UNKNOWN
+        (a, b), h = v, x.items[0].text
+        if isinstance(a, Map):
+            return Map({**a, **b})
+        if isinstance(a, frozenset) and isinstance(b, frozenset):
+            return a | b if h == "union" else a - b if h == "diff" else a & b
+        if h == "union":
+            return Pred(lambda y: _not(_and(_not(self.member(a, y)), _not(self.member(b, y)))))
+        if h == "diff":
+            return Pred(lambda y: _and(self.member(a, y), _not(self.member(b, y))))
+        return Pred(lambda y: _and(self.member(a, y), self.member(b, y)))
+
+    def e_update(self, x, env, g):
+        v = self.operands(x, env, g)
+        return UNKNOWN if v is None else Map({**v[0], v[1]: v[2]})
+
+    def e_lookup(self, x, env, g):
+        v = self.operands(x, env, g)
+        if v is None:
+            return UNKNOWN
+        m, k = v
+        if k not in m:
+            self.fail("BOUNDS", x, f"(lookup m {_term(k)}) of a map without that key", g)
+        return m[k]
+
+    def apply(self, x, env, g=True):
         """A ghost-fn call: its requires, its measure if recursive, then its body, memoized (D57)."""
         name = x.items[0].text
         fn = self.p.fns.get(name)
@@ -829,6 +1099,12 @@ _EXPRS = {
     "msum": _Run.e_msum, "occurrences": _Run.e_occurrences,
     "forall": _Run.e_quantifier, "exists": _Run.e_quantifier,
 }
+_EXPRS_1 = {
+    "match": _Run.e_match, "is": _Run.e_is, "field": _Run.e_field, "tuple": _Run.e_tuple, "get": _Run.e_get,
+    "rank": _Run.e_rank, "iset-lit": _Run.e_iset_lit, "iset-of": _Run.e_iset_of, "map-lit": _Run.e_map_lit,
+    "union": _Run.e_sets, "diff": _Run.e_sets, "inter": _Run.e_sets, "update": _Run.e_update,
+    "lookup": _Run.e_lookup,
+}
 _FLIP = {"<": ">", "<=": ">=", ">": "<", ">=": "<=", "==": "==", "!=": "!="}
 _COMPARE = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge, "==": operator.eq,
             "!=": operator.ne}
@@ -871,6 +1147,9 @@ def _settle(lo, hi, steps):
 
 
 def main(argv):
+    subset = 0
+    if argv[:2] == ["--subset", "1"]:
+        subset, argv = 1, argv[2:]
     check, fuel = False, FUEL
     while argv and argv[0] in ("--check", "--fuel"):
         if argv.pop(0) == "--check":
@@ -880,11 +1159,12 @@ def main(argv):
         else:
             argv = []
     if len(argv) < 2:
-        print("usage: uv run --no-project b17c/interp.py [--check] [--fuel N] FILE NAME ARG...", file=sys.stderr)
+        print("usage: uv run --no-project b17c/interp.py [--subset 1] [--check] [--fuel N] FILE NAME ARG...",
+              file=sys.stderr)
         return 2
     path, name, *exprs = argv
     try:
-        module = parse(Path(path).read_bytes())
+        module = parse(Path(path).read_bytes(), subset)
     except OSError as e:
         print(f"{path}: {e.strerror}", file=sys.stderr)
         return 2
@@ -895,10 +1175,10 @@ def main(argv):
         args = []
         for k, expr in enumerate(exprs, 1):
             try:
-                args.append(value(module, expr))
+                args.append(value(module, expr, subset))
             except ParseError as e:
                 raise ValueError(f"argument {k}:{e}") from None
-        out = run(module, name, args, check=check, fuel=fuel)
+        out = run(module, name, args, check=check, fuel=fuel, subset=subset)
     except ValueError as e:
         print(f"{path}: {e}", file=sys.stderr)
         return 2

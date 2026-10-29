@@ -543,4 +543,216 @@ assert cli(str(SUITE / "accept/abs.b17"), "abs", "(borrow a)") == (2, "", f"{SUI
 assert cli(str(SUITE / "accept/abs.b17"), "nope", "1")[0] == 2
 assert cli(str(SUITE / "accept/abs.b17"))[0] == 2
 
+# B17-1 (docs/b17-1.md §8), with subset=1 (D101).
+D, T = i.Data, i.Tup
+NONE, LEAF = D("none", ()), D("leaf", ())
+
+
+def some(v):
+    return D("some", (v,))
+
+
+def node(v, left=LEAF, right=LEAF):
+    return D("node", (v, left, right))
+
+
+def seg(lo, hi, vals):
+    """A segment tree over vals[lo:hi], as segmenttree_query's is_segment_tree has it."""
+    if hi - lo == 1:
+        return D("node", (vals[lo], lo, hi, NONE, NONE))
+    left, right = seg(lo, (lo + hi) // 2, vals), seg((lo + hi) // 2, hi, vals)
+    return D("node", (max(left.fields[0], right.fields[0]), lo, hi, some(left), some(right)))
+
+
+def trie(*keys):
+    """A trie holding keys, built by hand as trie_insert's well_formed has it."""
+    kids = [NONE] * 256
+    for c in sorted({k[0] for k in keys if k}):
+        kids[c] = some(trie(*[k[1:] for k in keys if k and k[0] == c]))
+    return D("node", (() in keys, tuple(kids)))
+
+
+def m1(*its):
+    return parse(HEAD + "\n" + "\n".join(its) + ")", 1)
+
+
+def f1(params, returns, body, clauses="", effects="", extra=()):
+    return m1(*extra, f"(spec f (params {params}) (returns {returns}) {clauses} (effects {effects}))",
+              f"(def f (body {body}))")
+
+
+def go1(m, *args, check=False, **kw):
+    return i.run(m, "f", args, check=check, subset=1, **kw)
+
+
+BST = node(5, node(2), node(9, node(7)))
+SEG = seg(0, 4, [3, 1, 4, 1])
+NIL = D("nil", ())
+TREE = D("node", (1, D("node", (2, D("node", (4, NIL, NIL)), D("node", (5, NIL, NIL)))), D("node", (3, NIL, NIL))))
+GRAPH = D("graph", (((1,), (2,), (), (0,)),))
+WEIGHTED = D("weighted_graph", (((T((1, 4)), T((2, 1))), (T((0, 4)), T((2, 2))), (T((0, 1)), T((1, 2)))),))
+# Each accept program on inputs its requires allows: ok, and the same with check=False. The
+# clauses left unchecked are those whose quantifiers range over paths, sequences, every int, or
+# the members a ghost-fn's predicate picks out, which no guard bounds (D58, D102).
+ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the first input)
+    "bst_insert": ("insert", [((LEAF, 5), (node(5),)), ((BST, 8), (node(5, node(2), node(9, node(7, LEAF, node(8)))),)),
+                              ((BST, 5), (BST,))], []),
+    "bst_search": ("search", [((LEAF, 5), (False,)), ((BST, 7), (True,)), ((BST, 6), (False,))], []),
+    "discrete_logarithm": ("discrete_log_naive", [((2, 8, 11), (some(3),)), ((2, 3, 7), (NONE,)),
+                                                  ((0, 0, 5), (some(1),)), ((3, 1, 2), (some(0),))], []),
+    "longest_palindrome_substring": ("longest_palindromic_substring", [(((1, 2, 1, 3),), (T((0, 3)),)),
+                                                                        (((),), (T((0, 0)),)),
+                                                                        (((4, 4),), (T((0, 2)),))],
+                                     ["INV-KEEP", "INV-ENTRY", "INV-KEEP", "POST"]),
+    "segmenttree_query": ("query", [((SEG, 1, 3), (4,)), ((SEG, 0, 4), (4,)), ((SEG, 3, 4), (1,))], ["PRE"] * 5),
+    "trie_insert": ("insert", [((NONE, (1, 2)), (trie((1, 2)),)), ((some(trie((5,))), (5, 7)), (trie((5,), (5, 7)),)),
+                               ((some(trie((5,))), ()), (trie((5,), ()),))], ["POST"] * 4),
+    "lca": ("lowest_common_ancestor", [((TREE, 4, 5), (some(2),)), ((TREE, 4, 3), (some(1),)),
+                                       ((TREE, 2, 4), (some(2),))], ["POST"] * 3),
+    "bfs": ("bfs_shortest_path", [((GRAPH, 0, 2), (some(2),)), ((GRAPH, 2, 0), (NONE,)), ((GRAPH, 3, 3), (some(0),))],
+            ["POST"]),
+    "kruskal": ("kruskal_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),))], ["PRE", "PRE", "POST"]),
+    "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))], ["POST"]),
+}
+OUTSIDE_1 = {
+    "bst_insert": [(node(5, node(7)), 1), (LEAF, -1)], "bst_search": [(node(5, LEAF, node(3)), 3)],
+    "discrete_logarithm": [(2, 3, 1), (MAX, 1, 3)], "segmenttree_query": [(SEG, 2, 2), (SEG, 0, 5)],
+    "trie_insert": [(NONE, (256,)), (some(trie()), (1,))], "lca": [(TREE, 4, 6)],
+    "bfs": [(GRAPH, 0, 4), (D("graph", (((5,),),)), 0, 0)], "kruskal": [(D("weighted_graph", ((),)),)],
+    "coin_change": [((), 1), ((0,), 1)],
+}
+assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE / "b17-1/accept").glob("*.b17"))
+for name, (d, cases, left) in ACCEPT_1.items():
+    m = parse((SUITE / f"b17-1/accept/{name}.b17").read_bytes(), 1)
+    for k, (args, want) in enumerate(cases):
+        out = is_ok(i.run(m, d, args, check=True, subset=1), *want)
+        if k == 0:
+            assert [u.kind for u in out.unchecked] == left, (name, i.text_of(out))
+        assert i.run(m, d, args, subset=1) == i.Ok(want, out.trace), (name, args)
+    for args in OUTSIDE_1.get(name, []):
+        assert at_entry(i.run(m, d, args, check=True, subset=1)), (name, args)
+# B17-0's suite runs the same under subset 1: every B17-0 suite program is a B17-1 program.
+for name, cases in ACCEPT.items():
+    m = parse((SUITE / f"accept/{name}.b17").read_bytes(), 1)
+    (d,) = [it.items[1].text for it in items(m, "def")]
+    for args, _ in cases:
+        assert i.run(m, d, args, check=True, subset=1) == i.run(load(f"accept/{name}.b17"), d, args, check=True)
+# ...while a B17-0 program may name a ghost-fn as B17-1 reserves (D101).
+is_ok(go(f("(x i64)", "(r i64)", "(return x)", clauses="(ensures (union x))",
+           extra=["(ghost-fn union ((n int)) bool (body (>= n 0)))"]), 3, check=True), 3)
+
+# The E-PROOF rejects with a def or ghost-fn show their fault on a concrete input. A lemma's body
+# never runs, and a forall statement or obtain checks nothing (§8), so the other two can't.
+REJECT_1 = SUITE / "b17-1/reject"
+swap = parse((REJECT_1 / "E-PROOF-BOUNDS-replace-out-of-range.b17").read_bytes(), 1)
+out = is_err(i.run(swap, "swap_in", ((), 5), subset=1), "BOUNDS")
+assert i.text_of(out) == "err BOUNDS at def swap_in/2.2.3.1@13:27: (idx v 0) on a vector of length 0"
+is_ok(i.run(swap, "swap_in", ((1,), 5), check=True, subset=1), 1, (5,))
+root = parse((REJECT_1 / "E-PROOF-FIELD-wrong-constructor.b17").read_bytes(), 1)
+assert i.text_of(i.run(root, "root", (LEAF,), check=True, subset=1)) == \
+    "err FIELD at def root/2.1.1@12:19: a leaf value has no field val"
+is_ok(i.run(root, "root", (node(4),), subset=1), 4)
+at_two = parse((REJECT_1 / "E-PROOF-BOUNDS-lookup-outside-map.b17").read_bytes(), 1)
+assert i.value(at_two, "(at_two (map-lit (2 7) (2 8)))", 1) == 8  # a later key wins
+try:
+    i.value(at_two, "(at_two (map-lit (1 7)))", 1)
+except ValueError as e:
+    assert "contract BOUNDS ghost-fn at_two/4.1@7:11" in str(e), e
+else:
+    raise AssertionError("looked up a key outside the map")
+
+# §8, one rule at a time. Places: an update builds the new root with one part replaced.
+TRI = "(data tri () (tri (xs (vec i64)) (p (tuple i64 bool))))"
+deep = f1("(a (vec (vec i64))) (t tri)", "(r (vec (vec i64))) (s tri)",
+          "(let-mut v (vec (vec i64)) a) (let-mut u tri t) (set-idx (idx v 1) 0 7) (push (idx v 0) 8)"
+          " (set-idx (field u xs) 0 9) (let y (tuple i64 bool) (replace (field u p) (tuple 4 false))) (return v u)",
+          effects="alloc", extra=[TRI])
+is_ok(go1(deep, ((1,), (2, 3)), D("tri", ((5,), T((6, True))))),
+      ((1, 8), (7, 3)), D("tri", ((9,), T((4, False)))))
+is_err(go1(deep, ((1,),), D("tri", ((5,), T((6, True))))), "BOUNDS")  # (idx v 1) on one element
+assert "(set-idx (field u xs) 0 ...) on a vector of length 0" in \
+    is_err(go1(deep, ((1,), (2,)), D("tri", ((), T((6, True))))), "BOUNDS").detail
+# replace gives the old value and leaves the new one; indices and value run before the check.
+taken = f1("(a (vec i64)) (k i64) (b i64)", "(r i64) (s (vec i64))",
+           "(let-mut v (vec i64) a) (let y i64 (replace (idx v k) (* b 2))) (return y v)")
+is_ok(go1(taken, (1, 2), 1, 5), 2, (1, 10))
+is_err(go1(taken, (1,), 3, MAX), "OVERFLOW")
+is_err(go1(taken, (1,), 3, 1), "BOUNDS")
+# match selects its scrutinee's arm and binds the fields; is and field read them; FIELD is
+# err in runtime code and a contract outcome in ghost code (§8).
+TREE_T = "(data tree () (leaf) (node (val i64) (left tree) (right tree)))"
+total = f1("(t tree)", "(r i64)", "(match t (case (leaf) (return 0)) (case (node v l r) (return (+ v (field l val)))))",
+           extra=[TREE_T])
+is_ok(go1(total, node(3, node(4))), 7)
+is_ok(go1(total, LEAF), 0)
+is_err(go1(total, node(3)), "FIELD")
+peek = f1("(t tree)", "(r bool)", "(return (is node t))", clauses="(ensures (== (field t val) 3))", extra=[TREE_T])
+is_ok(go1(peek, node(3), check=True), True)
+is_contract(go1(peek, LEAF, check=True), "FIELD")
+is_ok(go1(peek, LEAF), False)
+pair = f1("(p (tuple i64 bool))", "(r i64)", "(return (match p (case (tuple a b) (if b a (get p 0)))))")
+is_ok(go1(pair, T((4, True))), 4)
+# rank is height: 0 with no data value inside, else one more than the highest inside, reached
+# through vectors and tuples (§8). (none) is a data value, so flat's rank is 1.
+RANKS = "(data rose () (rose (kids (vec rose)) (pair (tuple i64 (option rose)))))"
+ranked = f1("(t rose)", "(r bool)", "(return true)", clauses="(ensures (== (rank t) 3) (== (rank (none)) 0))", extra=[RANKS])
+flat = D("rose", ((), T((0, NONE))))
+is_ok(go1(ranked, D("rose", ((flat,), T((0, some(D("rose", ((), T((1, NONE))))))))), check=True), True)
+is_contract(go1(ranked, flat, check=True), "POST")
+# Sets and maps are values; a set built by iset-of is its predicate, so equality with it is unknown.
+SETS = ["(== (union (iset-lit 1 2) (iset-lit 2 3)) (iset-lit 3 2 1))", "(== (diff (iset-lit 1 2) (iset-lit 2)) (iset-lit 1))",
+        "(== (inter (iset-lit 1 2) (iset-lit 2 3)) (iset-lit 2))", "(contains (iset-of ((x int)) (> x a)) (+ a 1))",
+        "(not (contains (diff (iset-of ((x int)) (> x a)) (iset-lit (+ a 1))) (+ a 1)))",
+        "(contains (union (iset-lit) (iset-of ((x int)) (== x a))) a)",
+        "(== (map-lit (1 2) (1 3)) (map-lit (1 3)))", "(== (lookup (update (map-lit (1 2)) 1 5) 1) 5)",
+        "(contains (map-lit (1 2)) 1)", "(not (contains (map-lit (1 2)) 2))",
+        "(== (union (map-lit (1 2) (3 4)) (map-lit (1 5))) (map-lit (1 5) (3 4)))",
+        "(== (multiset (seq-lit (some 1) (none) (some 1))) (multiset (seq-lit (none) (some 1) (some 1))))"]
+for clause in SETS:
+    is_ok(go1(f1("(a i64)", "(r i64)", "(return a)", clauses=f"(ensures {clause})"), 5, check=True), 5)
+for clause in ["(== (iset-of ((x int)) (> x a)) (iset-of ((x int)) (> x a)))",
+               "(contains (iset-lit (iset-of ((x int)) true)) (iset-lit))"]:
+    unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses=f"(ensures {clause})"), 5, check=True), "POST")
+# A quantifier ranges over the members of a finite collection its guard puts a binder in, of any
+# type (D102), and otherwise over B17-1's types it's unknown (D58).
+for clause, a, want in [("(forall ((x int)) (=> (contains a x) (> x 0)))", (3, 1), True),
+                        ("(forall ((x int)) (=> (and (contains a x) (< x 3)) (> x 1)))", (3, 1), False),
+                        ("(exists ((x int)) (and (contains a x) (== x 2)))", (3, 1), False),
+                        ("(forall ((s (seq int))) (=> (contains (iset-lit a (seq-lit)) s) (<= (len s) 2)))", (3, 1), True),
+                        ("(forall ((p (tuple int int))) (=> (contains (iset-lit (tuple 1 2)) p) (< (get p 0) (get p 1))))",
+                         (), True)]:
+    claimed = f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures {clause})")
+    if want:
+        is_ok(go1(claimed, a, check=True), True)
+    else:
+        is_contract(go1(claimed, a, check=True), "POST")
+for clause in ["(forall ((s (seq int))) (=> (> (len s) 0) (>= (len s) 1)))",
+               "(forall ((x int)) (=> (contains (iset-of ((y int)) (> y 0)) x) (> x 0)))"]:
+    unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures {clause})"), (), check=True), "POST")
+# ...as in B17-0, whose sequences bound a binder the same way.
+is_contract(go(f("(a (ref (slice i64)))", "(r bool)", "(return true)",
+                 clauses="(ensures (forall ((x int)) (=> (contains a x) (> x 0))))"), (1, 0), check=True), "POST")
+# A forall statement checks nothing. obtain finds no witness, so its ∃ is unchecked, and its
+# binders are unknown to the ghost code that reads them (§8).
+LEMMA = "(lemma pos (params (k int)) (requires (> k 0)) (ensures (> (* k k) 0)) (body))"
+named = f1("(a i64)", "(r i64)", "(forall ((k int)) (call pos k)) (obtain ((k int)) (== k a)) (assert (== k a)) (return a)",
+           extra=[LEMMA])
+unknown(go1(named, 5, check=True), "ASSERT", "ASSERT")
+is_ok(go1(named, 5), 5)
+# Interface 10's text form gains tuples and data values (D56), and run() checks them against the
+# parameter types.
+assert i.text_of(go1(f1("(t (option (tuple i64 bool)))", "(r (option (tuple i64 bool)))", "(return t)"),
+                     some(T((1, False))))) == "ok (some (tuple 1 false))"
+for bad in [some(T((1, 2))), some(T((MAX + 1, True))), D("leaf", ()), T((1, False))]:
+    try:
+        go1(f1("(t (option (tuple i64 bool)))", "(r bool)", "(return true)"), bad)
+    except ValueError as e:
+        assert "is not a value of type (option (tuple i64 bool))" in str(e), e
+    else:
+        raise AssertionError(bad)
+assert cli("--subset", "1", "--check", str(SUITE / "b17-1/accept/bst_search.b17"), "search",
+           "(node 5 (leaf) (node 9 (leaf) (leaf)))", "9") == (0, "ok true\n", "")
+assert cli("--subset", "1", str(SUITE / "b17-1/accept/discrete_logarithm.b17"), "discrete_log_naive", "2", "8", "11") \
+    == (0, "ok (some 3)\n", "")
+
 print("interpreter conformance tests passed")
