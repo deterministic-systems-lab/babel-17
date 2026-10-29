@@ -48,27 +48,31 @@ The labels were first checked by review: by the author, and by an independent mo
 | `bst_insert` | §1's program: data types, `match`, `rank`, allocation | Verified |
 | `bst_search` | A recursive read, which consumes its tree | Verified |
 | `discrete_logarithm` | An optional result | Verified |
-| `longest_palindrome_substring` | A tuple result | Verified, one goal under 9 of 10 seeds |
+| `longest_palindrome_substring` | A tuple result | Verified |
 | `segmenttree_query` | Ghost maps; `replace` on a node's fields | Verified, with D100's `obtain` naming each witness |
 | `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Verified, with D99 applying a lemma at every key |
 | `lca` | `option` throughout | Verified, with D99 applying three induction lemmas at every value |
-| `bfs` | A graph record, nested vectors, a quantifier over paths | Bounds only, not yet proved |
-| `kruskal` | Tuples in a vector | Bounds only, not yet proved |
-| `coin_change` | A quantifier over sequences | Bounds only, not yet proved |
+| `bfs` | A graph record, nested vectors, a quantifier over paths | Verified, with its invariants as folded predicates and each update a lemma |
+| `kruskal` | Tuples in a vector | Bounds only: verified |
+| `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
-- **Bounds only:** the invariants are meant to cover bounds, overflow and termination. Correctness takes D99's `forall` statement and D100's `obtain`, since these proofs quantify over every path, spanning tree or change, and name witnesses.
+- **Bounds only:** every bounds, overflow and termination goal proves, and only the correctness postcondition is open. For `kruskal`, that's that its tree has minimum weight among every spanning tree.
 
 D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
 **Findings so far:**
-- **Brittle:** one of `longest_palindrome_substring`'s outer-loop invariants proves under only 9 of 10 seeds. Its query uses only B17-0's encoding.
 - **Encoding gaps, now closed (D105):**
   - `trie_insert`'s view of its keys, and `insert`'s use of it, needed a set literal of sequences to compare members by their elements.
   - `bfs`'s invariant counting the `-1`s in its `dist` vector needed the multiset of a constant `seq-build`.
-- **`bfs` isn't finished, even for bounds:**
-  - **Termination:** its measure stays at least 0 only if the count of `-1`s never goes negative. That needs §9's fact that a sequence's multiset counts each of its elements at least once, which the encoding lacks.
-  - **Its inner loop** needs an invariant that keeps `dist[u]` fixed.
+- **Bounds that review had missed, now proved:**
+  - **`bfs`:** its measure stays at least 0 only if the count of `-1`s never goes negative. Two lemmas prove, by induction over `take` prefixes, that a count is never negative and that an element counts at least once. Its inner loop also needed invariants keeping `dist[u]` fixed and the queue from shrinking.
+  - **`kruskal`:** the insertion sort's inner loop needed an invariant that `cands` keeps its length.
+- **How the large proofs fit (D106):**
+  - **First attempt:** `bfs`'s first full proof didn't verify. Each of its loop's goals carried some twenty quantified invariants, with `is_path` inlined into each, and Z3 ran out of budget.
+  - **Two changes made it verify.** In B17-1, a non-recursive ghost-fn is folded, so it unfolds only where a proof applies it (D106). And each invariant became a folded predicate, such as `(sorted_q dist queue)`, with each update's effect on it proved by a small lemma.
+  - **`coin_change`** follows the same pattern.
+  - **The old finding is gone:** `longest_palindrome_substring`'s brittle invariant proves under every seed with D106.
 - **Restated without changing its meaning:** `trie_insert`'s `well_formed` now states a child's length before calling `is_empty` on it. A recursive ghost-fn's own goals can't use its own definition (D61), so `is_empty`'s `requires` couldn't otherwise be shown there.
 
 **How the ports differ from AlgoVeri's Dafny:**

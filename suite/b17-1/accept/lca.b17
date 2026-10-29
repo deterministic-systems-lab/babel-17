@@ -116,7 +116,7 @@
               (let ((a (option i64))) (call find l p q))
               (let ((b (option i64))) (call find r p q))
               (if (and (is some a) (is some b))
-                (return (some v))
+                (block (assert (is_common_ancestor t v p q)) (return (some v)))
                 (if (is some a) (return a) (return b))))))))))
   (def lowest_common_ancestor
     (body

@@ -799,9 +799,22 @@ class Gen:
             self.quiet = q
             lifted, self.lifting = self.lifting, None
             ret, pre = self.sort(f.items[3]), f"(and true {' '.join(pre)})"
-            if name not in self.calls(f):
+            if name not in self.calls(f) and not (self.sub and ps):
                 out.extend(lifted)
                 out.append((None, f"(define-fun g!{name} ({' '.join(ps)}) {ret} {body})"))
+                out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
+                return
+            if name not in self.calls(f):
+                # B17-1 (D106): a function with a definition triggered by its applications, not a
+                # macro, so it unfolds only where a proof applies it. Inlined into a quantified
+                # invariant, a body with its own quantifiers multiplies the instantiations of
+                # every query that carries the invariant.
+                sorts = " ".join(p.split(" ", 1)[1][:-1] for p in ps)
+                args = [p[1:].split(" ", 1)[0] for p in ps]
+                out.extend(lifted)
+                out.append((None, f"(declare-fun g!{name} ({sorts}) {ret})\n"
+                                  f"(assert (forall ({' '.join(ps)}) (! (= {app('g!' + name, args)} {body}) "
+                                  f":pattern ({app('g!' + name, args)}))))"))
                 out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
                 return
             # Recursive: its equation holds only under its requires, and the ghost-fn's own goals

@@ -128,7 +128,7 @@ def open_(rows):
 
 # The suite: every written proof verifies, and each proof reject fails only its label's family.
 for name in ("bst_insert", "bst_search", "discrete_logarithm", "longest_palindrome_substring", "lca", "segmenttree_query",
-             "trie_insert"):
+             "trie_insert", "bfs", "coin_change"):
     assert open_(run1((SUITE / "b17-1/accept" / f"{name}.b17").read_text())) == [], name
 for path in sorted((SUITE / "b17-1/reject").glob("E-PROOF-*.b17")):
     assert open_(run1(path.read_text())) == [path.name.split("-")[2]], path.name
@@ -246,5 +246,16 @@ assert open_(run1(H0 + """(spec f (params (n i64)) (returns (r (vec i64))) (requ
 assert open_(run1(H0 + """(data box () (end (tag i64) (xs (vec bool))) (more (next box)))
   (ghost-fn all_ok ((b box)) bool (decreases (rank b)) (body (match b (case (end tag xs) true) (case (more next) (all_ok next)))))
   (lemma l (params (m (map int (vec bool)))) (requires (contains m 0)) (ensures (all_ok (end 0 (lookup m 0)))) (body)))""")) == []
+
+# D106: in B17-1 a non-recursive ghost-fn is a function whose definition its applications trigger,
+# so it unfolds only where a proof applies it; B17-0 keeps its macros, byte for byte.
+FOLD = H0 + """(ghost-fn pos ((s (seq int))) bool (body (forall ((i int)) (=> (and (<= 0 i) (< i (len s))) (> (idx s i) 0)))))
+  (lemma l (params (s (seq int))) (requires (pos s) (> (len s) 0)) (ensures (> (idx s 0) 0)) (body)))"""
+for subset, form in ((0, "(define-fun g!pos "), (1, "(declare-fun g!pos ")):
+    m = parse(FOLD, subset)
+    gen = v.G.Gen(m, subset)
+    g = gen.check(m)[-1]
+    assert form in v.G.query(gen, g[3], g[4], g[0]), subset
+assert open_(run1(FOLD)) == [] and open_(run(FOLD)) == []
 
 print("verifier self-check passed")
