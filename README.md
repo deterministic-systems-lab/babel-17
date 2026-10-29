@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), its parser, hasher and checker agree with every tier 0 label, and its interpreter runs every accept program. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0.
+Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), its parser, hasher and checker agree with every tier 0 label, its interpreter runs every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0.
 
 | WP | What | State |
 |---|---|---|
@@ -26,7 +26,7 @@ Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are d
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. With `--subset 1` it checks B17-1 too, and agrees with every tier 0 label of `suite/b17-1/`. |
 | WP4a | The spec language | Done (D62, D79): B17-0's spec language is WP1a's, and B17-1 adds no data-type invariants or refinement links. |
-| WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. |
+| WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. With `--subset 1` it verifies B17-1 too (D89, D103): its 5 proof rejects fail as labelled, and its accept programs whose proofs are written verify. |
 | WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on the suite, corner cases and generated programs. Its readings are D95–D97, accepted. B17-1 extends it (D79). |
 | WP8 | Agent reference manual | Done for B17-0 ([docs/manual.md](docs/manual.md)): every rule and all 25 error codes with a minimal example, each checked against its stated outcome by `test_manual.py`. |
@@ -85,7 +85,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
 | [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59); B17-1's with `--subset 1` |
 | [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97) |
-| [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels |
+| [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels; B17-1's with `--subset 1` |
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63) |
 | [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8) |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 for M3 (D98) |
@@ -112,7 +112,7 @@ uv run --no-project b17c/test_core.py      # core library: every law confirmed b
 uv run --no-project b17c/test_agent.py     # agent protocol: diagnostics and the five queries (Z3 for the queries that solve)
 uv run --no-project b17c/test_rust.py      # Rust backend: emitted crates compile, and runs match the interpreter (needs rustc)
 uv run --no-project b17c/test_manual.py    # agent manual: every example has its stated outcome, every code has one (Z3 for proofs)
-uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report (needs Z3)
+uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report, B17-1's encoding (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 uv run --no-project gym/test_b17.py        # the harness's B17-0 track: tasks, verdicts, one attempt against a fake CLI (needs Z3)
 ```
@@ -130,6 +130,7 @@ uv run --no-project b17c/interp.py --subset 1 --check suite/b17-1/accept/discret
 uv run --no-project b17c/rust.py --run suite/accept/abs.b17 abs -5       # the same, from emitted Rust: ok 5
 uv run --no-project b17c/rust.py -o abs suite/accept/abs.b17             # the binary; with FILE alone, the Rust it's built from
 uv run --no-project b17c/verify.py suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part
+uv run --no-project b17c/verify.py --subset 1 suite/b17-1/accept/bst_insert.b17   # the same for B17-1
 uv run --no-project b17c/agent.py check suite/reject/E-PROOF-OVERFLOW-unbounded-increment.b17   # diagnostics as JSON, with a counterexample
 uv run --no-project b17c/agent.py explain E-OWN-005                   # a code's rule, with the suite's labelled example
 ```

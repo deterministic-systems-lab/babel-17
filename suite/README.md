@@ -61,9 +61,12 @@ The labels were first checked by review: by the author, and by an independent mo
 - **Needs D100:** one step names the witness of an ∃, which takes D100's `obtain`.
 - **Bounds only:** the invariants cover bounds, overflow and termination. Correctness takes both statements, since these proofs quantify over every path, spanning tree or change, and name witnesses.
 
-D99 and D100 are accepted. The steps that use them are written against WP5 once it reads B17-1, as each fails or passes.
+D99 and D100 are accepted, and WP5 now reads B17-1. The steps that use them are written against it, as each fails or passes. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
-Each proof is finished against WP5 once it extends to B17-1. A proof that fails then is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
+**WP5's verdicts so far:**
+- **The written proofs:** `bst_insert`, `bst_search` and `discrete_logarithm` prove every goal under 10 shuffled seeds (D23).
+- **`longest_palindrome_substring`:** every goal proves, but one of its outer loop's invariants proves under only 9 of 10 seeds. Its query uses only B17-0's encoding. This is a finding.
+- **`bfs`:** its bounds and termination goals don't all prove yet. Its measure counts `-1`s in a vector built by `seq-build`, and §9's multiset facts don't cover such a vector. That is a finding against the encoding.
 
 **How the ports differ from AlgoVeri's Dafny:**
 - **Contracts:** kept, AlgoVeri's u64 constraints included, as `requires`. So §1's `insert` takes `(>= x 0)`.
@@ -78,5 +81,5 @@ Each proof is finished against WP5 once it extends to B17-1. A proof that fails 
 **How the labels are checked:**
 - **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
 - **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 57.
-- **Proof labels:** WP5 checks them once it reads B17-1.
+- **Proof labels:** WP5's verifier, `b17c/verify.py --subset 1`, checks them. Each of the 5 fails exactly its labelled goal.
 - **Runs:** WP15's interpreter runs every accept program on inputs its `requires` allows, with `--subset 1`. It shows the fault of the three proof rejects that have a def or ghost-fn on a concrete input. The other two are lemmas, whose bodies never run (D57), so only WP5 can show theirs.

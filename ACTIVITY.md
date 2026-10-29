@@ -1384,3 +1384,42 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_interp.py` already covers D102.
 - **Left admitted:** none.
+
+## 2026-10-29 · B17-1's verifier (D103 proposed)
+- **`b17c/goals.py` and `b17c/verify.py`** verify B17-1 with `subset=1`, or `--subset 1` on the command line, and B17-0 exactly as before by default (D101).
+  - **B17-0 is byte-identical:** every one of the 511 queries of B17-0's suite and core library is the same as before. The sequence prelude is now a template per element sort, and it reproduces B17-0's prelude exactly.
+  - **The encoding (D89, refined by D103):**
+    - each data-type instance is a datatype, declared together with the instances it refers back to;
+    - tuples are a datatype per arity;
+    - sequences of any element sort get §9's facts;
+    - sets are arrays to `Bool`, with `iset-of`, `union`, `inter` and `diff` as lambdas;
+    - maps are arrays to `option`;
+    - `rank` is a function per data sort, with D89's axioms through tuples and sequence elements.
+  - **New goals:** `FIELD` guards every selector of a type with more than one constructor. Places carry `BOUNDS` for each `idx` and `FIELD` for each `field`, and a map lookup carries `BOUNDS`. `FIELD` counts toward L2's runtime families.
+  - **`match`:** each arm's binders are the scrutinee's selectors, under its constructor's test. Statement arms join as an `if`'s branches do.
+  - **Updates through places:** `set-idx`, `push` and `replace` rebuild the root with one part replaced. Indices run first, then the value, then each step's goal.
+  - **D99's `forall` statement:**
+    - its arguments' goals hold at every point;
+    - a lemma applying itself through one gets ∀x. requires ⇒ its measure drops;
+    - the fact is ∀x. requires ⇒ ensures.
+  - **D100's `obtain`:** its body's goals hold at every point, then ∃x. e is an `ASSERT`, and its names become constants with e assumed.
+  - **Names:** B17-1's sorts, constructors and functions get generated names, which the canonical form renames. Renaming a data type, constructor or field leaves every proof in the cache, and a query declares only what it uses.
+- **`b17c/check.py`:** a `match` statement's scrutinee is now typed when it's a variable. `types()` had left it out, and WP5 needs every expression's type.
+- **The suite:**
+  - **Proof rejects:** all 5 fail exactly their labelled goal.
+  - **Written proofs:** `bst_insert`, `bst_search` and `discrete_logarithm` prove every goal under 10 shuffled seeds.
+  - **Mutants:** breaking a written proof, such as inserting into the wrong subtree or dropping `is_bst` from the `requires`, leaves its goal unproved. So the encoding isn't vacuous.
+- **Findings:**
+  - **`bst_insert` was brittle:** with array maps for set operations, its `is_bst` postcondition proved under 6 of 11 seeds. As lambdas it proves under all 11, using about 2% of the units, so D103 makes them lambdas.
+  - **`longest_palindrome_substring`:** one invariant of its outer loop proves under 9 of 10 shuffled seeds, using up to 7M of the 10M-unit budget. Its query uses only B17-0's encoding, so a B17-0 program could meet the same limit. The program is left without hints, as the suite's rules say.
+  - **`bfs`:** its measure and one invariant count `-1`s in a vector built by `seq-build`. §9's multiset facts don't cover such a vector, so those goals don't prove.
+  - **Not finished:** the correctness proofs of `bfs`, `kruskal` and `coin_change`, and the D99 and D100 steps of `trie_insert`, `lca` and `segmenttree_query`. They come next.
+- **Updated:** the README's status, WP5 row, layout, commands and self-check lines; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s verdicts and checking notes; `docs/b17-1.md` §9 and §14.
+- **Interfaces touched:** interface 11 v0.2, as D103 refines it.
+- **Proofs and tests added:** B17-1's section of `test_verify.py`:
+  - the suite's written proofs and proof labels, and two mutants;
+  - each encoding rule with a passing case and a failing one: `rank`, `FIELD`, tuples, sets, maps, places, `match` statements;
+  - D99 with and without its statement, and a lemma that applies itself;
+  - D100's witness;
+  - cache hits after renaming.
+- **Left admitted:** none.

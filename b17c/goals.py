@@ -353,6 +353,11 @@ class Gen:
         """Constructor name of data type t: its SMT name and fields."""
         return self.data(t)["ctors"][name]
 
+    def option(self, v):
+        """The core library's (option v): its none and some constructors, and some's selector."""
+        (none, _), (some, fs) = self.data(("data", "option", v))["ctors"].values()
+        return none, some, fs[0][1]
+
     def field(self, t, name):
         """Field name of data type t: the SMT constructor that has it, its fields, and the field."""
         return next((c, fs, f) for c, fs in self.data(t)["ctors"].values() for f in fs if f[0] == name)
@@ -501,7 +506,7 @@ class Gen:
                 (s, _), (v, _) = e(a[0]), e(a[1])
                 if self.types[id(a[0])][0] == "iset":
                     return f"(select {s} {v})", "Bool"
-                return f"((_ is {self.ctor(('data', 'option', self.types[id(a[0])][2]), 'some')[0]}) (select {s} {v}))", "Bool"
+                return f"((_ is {self.option(self.types[id(a[0])][2])[1]}) (select {s} {v}))", "Bool"
             (s, srt), (v, _) = e(a[0], w=self.seq(self.sort_of(a[1]))), e(a[1])
             return fn("has", srt, s, v), "Bool"
         if h == "multiset":
@@ -603,7 +608,7 @@ class Gen:
             return f"(lambda ({decl}) {body})", self.tsort(t)
         if h in ("map-lit", "update", "lookup") or (h == "union" and t[0] == "map"):
             m = t if h != "lookup" else self.types[id(a[0])]
-            none, some = (self.ctor(("data", "option", m[2]), k)[0] for k in ("none", "some"))
+            none, some, value = self.option(m[2])
             ks, vs = self.tsort(m[1]), self.tsort(m[2])
             if h == "map-lit":
                 out = f"((as const {self.tsort(m)}) {none})"
@@ -616,7 +621,7 @@ class Gen:
             if h == "lookup":
                 (mt, _), (k, _) = e(a[0]), e(a[1], w=ks)
                 self.goal(st, guard, "BOUNDS", x, f"((_ is {some}) (select {mt} {k}))")
-                return f"({self.ctor(('data', 'option', m[2]), 'some')[1][0][1]} (select {mt} {k}))", vs
+                return f"({value} (select {mt} {k}))", vs
             (l, srt), (r, _) = e(a[0]), e(a[1])  # union: both maps' keys, the right one's value where both have one
             k = self.bound("k")
             return f"(lambda (({k} {ks})) (ite ((_ is {some}) (select {r} {k})) (select {r} {k}) (select {l} {k})))", srt

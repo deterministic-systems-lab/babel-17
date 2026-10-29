@@ -1336,3 +1336,22 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **B17-1 only:** B17-0's spec text says nothing about checking, which D57 and D58 define for the tools. No B17-0 suite program has such a guard, so its outcomes are unchanged, and an agent writing B17-0 gets the same precision.
   - **Enumerating whole types:** booleans and tuples of them are finite, but data and sequence types aren't, and a bound read off the guard covers what the suite needs.
 - **Touches:** D57; D58; D80; WP15; `docs/b17-1.md` §8.
+
+## D103 · How the verifier encodes B17-1, refining D89 · Proposed
+- **Date:** 2026-10-29
+- **Decision:** WP5 implements interface 11 v0.2 as D89 says, with four changes.
+  - **A datatype per instance:** each instance of a data type, such as `(option int)` or `(option node)`, is a monomorphic SMT datatype, not one parametric datatype per data item. Instances are keyed by their sorts, so `i64` is `int` and vectors and slices are sequences. An instance is declared together with the instances it refers to and that refer back to it, as `node` and `(option node)` do. Tuples stay one parametric datatype per arity.
+  - **Set operations are lambdas:** `union`, `inter` and `diff` of sets are lambdas over their arrays, not array maps. Maps' `union` is a lambda too.
+  - **`match` binders are selectors:** in each arm the scrutinee passes its constructor's test, and the binders are its selectors. By the datatype axioms, the scrutinee then equals its constructor applied to them, which is what D89 asks for. Selectors also work in ghost-fn definitions, which are expressions, with no place for fresh constants.
+  - **Equality of values holding sequences:** a tuple or data value that holds a sequence is compared by SMT equality, not by a predicate per sort. A sequence itself is still compared by length and elements.
+- **Unchanged from D89:**
+  - sequences per element sort, with §9's facts;
+  - multisets as count arrays, sets as arrays to `Bool`, and maps as arrays to `option`;
+  - `rank` as a function per data sort with its axioms;
+  - `FIELD` guarding every selector.
+- **Names:** B17-1's sorts, constructors, selectors and functions get generated names, such as `d!3`, `c!4`, `f!5`, `s!6`, `len!6` and `rank!7`. Interface 11's canonical form renames them, so renaming a data type, constructor or field changes no query and keeps every proof in the cache (D63). A query declares only the sorts, datatypes, sequence facts and `rank` axioms its names use, so an edit elsewhere in the module leaves it unchanged.
+- **Why:**
+  - **Per instance:** a type parameter under a sequence, as in `(data stack (a) (stack (items (vec a))))`, would need sequence functions over a parametric sort. SMT-LIB 2.6 can't declare those, so D89's parametric datatypes can't hold such a field. With one datatype per instance, every field has a concrete sort.
+  - **Lambdas:** `bst_insert`'s `is_bst` postcondition proved under 6 of 11 seeds with array maps, and under all 11 with lambdas, using about 2% of the resource units. Z3 reduces a lambda at each `select`.
+  - **SMT equality:** it is sound. Program values that are equal are the same SMT value in the intended model, so assuming SMT equality assumes nothing false. It is incomplete: it can't prove two values equal when their sequences are different terms with the same elements. No suite program compares such values, and the predicate D89 describes can be added when a proof needs it.
+- **Touches:** D63; D89; D92; WP5; interface 11; `docs/b17-1.md` §9.
