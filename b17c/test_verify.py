@@ -242,4 +242,9 @@ assert open_(run1(H0 + """(spec f (params (n i64)) (returns (r (vec i64))) (requ
     (ensures (== (occurrences r -1) n) (== (occurrences r 0) 0)) (effects alloc))
   (def f (body (return (seq-build n (fn (j) -1))))))""")) == []
 
+# Validity says only that a data value's i64s fit, not its vectors' lengths (D105).
+assert open_(run1(H0 + """(data box () (end (tag i64) (xs (vec bool))) (more (next box)))
+  (ghost-fn all_ok ((b box)) bool (decreases (rank b)) (body (match b (case (end tag xs) true) (case (more next) (all_ok next)))))
+  (lemma l (params (m (map int (vec bool)))) (requires (contains m 0)) (ensures (all_ok (end 0 (lookup m 0)))) (body)))""")) == []
+
 print("verifier self-check passed")

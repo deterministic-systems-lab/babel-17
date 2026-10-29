@@ -240,24 +240,25 @@ class Gen:
         st.facts += self.type_facts(c, typ)
         return c
 
-    def type_facts(self, t, typ):
+    def type_facts(self, t, typ, lengths=True):
         """Background facts that term t is a value of its type: every i64 fits, and so does
-        every vector or slice length (§9), inside tuples, data values and sequences too."""
+        every vector or slice length (§9), inside tuples, data values and sequences too. Inside
+        a data value only the i64s count, so lengths=False there (D105)."""
         typ = self.ty(typ)
         if typ == C.I64:
             return [in_i64(t)]
         if typ[0] == "tuple":
             T = self.tuple(len(typ) - 1)
-            return [f for i, u in enumerate(typ[1:]) for f in self.type_facts(f"(get.{T}.{i} {t})", u)]
+            return [f for i, u in enumerate(typ[1:]) for f in self.type_facts(f"(get.{T}.{i} {t})", u, lengths)]
         if typ[0] == "data":
             return [f"({self.ok(typ)} {t})"] if self.needs(typ) else []
         if typ[0] not in C.SEQUENCES:
             return []
         srt = self.sort(typ)
-        out = [] if typ[0] == "seq" else [f"(< {fn('len', srt, t)} {LIM})"]
+        out = [] if typ[0] == "seq" or not lengths else [f"(< {fn('len', srt, t)} {LIM})"]
         if self.needs(typ[1]):
             k = self.bound("k")
-            each = self.type_facts(fn("nth", srt, t, k), typ[1])
+            each = self.type_facts(fn("nth", srt, t, k), typ[1], lengths)
             out.append(f"(forall (({k} Int)) (! (=> (and (<= 0 {k}) (< {k} {fn('len', srt, t)})) "
                        f"{each[0] if len(each) == 1 else '(and ' + ' '.join(each) + ')'}) :pattern ({fn('nth', srt, t, k)})))")
         return out
@@ -297,12 +298,12 @@ class Gen:
             for c, fs in d["ctors"].values():
                 own = [next(types)[1] for _ in fs]
                 for f, u in zip(fs, own):  # a valid value's fields are valid
-                    for fact in self.type_facts(f"({f[1]} x)", u):
+                    for fact in self.type_facts(f"({f[1]} x)", u, False):
                         axioms.append(f"(assert (forall ((x {D})) (! (=> (and ({P} x) ((_ is {c}) x)) {fact}) "
                                       f":pattern (({P} x) ({f[1]} x)))))")
                 xs = [f"(a{j} {f[3]})" for j, f in enumerate(fs)]
                 built = app(c, [f"a{j}" for j in range(len(fs))])
-                facts = [g for j, u in enumerate(own) for g in self.type_facts(f"a{j}", u)]
+                facts = [g for j, u in enumerate(own) for g in self.type_facts(f"a{j}", u, False)]
                 axioms.append(f"(assert ({P} {built}))" if not xs else  # and valid fields build a valid value
                               f"(assert (forall ({' '.join(xs)}) (! (=> (and true {' '.join(facts)}) ({P} {built})) :pattern ({built}))))")
             self.declare(4, {P}, "\n".join(axioms))

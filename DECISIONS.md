@@ -1414,3 +1414,16 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The command line:** `rust.py --subset 1 --run` prints what `interp.py --subset 1` prints, with the same exit code.
 - **Why:** the same as D97's. Places and data values add failures at new nodes, `FIELD` among them, and a new order of evaluation, which only whole texts compare.
 - **Touches:** D97; D101; D104; D110; WP7; `.github/workflows/check.yml`.
+
+## D105 · Literals of sequences compare by elements, and other refinements of D103 · Proposed (refines D103)
+- **Date:** 2026-10-29
+- **Decision:** three refinements of D103's encoding, each found while finishing the suite's proofs.
+  - **Literals of sequences:** a set literal whose elements are sequences is a lambda. Its members are the sequences equal to one of its elements, compared by length and elements as `==` compares sequences. A map literal or `update` with sequence keys matches a key the same way. Literals of other element types keep D103's stores.
+  - **A constant `seq-build`:** when a `seq-build`'s body doesn't use its index, every element is the body. So its multiset is the body counted `n` times, and the verifier says so.
+  - **Validity covers `i64`s only:** D103's validity predicate says a data value's `i64`s fit, through tuples and sequences, and no longer says its vectors' lengths fit. A data type with no `i64` inside, such as a trie's `node`, has none, and its recursive ghost-fns' equations aren't guarded by one. A vector parameter still has its own length fact, as in B17-0.
+- **Why:**
+  - **Literals:** a store keyed by an SMT sequence term holds that term, but sequences are equal by their elements. So `(iset-lit (drop key 0))` and `(iset-lit key)` couldn't be proved equal, and `trie_insert`'s view of its keys couldn't be proved at all. With members compared by elements, both prove.
+  - **Constant `seq-build`:** `bfs` counts the `-1`s in a vector built by `(seq-build n (fn (j) -1))`. §9's multiset facts cover only empty, one-element and concatenated sequences, so the count had no value. With this fact, its invariant holds on entry.
+  - **Validity:** guarding a recursive ghost-fn's equation by a vector-length fact made `trie_insert`'s `well_formed` unprovable on a newly built node, since showing a node valid meant proving a quantified fact about its vector. The guard has to match only the facts the ghost-fn's termination proof used. Those now leave out lengths inside data values, so soundness is unchanged.
+- **Unchanged:** B17-0's queries. All 511 of its suite's queries are byte-identical, since B17-0 has no sets, maps or data values, and its one `seq-build` uses its index.
+- **Touches:** D61; D89; D103; WP5; `docs/b17-1.md` §9; `suite/b17-1/accept/`.
