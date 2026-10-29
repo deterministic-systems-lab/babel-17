@@ -162,13 +162,18 @@ class _Data:
     form: Form
     params: list = field(default_factory=list)  # [str]
     ctors: list = field(default_factory=list)   # [(name Sym, [(field Sym, type)])]
-    fields: dict = field(default_factory=dict)  # field name -> (ctor index, type)
     covariant: list = field(default_factory=list)  # per parameter (§3's variances)
     recursive: bool = False                        # its fields mention it (§5 rule 1)
     boxed: list = field(default_factory=list)      # per constructor: a boxed field, so building one allocates (§6)
-    rt_base: bool = True     # its fields are runtime types, given runtime arguments for rt_params
-    rt_params: set = field(default_factory=set)  # the parameters whose arguments decide that (§3)
-    wf_params: set = field(default_factory=set)  # the parameters whose arguments a vector field needs runtime (§3)
+    # Properties that depend on the type's arguments: each holds when its base does and the arguments
+    # for its parameters do. They are fixed points over the module's types (data_types()).
+    rt_base: bool = True     # runtime (§3)
+    rt_params: set = field(default_factory=set)
+    mv_base: bool = False    # moves (§5 rule 1)
+    mv_params: set = field(default_factory=set)
+    ex_base: bool = True     # exact (D90)
+    ex_params: set = field(default_factory=set)
+    wf_params: set = field(default_factory=set)  # the arguments a vector field needs runtime (§3)
 
 
 @dataclass
@@ -349,6 +354,7 @@ class _Checker:
         """Register a data item's names (D82). Its field types are read in data_types()."""
         name, ps, ctors = it.items[1].text, it.items[2].items, it.items[3:]
         d = self.datas[name] = _Data(name, it)
+        fields = set()
         for a in ps:
             if a.text in d.params or a.text == name:
                 self.report("E-TYPE-002", a, f"type parameter '{a.text}' reuses a type name of its item (D82)")
@@ -364,11 +370,10 @@ class _Checker:
                 self.ctors[cname.text] = (name, i)
             d.ctors.append((cname, []))
             for f in c.items[1:]:
-                if f.items[0].text in d.fields:
+                if f.items[0].text in fields:
                     self.report("E-TYPE-002", f.items[0], f"field '{f.items[0].text}' is already a field of "
                                                           f"{name} (D82)")
-                else:
-                    d.fields[f.items[0].text] = (i, None)
+                fields.add(f.items[0].text)
 
     def data_types(self):
         """Read every data type's field types, then §3's module-wide rules: finite values, no type
@@ -379,10 +384,7 @@ class _Checker:
         for d in self.datas.values():
             for i, c in enumerate(d.form.items[3:]):
                 for f in c.items[1:]:
-                    t = self.well_formed(f.items[1], False, tuple(d.params))
-                    d.ctors[i][1].append((f.items[0], t))
-                    if d.fields.get(f.items[0].text) == (i, None):
-                        d.fields[f.items[0].text] = (i, t)
+                    d.ctors[i][1].append((f.items[0], self.well_formed(f.items[1], False, tuple(d.params))))
         pending, self.pending = self.pending, None
         graph = {}
         for d in self.datas.values():
@@ -422,18 +424,19 @@ class _Checker:
                     if self.unordered_occurrence(t, d.name, False):
                         self.report("E-TYPE-001", f.items[1], f"{d.name} can't contain itself inside an iset, map or "
                                                               f"multiset, which the encoding represents as arrays (docs/b17-1.md §3)")
-        changed = True  # §3's runtime types: which arguments decide it, as a fixed point
-        while changed:
-            changed = False
-            for d in self.datas.values():
-                base, ps = True, set()
-                for _, fs in d.ctors:
-                    for _, t in fs:
-                        ok, need = self.rt_requires(t)
-                        base, ps = base and ok, ps | need
-                ks = {d.params.index(a) for a in ps}
-                if (base, ks) != (d.rt_base, d.rt_params):
-                    d.rt_base, d.rt_params, changed = base, ks, True
+        for prop, req, both in (("rt", self.rt_requires, all), ("mv", self.mv_requires, any),
+                                 ("ex", self.ex_requires, all)):
+            changed = True
+            while changed:
+                changed = False
+                for d in self.datas.values():
+                    rs = [req(t, d.name) for _, fs in d.ctors for _, t in fs]
+                    base = both(ok for ok, _ in rs) or prop == "mv" and d.recursive
+                    ks = {d.params.index(a) for _, ps in rs for a in ps}
+                    if (base, ks) != (getattr(d, prop + "_base"), getattr(d, prop + "_params")):
+                        setattr(d, prop + "_base", base)
+                        setattr(d, prop + "_params", ks)
+                        changed = True
         changed = True  # §3: the arguments a vector field, here or in a type it applies, needs runtime
         while changed:
             changed = False
@@ -441,25 +444,56 @@ class _Checker:
                 ks = {d.params.index(a) for _, fs in d.ctors for _, t in fs for a in self.wf_requires(t)}
                 if ks != d.wf_params:
                     d.wf_params, changed = ks, True
-        for node, t in pending:
-            self.check_app(node, t)
+        for node, t in pending:  # field types' vectors and applications, now every summary is known
+            if t[0] == "vec":
+                if not self.runtime(t[1]):
+                    self.report("E-TYPE-001", node, f"a vector holds a runtime type, and {show(t[1])} is a ghost "
+                                                    f"type (docs/b17-1.md §3)")
+            else:
+                self.check_app(node, t)
 
-    def rt_requires(self, t):
-        """(runtime given runtime parameters, the parameters it depends on) for a field type."""
-        if t in (BOOL, I64, ANY, ERR):
-            return True, set()
+    def summary(self, t, prop, req, both, own, inside_seq=False):
+        """(holds given holding parameters, the parameters it depends on) for a field type of own:
+        prop's base and parameters for a data type, req's rule for anything else."""
         if t[0] == "param":
-            return True, {t[1]}
-        if t[0] in ("vec", "tuple"):
-            rs = [self.rt_requires(a) for a in parts(t)]
-            return all(ok for ok, _ in rs), set().union(*(ps for _, ps in rs))
+            return True if prop != "mv" else False, {t[1]}
         if t[0] == "data" and t[1] in self.datas:
-            d, ok, ps = self.datas[t[1]], self.datas[t[1]].rt_base, set()
-            for k in d.rt_params:
-                a_ok, a_ps = self.rt_requires(parts(t)[k])
-                ok, ps = ok and a_ok, ps | a_ps
-            return ok, ps
+            d = self.datas[t[1]]
+            if prop == "ex" and t[1] == own:  # D90: its own recursion is exact, except through a sequence
+                return not inside_seq, set()
+            rs = [self.summary(parts(t)[k], prop, req, both, own, inside_seq) for k in sorted(getattr(d, prop + "_params"))]
+            return both([getattr(d, prop + "_base")] + [ok for ok, _ in rs]), set().union(*(ps for _, ps in rs))
+        return req(t, own, inside_seq)
+
+    def rt_requires(self, t, own=None, inside_seq=False):
+        """(runtime given runtime parameters, the parameters it depends on) for a field type (§3)."""
+        if t[0] in ("param", "data"):
+            return self.summary(t, "rt", self.rt_requires, all, own)
+        if t in (BOOL, I64, ANY, ERR) or t[0] in ("vec", "tuple"):
+            rs = [self.rt_requires(a, own) for a in parts(t)]
+            return all(ok for ok, _ in rs), set().union(*(ps for _, ps in rs))
         return False, set()  # int, a slice, and the ghost collections
+
+    def mv_requires(self, t, own=None, inside_seq=False):
+        """(moves even with copied arguments, the parameters whose arguments can make it move) (§5 rule 1)."""
+        if t[0] in ("param", "data"):
+            return self.summary(t, "mv", self.mv_requires, any, own)
+        if t[0] == "vec":
+            return True, set()
+        if t[0] == "tuple":
+            rs = [self.mv_requires(a, own) for a in parts(t)]
+            return any(ok for ok, _ in rs), set().union(*(ps for _, ps in rs))
+        return False, set()  # bool, i64, slices, and ghost types, which never move
+
+    def ex_requires(self, t, own=None, inside_seq=False):
+        """(exact given exact parameters, the parameters it depends on) for a field type (D90)."""
+        if t[0] in ("param", "data"):
+            return self.summary(t, "ex", self.ex_requires, all, own, inside_seq)
+        if t in (BOOL, INT, ANY, ERR) or t[0] in ("seq", "iset", "tuple"):
+            seq = inside_seq or t[0] in ("seq", "iset")
+            rs = [self.ex_requires(a, own, seq) for a in parts(t)]
+            return all(ok for ok, _ in rs), set().union(*(ps for _, ps in rs))
+        return False, set()  # i64, vectors, slices, multisets and maps
 
     def wf_requires(self, t):
         """The parameters that must be runtime for a field type to be well-formed (§3)."""
@@ -552,6 +586,9 @@ class _Checker:
         if ERR in inner:
             return ERR
         if head == "vec":
+            if self.pending is not None:  # in a field type: checked once every data type is known
+                self.pending.append((node, ("vec", inner[0])))
+                return ("vec", inner[0])
             if not self.runtime(inner[0]):
                 self.report("E-TYPE-001", args[0], f"a vector holds a runtime type, and {show(inner[0])} is a ghost "
                                                    f"type (docs/b17-1.md §3)")
@@ -589,29 +626,26 @@ class _Checker:
             return d is None or d.rt_base and all(self.runtime(parts(t)[k]) for k in d.rt_params)
         return False  # int, a slice, and the ghost collections
 
-    def moving(self, t, seen=frozenset()):
+    def moving(self, t):
         """§5 rule 1: vectors, recursive data types, and anything holding either, move."""
         if t[0] == "vec":
             return True
         if t[0] == "tuple":
-            return any(self.moving(a, seen) for a in parts(t))
-        if t[0] == "data" and t[1] in self.datas and t not in seen:
-            return self.datas[t[1]].recursive or any(
-                self.moving(ft, seen | {t}) for _, fs in self.fields_of(t) for _, ft in fs)
+            return any(self.moving(a) for a in parts(t))
+        if t[0] == "data" and t[1] in self.datas:
+            d = self.datas[t[1]]
+            return d.mv_base or any(self.moving(parts(t)[k]) for k in d.mv_params)
         return False
 
-    def exact(self, t, seen=frozenset(), via_seq=frozenset()):
+    def exact(self, t):
         """D90: a quantifier binds only a type whose values the encoding represents exactly."""
         if t in (BOOL, INT, ERR, ANY):
             return True
-        if t[0] in ("seq", "iset"):
-            return self.exact(t[1], seen, seen | via_seq)
-        if t[0] == "tuple":
-            return all(self.exact(a, seen, via_seq) for a in parts(t))
+        if t[0] in ("seq", "iset", "tuple"):
+            return all(self.exact(a) for a in parts(t))
         if t[0] == "data" and t[1] in self.datas:
-            if t[1] in seen:
-                return t[1] not in via_seq
-            return all(self.exact(ft, seen | {t[1]}, via_seq) for _, fs in self.fields_of(t) for _, ft in fs)
+            d = self.datas[t[1]]
+            return d.ex_base and all(self.exact(parts(t)[k]) for k in d.ex_params)
         return False  # i64, vectors, slices, multisets and maps
 
     def sub1(self, t, u):
@@ -1063,12 +1097,18 @@ class _Checker:
         got = self.expr(e, False, want=t, own=True)
         if not self.fits(got, t, False):
             self.report("E-TYPE-001", e, f"expected {show(t)}, found {show(got)}")
-        elif t != ERR and isinstance(e, Sym) and self.moving(got) and e.text not in self.quiet:
+        elif t != ERR:
+            self.take(e, got)
+        return got
+
+    def take(self, e, got):
+        """e, of type got, is an owned position's value: a moving variable moves, and a moving
+        value can't come whole out of a place (E-OWN-007)."""
+        if isinstance(e, Sym) and self.moving(got) and e.text not in self.quiet:
             self.moves[e.text] = e
         elif self.sub and got != ERR and self.moving(got) and self.place_read(e):
             self.report("E-OWN-007", e, f"this moves {show(got)} out of a place: take it out with "
                                         f"(let x T (replace place e)) (docs/b17-1.md §5 rule 3)")
-        return got
 
     def place_read(self, e):
         """e reads a part of a variable: (idx p i), (get p K) or (field p F), down to a NAME."""
@@ -1526,11 +1566,8 @@ class _Checker:
         Its type is the caller's to check, once every argument has fixed the type parameters."""
         if own is True and not g:
             got = self.expr(a, False, want=t, own=True)
-            if isinstance(a, Sym) and got != ERR and self.moving(got) and a.text not in self.quiet:
-                self.moves[a.text] = a
-            elif got != ERR and self.moving(got) and self.place_read(a):
-                self.report("E-OWN-007", a, f"this moves {show(got)} out of a place: take it out with "
-                                            f"(let x T (replace place e)) (docs/b17-1.md §5 rule 3)")
+            if got != ERR:
+                self.take(a, got)
             return got
         return self.expr(a, g, want=t, own=own if own == BRANCH else False)
 

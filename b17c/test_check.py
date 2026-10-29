@@ -454,6 +454,16 @@ bad1("E-OWN-006", spec("f", "", "(n i64)"), "(def f (body (return (len (vec-new)
 bad1("E-TYPE-001", "(data d () (c))", "(lemma l (params) (body (forall ((x int)) (call c))))")
 if len(diagnose(module(TREE, spec("consume", "(x tree)", ""), spec("f", "", ""), "(def f (body (call consume (leaf)) (return)))"), 1)) != 1:
     failures.append("a constructor argument's E-OWN-006 was reported twice")
+# Codex's second pass: a field's vector is checked once every type's summary is known, whatever the
+# order; moving and exact are summaries too, so a long chain or a growing cycle needs no expansion.
+bad1("E-TYPE-001", "(data h () (h (v (vec g))))", "(data g () (g (x int)))")
+ok1("(data h () (h (v (vec g))))", "(data g () (g (x i64)))")
+bad1("E-TERM-002", "(data a (t) (ca (x (b (option t)))))", "(data b (t) (cb) (cb2 (y (a (option t)))))")
+ok1("(data nat () (zero) (succ (p nat)))", "(ghost-fn g () bool (body (exists ((r nat)) true)))")
+bad1("E-OWN-001", BOX, spec("f", "(x (box (vec i64)))", "(r (box (vec i64)))"), "(def f (body (let y (box (vec i64)) x) (return x)))")
+ok1(BOX, spec("f", "(x (box i64))", "(r (box i64))"), "(def f (body (let y (box i64) x) (return x)))")
+ok1(*[f"(data d{i} () (z{i}) (n{i} (x d{i + 1})))" for i in range(1100)], "(data d1100 () (z1100))",
+    spec("f", "(x d0)", "(r d0)"), "(def f (body (return x)))")
 # Every B17-0 suite program has the same diagnostics under subset 1.
 for path in sorted(SUITE.glob("*/*.b17")):
     where = lambda subset: [(d.line, d.col, d.code) for d in diagnose(path.read_bytes(), subset)]
