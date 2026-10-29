@@ -932,6 +932,9 @@ EXPECT_1 = [
     ("tuples (tuple 4 true false) (tuple (tuple 2 true) (seq-lit 9) 3 true (dot))", "refused"),
     ("grow (bag (vec-lit) (none)) (seq-lit) 0 1", "refused"),
     ("grow (bag (seq-lit) none) (seq-lit) 0 1", "refused"),
+    ("count (lst 1(none))", "refused"),  # D49: whitespace between a list's elements
+    ("open (box(none) (seq-lit))", "refused"),
+    ("open (box (none) (seq-lit (none)(none)))", "refused"),
     ("area (circ  3)", "ok 9"),
     ("area (circ\t3 )", "ok 9"),
     ("samename (sn 4 true)", "ok (sn 5 false)"),
@@ -940,6 +943,13 @@ EXPECT_1 = [
     ("chain 300 true", "ok 300"),
     ("chain 0 true", "ok 1"),
 ]
+NESTED = "(lst 1 (none))"  # two levels a list, so 64 of them nest 128 deep, as deep as D55 allows
+for _ in range(63):
+    NESTED = f"(lst 1 (some {NESTED}))"
+ODD = "(loop)"  # one level, then two a self, so 64 selfs nest 129 deep
+for _ in range(64):
+    ODD = f"(self 1 (seq-lit {ODD}))"
+EXPECT_1 += [(f"count {NESTED}", "ok 64"), (f"count (lst 0 (some {NESTED}))", "refused"), (f"kw {ODD}", "refused")]
 
 
 class Gen1:

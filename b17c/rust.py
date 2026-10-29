@@ -1030,21 +1030,29 @@ _RT_ARG_1 = r"""    /// Argument k, read as a value of its parameter's type, as 
     }
 
     impl Sx {
-        /// text as one term, with only B17's four whitespace characters around and between its
-        /// parts (D48).
+        /// text as one term, read as the interpreter reads it: only B17's four whitespace
+        /// characters around and between its parts (D48), whitespace between a list's
+        /// elements (D49), and lists at most 128 deep (D55).
         fn read(text: &str) -> Option<Sx> {
             let mut open = vec![Vec::new()];
-            let mut atom = String::new();
+            let (mut atom, mut separated) = (String::new(), true);
             for c in text.chars().chain([' ']) {
                 if matches!(c, ' ' | '\t' | '\n' | '\r' | '(' | ')') && !atom.is_empty() {
                     open.last_mut()?.push(Sx::Atom(std::mem::take(&mut atom)));
+                    separated = false;
                 }
                 match c {
-                    ' ' | '\t' | '\n' | '\r' => {}
-                    '(' => open.push(Vec::new()),
+                    ' ' | '\t' | '\n' | '\r' => separated = true,
                     ')' => {
                         let form = Sx::Form(open.pop()?);
                         open.last_mut()?.push(form);
+                        separated = false;
+                    }
+                    _ if atom.is_empty() && !separated => return None,
+                    '(' if open.len() > 128 => return None,
+                    '(' => {
+                        open.push(Vec::new());
+                        separated = true;
                     }
                     _ => atom.push(c),
                 }
