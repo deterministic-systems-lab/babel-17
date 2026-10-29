@@ -49,7 +49,7 @@
       (let lc (option node) (replace (field m left) (none)))
       (let rc (option node) (replace (field m right) (none)))
       (match lc
-        (case (none) (return top))
+        (case (none) (block (assert (== (lookup (view t) ql) top)) (return top)))
         (case (some a)
           (match rc
             (case (none) (return top))
@@ -57,10 +57,22 @@
               (block
                 (let mid i64 (+ lo (/ (- hi lo) 2)))
                 (if (<= qr mid)
-                  (block (let ((x i64)) (call query a ql qr)) (return x))
+                  (block
+                    (let ((x i64)) (call query a ql qr))
+                    (obtain ((jx int)) (and (and (<= ql jx) (< jx qr)) (== (lookup (view a) jx) x)))
+                    (assert (== (lookup (view t) jx) x))
+                    (return x))
                   (if (>= ql mid)
-                    (block (let ((y i64)) (call query b ql qr)) (return y))
+                    (block
+                      (let ((y i64)) (call query b ql qr))
+                      (obtain ((jy int)) (and (and (<= ql jy) (< jy qr)) (== (lookup (view b) jy) y)))
+                      (assert (== (lookup (view t) jy) y))
+                      (return y))
                     (block
                       (let ((u i64)) (call query a ql mid))
                       (let ((w i64)) (call query b mid qr))
+                      (obtain ((ju int)) (and (and (<= ql ju) (< ju mid)) (== (lookup (view a) ju) u)))
+                      (obtain ((jw int)) (and (and (<= mid jw) (< jw qr)) (== (lookup (view b) jw) w)))
+                      (assert (== (lookup (view t) ju) u))
+                      (assert (== (lookup (view t) jw) w))
                       (if (>= u w) (return u) (return w)))))))))))))

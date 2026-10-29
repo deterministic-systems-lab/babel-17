@@ -255,11 +255,14 @@ class Gen:
         return out
 
     def needs(self, t, seen=()):
-        """Whether a value of type t has facts to be one: an i64 or a vector inside it."""
+        """Whether a value of type t has facts to be one inside it: an i64 there, which must fit.
+        A vector's own length fact is its variable's, not part of what holds it, so a recursive
+        type with a vector field but no i64, such as a trie's node, has no validity predicate
+        guarding its ghost-fns' equations."""
         t = self.ty(t)
-        if t == C.I64 or t[0] in ("vec", "slice"):
+        if t == C.I64:
             return True
-        if t[0] in ("seq", "tuple"):
+        if t[0] in C.SEQUENCES or t[0] == "tuple":
             return any(self.needs(u, seen) for u in C.parts(t))
         if t[0] != "data" or t in seen:
             return False
@@ -678,10 +681,14 @@ class Gen:
                 out = f"(ite {test} {body} {out})"
             return out, srt
         if h == "iset-lit":
-            srt = self.tsort(t)
+            srt, es = self.tsort(t), self.tsort(t[1])
+            members = [e(y, w=es)[0] for y in a]
+            if es in self.elems and members:  # sequences are equal by their elements, so members are too (D105)
+                y = self.bound("y")
+                return f"(lambda (({y} {es})) (or {' '.join(self.equal(es, y, m) for m in members)}))", srt
             out = f"((as const {srt}) false)"
-            for y in a:
-                out = f"(store {out} {e(y, w=self.tsort(t[1]))[0]} true)"
+            for m in members:
+                out = f"(store {out} {m} true)"
             return out, srt
         if h == "iset-of":  # D89: a lambda, whose body's goals hold at every member
             decl, inner = self.binders(a[0].items, st)
@@ -693,12 +700,12 @@ class Gen:
             ks, vs = self.tsort(m[1]), self.tsort(m[2])
             if h == "map-lit":
                 out = f"((as const {self.tsort(m)}) {none})"
-                for pair in a:
-                    out = f"(store {out} {e(pair.items[0], w=ks)[0]} ({some} {e(pair.items[1], w=vs)[0]}))"
+                for pair in a:  # a later entry wins
+                    out = self.store(out, ks, e(pair.items[0], w=ks)[0], f"({some} {e(pair.items[1], w=vs)[0]})")
                 return out, self.tsort(m)
             if h == "update":
                 (mt, srt), (k, _), (v, _) = e(a[0]), e(a[1], w=ks), e(a[2], w=vs)
-                return f"(store {mt} {k} ({some} {v}))", srt
+                return self.store(mt, ks, k, f"({some} {v})"), srt
             if h == "lookup":
                 (mt, _), (k, _) = e(a[0]), e(a[1], w=ks)
                 self.goal(st, guard, "BOUNDS", x, f"((_ is {some}) (select {mt} {k}))")
@@ -713,6 +720,13 @@ class Gen:
         ly, ry = f"(select {l} {y})", f"(select {r} {y})"
         body = f"(or {ly} {ry})" if h == "union" else f"(and {ly} {ry})" if h == "inter" else f"(and {ly} (not {ry}))"
         return f"(lambda (({y} {self.tsort(t[1])})) {body})", srt
+
+    def store(self, m, ks, k, v):
+        """Map m with key k mapped to v. A sequence key is one by its elements (D105)."""
+        if ks not in self.elems:
+            return f"(store {m} {k} {v})"
+        y = self.bound("y")
+        return f"(lambda (({y} {ks})) (ite {self.equal(ks, y, k)} {v} (select {m} {y})))"
 
     def arms(self, scrutinee, s, cases):
         """Each arm's test, None where the type has one constructor, and its binders as (name,
