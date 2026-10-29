@@ -1621,7 +1621,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 ## 2026-10-29 · The bounds of `bfs` and `kruskal`, and an attempt at `bfs`'s correctness
 - **Asked by the owner:** continue with the remaining proofs.
 - **`bfs`'s bounds and termination now verify,** with every goal but the two correctness postconditions proved.
-  - **Termination:** the outer measure counts `-1`s in `dist`, and stays at least 0 only if that count never goes negative. Two lemmas, by induction over `take` prefixes and §9's step fact, show a count is never negative and an element counts at least once. `count_member` is called before each `set-idx` that turns a `-1` into a distance.
+  - **Termination:** the outer measure counts `-1`s in `dist`, and stays at least 0 only if that count never goes negative. Two lemmas, by induction over `take` prefixes and §9's step fact, show a count is never negative and an element counts at least once. `count_member` is called before the inner loop's `set-idx`, which turns a `-1` into a distance. The first `set-idx`, for `start`, needs no call, since D105's fact for the constant `seq-build` gives the count exactly there.
   - **No new encoding fact:** I had said §9 lacked the element fact. It's provable from §9's step fact, so no new encoding fact or decision is needed.
   - **The inner loop** needed invariants keeping `dist[u]` fixed, for the overflow goal, and the queue from shrinking, for the outer measure's drop.
 - **`kruskal`:** its insertion sort's inner loop needed an invariant that `cands` keeps its length, without which the outer measure's drop failed. Its bounds and termination now verify.
