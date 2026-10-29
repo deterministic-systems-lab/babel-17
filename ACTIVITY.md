@@ -1456,3 +1456,90 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_verify.py` and `test_check.py` already cover both decisions.
 - **Left admitted:** none.
+
+## 2026-10-29 · WP7 for B17-1: the Rust backend under subset 1 (D110 and D111 proposed)
+- **Asked by the owner:** extend the Rust backend to B17-1 under `--subset 1` (D101), with B17-0's output byte-identical by default, checked like B17-0's on the accept programs, the runnable proof rejects, corner cases and generated programs.
+- **`b17c/rust.py`** lowers B17-1 with `subset=1`, or `--subset 1` on the command line (D110):
+  - **Data types** become enums in a module of their own, `data`, so their names can't clash with the program's, or with names Rust and the runtime use, such as `str`, `std` and `rt`, which B17-1 allows as type names.
+    - **Type parameters:** only those a value can hold are Rust's, since Rust rejects a parameter no field uses. Tier 0 already computes that set.
+    - **Boxes:** a field that mentions its own type outside a vector is a `Box` (D86), and a `match` binder for one takes the value out of it.
+    - **Copying:** a type that moves only through its arguments, or never, derives `Clone` and `Copy`. So `(option i64)` is copied and `(option tree)` moves, as §5 rule 1 says.
+  - **Reading:** `field` calls a method of the type that stops the run with `err FIELD` and the interpreter's detail when the constructor lacks the field. `idx`, `field` and `get` read a moving value through a reference, so it never leaves its place.
+  - **Updating through a place:** the place's indices, then the statement's index and value, are evaluated into temporaries. The place is then walked from its root as `&mut` references, checked on the way down as the interpreter does, and changed where it is. `replace` is `std::mem::replace`.
+  - **`match`** is Rust's `match`. Constructors name their type arguments, and every literal is typed `i64`.
+  - **The binary** reads arguments as interface 10's terms, nested values included, under the parser's lexical rules (D48, D49, D55), and prints results as the interpreter does.
+  - **B17-0 unchanged:** without a subset, the runtime and every crate are the same bytes as before. This was checked after every change on 235 modules: B17-0's 29 suite programs that pass tier 0, the corner and deep modules, and 204 generated modules.
+- **D112, drafted and withdrawn:** Rust compiles generics one instance at a time, so a data type that recurses at a growing instance, such as `(data d (a) (base (v a)) (next (x (d (option a)))))`, has no finite set of Rust types, and rustc refuses it (E0320). The branch first proposed D112, an `emit()` refusal. On rebasing, main's D104 already rejects such types in tier 0 for the verifier's sake, so D112 and its check are gone, and every module that passes tier 0 builds.
+- **WP7's done-when holds for B17-1:**
+  - **Compiles:** every B17-1 module that passes tier 0 builds with warnings denied and unsafe code forbidden, across every module below. The self-check builds 58 crates, 22 of them B17-1's: the 15 suite programs that pass tier 0, the corner module and 6 generated modules.
+  - **Matches:** 12,666 runs print exactly the interpreter's text, 3,791 of them B17-1's. B17-0's 8,875 are unchanged. B17-1's runs cover:
+    - **the accept programs,** on `test_interp.py`'s inputs, both the spec's examples and the inputs outside its `requires`;
+    - **the two proof rejects whose defs reach their faults:** `err BOUNDS` from `replace` and `err FIELD`;
+    - **random inputs,** 40 per def;
+    - **72 corner runs** that state the text both must print;
+    - **96 generated defs.**
+  - **The corners cover:**
+    - names Rust reserves or uses, and parameters no value holds;
+    - `FIELD` and `BOUNDS` in expressions and through places;
+    - the order of a place update: indices, then value, then the checks from the root out;
+    - `replace`, `match`, tuples and open type arguments;
+    - 24 arguments the binary must refuse, as the interpreter does;
+    - a list a million long, which only the binary runs, and which Rust drops on the run's own stack.
+  - **The command line:** `rust.py --subset 1 --run` prints what `interp.py --subset 1` prints, with the same exit code, in 9 cases.
+- **Fuzzing,** with the self-check's generator, 12 defs and 20 inputs a module:
+  - **120 modules, 28,473 runs:** found one generator bug. A constructor inside an `assert` typed its literal as `int`.
+  - **400 modules, 95,779 runs.**
+  - **300 more, 71,793 runs,** on the simplified code.
+  - **100 more, 23,959 runs,** on the rebased branch.
+
+  No mismatch and no build failure.
+- **Mutation check:** 33 changes to B17-1's lowering and runtime, all caught by the self-check. Two were caught only after tests were added: an argument holding two terms, and a nesting limit off by one. One targeted D112's check, since removed.
+- **QA review,** an independent bug hunt, found one bug, now fixed and tested: the binary accepted argument text the interpreter's parser refuses, with no whitespace between a list's elements (`(cons 1(nil))`, D49) or nested past 128 (D55). `rust.py --run` wasn't affected, since it re-reads arguments through the interpreter. What it confirmed:
+  - **Its own type-directed fuzzer:** 391 modules, 133,356 runs. It used generic and phantom parameters, recursion through `option`, tuples, vectors and other generics, and random deep places.
+  - **The self-check's generator on new seeds:** 420 modules, about 167,000 runs.
+  - **That generator's statements over random declarations:** 384 modules, 38,238 runs.
+  - **B17-0's programs under subset 1:** 161 modules, 32,792 runs.
+  - **Targeted cases:** about 90, plus 85 argument texts and 14 command-line runs.
+  - **B17-0 byte identity:** confirmed on 111 modules.
+- **Ponytail review:** 20 simplifications, all applied, with the self-check's counts unchanged.
+  - **What changed:** reading and changing a place became one walk. Patterns name their type through the constructor. Helpers are shared with `check.py` and B17-0's generator, and the B17-1 generator reads its types from its own declarations.
+  - **Size:** `rust.py` lost 87 lines and gained 62, and `test_rust.py` lost 139 and gained 72.
+- **Codex review: not run.** Codex.app's bundled CLI was killed by macOS with "Code Signature Invalid", and the app had left `/Applications` by the next check. The owner chose to have the branch pushed without a pull request and to run the Codex review before one is opened.
+- **For the owner, about the interpreter:** `interp.py` prints values by recursion, so a value nested about 600 deep, such as a list of 600, can't be printed: `text_of` raises `RecursionError`, and the command line exits with a traceback. The binary prints it. The interpreter isn't this task's file, so this is only reported.
+- **This Mac still links Rust only with `DEVELOPER_DIR=/Library/Developer/CommandLineTools`,** as WP7's entry describes.
+- **Updated:** `DECISIONS.md` (D110 and D111, proposed); the README's status, WP7 row, `rust.py` row, self-check line and a B17-1 example; the roadmap's recent work, decisions waiting, next steps, and WP7 and B17-1 rows.
+- **Interfaces touched:** none. Interface 10's B17-1 values (`docs/b17-1.md` §8) are now the binary's text too.
+- **Proofs and tests added:** B17-1's section of `b17c/test_rust.py`, which CI already runs. Every `b17c` self-check passes except `test_verify.py`, which needs Z3.
+- **Left admitted:** none.
+- **Not yet done:** the Codex review, and the pull request.
+
+## 2026-10-29 · Review of WP7 for B17-1, and its pull request
+- **Asked by the owner:** review the branch `b17-1-rust` and open a pull request once it passes.
+- **The branch:** five commits on current main. Each is authored as the owner, with no attribution lines. D110 and D111 are numbered in the range kept for this work.
+- **Checked here:**
+  - **Every self-check but `test_rust.py`:** syntax, hashing, interpreter, core library, checker, agent protocol, manual, verifier, and the B17-0 track. All pass.
+  - **`test_rust.py`** needs rustc 1.99.1, which this arm64 Mac doesn't have. It runs in CI on the pull request.
+  - **Emission:** every B17-1 accept program emits a crate.
+  - **B17-0 unchanged:** all 50 of B17-0's suite files give the same output as main's backend: crates for those that pass tier 0, diagnostics for the rest.
+- **Codex review:** the one the branch's entry left to run. Run as QA against `interp.py` and `docs/b17-1.md` §3, §5, §6 and §8, it found no output that would differ from the interpreter and no checker-accepted module that would fail to compile. It confirmed B17-0's output is unchanged. It reasoned from the code, since it couldn't compile either, so CI's differential tests are the check that runs it.
+- **Ponytail review:** one finding, applied. `rust.py`'s `_type` and `goals.py`'s `ttype` converted type forms the same way, and were written in parallel. They're now one function in `check.py`, the type authority, which both import. Every B17-0 query, every B17-0 crate, and every B17-1 crate is the same, byte for byte, before and after.
+- **Also fixed:** a missing blank line before D110's heading.
+- **Still for the owner:** the branch's entry reports that `interp.py` can't print a value nested about 600 deep, since `text_of` recurses. That's the interpreter's, so it's left for its own change.
+- **Updated:** `DECISIONS.md`'s spacing; nothing else in the docs needed changing.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. The refactor is covered by the existing self-checks and the byte comparisons above.
+- **Left admitted:** none.
+
+## 2026-10-29 · D110 and D111 accepted
+- **The owner accepted:**
+  - **D110:** how B17-1 lowers to safe Rust;
+  - **D111:** what WP7's differential tests compare for B17-1.
+- **Headings:** following the log's convention, D95 and D97 now record that D110 and D111 extend them.
+- **Updated:**
+  - **The README:** the WP7 row and the `rust.py` row.
+  - **The roadmap:** WP7's status, decisions waiting, the off-path line and the WP7 row.
+  - **`suite/README.md`:** its B17-1 section now says how WP7's tests run the suite, as its B17-0 section already did.
+  - **`docs/b17-1.md`:** not changed. Like D95–D97 for B17-0, D110 and D111 are the backend's decisions, not the subset's.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.

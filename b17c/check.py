@@ -88,6 +88,20 @@ def subst(t, env):
     return (t[0],) + tuple(a if isinstance(a, str) else subst(a, env) for a in t[1:])
 
 
+def ttype(t, params=()):
+    """A type form, such as (vec (option i64)), as this module writes types, with the names in
+    params as type parameters. For WP5's goals and WP7's backend, which read declared types."""
+    if isinstance(t, Sym):
+        if t.text in params:
+            return ("param", t.text)
+        return {"bool": BOOL, "i64": I64, "int": INT}.get(t.text, ("data", t.text))
+    h = t.items[0].text
+    if h == "ref":
+        return ("slice", ttype(t.items[1].items[1], params))
+    args = tuple(ttype(a, params) for a in t.items[1:])
+    return (h, *args) if h in ("vec", "seq", "multiset", "tuple", "iset", "map") else ("data", h, *args)
+
+
 def parts(t):
     """The component types of t: elements, components, or a data type's arguments."""
     return [a for a in t[1:] if not isinstance(a, str)]

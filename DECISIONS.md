@@ -1161,7 +1161,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Examples from the suite:** every code already has a labelled program, which WP3 and WP5 check. WP8's manual can reuse them.
 - **Touches:** D45; D56; D57; D63; interface 8; WP6; WP8; `suite/`.
 
-## D95 · How B17-0 lowers to safe Rust · Accepted
+## D95 · How B17-0 lowers to safe Rust · Accepted (extended by D110)
 - **Date:** 2026-10-28
 - **Decision:** WP7's backend, `b17c/rust.py`, turns each module that passes tier 0 into one Rust crate.
   - **Safety:** the crate carries `#![forbid(unsafe_code)]` and holds no unsafe code (D18).
@@ -1213,7 +1213,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Refusing at build time:** a binary can't call a function that doesn't exist. A stub that refused at run time would let a module build that can't run its own calls.
 - **Touches:** D21; D29; D48; D56; D57; D59; D80; WP7; WP11; interface 10.
 
-## D97 · What WP7's differential tests compare, and the pinned toolchain · Accepted
+## D97 · What WP7's differential tests compare, and the pinned toolchain · Accepted (extended by D111)
 - **Date:** 2026-10-28
 - **Decision:**
   - **What's compared:** for every run, the interpreter's text, with checking off, and the binary's must be equal line for line: each `print`, then the outcome with its reason, node and detail. A run the interpreter can't finish in 20,000 steps is skipped, since a binary has no `limit` to show (D59).
@@ -1372,3 +1372,45 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Distinct types already can't cycle:** E-TERM-002 rules out two data items containing each other. With D104, a module's instances are finite.
 - **Alternatives:** a verifier error for such a module. That would be a type the checker accepts but no other tool can handle.
 - **Touches:** D83; D103; WP3; WP5; WP7; `docs/b17-1.md` §3 and §13; `suite/b17-1/`.
+
+## D110 · How B17-1 lowers to safe Rust · Accepted (extends D95)
+- **Date:** 2026-10-29
+- **Decision:** with subset 1 (D101), `b17c/rust.py` turns each B17-1 module that passes tier 0 into one crate, as D95 does for B17-0. Without a subset, its output is the same, byte for byte, as before B17-1.
+  - **Data types:** each data type the program uses becomes an enum in a module of its own, `data`, with a variant per constructor and its fields in order. Names Rust reserves become raw identifiers, as D95 says for values.
+  - **Type parameters:** a parameter is a Rust type parameter only when a value can hold a value of its type, through fields, vectors, tuples and other data types. Tier 0 already computes that set for D90. The others are dropped, so `(ph int)` is the Rust type `ph`. Since D104 makes recursion regular, a module uses finitely many instances, and each is a Rust type.
+  - **Boxed fields:** a field whose type mentions its own data type other than inside a vector is a `Box` (D86). A `match` arm's binder for one takes the value out of its box, since the binder owns it (§5 rule 4).
+  - **Copying:** a data type that moves only through its arguments, or never, derives `Clone` and `Copy`. Rust bounds each parameter by `Copy`, so `(option i64)` is copied and `(option tree)` moves, as §5 rule 1 says. A type that moves whatever its arguments, being recursive or holding a vector, derives neither. Tuples are Rust tuples, of any arity.
+  - **Reading:** `field` calls a method of the data type that matches the value's constructor, and stops the run with `err FIELD` and the interpreter's detail where the constructor lacks the field. `idx`, `field` and `get` read a moving value through a reference, so it never leaves its place (§5 rule 3), and copy a copied one. `is` is `matches!`.
+  - **Constructors** name their type arguments, as tier 0 inferred them, so `(none)` with no destination is `option::<i64>::none` (§4). Every integer literal is typed `i64`, since a tuple or a type argument may give it no type of its own.
+  - **Updating through a place:** `set-idx`, `push` and `replace` first evaluate the place's indices in source order, then the statement's index and value, into temporaries. They then walk the place from its root as a chain of `&mut` references, checking each `idx` and `field` on the way down, as the interpreter does, and change the part where it is. `replace` is `std::mem::replace`. A place that is a variable keeps D95's form.
+  - **`match`** becomes Rust's `match`, as a statement or an expression.
+  - **The binary's values:** an argument is read as a term of interface 10's text form, so `(some 3)`, `(tuple 1 false)` and nested values are values. Results print as the interpreter prints them. Each data type, each tuple arity the crate uses, and `Box` read and print their own values.
+  - **Lints:** B17-1's types and constructors are lowercase, so `non_camel_case_types` joins D95's list.
+- **Why:**
+  - **Enums:** D79 says data types become Rust enums. A module of their own keeps type names apart from value names, as D82 does, and from the names Rust and the runtime use, such as `str`, `std` and `rt`, which B17-1 allows as type names.
+  - **Only the parameters a value holds:** Rust rejects a parameter that no field uses (E0392). Dropping it needs no marker field, which every `match` would then have to skip.
+  - **Copying by derive:** a derive's `Copy` bound on each parameter is §5 rule 1 applied to each instance.
+  - **Places through references:** they update in place, as §8 says Rust does. The temporaries keep the interpreter's order, so an index's or a value's own `err` comes before any check on the place's way down.
+  - **One method per field:** the data type is the one place that knows which constructors have a field, and it gives the interpreter's message.
+  - **Literals:** without a type, `(tuple 1 9223372036854775807)` would be a tuple of `i32`, which rustc rejects.
+- **Touches:** D18; D79; D82; D83; D84; D86; D90; D95; D96; D101; D104; WP7; `docs/b17-1.md` §3, §5, §6, §8.
+
+## D111 · What WP7's differential tests compare for B17-1 · Accepted (extends D97)
+- **Date:** 2026-10-29
+- **Decision:** `b17c/test_rust.py` checks B17-1 under subset 1 as D97 checks B17-0, comparing the interpreter's text with checking off and the binary's, line for line. B17-0's part is unchanged.
+  - **The suite:** the 15 programs of `suite/b17-1/` that pass tier 0, which are the 10 accept programs and the 5 proof rejects.
+    - **Their own inputs:** each accept program runs on `test_interp.py`'s inputs, its spec's examples and the inputs outside its `requires`.
+    - **The proof rejects:** two have defs that show their fault, and run into it: `err BOUNDS` from `replace` and `err FIELD`.
+    - **Random inputs:** 40 per def.
+  - **Corners:** a module of cases, each with the text both must print:
+    - names Rust reserves or uses, as types, constructors and fields;
+    - parameters no value holds, and recursion through `option`, which is boxed;
+    - `FIELD` and `BOUNDS` in expressions and through places, and the order of a place update's evaluation and checks;
+    - `replace`, `match`, tuples, open type arguments, and arguments that must be refused;
+    - a list a million long, which only the binary runs, since the interpreter's steps can't reach it.
+  - **Generated programs:** 96 defs, from random B17-1 programs that pass tier 0 by construction, with 25 inputs per def. Their data types are copied, recursive and boxed, holding vectors, and generic, and their bodies use places, `replace`, `match`, constructors, tuples, `seq-build` of data and calls.
+  - **Inputs** are drawn for each type, with data values a few levels deep.
+  - **Refusals:** `emit()` refuses every tier 0 reject of `suite/b17-1/`, D104's recursion at a growing instance among them.
+  - **The command line:** `rust.py --subset 1 --run` prints what `interp.py --subset 1` prints, with the same exit code.
+- **Why:** the same as D97's. Places and data values add failures at new nodes, `FIELD` among them, and a new order of evaluation, which only whole texts compare.
+- **Touches:** D97; D101; D104; D110; WP7; `.github/workflows/check.yml`.
