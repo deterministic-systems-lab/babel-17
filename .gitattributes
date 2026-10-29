@@ -1,0 +1,2 @@
+# GitHub counts B17 source as Scheme, the nearest S-expression language Linguist knows; it has no B17.
+*.b17 linguist-language=Scheme
