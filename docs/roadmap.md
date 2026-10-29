@@ -65,7 +65,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
 - **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted.
 - **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 47 programs to reject, one per rule. The checker agrees with every tier 0 label (PR #30). Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
-- **WP15, the interpreter, reads B17-1** with `--subset 1`: data values, tuples, places, `match`, sets and maps, and `rank`. It runs all 10 accept programs, and shows the fault of each proof reject that has a def or ghost-fn. D102, proposed, lets a quantifier range over a finite collection its guard names, so set-based specs such as `is_bst` are checked rather than left unknown.
+- **WP15, the interpreter, reads B17-1** with `--subset 1`: data values, tuples, places, `match`, sets and maps, and `rank`. It runs all 10 accept programs, and shows the fault of each proof reject that has a def or ghost-fn. D102 lets a quantifier range over a finite collection its guard names, so set-based specs such as `is_bst` are checked rather than left unknown.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.
   - **Runs match the interpreter:** 8,875 differential runs print exactly the interpreter's text, across the suite, corner cases and generated programs, with rustc 1.99.1 pinned. Fuzzing and a mutation check found no mismatch left.
@@ -79,7 +79,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-D102: membership in a finite collection bounds a quantifier's binder, so the interpreter checks set-based specs (WP15). D79–D101 were accepted on 2026-10-28. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D101 were accepted on 2026-10-28, and D102 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99 and D100 accepted, and `suite/b17-1/`. The parser, hasher, checker and interpreter read B17-1 under D101, and the checker agrees with every tier 0 label in the suite. That meets D44's condition for B17-1 to freeze, which is the owner's call. The verifier extends to it next. Six accept programs' proofs have a step that uses D99 or D100, written once the verifier reads B17-1.

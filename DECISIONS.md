@@ -1317,7 +1317,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A toolchain per subset:** that duplicates every tool.
 - **Touches:** D44; D65; D98; interface 4; WP2; WP3; WP5; WP7; WP8; WP15; M3.
 
-## D102 · Membership in a finite collection bounds a quantifier's binder · Proposed
+## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted
 - **Date:** 2026-10-29
 - **Decision:** D58 gains one kind of conjunct that can't fail and gives bounds, in both subsets.
   - **The conjunct:** `(contains E x)`, where x is an unassigned binder, E mentions no unassigned binder, and E is defined here, with a finite set, a sequence or a map as its value.

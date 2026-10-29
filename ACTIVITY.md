@@ -1377,3 +1377,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** interface 10 gains tuple and data values and the `FIELD` reason, as `docs/b17-1.md` §8 already said.
 - **Proofs and tests added:** B17-1's section of `test_interp.py`: the suite, each §8 rule, D102, every review finding, the text form, argument checks and the command line. `test_check.py` and `test_hashing.py` run their CLIs with `--subset 0` and `--subset 1`.
 - **Left admitted:** none.
+
+## 2026-10-29 · D102 accepted
+- **The owner accepted D102:** membership in a finite collection bounds a quantifier's binder, of any type but `bool`, when the interpreter checks a run. It extends D58, in both subsets.
+- **Updated:** D102's status in `DECISIONS.md`; `docs/b17-1.md`'s status line and §14; the roadmap's status and decisions waiting.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_interp.py` already covers D102.
+- **Left admitted:** none.
