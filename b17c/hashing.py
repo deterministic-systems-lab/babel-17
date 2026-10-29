@@ -299,7 +299,7 @@ def report(module, subset=0):
 if __name__ == "__main__":
     args, subset = sys.argv[1:], 0
     if args[:1] == ["--subset"] and args[1:2] in (["0"], ["1"]):
-        args, subset = args[2:], 1
+        args, subset = args[2:], int(args[1])
     if not args:
         sys.exit("usage: uv run --no-project b17c/hashing.py [--subset 1] FILE...")
     for path in args:

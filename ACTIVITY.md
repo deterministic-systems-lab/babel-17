@@ -1368,7 +1368,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Membership didn't reach comparisons:** in `(and (== x y) (contains (seq-lit 1) y))`, y's members didn't bound x. Members now bound an `int` binder's range like a comparison does.
   - **A sequence of predicate sets** couldn't bound a binder, since its members were deduplicated by hashing. A sequence's members are now taken in order. A repeated member is evaluated twice, which changes nothing.
   - **`--subset 0` was refused** by `interp.py`, `check.py` and `hashing.py`, though D101 names both values. All four tools now take it, as `syntax.py` already did.
+- **Codex review, third pass:** four findings, all fixed:
+  - **The calls in progress:** a set's restored context brought back the frames but not the calls in progress. With an unknown measure, a same-argument call inside the set still ran to the step limit. It now restores those too.
+  - **Shared frames counted twice:** testing a member in the call that built the set counted the calls both stacks share twice, and could reach the depth limit early. They now count once.
+  - **Map values:** a map's values can hold a predicate set, since only its keys are hashed when it's built. The memo key now reaches them.
+  - **`hashing.py --subset 0`** still chose subset 1. `test_hashing.py` and `test_check.py` now run both CLIs with each subset.
 - **Updated:** the README's status, WP15 row, layout and commands; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s checking notes; `docs/b17-1.md` §8 and §14.
 - **Interfaces touched:** interface 10 gains tuple and data values and the `FIELD` reason, as `docs/b17-1.md` §8 already said.
-- **Proofs and tests added:** B17-1's section of `test_interp.py`: the suite, each §8 rule, D102, the text form, argument checks and the command line.
+- **Proofs and tests added:** B17-1's section of `test_interp.py`: the suite, each §8 rule, D102, every review finding, the text form, argument checks and the command line. `test_check.py` and `test_hashing.py` run their CLIs with `--subset 0` and `--subset 1`.
 - **Left admitted:** none.

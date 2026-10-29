@@ -718,6 +718,9 @@ unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (has (iset-
 RECUR = ["(ghost-fn recur ((s (iset int))) bool (requires (recur s)) (decreases 0) (body true))"]
 is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (recur (iset-of ((x int)) true)))", extra=RECUR),
                 5, check=True, depth=5), "TERM")
+USE = ["(ghost-fn use ((m (map int (iset int)))) bool (body (contains (lookup m 0) 1)))"]
+unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (use (map-lit (0 (iset-of ((x int)) (> x 0))))))",
+               extra=USE), 5, check=True))
 RECUR_SEQ = ["(ghost-fn recur ((s (seq (iset int)))) bool (requires (> (len s) 0)) (requires (recur (seq-lit (idx s 0))))"
              " (decreases 0) (body true))"]
 is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (recur (seq-lit (iset-of ((x int)) true))))",
@@ -727,6 +730,13 @@ is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (recur 
 LOOP = ["(ghost-fn loop () (iset int) (decreases 0) (body (iset-of ((x int)) (contains (loop) x))))"]
 is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (contains (loop) 0))", extra=LOOP), 5,
                 check=True, fuel=200), "TERM")
+LOOP_U = ["(ghost-fn loop () (iset int) (decreases (if (forall ((n int)) true) 0 0))"
+          " (body (iset-of ((x int)) (contains (loop) x))))"]
+is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (contains (loop) 0))", extra=LOOP_U), 5,
+                check=True, fuel=200), "TERM")  # the same call as the one that built the set, even with no measure
+POS = ["(ghost-fn pos ((x int)) bool (body (> x 0)))"]  # a set tested where it's built adds no depth
+is_ok(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (contains (iset-of ((x int)) (pos x)) 1))", extra=POS),
+          5, check=True, depth=2), 5)
 BAD = ["(ghost-fn badset () (iset int) (body (iset-of ((x int)) (> (/ 1 x) 0))))"]
 out = is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (contains (badset) 0))", extra=BAD), 5,
                       check=True), "DIV")

@@ -106,9 +106,11 @@ class _Same:
 
 def _ident(v):
     """v with each set kept as its predicate replaced by its identity, so it can be hashed.
-    Only sequences, tuples and data values can hold one (a set, map or multiset can't)."""
+    Sequences, tuples, data values and a map's values can hold one; anything hashed can't."""
     if isinstance(v, Pred):
         return _Same(v)
+    if isinstance(v, Map):
+        return Map((k, _ident(x)) for k, x in v.items())
     if isinstance(v, Tup):
         return Tup(_ident(v.items))
     if isinstance(v, Data):
@@ -1050,15 +1052,17 @@ class _Run:
         """A set kept as its predicate. Testing a member runs inside the calls and the clause
         that built it, so a recursive call and a failure there are seen as theirs (D57)."""
         name, body, snap = x.items[1].items[0].items[0].text, x.items[2], dict(env)
-        frames, clause = self.frames[:], self.clause
+        frames, active, clause = self.frames[:], set(self.active), self.clause
 
         def test(y):
-            saved = self.frames, self.clause
-            self.frames, self.clause = saved[0] + frames, clause
+            saved, k = (self.frames, self.active, self.clause), 0
+            while k < min(len(frames), len(saved[0])) and frames[k] is saved[0][k]:
+                k += 1  # the calls both stacks share, which count once
+            self.frames, self.active, self.clause = saved[0] + frames[k:], saved[1] | active, clause
             try:
                 return self.eval(body, {**snap, name: y}, True)
             finally:
-                self.frames, self.clause = saved
+                self.frames, self.active, self.clause = saved
         return Pred(test)
 
     def e_map_lit(self, x, env, g):

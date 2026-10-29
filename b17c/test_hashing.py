@@ -1,6 +1,9 @@
 """Self-check for B17-0 hashes (D45, D46): uv run --no-project b17c/test_hashing.py"""
 import hashlib
 import re
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 import hashing as h
@@ -126,5 +129,15 @@ except h.HashError as e:
     assert e.code == "E-TYPE-002" and ("data", "option") in e.names, e
 else:
     raise AssertionError("a copy of option hashed")
+
+# The command line takes --subset 0 or 1 (D101): B17-0 may name a ghost-fn as B17-1 reserves.
+with tempfile.TemporaryDirectory() as tmp:
+    named = Path(tmp) / "union.b17"
+    named.write_text('(module t (header (purpose "p") (invariants "i") (failures "f"))'
+                     ' (ghost-fn union ((n int)) bool (body (>= n 0))))')
+    for flag, ok in [("0", True), ("1", False)]:
+        r = subprocess.run([sys.executable, str(HERE / "hashing.py"), "--subset", flag, str(named)],
+                           capture_output=True, text=True)
+        assert (r.returncode == 0 and r.stdout.startswith("t ghost-fn union spec0:")) == ok, (flag, r)
 
 print("hashing self-check passed")
