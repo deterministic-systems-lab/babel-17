@@ -615,7 +615,7 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
             ["INV-ENTRY", "INV-ENTRY", "POST", "PRE", "PRE", "POST", "INV-KEEP", "INV-KEEP", "POST"]),
     "kruskal": ("kruskal_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),)),
                                 ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),))],  # one-way edges, each listed once
-                ["PRE", "PRE", "INV-ENTRY", "INV-KEEP", "ASSERT", "POST"]),
+                ["PRE", "PRE", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "ASSERT", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
