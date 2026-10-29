@@ -1677,3 +1677,11 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - the two proofs;
   - in `test_verify.py`: the nine verified programs, and folding in B17-1 against macros in B17-0.
 - **Left admitted:** none.
+
+## 2026-10-29 · D106 accepted
+- **The owner accepted D106:** in B17-1, a non-recursive ghost-fn unfolds only where it's applied, not as a macro.
+- **Headings:** D61 and D103 now record that D106 refines them.
+- **Updated:** `docs/b17-1.md`'s status line and §14; the roadmap's decisions waiting, next steps and B17-1 row.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_verify.py` already covers D106.
+- **Left admitted:** none.
