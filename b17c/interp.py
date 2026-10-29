@@ -91,17 +91,29 @@ class Pred:
 
 
 class _Same:
-    """A memo key compared by identity, for arguments that can't be hashed. The key keeps its
-    value alive, so no other value takes its id."""
+    """A set kept as its predicate, compared by identity, in a memo key. The key keeps the set
+    alive, so no other set takes its id."""
 
     def __init__(self, v):
         self.v = v
 
     def __eq__(self, other):
-        return self.v is other.v
+        return isinstance(other, _Same) and self.v is other.v
 
     def __hash__(self):
         return id(self.v)
+
+
+def _ident(v):
+    """v with each set kept as its predicate replaced by its identity, so it can be hashed.
+    Only sequences, tuples and data values can hold one (a set, map or multiset can't)."""
+    if isinstance(v, Pred):
+        return _Same(v)
+    if isinstance(v, Tup):
+        return Tup(_ident(v.items))
+    if isinstance(v, Data):
+        return Data(v.ctor, _ident(v.fields))
+    return tuple(map(_ident, v)) if isinstance(v, tuple) else v
 
 
 def _key(v):
@@ -945,8 +957,13 @@ class _Run:
                     break  # it might fail, or test membership in a set kept as its predicate, which might
                 if not s:
                     return range(0)  # no member, so the guard holds nowhere
-                if c.items[2].text == x:
-                    among = [v for v in sorted(set(s), key=_key) if among is None or v in among]
+                z = c.items[2].text
+                if z in lo:  # an int binder's members bound it, and so the binders it's compared with
+                    _tighten(lo, z, min(s), max)
+                    _tighten(hi, z, max(s), min)
+                if z == x:  # a sequence's members in order, which may repeat a point; a set's in value order
+                    s = s if isinstance(s, tuple) else sorted(s, key=_key)
+                    among = [v for v in s if among is None or v in among]
                     if not among:
                         return range(0)
                 continue
@@ -1030,8 +1047,19 @@ class _Run:
         return UNKNOWN if v is None else frozenset(v)
 
     def e_iset_of(self, x, env, g):
+        """A set kept as its predicate. Testing a member runs inside the calls and the clause
+        that built it, so a recursive call and a failure there are seen as theirs (D57)."""
         name, body, snap = x.items[1].items[0].items[0].text, x.items[2], dict(env)
-        return Pred(lambda y: self.eval(body, {**snap, name: y}, True))
+        frames, clause = self.frames[:], self.clause
+
+        def test(y):
+            saved = self.frames, self.clause
+            self.frames, self.clause = saved[0] + frames, clause
+            try:
+                return self.eval(body, {**snap, name: y}, True)
+            finally:
+                self.frames, self.clause = saved
+        return Pred(test)
 
     def e_map_lit(self, x, env, g):
         v = [(self.eval(c.items[0], env, g), self.eval(c.items[1], env, g)) for c in x.items[1:]]
@@ -1078,8 +1106,8 @@ class _Run:
         fenv, key = dict(zip(fn.params, args)), (fn.name, args)
         try:
             hash(key)
-        except _Undecided:  # an argument holds a set kept as its predicate: memoize by identity
-            key = (fn.name, tuple(map(_Same, args)))
+        except _Undecided:  # an argument holds a set kept as its predicate: key it by identity
+            key = (fn.name, _ident(args))
         caller = self.frames[-1] if self.frames else None
         if key in self.active:  # g(A) needs g(A) again, so the recursion can't descend
             m = self.quiet(fn.decreases, fenv) if fn.decreases is not None else None
@@ -1167,8 +1195,8 @@ def _settle(lo, hi, steps):
 
 def main(argv):
     subset = 0
-    if argv[:2] == ["--subset", "1"]:
-        subset, argv = 1, argv[2:]
+    if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
+        subset, argv = int(argv[1]), argv[2:]
     check, fuel = False, FUEL
     while argv and argv[0] in ("--check", "--fuel"):
         if argv.pop(0) == "--check":

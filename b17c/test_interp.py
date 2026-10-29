@@ -718,6 +718,19 @@ unknown(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (has (iset-
 RECUR = ["(ghost-fn recur ((s (iset int))) bool (requires (recur s)) (decreases 0) (body true))"]
 is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (recur (iset-of ((x int)) true)))", extra=RECUR),
                 5, check=True, depth=5), "TERM")
+RECUR_SEQ = ["(ghost-fn recur ((s (seq (iset int)))) bool (requires (> (len s) 0)) (requires (recur (seq-lit (idx s 0))))"
+             " (decreases 0) (body true))"]
+is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (recur (seq-lit (iset-of ((x int)) true))))",
+                   extra=RECUR_SEQ), 5, check=True, depth=6), "TERM")
+# Testing a member runs inside the call that built the set: a recursive call there is one, and a
+# failure there is charged to that ghost-fn's body (D57).
+LOOP = ["(ghost-fn loop () (iset int) (decreases 0) (body (iset-of ((x int)) (contains (loop) x))))"]
+is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (contains (loop) 0))", extra=LOOP), 5,
+                check=True, fuel=200), "TERM")
+BAD = ["(ghost-fn badset () (iset int) (body (iset-of ((x int)) (> (/ 1 x) 0))))"]
+out = is_contract(go1(f1("(a i64)", "(r i64)", "(return a)", clauses="(ensures (contains (badset) 0))", extra=BAD), 5,
+                      check=True), "DIV")
+assert out.clause.item == out.node.item == "ghost-fn badset", i.text_of(out)
 # A set equals itself, so a value holding it does too.
 unknown(go1(f1("(a i64)", "(r i64)", "(ghost-let p (iset int) (iset-of ((x int)) true)) (assert (== p p))"
                " (assert (== (seq-lit p) (seq-lit p))) (return a)"), 5, check=True))
@@ -737,6 +750,14 @@ for clause, a, want in [("(forall ((x int)) (=> (contains a x) (> x 0)))", (3, 1
         is_ok(go1(claimed, a, check=True), True)
     else:
         is_contract(go1(claimed, a, check=True), "POST")
+# Members bound an int binder, and so the binders compared with it. A sequence's members need
+# no hashing, so they may be sets kept as their predicates.
+is_contract(go(f("(a i64)", "(r bool)", "(return true)",
+                 clauses="(ensures (forall ((x int) (y int)) (=> (and (== x y) (contains (seq-lit 1) y)) false)))"),
+               0, check=True), "POST")
+unknown(go1(f1("(a i64)", "(r i64)", "(ghost-let p (iset int) (iset-of ((z int)) true))"
+               " (assert (forall ((q (iset int))) (=> (contains (seq-lit p p) q) (contains q 0)))) (return a)"), 5,
+            check=True))
 # An empty collection makes the guard hold nowhere, whichever binder it bounds.
 unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)",
                clauses="(ensures (forall ((x int) (y int)) (=> (contains (seq-lit) y) false)))"), (), check=True))
@@ -769,5 +790,6 @@ assert cli("--subset", "1", "--check", str(SUITE / "b17-1/accept/bst_search.b17"
            "(node 5 (leaf) (node 9 (leaf) (leaf)))", "9") == (0, "ok true\n", "")
 assert cli("--subset", "1", str(SUITE / "b17-1/accept/discrete_logarithm.b17"), "discrete_log_naive", "2", "8", "11") \
     == (0, "ok (some 3)\n", "")
+assert cli("--subset", "0", str(SUITE / "accept/abs.b17"), "abs", "-5") == (0, "ok 5\n", "")
 
 print("interpreter conformance tests passed")

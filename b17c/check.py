@@ -1975,8 +1975,8 @@ def _components(graph):
 
 def main(argv):
     subset = 0
-    if argv[:2] == ["--subset", "1"]:
-        subset, argv = 1, argv[2:]
+    if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
+        subset, argv = int(argv[1]), argv[2:]
     if len(argv) != 1:
         print("usage: uv run --no-project b17c/check.py [--subset 1] FILE", file=sys.stderr)
         return 2

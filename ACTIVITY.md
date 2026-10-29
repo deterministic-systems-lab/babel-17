@@ -1362,6 +1362,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Declined from the first pass:**
   - **That `(== s s)` should be unknown** when s holds an `iset-of` set. The two sides are the same value, so the clause holds by reflexivity. A predicate set is now equal to itself directly too, as it already was inside a tuple.
   - **That D102 should bound `bool` binders.** Their two values are always listed, and a point outside the guard makes `=>` false before the body runs, so bounding them saves only fuel. D102 now names `bool` as the exception.
+- **Codex review, second pass:** six findings, all fixed:
+  - **A set built by `iset-of` lost its context.** A member is often tested after the ghost-fn that built the set has returned. A recursive call inside its body then wasn't seen as recursive, and ran to the step limit instead of failing `TERM`. A failure there was also charged to the clause that tested the member, not to that ghost-fn's body (D57). Testing a member now runs inside the calls and the clause that built the set.
+  - **The identity key was shallow:** a new sequence holding the same predicate set wasn't seen as the same argument. Only the predicate sets inside a value are now keyed by identity.
+  - **Membership didn't reach comparisons:** in `(and (== x y) (contains (seq-lit 1) y))`, y's members didn't bound x. Members now bound an `int` binder's range like a comparison does.
+  - **A sequence of predicate sets** couldn't bound a binder, since its members were deduplicated by hashing. A sequence's members are now taken in order. A repeated member is evaluated twice, which changes nothing.
+  - **`--subset 0` was refused** by `interp.py`, `check.py` and `hashing.py`, though D101 names both values. All four tools now take it, as `syntax.py` already did.
 - **Updated:** the README's status, WP15 row, layout and commands; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s checking notes; `docs/b17-1.md` §8 and §14.
 - **Interfaces touched:** interface 10 gains tuple and data values and the `FIELD` reason, as `docs/b17-1.md` §8 already said.
 - **Proofs and tests added:** B17-1's section of `test_interp.py`: the suite, each §8 rule, D102, the text form, argument checks and the command line.
