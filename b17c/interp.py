@@ -50,17 +50,64 @@ class Multiset:
         return dict(self.counts).get(x, 0)
 
 
-@dataclass(frozen=True)
-class Tup:
+class _Deep:
+    """A tuple or data value, which may nest without limit: a loop can build a list 100,000
+    deep. Its hash is computed once, from its parts' hashes, when it's built, and equality
+    walks both values with a stack of its own, so neither recurses through Python's stack."""
+
+    def __post_init__(self):
+        try:
+            h = hash((type(self).__name__, *self.parts()))
+        except _Undecided:  # it holds a set kept as its predicate, which has no hash
+            h = None
+        object.__setattr__(self, "_hash", h)
+
+    def __hash__(self):
+        if self._hash is None:
+            raise _Undecided
+        return self._hash
+
+    def __eq__(self, other):
+        todo = [(self, other)]
+        while todo:
+            a, b = todo.pop()
+            if a is b:
+                continue
+            if isinstance(a, _Deep):
+                if type(a) is not type(b) or (a._hash is not None and b._hash is not None and a._hash != b._hash):
+                    return False
+                pa, pb = a.parts(), b.parts()
+            elif type(a) is tuple:
+                if type(b) is not tuple:
+                    return False
+                pa, pb = a, b
+            elif a == b:
+                continue
+            else:
+                return False
+            if len(pa) != len(pb):
+                return False
+            todo += reversed(list(zip(pa, pb)))  # left to right, as Python compares, so a constructor decides first
+        return True
+
+
+@dataclass(frozen=True, eq=False)
+class Tup(_Deep):
     """A B17-1 tuple. Sequences and vectors are Python tuples."""
     items: tuple
 
+    def parts(self):
+        return self.items
 
-@dataclass(frozen=True)
-class Data:
+
+@dataclass(frozen=True, eq=False)
+class Data(_Deep):
     """A data value: its constructor's name and its fields' values, in order."""
     ctor: str
     fields: tuple
+
+    def parts(self):
+        return (self.ctor, *self.fields)
 
 
 class Map(dict):
@@ -118,21 +165,29 @@ def _ident(v):
     return tuple(map(_ident, v)) if isinstance(v, tuple) else v
 
 
+_CLOSE = object()  # where a compound value ends, in _key's walk
+
+
 def _key(v):
-    """An order on values of one type, so that equal collections are built and printed alike."""
+    """An order on values of one type, so that equal collections are built and printed alike:
+    compound values by their parts, left to right, a shorter one first. It's a flat list of
+    tokens, so comparing two keys never recurses, however deep the values are."""
     if isinstance(v, int):
         return v
-    if isinstance(v, Data):
-        return (v.ctor, *map(_key, v.fields))
-    if isinstance(v, Tup):
-        return tuple(map(_key, v.items))
-    if isinstance(v, Multiset):
-        return tuple((_key(x), n) for x, n in v.counts)
-    if isinstance(v, frozenset):
-        return tuple(sorted(map(_key, v)))
-    if isinstance(v, Map):
-        return tuple(sorted((_key(k), _key(x)) for k, x in v.items()))
-    return tuple(map(_key, v))
+    out, todo = [], [v]
+    while todo:
+        x = todo.pop()
+        if x is _CLOSE:
+            out.append((0,))
+        elif isinstance(x, (int, str)):  # a constructor's name is a str
+            out.append((1, x) if isinstance(x, int) else (2, x))
+        else:
+            parts = (x if isinstance(x, tuple) else x.parts() if isinstance(x, _Deep) else x.counts if isinstance(x, Multiset)
+                     else sorted(x, key=_key) if isinstance(x, frozenset) else sorted(x.items(), key=lambda kv: _key(kv[0])))
+            out.append((3,))
+            todo.append(_CLOSE)
+            todo += reversed(parts)
+    return out
 
 
 @dataclass(frozen=True)
@@ -264,24 +319,39 @@ def text_of(out):
 
 
 def _term(v):
-    """A value as a term."""
-    if v is True or v is False:
-        return "true" if v else "false"
-    if isinstance(v, int):
-        return str(v)
-    if isinstance(v, tuple):
-        return "(" + " ".join(["seq-lit"] + [_term(x) for x in v]) + ")"
-    if isinstance(v, Multiset):
-        return f"(multiset {_term(tuple(x for x, n in v.counts for _ in range(n)))})"
-    if isinstance(v, Tup):
-        return "(" + " ".join(["tuple"] + [_term(x) for x in v.items]) + ")"
-    if isinstance(v, Data):
-        return "(" + " ".join([v.ctor] + [_term(x) for x in v.fields]) + ")"
-    if isinstance(v, frozenset):
-        return "(" + " ".join(["iset-lit"] + [_term(x) for x in sorted(v, key=_key)]) + ")"
-    if isinstance(v, Map):
-        return "(" + " ".join(["map-lit"] + [f"({_term(k)} {_term(v[k])})" for k in sorted(v, key=_key)]) + ")"
-    return "unknown"
+    """A value as a term, built with a stack of its own, so a value nested to any depth prints.
+    The stack holds values still to print and, as strings, text to print as it is."""
+    out, todo = [], [v]
+    while todo:
+        x = todo.pop()
+        if isinstance(x, str):
+            out.append(x)
+            continue
+        if x is True or x is False:
+            out.append("true" if x else "false")
+            continue
+        if isinstance(x, int):
+            out.append(str(x))
+            continue
+        if isinstance(x, Map):  # (map-lit (k v) ...)
+            todo.append(")")
+            for k in reversed(sorted(x, key=_key)):
+                todo += [")", x[k], " ", k, "(", " "]
+            todo.append("(map-lit")
+            continue
+        head, parts = (("seq-lit", x) if isinstance(x, tuple) else
+                       ("multiset", [tuple(y for y, n in x.counts for _ in range(n))]) if isinstance(x, Multiset) else
+                       ("tuple", x.items) if isinstance(x, Tup) else
+                       (x.ctor, x.fields) if isinstance(x, Data) else
+                       ("iset-lit", sorted(x, key=_key)) if isinstance(x, frozenset) else (None, ()))
+        if head is None:
+            out.append("unknown")
+            continue
+        todo.append(")")
+        for y in reversed(parts):
+            todo += [y, " "]
+        todo.append("(" + head)
+    return "".join(out)
 
 
 def _value(a):
