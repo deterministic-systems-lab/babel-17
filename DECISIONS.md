@@ -1372,6 +1372,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Distinct types already can't cycle:** E-TERM-002 rules out two data items containing each other. With D104, a module's instances are finite.
 - **Alternatives:** a verifier error for such a module. That would be a type the checker accepts but no other tool can handle.
 - **Touches:** D83; D103; WP3; WP5; WP7; `docs/b17-1.md` §3 and §13; `suite/b17-1/`.
+
 ## D110 · How B17-1 lowers to safe Rust · Proposed (extends D95)
 - **Date:** 2026-10-29
 - **Decision:** with subset 1 (D101), `b17c/rust.py` turns each B17-1 module that passes tier 0 into one crate, as D95 does for B17-0. Without a subset, its output is the same, byte for byte, as before B17-1.

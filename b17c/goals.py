@@ -109,16 +109,7 @@ def sort(t):
     return "SB" if sort(t.items[1]) == "Bool" else "SI"
 
 
-def ttype(t, params=()):
-    """A type form as check.py writes types, with the names in params as type parameters."""
-    if isinstance(t, Sym):
-        if t.text in params:
-            return ("param", t.text)
-        return {"bool": C.BOOL, "i64": C.I64, "int": C.INT}.get(t.text, ("data", t.text))
-    h, args = t.items[0].text, [ttype(a, params) for a in t.items[1:]]
-    if h == "ref":
-        return ("slice", ttype(t.items[1].items[1], params))
-    return (h, *args) if h in ("vec", "seq", "multiset", "tuple", "iset", "map") else ("data", h, *args)
+ttype = C.ttype
 
 
 def norm(t):

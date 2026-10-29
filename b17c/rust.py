@@ -32,6 +32,7 @@ from pathlib import Path
 
 import interp
 from check import _Checker
+from check import ttype as _type  # a type form, as check.py writes types
 from check import types as tier0_types
 from syntax import Form, Int, ParseError, Sym, _head, _print, canonical, parse
 
@@ -106,18 +107,6 @@ def string(text):
         else:
             out.append(f"\\u{{{ord(c):x}}}")
     return '"' + "".join(out) + '"'
-
-
-def _type(t):
-    """A type form as check.py writes types: ("bool",), ("i64",), ("vec", T) or ("slice", T),
-    and in B17-1 ("tuple", T...) and ("data", NAME, T...)."""
-    if isinstance(t, Sym):
-        return (t.text,) if t.text in ("bool", "i64", "int") else ("data", t.text)
-    h = t.items[0].text
-    if h == "ref":
-        return ("slice", _type(t.items[1].items[1]))
-    head = (h,) if h in ("vec", "seq", "multiset", "iset", "map", "tuple") else ("data", h)
-    return head + tuple(_type(a) for a in t.items[1:])
 
 
 def _args(item, head):

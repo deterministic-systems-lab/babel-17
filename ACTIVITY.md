@@ -1512,3 +1512,20 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** B17-1's section of `b17c/test_rust.py`, which CI already runs. Every `b17c` self-check passes except `test_verify.py`, which needs Z3.
 - **Left admitted:** none.
 - **Not yet done:** the Codex review, and the pull request.
+
+## 2026-10-29 · Review of WP7 for B17-1, and its pull request
+- **Asked by the owner:** review the branch `b17-1-rust` and open a pull request once it passes.
+- **The branch:** five commits on current main. Each is authored as the owner, with no attribution lines. D110 and D111 are numbered in the range kept for this work.
+- **Checked here:**
+  - **Every self-check but `test_rust.py`:** syntax, hashing, interpreter, core library, checker, agent protocol, manual, verifier, and the B17-0 track. All pass.
+  - **`test_rust.py`** needs rustc 1.99.1, which this arm64 Mac doesn't have. It runs in CI on the pull request.
+  - **Emission:** every B17-1 accept program emits a crate.
+  - **B17-0 unchanged:** all 50 of B17-0's suite files give the same output as main's backend: crates for those that pass tier 0, diagnostics for the rest.
+- **Codex review:** the one the branch's entry left to run. Run as QA against `interp.py` and `docs/b17-1.md` §3, §5, §6 and §8, it found no output that would differ from the interpreter and no checker-accepted module that would fail to compile. It confirmed B17-0's output is unchanged. It reasoned from the code, since it couldn't compile either, so CI's differential tests are the check that runs it.
+- **Ponytail review:** one finding, applied. `rust.py`'s `_type` and `goals.py`'s `ttype` converted type forms the same way, and were written in parallel. They're now one function in `check.py`, the type authority, which both import. Every B17-0 query, every B17-0 crate, and every B17-1 crate is the same, byte for byte, before and after.
+- **Also fixed:** a missing blank line before D110's heading.
+- **Still for the owner:** the branch's entry reports that `interp.py` can't print a value nested about 600 deep, since `text_of` recurses. That's the interpreter's, so it's left for its own change.
+- **Updated:** `DECISIONS.md`'s spacing; nothing else in the docs needed changing.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. The refactor is covered by the existing self-checks and the byte comparisons above.
+- **Left admitted:** none.
