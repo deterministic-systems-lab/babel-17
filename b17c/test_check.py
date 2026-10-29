@@ -354,7 +354,7 @@ for path in sorted((SUITE / "b17-1").rglob("*.b17")):
         code = re.match(r"E-[A-Z]+-\d+", path.name).group()
         assert [d.code for d in ds] == [code], (path.name, [str(d) for d in ds])  # one error, one diagnostic (D78)
         seen["parse" if code == "E-PARSE-001" else "tier 0"] += 1
-assert seen == {"accept": 10, "proof": 5, "tier 0": 40, "parse": 2}, seen
+assert seen == {"accept": 10, "proof": 5, "tier 0": 41, "parse": 2}, seen
 
 
 def codes1(*items):
@@ -455,8 +455,11 @@ bad1("E-TYPE-001", "(data vbox (a) (vboxc (v (vec a))))", "(data wrap (a) (wrapc
 bad1("E-TYPE-001", "(data box (t) (mkbox (s (iset t))))", "(data bad () (base) (mkbad (x (box bad))))")  # a set of itself
 bad1("E-TYPE-001", "(data d (a) (c (x a)) (v (xs (vec a))))", "(ghost-fn f () int (body (rank (c 1))))")  # inferred (d int)
 bad1("E-TYPE-001", "(data d (a) (empty) (full (v (vec a))))", "(ghost-fn f () int (body (rank (empty))))")  # open: int (§4)
-ok1("(data d (a) (base) (next (x (d (option a)))))", spec("f", "(x (d bool))", ""))  # recursion at a growing instance
-bad1("E-GHOST-002", "(data f (a) (b) (n (x a) (y (f int))))", spec("g", "(x (f bool))", ""))  # an int inside
+bad1("E-TYPE-001", "(data d (a) (base) (next (x (d (option a)))))")  # recursion at a growing instance (D104)
+bad1("E-TYPE-001", "(data d (a b) (base) (next (x (option (d b a)))))")  # its parameters, but out of order
+ok1("(data d (a) (base) (next (x (option (d a))) (y (vec (d a)))))", spec("f", "(x (d bool))", ""))
+bad1("E-GHOST-002", "(data h (a) (hc (y a)))", "(data f (a) (b) (n (x a) (y (h int))))",
+     spec("g", "(x (f bool))", ""))  # an int inside
 ok1("(data pair (a) (mkpair (x a) (y a)))", "(ghost-fn f ((r i64)) bool (body (== (mkpair r (+ r 0)) (mkpair (+ r 0) r))))")
 ok1(TREE, "(spec f (params (x tree)) (returns) (requires (== (tuple x x) (tuple x x))) (effects))")  # ghost moves nothing
 bad1("E-OWN-006", spec("f", "", "(n i64)"), "(def f (body (return (len (vec-new)))))")  # §5 rule 7: no temporaries

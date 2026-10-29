@@ -1,0 +1,6 @@
+(module growing
+  (header
+    (purpose "A list whose every link wraps its element in one more option.")
+    (invariants "None.")
+    (failures "None."))
+  (data nest (a) (stop) (more (next (nest (option a))))))

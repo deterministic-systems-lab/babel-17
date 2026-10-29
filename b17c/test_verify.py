@@ -193,4 +193,36 @@ for old, new in [("tree", "bst"), ("leaf", "empty"), ("val", "key")]:
     renamed = re.sub(rf"\b{old}\b", new, renamed)
 assert all(r["cached"] for r in run1(renamed)), [r for r in run1(renamed) if not r["cached"]]
 
+# Codex's review of B17-1's verifier found two ways to prove false, both in B17-0 too.
+H0 = '(module t (header (purpose "p") (invariants "i") (failures "f"))\n'
+# A recursive ghost-fn's equation holds only on values of its parameter types, where its measure
+# was proved; an SMT integer or field outside i64 isn't one.
+LIE = "(lemma lie (params) (ensures false) (body (assert (bad {}))))"
+assert "POST" in open_(run(H0 + "(ghost-fn bad ((x i64)) bool (decreases 0) (body (if (> x 9223372036854775807) "
+                             "(not (bad x)) true)))\n" + LIE.format(0) + ")"))
+assert "POST" in open_(run1(H0 + "(data cell () (cell (n i64)))\n(ghost-fn bad ((x cell)) bool (decreases 0) (body (match x "
+                              "(case (cell n) (if (> n 9223372036854775807) (not (bad x)) true)))))\n" + LIE.format("(cell 0)") + ")"))
+# A seq-build under binders, or in a ghost-fn's body, is a function of them, so it has their length...
+assert open_(run(H0 + "(spec lie (params) (returns (r i64)) (ensures (exists ((k int)) (and (and (<= 0 k) (< k 3)) "
+                      "(!= (len (seq-build k (fn (i) 0))) k)))) (effects)) (def lie (body (return 0))))")) == ["POST"]
+assert open_(run(H0 + "(ghost-fn n ((k int)) int (requires (>= k 0)) (body (len (seq-build k (fn (i) 0)))))\n"
+                      "(spec lie (params) (returns (r i64)) (ensures (== (n 1) (n 2))) (effects)) (def lie (body (return 0))))")) == ["POST"]
+assert open_(run1(H0 + "(lemma bad (params) (ensures false) (body (obtain ((k int)) (!= (len (seq-build (* k k) (fn (i) 0))) (* k k))))))"))[0] == "ASSERT"
+# ...which also proves what's true of it.
+assert open_(run(H0 + "(ghost-fn n ((k int)) int (requires (>= k 0)) (body (len (seq-build k (fn (i) 0)))))\n"
+                      "(spec ok (params) (returns (r i64)) (ensures (== (n 2) 2) (forall ((k int)) (=> (and (<= 0 k) (< k 4)) "
+                      "(== (len (seq-build k (fn (i) (* i i)))) k)))) (effects)) (def ok (body (return 0))))")) == []
+# The rest of that review: a data value's i64s fit (a validity predicate per data type), nested
+# sequences compare by elements, a multiset of an empty sequence of data, and the multiset fact of
+# an update through a place.
+assert open_(run1(H0 + "(data cell () (cell (value i64)))\n(spec f (params (c cell)) (returns (r i64)) (ensures (== r (field c value))) "
+                       "(effects)) (def f (body (return (+ (field c value) 0)))))")) == []
+assert open_(run1(H0 + "(lemma eq (params (s (seq int))) (ensures (== (seq-lit (drop s 0)) (seq-lit s))) (body)))")) == []
+assert open_(run1(H0 + "(data cell () (cell (n i64)))\n(lemma l (params) (ensures true) (body (ghost-let m (multiset cell) "
+                       "(multiset (seq-lit))) (assert true))))")) == []
+assert open_(run1(H0 + """(data box () (box (xs (vec i64))))
+  (spec f (params (b box)) (returns (r box)) (requires (> (len (field b xs)) 0) (== (idx (field b xs) 0) 1))
+    (ensures (== (occurrences (field r xs) 2) (+ (occurrences (field b xs) 2) 1))) (effects))
+  (def f (body (let-mut c box b) (set-idx (field c xs) 0 2) (return c))))""")) == []
+
 print("verifier self-check passed")

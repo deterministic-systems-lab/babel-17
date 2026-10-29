@@ -64,7 +64,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
 - **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted.
-- **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 47 programs to reject, one per rule. The checker agrees with every tier 0 label (PR #30). Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
+- **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 48 programs to reject, one per rule. The checker agrees with every tier 0 label (PR #30). Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
 - **WP15, the interpreter, reads B17-1** with `--subset 1`: data values, tuples, places, `match`, sets and maps, and `rank`. It runs all 10 accept programs, and shows the fault of each proof reject that has a def or ghost-fn. D102 lets a quantifier range over a finite collection its guard names, so set-based specs such as `is_bst` are checked rather than left unknown.
 - **WP5, the verifier, reads B17-1** with `--subset 1`, encoding it as D89 says, refined by D103.
   - **Proof labels:** each of the 5 proof rejects fails exactly its labelled goal.
@@ -83,7 +83,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-D103: how the verifier encodes B17-1, refining D89 (WP5). D79–D101 were accepted on 2026-10-28, and D102 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
+D103: how the verifier encodes B17-1, refining D89, including two soundness fixes that apply to B17-0 too (WP5). D104: a data type's recursion is regular (WP3). D79–D101 were accepted on 2026-10-28, and D102 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99 and D100 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. What's left is to finish six accept programs' proofs: the D99 and D100 steps of three, and the correctness of `bfs`, `kruskal` and `coin_change`.

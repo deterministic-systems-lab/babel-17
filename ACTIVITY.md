@@ -1385,7 +1385,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** none. `test_interp.py` already covers D102.
 - **Left admitted:** none.
 
-## 2026-10-29 · B17-1's verifier (D103 proposed)
+## 2026-10-29 · B17-1's verifier (D103 and D104 proposed)
 - **`b17c/goals.py` and `b17c/verify.py`** verify B17-1 with `subset=1`, or `--subset 1` on the command line, and B17-0 exactly as before by default (D101).
   - **B17-0 is byte-identical:** every one of the 511 queries of B17-0's suite and core library is the same as before. The sequence prelude is now a template per element sort, and it reproduces B17-0's prelude exactly.
   - **The encoding (D89, refined by D103):**
@@ -1414,6 +1414,16 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **`longest_palindrome_substring`:** one invariant of its outer loop proves under 9 of 10 shuffled seeds, using up to 7M of the 10M-unit budget. Its query uses only B17-0's encoding, so a B17-0 program could meet the same limit. The program is left without hints, as the suite's rules say.
   - **`bfs`:** its measure and one invariant count `-1`s in a vector built by `seq-build`. §9's multiset facts don't cover such a vector, so those goals don't prove.
   - **Not finished:** the correctness proofs of `bfs`, `kruskal` and `coin_change`, and the D99 and D100 steps of `trie_insert`, `lca` and `segmenttree_query`. They come next.
+- **Codex review, first pass:** seven findings, all fixed. Two were soundness holes that reached B17-0 too: the verifier proved `false`.
+  - **Recursive ghost-fns:** a recursive ghost-fn's equation held for every SMT value of its parameter sorts, while its measure was proved only for values of its parameter types. So a ghost-fn recursing on an `i64` outside `i64`'s range, which SMT allows, proved `bad(x) = not bad(x)`, and so `false`. The equation now holds only for arguments of the parameter types (D103).
+  - **`seq-build` under a binder, or in a ghost-fn's body,** was one global constant whose facts were dropped, the same for every binder value. An `exists` over its length, or two calls of a ghost-fn built on it, proved false claims. It's now a function of the bound variables, with its facts quantified over them (D103).
+  - **B17-0's queries:** both B17-0 cases are in `test_verify.py`. No B17-0 suite query changed, so no suite proof relied on either hole.
+  - **Growing recursion** like `(data nest (a) (stop) (more (next (nest (option a)))))` sent the verifier into endless expansion. D104 makes tier 0 reject it, with `suite/b17-1/reject/E-TYPE-001-growing-recursion.b17` as its label.
+  - **Missing facts:**
+    - a data value's `i64` fields now fit, through a validity predicate per data type;
+    - nested sequences now compare by elements;
+    - an update through a place now keeps §9's multiset fact;
+    - a multiset of an empty sequence of data no longer gives an ill-sorted query.
 - **Updated:** the README's status, WP5 row, layout, commands and self-check lines; the roadmap's status, decisions waiting, next steps and B17-1 row; `suite/README.md`'s verdicts and checking notes; `docs/b17-1.md` §9 and §14.
 - **Interfaces touched:** interface 11 v0.2, as D103 refines it.
 - **Proofs and tests added:** B17-1's section of `test_verify.py`:
@@ -1421,5 +1431,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - each encoding rule with a passing case and a failing one: `rank`, `FIELD`, tuples, sets, maps, places, `match` statements;
   - D99 with and without its statement, and a lemma that applies itself;
   - D100's witness;
-  - cache hits after renaming.
+  - cache hits after renaming;
+  - each review finding, the soundness holes in both subsets, and a true claim built the same way, which proves.
+- **`test_check.py`:** D104's rule, and two older tests that used growing recursion incidentally.
 - **Left admitted:** none.

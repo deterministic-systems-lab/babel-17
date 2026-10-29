@@ -159,6 +159,21 @@ def in_i64(t):
     return f"(and (<= {MIN} {t}) (< {t} {LIM}))"
 
 
+def _binds(decl):
+    """The (name, sort) pairs of an SMT binder list such as "(x!b1 Int) (s!b2 (Array Int Bool))"."""
+    out, depth, start = [], 0, 0
+    for k, ch in enumerate(decl):
+        if ch == "(":
+            depth += 1
+            start = k + 1 if depth == 1 else start
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                name, srt = decl[start:k].split(" ", 1)
+                out.append((name, srt))
+    return out
+
+
 def wrap(guard, g):
     """g under the conditions and binders of the expression it came from."""
     for kind, x in reversed(guard):
@@ -193,6 +208,8 @@ class Gen:
         self.elems = dict(ELEM)  # sequence sort -> element sort
         self.seqs = {}           # element sort -> sequence sort, for the element sorts B17-1 adds
         self.dts = {}            # data type, normalized -> its SMT datatype (D103)
+        self.oks = {}            # data type -> its validity predicate, where i64 and int differ
+        self.lifting = None      # while a ghost-fn is emitted: the seq-builds its body lifts out
         self.blocks = []         # (layer, names, text): declarations a query takes when it uses a name
         self.decls, self.goals, self.n = [], [], 0
         self.quiet = False
@@ -225,19 +242,69 @@ class Gen:
         return c
 
     def type_facts(self, t, typ):
-        """Background facts: every i64 value, and every vector or slice length, fits (§9)."""
+        """Background facts that term t is a value of its type: every i64 fits, and so does
+        every vector or slice length (§9), inside tuples, data values and sequences too."""
         typ = self.ty(typ)
         if typ == C.I64:
             return [in_i64(t)]
+        if typ[0] == "tuple":
+            T = self.tuple(len(typ) - 1)
+            return [f for i, u in enumerate(typ[1:]) for f in self.type_facts(f"(get.{T}.{i} {t})", u)]
+        if typ[0] == "data":
+            return [f"({self.ok(typ)} {t})"] if self.needs(typ) else []
         if typ[0] not in C.SEQUENCES:
             return []
         srt = self.sort(typ)
         out = [] if typ[0] == "seq" else [f"(< {fn('len', srt, t)} {LIM})"]
-        if typ[1] == C.I64:
+        if self.needs(typ[1]):
             k = self.bound("k")
+            each = self.type_facts(fn("nth", srt, t, k), typ[1])
             out.append(f"(forall (({k} Int)) (! (=> (and (<= 0 {k}) (< {k} {fn('len', srt, t)})) "
-                       f"{in_i64(fn('nth', srt, t, k))}) :pattern ({fn('nth', srt, t, k)})))")
+                       f"{each[0] if len(each) == 1 else '(and ' + ' '.join(each) + ')'}) :pattern ({fn('nth', srt, t, k)})))")
         return out
+
+    def needs(self, t, seen=()):
+        """Whether a value of type t has facts to be one: an i64 or a vector inside it."""
+        t = self.ty(t)
+        if t == C.I64 or t[0] in ("vec", "slice"):
+            return True
+        if t[0] in ("seq", "tuple"):
+            return any(self.needs(u, seen) for u in C.parts(t))
+        if t[0] != "data" or t in seen:
+            return False
+        return any(self.needs(f, seen + (t,)) for _, f in self.fields(t))
+
+    def fields(self, t):
+        """Data type t's fields, as (selector, declared type with t's arguments), constructor by constructor."""
+        item, d = self.datas[t[1]], self.data(t)
+        params = [a.text for a in item.items[2].items]
+        env = dict(zip(params, t[2:]))
+        return [(sel[1], C.subst(ttype(f.items[1], params), env))
+                for c, (_, fs) in zip(item.items[3:], d["ctors"].values()) for f, sel in zip(c.items[1:], fs)]
+
+    def ok(self, t):
+        """The predicate that a value of data type t is one of t's values, whose i64s and
+        vector lengths fit: as its fields' facts, read from it, and as what builds it."""
+        if t not in self.oks:
+            P = self.oks[t] = self.name("ok")  # first, so a recursive field finds it
+            d = self.data(t)
+            D = d["sort"]
+            self.declare(3, {P}, f"(declare-fun {P} ({D}) Bool)")
+            item, axioms = self.datas[t[1]], []
+            types = iter(self.fields(t))
+            for c, fs in d["ctors"].values():
+                own = [next(types)[1] for _ in fs]
+                for f, u in zip(fs, own):  # a valid value's fields are valid
+                    for fact in self.type_facts(f"({f[1]} x)", u):
+                        axioms.append(f"(assert (forall ((x {D})) (! (=> (and ({P} x) ((_ is {c}) x)) {fact}) "
+                                      f":pattern (({P} x) ({f[1]} x)))))")
+                xs = [f"(a{j} {f[3]})" for j, f in enumerate(fs)]
+                built = app(c, [f"a{j}" for j in range(len(fs))])
+                facts = [g for j, u in enumerate(own) for g in self.type_facts(f"a{j}", u)]
+                axioms.append(f"(assert ({P} {built}))" if not xs else  # and valid fields build a valid value
+                              f"(assert (forall ({' '.join(xs)}) (! (=> (and true {' '.join(facts)}) ({P} {built})) :pattern ({built}))))")
+            self.declare(4, {P}, "\n".join(axioms))
+        return self.oks[t]
 
     def sort_of(self, *xs, default="SI"):
         """The sort tier 0 gives the first of xs whose type an empty literal doesn't leave open."""
@@ -439,15 +506,8 @@ class Gen:
         if h in ("<", "<=", ">", ">=", "==", "!="):
             w = self.sort_of(a[0], a[1])  # where an empty literal is compared, the other side's sort
             (l, srt), (r, _) = e(a[0], w=w), e(a[1], w=w)
-            if srt in self.elems:  # §9: sequences are equal when their lengths and elements are
-                j = self.bound("j")
-                body = (f"(=> (and (<= 0 {j}) (< {j} {fn('len', srt, l)})) "
-                        f"(= {fn('nth', srt, l, j)} {fn('nth', srt, r, j)}))")
-                # Z3 rejects a pattern holding a logical operator, as a sequence-valued if or a
-                # literal of comparisons does, so such a side gets none.
-                pats = "".join(f" :pattern ({fn('nth', srt, t, j)})" for t in (l, r) if not LOGICAL.search(t))
-                eq = (f"(and (= {fn('len', srt, l)} {fn('len', srt, r)}) "
-                      f"(forall (({j} Int)) {f'(! {body}{pats})' if pats else body}))")
+            if srt in self.elems:
+                eq = self.equal(srt, l, r)
                 return (eq if h == "==" else f"(not {eq})"), "Bool"
             op = {"==": "=", "!=": "distinct"}.get(h, h)
             return f"({op} {l} {r})", "Bool"
@@ -510,7 +570,7 @@ class Gen:
             (s, srt), (v, _) = e(a[0], w=self.seq(self.sort_of(a[1]))), e(a[1])
             return fn("has", srt, s, v), "Bool"
         if h == "multiset":
-            srt = self.sort_of(a[0], default="SB" if want == "(Array Bool Int)" else "SI")
+            srt = self.sort_of(a[0], default=self.seq(want[7:-5]) if want.startswith("(Array ") else "SI")
             return fn("ms", srt, e(a[0], w=srt)[0]), f"(Array {self.elems[srt]} Int)"
         if h == "msum":
             srt = want if want.startswith("(Array") else "(Array Int Int)"
@@ -532,9 +592,25 @@ class Gen:
             rng = f"(and (<= 0 {i}) (< {i} {n}))"
             body, srt = self.expr(a[1].items[2], inner, ghost, guard + (("all", f"({i} Int)"), ("if", rng)))
             ss = self.seq(srt)
-            r = self.fresh("seq", ss)
-            self.fact(st, guard, f"(= {fn('len', ss, r)} {n})")
-            self.fact(st, guard, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")
+            bound = [b for k, d in guard if k == "all" for b in _binds(d)]
+            if not bound and self.lifting is None:
+                r = self.fresh("seq", ss)
+                self.fact(st, guard, f"(= {fn('len', ss, r)} {n})")
+                self.fact(st, guard, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")
+                return r, ss
+            # Under binders, a function of them, with its facts at every point where the length
+            # is defined; in a ghost-fn's body, an axiom beside its definition.
+            f = self.name("seq")
+            r = app(f, [v for v, _ in bound])
+            under = guard + (("if", f"(>= {n} 0)"),)
+            facts = [wrap(under, f"(= {fn('len', ss, r)} {n})"),
+                     wrap(under, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")]
+            decl = f"(declare-fun {f} ({' '.join(srt for _, srt in bound)}) {ss})"
+            if self.lifting is not None:
+                self.lifting.append((None, "\n".join([decl, *(f"(assert {x})" for x in facts)])))
+            elif st is not None:
+                self.decls.append(decl)
+                st.facts += facts
             return r, ss
         if self.sub and (h in EXPRS_1 or h in self.ctors):
             return self.expr1(x, h, a, st, ghost, guard, want)
@@ -546,6 +622,20 @@ class Gen:
         if self.item and h == self.item[0]:
             self.term_goal(st, guard, x, f, args)
         return app(f"g!{h}", args), self.sort(f.items[3])
+
+    def equal(self, srt, l, r):
+        """l = r at sort srt. Sequences are equal when their lengths and elements are (§9), and
+        their elements compare the same way, so nested sequences do too."""
+        if srt not in self.elems:
+            return f"(= {l} {r})"
+        j = self.bound("j")
+        body = (f"(=> (and (<= 0 {j}) (< {j} {fn('len', srt, l)})) "
+                f"{self.equal(self.elems[srt], fn('nth', srt, l, j), fn('nth', srt, r, j))})")
+        # Z3 rejects a pattern holding a logical operator, as a sequence-valued if or a
+        # literal of comparisons does, so such a side gets none.
+        pats = "".join(f" :pattern ({fn('nth', srt, t, j)})" for t in (l, r) if not LOGICAL.search(t))
+        return (f"(and (= {fn('len', srt, l)} {fn('len', srt, r)}) "
+                f"(forall (({j} Int)) {f'(! {body}{pats})' if pats else body}))")
 
     def binders(self, bs, st):
         """Bound variables for binders bs: their SMT declaration, and a state that sees them."""
@@ -682,10 +772,13 @@ class Gen:
                 v = f"{p.items[0].text}!p"
                 st.env[p.items[0].text] = (v, p.items[1])
                 ps.append(f"({v} {self.sort(p.items[1])})")
-            q, self.quiet = self.quiet, True
-            body, _ = self.expr(clauses(f, "body")[0][0], st, True, want=self.sort(f.items[3]))
-            pre = [self.expr(c[0], st, True)[0] for c in clauses(f, "requires")]
+            q, self.quiet, self.lifting = self.quiet, True, []
+            every = (("all", " ".join(ps)),) if ps else ()  # its parameters are variables of the definition
+            body, _ = self.expr(clauses(f, "body")[0][0], st, True, every, want=self.sort(f.items[3]))
+            pre = [self.expr(c[0], st, True, every)[0] for c in clauses(f, "requires")]
             self.quiet = q
+            out.extend(self.lifting)
+            self.lifting = None
             ret, pre = self.sort(f.items[3]), f"(and true {' '.join(pre)})"
             if name not in self.calls(f):
                 out.append((None, f"(define-fun g!{name} ({' '.join(ps)}) {ret} {body})"))
@@ -698,7 +791,12 @@ class Gen:
             args = [p[1:].split(" ", 1)[0] for p in ps]
             out.append((None, f"(declare-fun g!{name} ({sorts}) {ret})"))
             out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
-            eq = f"(=> {app('p!' + name, args)} (= {app('g!' + name, args)} {body}))"
+            # Its measure is proved only for values of its parameter types, so its equation holds
+            # only for those: an SMT value may have an i64 field out of range, where recursion
+            # needn't descend.
+            typed = [g for p, a in zip(f.items[2].items, args) for g in self.type_facts(a, p.items[1])]
+            pre_ = app('p!' + name, args) if not typed else f"(and {' '.join(typed)} {app('p!' + name, args)})"
+            eq = f"(=> {pre_} (= {app('g!' + name, args)} {body}))"
             out.append((name, f"(assert (forall ({' '.join(ps)}) (! {eq} :pattern ({app('g!' + name, args)}))))"
                         if ps else f"(assert {eq})"))
 
@@ -902,6 +1000,9 @@ class Gen:
                      f"(forall (({k} Int)) (! (=> (and (<= 0 {k}) (< {k} {fn('len', srt, old)}) (not (= {k} {i}))) "
                      f"(= {fn('nth', srt, new, k)} {fn('nth', srt, old, k)})) :pattern ({fn('nth', srt, new, k)})))",
                      f"(= {fn('nth', srt, new, i)} {v})"]
+        ov, ms = fn("nth", srt, old, i), fname("ms", srt)
+        m1 = f"(store ({ms} {old}) {ov} (- (select ({ms} {old}) {ov}) 1))"
+        st.facts.append(f"(= ({ms} {new}) (store {m1} {v} (+ (select {m1} {v}) 1)))")
         return new
 
     def join(self, base, c, yes, no):

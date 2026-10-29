@@ -1343,7 +1343,11 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A datatype per instance:** each instance of a data type, such as `(option int)` or `(option node)`, is a monomorphic SMT datatype, not one parametric datatype per data item. Instances are keyed by their sorts, so `i64` is `int` and vectors and slices are sequences. An instance is declared together with the instances it refers to and that refer back to it, as `node` and `(option node)` do. Tuples stay one parametric datatype per arity.
   - **Set operations are lambdas:** `union`, `inter` and `diff` of sets are lambdas over their arrays, not array maps. Maps' `union` is a lambda too.
   - **`match` binders are selectors:** in each arm the scrutinee passes its constructor's test, and the binders are its selectors. By the datatype axioms, the scrutinee then equals its constructor applied to them, which is what D89 asks for. Selectors also work in ghost-fn definitions, which are expressions, with no place for fresh constants.
-  - **Equality of values holding sequences:** a tuple or data value that holds a sequence is compared by SMT equality, not by a predicate per sort. A sequence itself is still compared by length and elements.
+  - **Equality of values holding sequences:** a tuple or data value that holds a sequence is compared by SMT equality, not by a predicate per sort. A sequence itself is still compared by length and elements, and so are the sequences inside it.
+- **Three rules D89 left unsaid,** the first two in both subsets:
+  - **Recursive ghost-fns:** a recursive ghost-fn's defining equation holds only for arguments of its parameter types that satisfy its `requires`. That is exactly where its measure was proved. An SMT integer or field outside `i64` isn't a value of its type, and the recursion needn't descend there.
+  - **`seq-build` under binders:** a `seq-build` under a quantifier's or statement's binders, or in a ghost-fn's body, is a function of those variables, not one constant. Its length and elements are facts at every point where its length is at least 0.
+  - **A validity predicate per data type:** it says a value's `i64`s and vector lengths fit, through tuples and sequences too. Parameters, call results and `match` binders assume it, as B17-0's `i64` values assume they fit.
 - **Unchanged from D89:**
   - sequences per element sort, with §9's facts;
   - multisets as count arrays, sets as arrays to `Bool`, and maps as arrays to `option`;
@@ -1353,5 +1357,18 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:**
   - **Per instance:** a type parameter under a sequence, as in `(data stack (a) (stack (items (vec a))))`, would need sequence functions over a parametric sort. SMT-LIB 2.6 can't declare those, so D89's parametric datatypes can't hold such a field. With one datatype per instance, every field has a concrete sort.
   - **Lambdas:** `bst_insert`'s `is_bst` postcondition proved under 6 of 11 seeds with array maps, and under all 11 with lambdas, using about 2% of the resource units. Z3 reduces a lambda at each `select`.
+  - **The first two rules are soundness fixes.** Without them, the verifier proved `false` in B17-0 as well as B17-1. A ghost-fn `bad` on an `i64` with `(if (> x 9223372036854775807) (not (bad x)) true)` proved `bad(x) = not bad(x)`. An `exists` over a quantified `seq-build` length proved, because the sequence was one constant whatever the binder. No B17-0 suite query changes.
   - **SMT equality:** it is sound. Program values that are equal are the same SMT value in the intended model, so assuming SMT equality assumes nothing false. It is incomplete: it can't prove two values equal when their sequences are different terms with the same elements. No suite program compares such values, and the predicate D89 describes can be added when a proof needs it.
 - **Touches:** D63; D89; D92; WP5; interface 11; `docs/b17-1.md` §9.
+
+## D104 · A data type's recursion is regular · Proposed
+- **Date:** 2026-10-29
+- **Decision:** a data type uses itself only as itself applied to its own parameters, in their order. Any other use is `E-TYPE-001`. So `(data nest (a) (stop) (more (next (nest (option a)))))` is rejected, and `(data tree (a) (leaf) (node (val a) (kids (vec (tree a)))))` is not. This adds to D83's well-formed types (`docs/b17-1.md` §3).
+- **Why:**
+  - **Infinitely many instances:** a `nest i64` holds a `nest (option i64)`, which holds a `nest (option (option i64))`, and so on.
+  - **The verifier:** D103's datatype per instance never finishes declaring them, and SMT-LIB's parametric datatypes reject such a type too. Codex found the verifier recursing without end on one.
+  - **The backend:** Rust compiles generics one instance at a time, so the emitted crate would meet the same infinite expansion.
+  - **Little use in B17-1:** functions take no type parameters, so a function over `nest i64` couldn't recurse into its field anyway.
+  - **Distinct types already can't cycle:** E-TERM-002 rules out two data items containing each other. With D104, a module's instances are finite.
+- **Alternatives:** a verifier error for such a module. That would be a type the checker accepts but no other tool can handle.
+- **Touches:** D83; D103; WP3; WP5; WP7; `docs/b17-1.md` §3 and §13; `suite/b17-1/`.

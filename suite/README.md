@@ -76,10 +76,10 @@ D99 and D100 are accepted, and WP5 now reads B17-1. The steps that use them are 
 - **Ranges (D42, §10's rule):** `discrete_logarithm` requires `g * (p - 1)` to fit, so every step's `g * cur` does. The others need none, since their own preconditions bound every value.
 - **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` relabels components instead of keeping a union-find forest, and `bfs` uses a vector as its queue.
 
-**Reject:** 47 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 42 with a tier 0 code and 5 with a proof family.
+**Reject:** 48 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 43 with a tier 0 code and 5 with a proof family.
 
 **How the labels are checked:**
 - **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
-- **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 57.
+- **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 58.
 - **Proof labels:** WP5's verifier, `b17c/verify.py --subset 1`, checks them. Each of the 5 fails exactly its labelled goal.
 - **Runs:** WP15's interpreter runs every accept program on inputs its `requires` allows, with `--subset 1`. It shows the fault of the three proof rejects that have a def or ghost-fn on a concrete input. The other two are lemmas, whose bodies never run (D57), so only WP5 can show theirs.
