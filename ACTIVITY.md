@@ -1440,3 +1440,19 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - each review finding, the soundness holes in both subsets, and a true claim built the same way, which proves.
 - **`test_check.py`:** D104's rule, and two older tests that used growing recursion incidentally.
 - **Left admitted:** none.
+
+## 2026-10-29 · D103 and D104 accepted
+- **The owner accepted D103 and D104:**
+  - **D103:** how the verifier encodes B17-1, refining D89 and, through its two soundness rules, D61.
+  - **D104:** a data type's recursion is regular.
+- **Headings:** following the log's convention, they now record each refinement: D61 and D89 are refined by D103, and D83 by D104. D58 now records that D102 refines it, which its acceptance earlier today left out.
+- **Updated:**
+  - D103's touches gain D61;
+  - `docs/b17-1.md`'s status line and §14;
+  - the roadmap's decisions waiting, next steps and B17-1 row;
+  - the roadmap's WP5 status, now that the soundness fixes reach B17-0 and the suite's queries are unchanged;
+  - the README's WP5 row, which now says so too, its verify.py row and interface 11's line;
+  - `docs/b17-1.md` §9's encoding heading, which now names D103.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_verify.py` and `test_check.py` already cover both decisions.
+- **Left admitted:** none.

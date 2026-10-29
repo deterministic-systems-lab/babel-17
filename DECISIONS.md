@@ -563,7 +563,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Each check is one of §9's goals at a concrete state, so a contract outcome is a counterexample to that goal, named the way the verifier names it. Checking a lemma's claim where it's called gives WP16's witness examples something to run, and its proof stays the verifier's job. Memoizing ghost-fns changes no result and makes recursive specs such as `fib` linear to evaluate.
 - **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9.
 
-## D58 · A quantifier is evaluated only over a range read off its guard · Accepted
+## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102)
 - **Date:** 2026-10-27
 - **Decision:**
   - **Guard:** a `forall`'s guard is G when its body is `(=> G P)`. An `exists`'s guard is its body, when that's an `and`. Nested `and`s are flattened into a list of conjuncts in evaluation order.
@@ -611,7 +611,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
 - **Touches:** D42; `docs/b17-0.md` §10; `suite/accept/` `fib`, `power`, `sum` and `prefix_sums`; the ported-ranges table in `suite/README.md`; WP10.
 
-## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted
+## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103)
 - **Date:** 2026-10-27
 - **Decision:** for WP5 and interface 11, and replacing §9's line "vectors, slices and seqs become SMT sequences":
   - **Sequences:** vectors, slices and seqs are an uninterpreted sort per element type, and §9's background facts, with triggers, are their only axioms. SMT-LIB's sequence theory isn't used.
@@ -972,7 +972,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** AlgoVeri's ports name parameters after their types (`graph: Graph`), and Dafny's `datatype Graph = Graph(...)` shares a type's name with its constructor. Names here are lowercase only, so one namespace would force renames on every such port. Types and values never appear in the same position, so keeping them apart costs no ambiguity.
 - **Touches:** D41; D51; `docs/b17-1.md` §2.
 
-## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Accepted
+## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Accepted (refined by D104)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Runtime types:** `bool`, `i64`, and a vector, tuple or data type whose components are all runtime types, as D79 lists them. A slice is a spec's parameter type only, and never sits inside another type. Every other type is a ghost type. A vector's element is a runtime type.
@@ -1062,7 +1062,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Fixed counts:** they bound a test run's cost, as D59's fuel bounds a run.
 - **Touches:** D22; D23; D57; D59; D80; WP15; `docs/b17-1.md` §10.
 
-## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted
+## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted (refined by D103)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Datatypes:** tuples and data types are SMT-LIB datatypes, generic ones parametric.
@@ -1317,7 +1317,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A toolchain per subset:** that duplicates every tool.
 - **Touches:** D44; D65; D98; interface 4; WP2; WP3; WP5; WP7; WP8; WP15; M3.
 
-## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted
+## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted (refines D58)
 - **Date:** 2026-10-29
 - **Decision:** D58 gains one kind of conjunct that can't fail and gives bounds, in both subsets.
   - **The conjunct:** `(contains E x)`, where x is an unassigned binder, E mentions no unassigned binder, and E is defined here, with a finite set, a sequence or a map as its value.
@@ -1337,7 +1337,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Enumerating whole types:** booleans and tuples of them are finite, but data and sequence types aren't, and a bound read off the guard covers what the suite needs.
 - **Touches:** D57; D58; D80; WP15; `docs/b17-1.md` §8.
 
-## D103 · How the verifier encodes B17-1, refining D89 · Proposed
+## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89)
 - **Date:** 2026-10-29
 - **Decision:** WP5 implements interface 11 v0.2 as D89 says, with four changes.
   - **A datatype per instance:** each instance of a data type, such as `(option int)` or `(option node)`, is a monomorphic SMT datatype, not one parametric datatype per data item. Instances are keyed by their sorts, so `i64` is `int` and vectors and slices are sequences. An instance is declared together with the instances it refers to and that refer back to it, as `node` and `(option node)` do. Tuples stay one parametric datatype per arity.
@@ -1359,9 +1359,9 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Lambdas:** `bst_insert`'s `is_bst` postcondition proved under 6 of 11 seeds with array maps, and under all 11 with lambdas, using about 2% of the resource units. Z3 reduces a lambda at each `select`.
   - **The first two rules are soundness fixes.** Without them, the verifier proved `false` in B17-0 as well as B17-1. A ghost-fn `bad` on an `i64` with `(if (> x 9223372036854775807) (not (bad x)) true)` proved `bad(x) = not bad(x)`. An `exists` over a quantified `seq-build` length proved, because the sequence was one constant whatever the binder. No B17-0 suite query changes.
   - **SMT equality:** it is sound. Program values that are equal are the same SMT value in the intended model, so assuming SMT equality assumes nothing false. It is incomplete: it can't prove two values equal when their sequences are different terms with the same elements. No suite program compares such values, and the predicate D89 describes can be added when a proof needs it.
-- **Touches:** D63; D89; D92; WP5; interface 11; `docs/b17-1.md` §9.
+- **Touches:** D61; D63; D89; D92; WP5; interface 11; `docs/b17-1.md` §9.
 
-## D104 · A data type's recursion is regular · Proposed
+## D104 · A data type's recursion is regular · Accepted (refines D83)
 - **Date:** 2026-10-29
 - **Decision:** a data type uses itself only as itself applied to its own parameters, in their order. Any other use is `E-TYPE-001`. So `(data nest (a) (stop) (more (next (nest (option a)))))` is rejected, and `(data tree (a) (leaf) (node (val a) (kids (vec (tree a)))))` is not. This adds to D83's well-formed types (`docs/b17-1.md` §3).
 - **Why:**

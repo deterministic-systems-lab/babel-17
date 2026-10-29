@@ -26,7 +26,7 @@ Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are d
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits and the lockfile remain. |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. With `--subset 1` it checks B17-1 too, and agrees with every tier 0 label of `suite/b17-1/`. |
 | WP4a | The spec language | Done (D62, D79): B17-0's spec language is WP1a's, and B17-1 adds no data-type invariants or refinement links. |
-| WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. With `--subset 1` it verifies B17-1 too (D89, D103): its 5 proof rejects fail as labelled, and its accept programs whose proofs are written verify. |
+| WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. With `--subset 1` it verifies B17-1 too (D89, D103): its 5 proof rejects fail as labelled, and its accept programs whose proofs are written verify. A review of that work found two ways the verifier could prove `false`, in B17-0 as well, and both are fixed (D103). No B17-0 suite proof relied on them. |
 | WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on the suite, corner cases and generated programs. Its readings are D95–D97, accepted. B17-1 extends it (D79). |
 | WP8 | Agent reference manual | Done for B17-0 ([docs/manual.md](docs/manual.md)): every rule and all 25 error codes with a minimal example, each checked against its stated outcome by `test_manual.py`. |
@@ -86,7 +86,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59); B17-1's with `--subset 1` |
 | [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97) |
 | [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels; B17-1's with `--subset 1` |
-| [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63) |
+| [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63); B17-1's with `--subset 1` |
 | [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8) |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 for M3 (D98) |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 64 from AlgoVeri, 28 from vericoding |
@@ -197,5 +197,5 @@ Every set so far is near the ceiling for current models. The vericoding tasks we
   - B17-1's parts of 1 and 6, in `docs/b17-1.md`, until B17-1 freezes;
   - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94);
   - 10, interpreter traces, at version 0.1 (D56);
-  - 11, solver queries, at version 0.1, with 0.2 drafted for B17-1 (D63, D89);
+  - 11, solver queries, at version 0.1, with 0.2 for B17-1 implemented by WP5 (D63, D89, D103);
   - 5, the trusted base report, which now carries WP7's backend fields (D25, D97).
