@@ -1427,3 +1427,23 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Validity:** guarding a recursive ghost-fn's equation by a vector-length fact made `trie_insert`'s `well_formed` unprovable on a newly built node, since showing a node valid meant proving a quantified fact about its vector. The guard has to match only the facts the ghost-fn's termination proof used. Those now leave out lengths inside data values, so soundness is unchanged.
 - **B17-0:** the constant `seq-build`'s count is a fact about sequences, so it holds in B17-0 too, refining D61. The other two refinements are B17-1's alone, since B17-0 has no sets, maps or data values. All 511 of B17-0's suite queries are byte-identical, since its one `seq-build` uses its index.
 - **Touches:** D61; D89; D103; WP5; `docs/b17-1.md` §9; `suite/b17-1/accept/`.
+
+## D106 · B17-1's ghost-fns unfold where they're applied · Proposed (refines D61 and D103)
+- **Date:** 2026-10-29
+- **Decision:** in B17-1's queries, a non-recursive ghost-fn with parameters is a declared function, with its definition as an axiom triggered by its applications, as a recursive one's already is (D61). It used to be a `define-fun`, which Z3 expands as a macro wherever it appears.
+  - **No guard:** the axiom isn't guarded by the `requires`, since a function that doesn't call itself is total.
+  - **A ghost-fn with no parameters** stays a `define-fun`.
+  - **B17-0's queries keep their macros,** so all 511 of its suite's queries stay byte-identical.
+- **Why:** `bfs`'s correctness proof.
+  - **With macros:** `is_path` and `has_edge` were inlined into every invariant that mentions them, an existential inside a universal, quantifiers within quantifiers. Each of the inner loop's queries carried some twenty such invariants, and at 15 times the budget Z3 made 5–8 million quantifier instantiations and still returned unknown.
+  - **Folded:** the same proof went from 446 to 455 of its 457 goals. With its invariants restated as folded predicates, and each update's effect on them proved by a small lemma, all 405 goals of the final proof prove under 10 shuffled seeds. So do `coin_change`'s 236, built the same way.
+- **Effect on the other programs:**
+  - **`longest_palindrome_substring`:** its brittle invariant now proves under every seed.
+  - **`lca`:** one goal turned brittle, and one `assert` fixed it.
+  - **Proof style:** a proof can now use an invariant as one atom, such as `(sorted_q dist queue)`, which matches another copy of itself by congruence instead of by instantiating a quantifier.
+- **Sound:** the axiom says the function equals its body at every argument. The body defines exactly that function, so the axiom assumes nothing a macro didn't. Only when Z3 expands it changes.
+- **Alternatives:**
+  - **Only restructuring the proofs:** with macros, even a lemma's small query carried every invariant's unfolded quantifiers.
+  - **Folding in B17-0 too:** that would change frozen queries whose proofs were written against macros.
+  - **An opacity annotation** with an explicit reveal, as in Dafny: folding by default needed none so far.
+- **Touches:** D61; D63; D91; D103; WP5; `docs/b17-1.md` §9; `suite/b17-1/accept/`.
