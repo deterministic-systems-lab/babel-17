@@ -1693,3 +1693,32 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_verify.py` already covers D106.
 - **Left admitted:** none.
+
+## 2026-10-29 · `kruskal`, stage 1: the result is a spanning tree
+- **Asked by the owner:** stage 1 of `kruskal`'s proof, that its result is a spanning tree, before deciding on stage 2, that it has minimum weight.
+- **Found first: the implementation was wrong for its spec.**
+  - **The gap:** AlgoVeri's spec says "undirected" in its comment but never requires an edge to be listed from both ends. So a graph with one-way edges satisfies every `requires`.
+  - **The bug:** the port collected only edges `(u, v)` with `u < v` from `u`'s list, ignoring an edge listed only from its larger end.
+  - **Shown by the interpreter:** on the cycle `0 → 2 → 1 → 0`, it returned one edge for three vertices.
+- **The new implementation:** each round, it scans every adjacency entry, in both directions, for the lightest edge joining two components. It adds that edge and relabels one component to the other, and stops when no edge crosses components.
+  - **Kruskal's rule:** that's Kruskal's greedy rule without a separate sort, so it picks the same tree up to ties.
+  - **The spec is unchanged.**
+- **Stage 1's proof:** 305 of 306 goals prove under 10 shuffled seeds. The open one is the postcondition's minimum-weight half.
+  - **The `assert`:** the result is a spanning tree. Its edges are the graph's, it connects every pair of vertices, and it has n − 1 edges.
+  - **Folded predicates:**
+    - `labels`, where each component's label is its own vertex's;
+    - `joined`, where the same label means connected in the tree;
+    - `settled` and `settled_row`, where no scanned edge crosses components;
+    - `crossing`, `relabelled`, `root_change` and `extends`.
+  - **Counting without cardinality:** `roots(comp, n)`, a recursive ghost-fn, counts the vertices that are their own label. The tree's length plus `roots` stays `n`. Each merge drops `roots` by one (`roots_drop`), and at the end `roots` is 1 (`roots_one`).
+  - **Paths:** `conn_extend`, `conn_join` and `conn_sym` build tree paths. `path_comp` and `one_comp` carry a component along a graph path, applied at every vertex with D99, so the graph's connectivity puts every vertex in one component.
+  - **Unpacking lemmas:** `label_of` and `cross_of` turn a folded predicate's content into ground facts where it's needed. Without them, two bounds goals after the relabel loop proved under only some seeds.
+- **Mutants:** four broke the relabel, the edge's orientation, the stopping rule and the crossing test. Each left a goal unproved beyond the postcondition.
+- **Tests:**
+  - **`test_interp.py`:** the cycle case, and `kruskal`'s new unchecked clauses.
+  - **`test_verify.py`:** checks that only the postcondition is open.
+- **Stage 2,** that no spanning tree weighs less, remains: the exchange argument over cycles. The greedy rule makes it the cut property, applied at each round.
+- **Updated:** `suite/README.md`'s table, findings and port notes; the roadmap's WP5 status and next steps; the README's WP5 row.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
