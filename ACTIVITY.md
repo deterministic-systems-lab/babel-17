@@ -1646,3 +1646,42 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** `bfs`'s two count lemmas and its invariants; `kruskal`'s invariant.
 - **Left admitted:** none.
+
+## 2026-10-29 · `bfs` and `coin_change` verified, with folded ghost-fns (D106 proposed)
+- **Asked by the owner:** option 2, an encoding where ghost-fns stay folded until a proof applies them.
+- **D106, proposed:** in B17-1, a non-recursive ghost-fn is a declared function with a definition its applications trigger, not a macro. B17-0 keeps its macros, and all 511 of its queries stay byte-identical.
+- **The measurement:**
+  - **No regressions:** all seven verified programs and the five proof labels held.
+  - **The `bfs` attempt:** went from 446 to 455 of 457 goals.
+  - **`longest_palindrome_substring`:** its brittle invariant now proves under every seed.
+  - **`lca`:** one goal turned brittle, at 8 of 10 seeds. An `assert` of `is_common_ancestor` before that return fixed it.
+- **`bfs`, verified:** all 405 goals under 10 seeds.
+  - **Folded predicates:** each invariant is a ghost-fn over the state, including `positions`, `sorted_q`, `spread`, `closed`, `partial`, `witnesses` and `minimal`. The update is described by `upd`, `appended` and `updw`.
+  - **Step lemmas:** each update's effect on one invariant is a small lemma, `step_*`. `reach`, `no_shorter` and `below_from_sorted` give minimality, and `reach` applied at every path after the loop gives unreachability.
+  - **Matching:** in the loop, an invariant is one atom, and an atom matches its copy by congruence.
+  - **Requires order:** a few lemmas' `requires` needed reordering, since clauses are assumed in order, and an index's range must come before it. One inner invariant moved after the length fact it reads.
+  - **Mutants:** five broke the result, the update, the `none` case, a step lemma or the final `reach`. Each left its goal unproved.
+- **`coin_change`, verified:** all 236 goals under 10 seeds.
+  - **Witnesses** are kept in a ghost map. Updating key `a` leaves every other key's value the same SMT term, so recursive ghost-fns such as `total_coins` see it unchanged. A ghost sequence would give only equal elements.
+  - **The argument:** any valid change for `a > 0` uses some coin. Removing one gives a valid change for `a - coin` with one fewer coin, and the inner loop already compared against it. The lemmas are:
+    - `bump_totals`, how adding to one count changes both totals;
+    - `ext_totals`, that the totals follow the counts' elements;
+    - `zero_totals`, `totals_nonneg` and `some_coin`.
+  - **Folded predicates:** `solved`, `dp_ok`, `found_a` and `tried`.
+  - **Mutants:** four broke the update, the comparison, the base case and the negative amount. Each left its goal unproved.
+- **`kruskal`:** bounds and termination verify, but the claim that its tree has minimum weight doesn't. Proving it needs a theory of trees and cycles, which none of these lemmas begin to give: that the tree spans with n − 1 edges, and that no spanning tree weighs less, which takes the exchange argument. That's for the owner to decide.
+- **`test_interp.py`:** `bfs`'s and `coin_change`'s expected unchecked clauses now include their lemmas' and predicates' quantifiers over paths and sequences, which a run can't evaluate (D58).
+- **Updated:** `docs/b17-1.md` §9 and §14; `suite/README.md`'s proof table and notes; the roadmap's WP5 status, decisions waiting and next steps; the README's WP5 row and interface 11's line.
+- **Interfaces touched:** interface 11 v0.2, as D106 refines it.
+- **Proofs and tests added:**
+  - the two proofs;
+  - in `test_verify.py`: the nine verified programs, and folding in B17-1 against macros in B17-0.
+- **Left admitted:** none.
+
+## 2026-10-29 · D106 accepted
+- **The owner accepted D106:** in B17-1, a non-recursive ghost-fn unfolds only where it's applied, not as a macro.
+- **Headings:** D61 and D103 now record that D106 refines them.
+- **Updated:** `docs/b17-1.md`'s status line and §14; the roadmap's decisions waiting, next steps and B17-1 row.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `test_verify.py` already covers D106.
+- **Left admitted:** none.

@@ -611,9 +611,11 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
     "lca": ("lowest_common_ancestor", [((TREE, 4, 5), (some(2),)), ((TREE, 4, 3), (some(1),)),
                                        ((TREE, 2, 4), (some(2),))], ["POST"] * 3),
     "bfs": ("bfs_shortest_path", [((GRAPH, 0, 2), (some(2),)), ((GRAPH, 2, 0), (NONE,)), ((GRAPH, 3, 3), (some(0),))],
-            ["POST"]),
+            ["INV-ENTRY", "INV-ENTRY", "POST", "PRE", "PRE", "POST", "INV-KEEP", "INV-KEEP", "POST"]),
     "kruskal": ("kruskal_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),))], ["PRE", "PRE", "POST"]),
-    "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))], ["POST"]),
+    "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
+                    ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
+                     "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
 }
 OUTSIDE_1 = {
     "bst_insert": [(node(5, node(7)), 1), (LEAF, -1)], "bst_search": [(node(5, LEAF, node(3)), 3)],
