@@ -1617,3 +1617,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_verify.py` already covers D105.
 - **Left admitted:** none.
+
+## 2026-10-29 · B17 in GitHub's language bar
+- **Asked by the owner:** show B17 among the languages this repository is written in.
+- **Added `.gitattributes`:** `*.b17 linguist-language=Scheme`.
+  - **The constraint:** GitHub's Linguist only shows languages it knows, and B17 isn't one. So until now it didn't count the 110 `.b17` files at all.
+  - **What this does:** they now count, as Scheme, the nearest S-expression language it knows. The owner picked it from Scheme, Common Lisp and Racket.
+  - **Showing the name B17** would need Linguist to add the language upstream, which it does only for languages in wide use.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none. `git check-attr` confirms the attribute on the suite's, B17-1's and the core library's `.b17` files.
+- **Left admitted:** none.
