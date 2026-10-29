@@ -150,6 +150,14 @@ def in_i64(t):
     return f"(and (<= {MIN} {t}) (< {t} {LIM}))"
 
 
+def _walk(x):
+    """Every node of x, itself included."""
+    yield x
+    if isinstance(x, Form):
+        for c in x.items:
+            yield from _walk(c)
+
+
 def _binds(decl):
     """The (name, sort) pairs of an SMT binder list such as "(x!b1 Int) (s!b2 (Array Int Bool))"."""
     out, depth, start = [], 0, 0
@@ -587,10 +595,15 @@ class Gen:
             body, srt = self.expr(a[1].items[2], inner, ghost, guard + (("all", f"({i} Int)"), ("if", rng)))
             ss = self.seq(srt)
             bound = [b for k, d in guard if k == "all" for b in _binds(d)]
+            # A body that doesn't use its index gives every element: the multiset is it, n times.
+            same = not any(isinstance(y, Sym) and y.text == name for y in _walk(a[1].items[2]))
+            counted = lambda r: f"(= {fn('ms', ss, r)} (store ((as const (Array {srt} Int)) 0) {body} {n}))"
             if not bound and self.lifting is None:
                 r = self.fresh("seq", ss)
                 self.fact(st, guard, f"(= {fn('len', ss, r)} {n})")
                 self.fact(st, guard, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")
+                if same:
+                    self.fact(st, guard, counted(r))
                 return r, ss
             # Under binders, a function of them, with its facts at every point where the length
             # is defined; in a ghost-fn's body, an axiom beside its definition.
@@ -599,6 +612,7 @@ class Gen:
             under = guard + (("if", f"(>= {n} 0)"),)
             facts = [wrap(under, f"(= {fn('len', ss, r)} {n})"),
                      wrap(under, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")]
+            facts += [wrap(under, counted(r))] if same else []
             decl = f"(declare-fun {f} ({' '.join(srt for _, srt in bound)}) {ss})"
             if self.lifting is not None:
                 self.lifting.append((None, "\n".join([decl, *(f"(assert {x})" for x in facts)])))

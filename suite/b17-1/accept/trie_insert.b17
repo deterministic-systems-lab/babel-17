@@ -75,6 +75,14 @@
             (== (idx (drop key i) j) (idx (drop key (+ i 1)) (- j 1))))))
           (assert (== (== y (drop key i)) (== (drop y 1) (drop key (+ i 1))))))
         (block))))
+  (lemma view_end (params (before node) (after node) (key (seq int)) (i int) (y (seq int)))
+    (requires (field after is_end) (== (field after children) (field before children)) (== i (len key)))
+    (ensures (== (contains (view after) y) (or (contains (view before) y) (== y (drop key i)))))
+    (body))
+  (lemma wf_same (params (before node) (after node))
+    (requires (well_formed before) (== (field after children) (field before children)))
+    (ensures (well_formed after))
+    (body (call wf_from_body after)))
   (spec insert
     (params (tree (option node)) (key (ref (slice i64))))
     (returns (res node))
@@ -108,7 +116,10 @@
       (let-mut ((n node)) (call node_of tree))
       (if (== i (len key))
         (block
+          (ghost-let whole node n)
           (let kids (vec (option node)) (replace (field n children) (vec-new)))
+          (call wf_same whole (node true kids))
+          (forall ((y (seq int))) (call view_end whole (node true kids) key i y))
           (return (node true kids)))
         (block
           (let c i64 (idx key i))
