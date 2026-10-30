@@ -1879,7 +1879,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Tests:** `test_verify.py` checks that lemma in both subsets, and the tuple case in B17-1, with a mutation that has to fail its `ASSERT`. Both positive cases fail on `main`. Every self-check passes.
 - **Codex review** (`gpt-5.6-sol`): no soundness issue. It gave the model: each sort's finite lists, with `nth` outside the range a fixed default and `eq` as list equality, which validity and the guarded recursive equations extend. It confirmed that the gating misses no use, through ghost-fns, blocks, nested sorts, the core and D105's lambdas, and every query count above. It also confirmed that the test fails without the identity axiom. It found one limit, now in D108 and `docs/b17-1.md` §9:
   - **Comparisons the program doesn't write** still use SMT identity: a sequence looked up in a set, a map, a multiset's counts or a sequence of sequences. `(contains (seq-lit (drop s 0)) s)` fails, as on `main`, and proves after `(assert (== (drop s 0) s))`, which on `main` it doesn't. The text had said every collection agrees on equal sequences.
-  - **Kept as a limit:** B17-0 can't meet it, and no suite program or M3 attempt needs more. Membership could compare by `eq`, but array keys can't.
+  - **Kept as a limit:** B17-0 can't meet it, and no suite program or M3 attempt needs more. Membership could compare by `eq`, and array keys would need every set and map of sequences to be a lambda.
 - **Ponytail review:** nothing to cut.
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note. B17-0's language doesn't change, so it stays at version 1.1.
 - **Updated:** the README's note on M3's first run; the roadmap's waiting decisions and M3 next steps.

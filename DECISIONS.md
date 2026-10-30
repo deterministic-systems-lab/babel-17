@@ -1507,7 +1507,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Measured** under 10 shuffled seeds:
   - **B17-0:** all 442 of the suite's queries are byte-identical. 40 of `core.b17`'s 69 change, and all 69 prove, in 9.11M units against 9.10M.
   - **B17-1:** 680 of 1,660 queries change, all in `bfs`, `coin_change` and `trie_insert`. All three still prove every goal, in 0.1% more units, 1.5% fewer and 6% fewer. The rest are byte-identical, and every proof label holds.
-- **Not done: comparing by `eq` inside lookups.** Membership in a sequence of sequences could compare by `eq`, but array keys can't, and nothing in the suite or M3 needs either. It's left until a task does.
+- **Not done: comparing by `eq` inside lookups.** Membership in a sequence of sequences could compare by `eq`. Array keys would need every set and map of sequences to be a lambda, as D105's literals are. Nothing in the suite or M3 needs either. It's left until a task does.
 - **Two variants were tried and dropped:**
   - **Dafny's form, in every query:** `eq` as equivalent to equal lengths and elements, with triggers on the elements. The suites took 6% and 7% more units, and `coin_change`'s `keep_ok_wc` ran out of budget under the canonical seed. Its elements direction is redundant, since identity gives it by congruence.
   - **One implication, in every query:** two of `lca`'s goals ran out of budget under one seed in 11. `lca` has no sequences, so only the prelude's growth moved them. That's why a query gets the axioms only when it compares sequences.
