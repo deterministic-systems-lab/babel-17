@@ -773,7 +773,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** §3 calls slices "parameters only" and §5 lets a borrow "appear only as a call argument", without saying which parameters or which calls. Ghost code already views a vector as a `(seq T)` (§3) without a borrow, so the strict reading costs nothing.
 - **Touches:** WP3; D36; `docs/b17-0.md` §3, §5.
 
-## D70 · Ghost typing: integers, literals and multisets · Accepted
+## D70 · Ghost typing: integers, literals and multisets · Accepted (subtyping clause superseded by D107)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Arithmetic:** ghost arithmetic and `neg` produce `int` (§7's Arith-G), and `int` isn't an `i64`. So a ghost local, ghost-fn result or parameter declared `i64` takes only an `i64`-typed expression, such as an `i64` variable, and `(ghost-let g i64 (+ x 1))` is `E-TYPE-001`.
@@ -972,7 +972,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** AlgoVeri's ports name parameters after their types (`graph: Graph`), and Dafny's `datatype Graph = Graph(...)` shares a type's name with its constructor. Names here are lowercase only, so one namespace would force renames on every such port. Types and values never appear in the same position, so keeping them apart costs no ambiguity.
 - **Touches:** D41; D51; `docs/b17-1.md` §2.
 
-## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Accepted (refined by D104)
+## D83 · Runtime types, copying, well-formed data types and ghost subtyping · Accepted (refined by D104; subtyping clause superseded by D107)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Runtime types:** `bool`, `i64`, and a vector, tuple or data type whose components are all runtime types, as D79 lists them. A slice is a spec's parameter type only, and never sits inside another type. Every other type is a ghost type. A vector's element is a runtime type.
@@ -1013,7 +1013,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The other three rules** close holes a review found: a `seq-build` moving one value into every element, `(push (field x kids) x)` moving x into itself, and a `replace` at an unchecked index.
 - **Touches:** D36; D72; D73; D76; D79; `docs/b17-1.md` §5, §7; `b17c/check.py`.
 
-## D85 · Ghost sets and maps · Accepted
+## D85 · Ghost sets and maps · Accepted (refined by D107)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Types:** `(iset T)` is a set that may be infinite, and `(map K V)` a finite map.
@@ -1448,7 +1448,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **An opacity annotation** with an explicit reveal, as in Dafny: folding by default needed none so far.
 - **Touches:** D61; D63; D91; D103; WP5; `docs/b17-1.md` §9; `suite/b17-1/accept/`.
 
-## D107 · Ghost multisets, sets and maps are covariant · Proposed (would supersede D70's and D83's subtyping rules, and refine D85)
+## D107 · Ghost multisets, sets and maps are covariant · Accepted (supersedes D70's and D83's subtyping clauses; refines D85)
 - **Date:** 2026-10-29
 - **Decision:**
   - **In both subsets:** in ghost code, `(multiset T) <: (multiset U)` when T <: U, as sequences already are.
@@ -1477,9 +1477,9 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **The checker's change:** `check.py`'s `join` and `sub`, and B17-1's `join1` and `sub1`, gain the three collections, and the four operations join their operands. The variance pass stays, but now only checks well-formedness.
 - **B17-0 is frozen; this changes it.**
   - **Only loosens it:** it accepts programs B17-0 rejected, and every program it accepted keeps its types, meaning, hashes and queries. No B17-0 suite label changes.
-  - **Version 1.1:** `docs/b17-0.md`'s status line would say so, and so would the README and roadmap where they cite 1.0.
+  - **Version 1.1:** `docs/b17-0.md`'s status line will say so, and so will the README and roadmap where they cite 1.0.
   - **Why amend it at all:** B17-0 is the subset M3 runs, so a rerun of the hard tasks measures the change.
-- **Labels:** B17-1's reject `E-TYPE-001-iset-without-subtyping` widens an `(iset i64)` to an `(iset int)`, which becomes valid. It would become `E-TYPE-001-iset-narrowing`, which narrows instead, so the suite still pins the rule's edge. Three `test_check.py` rejects become accepts: D70's multiset comparison, an `msum` of the two multisets, and the invariant `bag`.
+- **Labels:** B17-1's reject `E-TYPE-001-iset-without-subtyping` widens an `(iset i64)` to an `(iset int)`, which becomes valid. It will become `E-TYPE-001-iset-narrowing`, which narrows instead, so the suite still pins the rule's edge. Three `test_check.py` rejects become accepts: D70's multiset comparison, an `msum` of the two multisets, and the invariant `bag`.
 - **Alternatives:**
   - **Multisets only:** fixes what M3 saw. But it leaves sets and maps with the same trap for B17-1's ports, and keeps D83's variances.
   - **B17-1 only, with B17-0 left as frozen:** the M3 track keeps the trap until its tasks move to B17-1, which needs a manual for B17-1 first.

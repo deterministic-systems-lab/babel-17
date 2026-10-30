@@ -1800,3 +1800,15 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Updated:** the roadmap's waiting decisions and M3 next steps.
 - **Interfaces touched:** none yet. D107 would change interface 1's typing rules.
 - **Proofs and tests added:** none.
+
+## 2026-10-29 · D107 accepted
+- **The owner accepted D107 as drafted:**
+  - covariant ghost multisets in both subsets, and sets and maps in B17-1;
+  - frozen B17-0 amended too, to version 1.1, since the change only loosens it.
+- **Statuses updated:**
+  - D70's and D83's subtyping clauses are superseded by D107;
+  - D85 is refined by it, since its literal rule's stated reason, that sets have no subtyping, no longer holds.
+- **Not yet implemented.** The spec documents and the manual change with the checker, in the implementation PR, so they don't describe rules the checker doesn't enforce. That PR also renames one reject, flips three test cases, and must keep B17-0's 511 suite and core queries byte-identical.
+- **Updated:** the roadmap's waiting decisions and M3 next steps.
+- **Interfaces touched:** interface 1's typing rules, once implemented.
+- **Proofs and tests added:** none.

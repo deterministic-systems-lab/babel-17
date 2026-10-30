@@ -92,16 +92,14 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **D107,** proposed on 2026-10-29: ghost multisets, sets and maps become covariant, in frozen B17-0 too, answering M3's finding on D70.
-
-D79–D101 were accepted on 2026-10-28, and D102–D106, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D101 were accepted on 2026-10-28, and D102–D107, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D106 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. All ten of its accept programs verify, `kruskal`'s minimum spanning tree included.
 2. **M3 on the seed tasks** has had its first run ([above](#recent-and-current-work)). Before the next one:
    - **The manual (WP8):** state §9's update facts, `set-idx`'s multiset effect among them. List the core laws' signatures, since the prompt doesn't include `core.b17`, and say which document's §9 is meant.
    - **The encoding (WP5):** an extensionality axiom for sequences, which §9's definition of equality makes sound, checked against the suite's solve times.
-   - **For the owner: D107,** which makes `(multiset i64)` compare with `(multiset int)`, and B17-1's sets and maps covariant too. It would supersede part of D70 and D83.
+   - **The checker (WP3): D107,** accepted, makes ghost multisets covariant in both subsets, and B17-1's sets and maps too, so `(multiset i64)` compares with `(multiset int)`. Its implementation is next: the checker, both spec documents, the manual's §3, one reject and three test cases. B17-0 becomes version 1.1, and its 511 suite and core queries must stay byte-identical.
    - **Then** rerun `insertion_sort` and `partition`. It's a new run, since the manual is part of the prompt's hash.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
