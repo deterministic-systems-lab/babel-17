@@ -53,11 +53,10 @@ The labels were first checked by review: by the author, and by an independent mo
 | `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Verified, with D99 applying a lemma at every key |
 | `lca` | `option` throughout | Verified, with D99 applying three induction lemmas at every value |
 | `bfs` | A graph record, nested vectors, a quantifier over paths | Verified, with its invariants as folded predicates and each update a lemma |
-| `kruskal` | Tuples in a vector | Bounds only: verified |
+| `kruskal` | Tuples in a vector | Verified, with an exchange argument for its minimum weight |
 | `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
-- **Bounds only:** every bounds, overflow and termination goal proves, and only the correctness postcondition is open. For `kruskal`, that's that its tree has minimum weight among every spanning tree.
 
 D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
@@ -67,7 +66,16 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
   - `bfs`'s invariant counting the `-1`s in its `dist` vector needed the multiset of a constant `seq-build`.
 - **Bounds that review had missed, now proved:**
   - **`bfs`:** its measure stays at least 0 only if the count of `-1`s never goes negative. Two lemmas prove, by induction over `take` prefixes, that a count is never negative and that an element counts at least once. Its inner loop also needed invariants keeping `dist[u]` fixed and the queue from shrinking.
-  - **`kruskal`:** the insertion sort's inner loop needed an invariant that `cands` keeps its length.
+  - **`kruskal`:** the insertion sort's inner loop needed an invariant that `cands` keeps its length. That loop is gone now; see below.
+- **`kruskal`'s implementation was wrong for its spec.**
+  - **The bug:** AlgoVeri's spec calls the graph undirected, but never requires an edge to be listed from both ends, so a graph whose edges run one way satisfies every `requires`. The port collected only edges `(u, v)` with `u < v` from `u`'s list, so it ignored an edge listed only from its larger end. On the cycle `0 → 2 → 1 → 0` it returned one edge for three vertices.
+  - **The fix:** it now adds, round by round, the lightest edge joining two components. It scans each stored entry once, and treats it as joining its two endpoints whichever way it's listed. That's Kruskal's greedy rule without a separate sort. It's a test case in `test_interp.py`.
+- **How `kruskal`'s proof goes:**
+  - **Spanning tree:** the loop keeps component labels, and an invariant that vertices with the same label are joined by the tree so far. When one label is left, every pair of vertices is connected.
+  - **Minimum weight:** the loop also keeps the invariant `good`. For every spanning tree o, some spanning tree no heavier than o starts with the tree so far. It holds for the empty tree, with o itself.
+  - **One round:** the scan picks an edge (a, b) no heavier than any edge between two components. Take the spanning tree that `good` gives, and a path in it from b to a. Where that path first enters a's component, it uses some edge f between two components, so f weighs at least as much. Putting the new edge at the tree's next index, and moving the edge that was there into f's place, gives a spanning tree that is no heavier and starts with the extended tree. The path's earlier steps avoid f, so f's ends stay connected.
+  - **The end:** the result has n − 1 edges, so the spanning tree that starts with it is the result itself, and it weighs no more than any spanning tree.
+  - **No change to the language:** the proof needed none. Its first version left 4 goals unproved. Three were `forall` statements passing indexed terms, where D99 wants binders, and one was an invariant that needed an earlier `assert`. Mutants then showed that 13 of its `assert`s, two lemmas and one invariant were redundant, and they were removed.
 - **How the large proofs fit (D106):**
   - **First attempt:** `bfs`'s first full proof didn't verify. Each of its loop's goals carried some twenty quantified invariants, with `is_path` inlined into each, and Z3 ran out of budget.
   - **Two changes made it verify.** In B17-1, a non-recursive ghost-fn is folded, so it unfolds only where a proof applies it (D106). And each invariant became a folded predicate, such as `(sorted_q dist queue)`, with each update's effect on it proved by a small lemma.
@@ -81,7 +89,7 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 - **Types:** runtime fields and parameters are `i64`, and `seq<int>` parameters are slices. Ghost functions keep `int` and `seq`, and `set<int>` is `(iset int)`. Dafny's `Option` is the core library's `option`, whose field is `value`.
 - **Methods inside a datatype** are top-level ghost-fns (§11).
 - **Ranges (D42, §10's rule):** `discrete_logarithm` requires `g * (p - 1)` to fit, so every step's `g * cur` does. The others need none, since their own preconditions bound every value.
-- **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` relabels components instead of keeping a union-find forest, and `bfs` uses a vector as its queue.
+- **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` applies Kruskal's rule, adding the lightest edge between two components, by scanning every edge each round, with components as relabelled vertex labels instead of a union-find forest. `bfs` uses a vector as its queue.
 
 **Reject:** 48 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 43 with a tier 0 code and 5 with a proof family.
 
