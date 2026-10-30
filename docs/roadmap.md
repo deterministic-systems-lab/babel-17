@@ -98,7 +98,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, and D109 and D113 on 2026-10-30. D2–D10, carried over from the design spec, are still Proposed.
+D112, M3's B17-1 track, proposed on 2026-10-30. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, and D109 and D113 on 2026-10-30. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **WP10's AlgoVeri ports,** now that B17-1 is frozen. 50 of the 64 need its tuples or data types (D79), and they're the harder tasks M3 needs next. Running M3 on them also takes the manual (WP8) and the harness's track extended to B17-1.
