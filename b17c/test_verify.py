@@ -264,4 +264,12 @@ for subset, form in ((0, "(define-fun g!pos "), (1, "(declare-fun g!pos ")):
     assert form in v.G.query(gen, g[3], g[4], g[0]), subset
 assert open_(run1(FOLD)) == [] and open_(run(FOLD)) == []
 
+# D108: equal sequences are the same sequence, so every function agrees on them, in both subsets.
+# A value holding sequences is equal once they're compared, and only when they're equal.
+SAME = H0 + """(lemma l (params (x (vec i64)) (y (seq int))) (requires (== x y)) (ensures (== (multiset x) (multiset y))) (body)))"""
+assert open_(run(SAME)) == [] and open_(run1(SAME)) == []
+TUP = H0 + """(lemma l (params (s (seq int))) (requires (>= (len s) 2))
+    (ensures (== (tuple (concat (take s 1) (drop s 1)) 1) (tuple s 1))) (body (assert (== (concat (take s 1) (drop s 1)) s)))))"""
+assert open_(run1(TUP)) == [] and open_(run1(TUP.replace("(drop s 1)) s)", "(drop s 2)) s)"))) == ["ASSERT"]
+
 print("verifier self-check passed")
