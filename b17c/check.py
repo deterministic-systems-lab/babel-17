@@ -257,10 +257,10 @@ class _Checker:
             self.item, self.names, self.moves, self.effects, self.reported = item, set(), {}, [], set()
             {"spec": self.check_spec, "ghost-fn": self.check_ghost_fn, "lemma": self.check_lemma}[item.kind](item)
         self.recursion()
-        if not self.diags:  # D45's rule is defined once the rest of tier 0 passes
-            self.duplicates()
         if not self.diags:  # open types take their types where they're used (§4)
             self.resolve(self.module)
+        if not self.diags:  # D45's rule is defined once the rest of tier 0 passes, so it's last (D78)
+            self.duplicates()
         return self.diags
 
     def duplicates(self):
@@ -1347,11 +1347,11 @@ class _Checker:
         WP7. A constructor application closed here must be well-formed, as any other (§3). A
         match's binders don't pass their use back to its scrutinee."""
         t = self.types.get(id(x))
-        if t is not None:
+        if t is not None and self.has_any(t):
             want, g = self.uses.get(id(x), (None, True))  # places and borrows are typed whole, never open
-            if self.has_any(t) and (t := close(fill(fill(t, w), want), g))[0] == "data":
-                self.check_app(x, t)  # tier 0 left an open application unchecked (§3)
-            self.types[id(x)] = t
+            t = self.types[id(x)] = close(fill(fill(t, w), want), g)
+            if _head(x) in self.ctors:  # tier 0 left this application open, so unchecked (§3)
+                self.check_app(x, t)
         if not isinstance(x, Form):
             return
         h, a, T = _head(x), x.items[1:], lambda y: self.types[id(y)]

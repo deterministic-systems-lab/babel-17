@@ -407,6 +407,9 @@ bad1("E-TYPE-001", "(ghost-fn g ((n (map int (seq int)))) bool (body (== (update
 # types nothing fixes must be well-formed once they're integers, i64 in a vector (§3).
 bad1("E-TYPE-001", "(ghost-fn g () bool (body (!= (map-lit (1 (seq-lit))) (map-lit (1 (seq-lit true)) (2 (seq-lit 1))))))")
 bad1("E-TYPE-001", "(data d (a) (d (x a) (ys (vec a))))", "(ghost-fn g () bool (body (is d (d (seq-lit) (vec-new)))))")
+# Reported once, at the application, and before D45's duplicate specs, which come last (D78).
+bad1("E-TYPE-001", "(data d (a) (d (x a) (ys (vec a))))", "(spec f (params) (returns (r bool)) (effects))",
+     "(spec g (params) (returns (s bool)) (effects))", "(ghost-fn h () bool (body (is d (field (some (d (seq-lit) (vec-new))) value))))")
 ok1("(data d (a) (d (x a) (ys (vec a))))", "(ghost-fn g () bool (body (is d (d (vec-new) (vec-new)))))")
 bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
 ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")

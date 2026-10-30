@@ -1922,3 +1922,30 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** the harness, `b17c` and the manual.
 - **Updated:** the README's results table and its note on M3; the roadmap's recent work, critical path, M3 entry and the open question on hard tasks.
 - **Interfaces touched:** none.
+
+## 2026-10-30 · Open types inside values
+- **Asked by the owner:** after M3's rerun merged, the next roadmap item. This is item 4, open types inside compound values (WP3, WP5).
+- **The gap was wider than recorded.** An empty literal nested in a map, tuple, set, sequence or constructor value reached goal generation with its type open. Of 20 probes on `main`, 7 crashed `goals.py`, among them a `field` of an open `some` and an `update`. Another 8 sent an ill-sorted query: nested sequences, sets of sequences, `get`, `contains`, sequence keys, comparisons and unions of such values, and a `match`. Every case failed closed, so none proved anything false.
+- **The fix,** in `check.py`: once the rest of tier 0 passes, `resolve` walks each expression from the top.
+  - **Each open part takes its type where the value is used:** the other operand of a join or comparison, the parent's type for a literal's entries, a tuple's or constructor's parts, `get`, `field`, `lookup` and the rest, or else the destination recorded when the node was typed.
+  - **What nothing fixes becomes an integer:** `int` in ghost code and `i64` in runtime code or inside a vector, as `docs/b17-1.md` §4 says.
+  - **Before, `goals.py` guessed:** it passed a context sort down to open literals, which worked only at the top of a value.
+- **Three tier 0 changes,** only in programs with such open types:
+  - **`update`'s key and value** now fix its map's open parts, as §7's `(map K V)` says. So `(== (update (map-lit (1 (seq-lit))) 2 (seq-lit true)) n)` with n a `(map int (seq int))` is rejected, where `main` accepted it.
+  - **An `iset-lit` or `map-lit`** whose destination is partly open refines it from its entries, which must agree.
+  - **A constructor application** that resolution closes must be well-formed, so `(d (seq-lit) (vec-new))`, for a `d` whose parameter sits in a vector, is rejected: it would put `(seq int)` in a vector.
+- **Spec text:** `docs/b17-1.md` §4 now says how an open type inside a value is fixed, before B17-1 freezes.
+- **Unchanged:** all 2,171 suite and core queries are byte-identical, and so is the Rust emitted for all 44 suite programs that pass tier 0. Every tier 0 label in both suites holds.
+- **Still open, and recorded:** a type that only a `match` binder's use fixes, as in `(!= (match (tuple (seq-lit) 1) (case (tuple a b) a)) (seq-lit true))`. The scrutinee closes to `(seq int)` while the comparison wants `(seq bool)`, so the query is ill-sorted and the goal fails closed. Fixing it needs type variables for binders. Making tier 0 close a scrutinee's open types instead would be a new rule, so it's left for a decision.
+- **Tests:** `test_verify.py` proves 13 lemmas over nested open literals, each of which crashed or was ill-sorted on `main`, and pins the `match` limit as failing closed. `test_check.py` checks the three tier 0 changes.
+- **Local Rust toolchain:** at the owner's request, rustc 1.99.1, the version CI pins, is now installed with rustup, so `test_rust.py` runs locally. It passes: 58 crates built with warnings denied, and 12,666 differential runs matched the interpreter.
+- **Codex review** (`gpt-5.6-sol`): it found no way to prove something false, and confirmed the identical queries, the `update` change and the unchanged Rust. It found three issues:
+  - **Fixed:** a literal whose destination was partly open kept the open part, so `(!= (map-lit (1 (seq-lit))) (map-lit (1 (seq-lit true))))` was still ill-sorted. Literals now refine it from their entries.
+  - **Fixed:** resolution could close an application into one tier 0 rejects, such as `(d (seq int))`, which nothing then checked. Resolution is now part of tier 0, so `check()` and `types()` agree, and it checks each application it closes.
+  - **Recorded:** the `match` limit above.
+- **Codex re-review:** it confirmed all three were handled, that all 108 suite files get `main`'s diagnostics, and that none of the 10,901 typed nodes in the 44 suite programs that pass tier 0 is left open. It found two D78 issues, both fixed and tested:
+  - **Order:** D45's duplicate-spec check ran before resolution, so a duplicate spec could hide the new error. It's last again.
+  - **Once per error:** a bad application was also reported at each expression that read it. It's now checked only where it's built.
+- **Ponytail review:** two simplifications, both made: a redundant length test in `fill`, and a dead branch in `resolve`.
+- **Updated:** the roadmap's WP5 entry and critical path, where item 4 is done; `docs/b17-1.md` §4.
+- **Interfaces touched:** interface 1's typing of open types, in the three ways above; interface 11's queries, only for programs with open types inside values.
