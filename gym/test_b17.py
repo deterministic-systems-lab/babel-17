@@ -1,4 +1,4 @@
-"""Self-check for M3's B17-0 track (D98): uv run --no-project gym/test_b17.py
+"""Self-check for M3's B17-0 track (D98) and B17-1 track (D112): uv run --no-project gym/test_b17.py
 
 Needs z3 on PATH, but not Dafny. The attempt loop runs against a fake CLI, so no
 subscription is spent.
@@ -75,4 +75,33 @@ assert "dafny" not in h.settings([ABS], "4.11.0") and "dafny" in h.settings([h.l
 assert not h.allows_panic(dict(ABS, frozen=ABS["frozen"].replace("Return the absolute", "(effects panic) Return the absolute")))
 assert h.allows_panic(dict(ABS, frozen=ABS["frozen"].replace("(effects))", "(effects panic))")))
 
-print("B17-0 track self-check passed")
+# B17-1's track (D112): the AlgoVeri ports, each posing its first spec with the data items and
+# ghost-fns it refers to; helper specs, defs and proof-only items stay hidden.
+ones = {t["id"]: t for t in h.load_tasks(["b17-1/"])}
+assert len(ones) == 10 and all(t["subset"] == 1 for t in ones.values()), sorted(ones)
+assert all("subset" not in t for t in tasks.values())  # B17-0's tasks, and so their task_sha, are as before
+for t in ones.values():
+    assert "(def " not in t["frozen"] and "(lemma " not in t["frozen"] and t["frozen"].count("(spec ") == 1, t["id"]
+    assert h.verify_b17(t, "")[0] == "no_def", t["id"]
+LCA = ones["b17-1/lca"]
+assert LCA["name"] == "lowest_common_ancestor" and "(data tree" in LCA["frozen"] and "(spec find" not in LCA["frozen"]
+SEARCH = ones["b17-1/bst_search"]
+DEF = SEARCH["solution"][SEARCH["solution"].index("(def search"):].rstrip()[:-1]  # the port's own def
+assert h.verify_b17(SEARCH, DEF) == ("verified", ""), h.verify_b17(SEARCH, DEF)
+stage, out = h.verify_b17(SEARCH, "(def search (body (return false)))")
+assert stage == "proof_failed" and json.loads(out)[0]["code"] == "E-PROOF-POST", out
+stage, out = h.verify_b17(SEARCH, "(data tree () (leaf)) " + DEF)  # a task item can't be restated
+assert stage == "rejected" and "E-TYPE-002" in out, out
+# The prompt is the manual, then the supplement; B17-0's carries no supplement.
+p1 = h.render(SEARCH, None)
+assert p1.startswith("Write B17-1 code") and h.MANUAL.read_text() in p1 and h.MANUAL1.read_text() in p1, p1[:200]
+assert p1.index(h.MANUAL.read_text()) < p1.index(h.MANUAL1.read_text()) and "data items" in p1
+assert h.MANUAL1.read_text() not in h.render(ABS, None) and h.render(ABS, None).startswith("Write B17-0 code")
+# B17-1 counts as its own track, and pins the supplement and core1.b17 too.
+(run / "r1").mkdir()
+(run / "r1" / "attempts.jsonl").write_text(json.dumps(dict(recs[0], task="b17-1/bst_search", stage="verified", final=True)) + "\n")
+assert list(h.summarize("r1")) == ["claude/b17-1"], h.summarize("r1")
+s1 = h.settings([SEARCH], None)
+assert "b17_1_prompt_sha" in s1 and s1["b17c_sha"] != h.settings([ABS], None)["b17c_sha"] and "b17_1_prompt_sha" not in h.settings([ABS], None)
+
+print("B17-0 and B17-1 track self-check passed")

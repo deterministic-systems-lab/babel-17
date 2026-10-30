@@ -8,6 +8,8 @@
 B17-0 tasks (M3's track, D98) are b17/NAME, one per seed program in suite/accept/. Each
 poses the program's header, its one spec and the ghost-fns that spec refers to; the agent
 adds a def and any helpers, with docs/manual.md in its prompt, and is verified by b17c.
+B17-1 tasks (D112) are b17-1/NAME, one per AlgoVeri port in suite/b17-1/accept/, posing its
+first spec with the data items and ghost-fns it refers to, and docs/manual-1.md after the manual.
 
 Each file in gym/tasks/ has three sections: a preamble of frozen definitions, the method
 signature with its contracts, and a hidden reference solution. An agent's code is checked
@@ -37,6 +39,7 @@ from pathlib import Path
 GYM = Path(__file__).resolve().parent
 TASKS, RUNS = GYM / "tasks", GYM / "runs"
 B17C, SUITE, MANUAL = GYM.parent / "b17c", GYM.parent / "suite" / "accept", GYM.parent / "docs" / "manual.md"
+SUITE1, MANUAL1 = GYM.parent / "suite" / "b17-1" / "accept", GYM.parent / "docs" / "manual-1.md"  # B17-1 (D112)
 
 # Z3 rlimit units, same as Dafny's CSV ResourceCount. The heaviest reference proof
 # (merge_sorted) uses 14M; the rest stay under 0.5M.
@@ -126,6 +129,13 @@ Rules:
 - Your items are added to the task module after its items, so don't restate them. Your first line is line {first_line} of the module that's checked.
 - Answer directly without using tools. Reply with your items, and only your items, in one ```lisp block.
 """
+# B17-1's prompt (D112): the manual, then its supplement, which changes it where it says so.
+B17_1_TASK_PROMPT = (B17_TASK_PROMPT.replace("Write B17-0 code", "Write B17-1 code")
+                     .replace("This is B17-0's reference manual:\n\n{manual}",
+                              "This is B17-0's reference manual, and after it B17-1's supplement, which changes it where "
+                              "it says so:\n\n{manual}\n\n{supplement}")
+                     .replace("You may add lemmas, ghost-fns, and spec", "You may add lemmas, ghost-fns, data items, and spec"))
+assert B17_1_TASK_PROMPT.count("B17-1") == 2 and "data items" in B17_1_TASK_PROMPT
 B17_REPAIR_PROMPT = """
 Your previous items:
 
@@ -212,40 +222,49 @@ def b17c():
     return agent, syntax
 
 
-def load_b17_task(path):
-    """A seed task in B17-0 (D98): the suite program's header, its one spec, and the ghost-fns
-    that spec refers to, transitively, cut from its source. Its def and any lemma or ghost-fn
+def load_b17_task(path, subset=0):
+    """A task in B17-0 (D98) or B17-1 (D112): the suite program's header, its first spec, which
+    for an AlgoVeri port is the entry point, and the data items and ghost-fns that spec refers
+    to, transitively, cut from its source. Its defs, its other specs, and any lemma or ghost-fn
     only a proof uses are the hidden solution."""
     _, syntax = b17c()
     text = path.read_text()
-    m = syntax.parse(text.encode(), 0)  # M3's track is B17-0 (D101)
+    m = syntax.parse(text.encode(), subset)  # M3's tracks name their subset (D101)
     items = [it for it in m.items[3:] if it.items[0].text != "def"]
-    [spec] = [it for it in items if it.items[0].text == "spec"]
-    fns = {it.items[1].text: it for it in items if it.items[0].text == "ghost-fn"}
+    spec = next(it for it in items if it.items[0].text == "spec")
+    named = {}  # name -> the ghost-fns and data items it names; a constructor names its data item
+    for it in items:
+        if it.items[0].text in ("ghost-fn", "data"):
+            named.setdefault(it.items[1].text, []).append(it)
+        if it.items[0].text == "data":
+            for c in it.items[3:]:
+                named.setdefault(c.items[0].text, []).append(it)
     keep, todo = set(), [spec]
     while todo:
         it = todo.pop()
-        if it.items[1].text not in keep:
-            keep.add(it.items[1].text)
+        if id(it) not in keep:
+            keep.add(id(it))
             stack = [it]
-            while stack:  # every name it mentions that's a ghost-fn
+            while stack:  # every name it mentions that's a ghost-fn, a data type or a constructor
                 x = stack.pop()
                 if isinstance(x, syntax.Form):
                     stack.extend(x.items)
-                elif isinstance(x, syntax.Sym) and x.text in fns:
-                    todo.append(fns[x.text])
+                elif isinstance(x, syntax.Sym):
+                    todo.extend(named.get(x.text, []))
     lines = text.split("\n")
     offset = lambda pos: sum(len(line) + 1 for line in lines[:pos[0] - 1]) + pos[1] - 1
-    kept = [text[offset(it.pos):offset(it.end) + 1] for it in items if it.items[1].text in keep]
+    kept = [text[offset(it.pos):offset(it.end) + 1] for it in items if id(it) in keep]
     frozen = text[:offset(m.items[3].pos)] + "\n  ".join(kept) + ")"
-    dafny = TASKS / f"{path.stem}.dfy"
+    dafny = TASKS / ("algoveri/" if subset else "") / f"{path.stem}.dfy"
     meta = dict(re.findall(r"^// (\w+): (.*)$", dafny.read_text(), re.M)) if dafny.exists() else {}
-    return dict(id=f"b17/{path.stem}", lang="b17", name=spec.items[1].text, frozen=frozen,
+    task = dict(id=f"{'b17-1' if subset else 'b17'}/{path.stem}", lang="b17", name=spec.items[1].text, frozen=frozen,
                 solution=text, difficulty=meta.get("difficulty"))
+    return task | ({"subset": 1} if subset else {})  # B17-0's tasks, and so their task_sha, are as before
 
 
 def load_tasks(only=None):
-    tasks = [load_task(p) for p in sorted(TASKS.rglob("*.dfy"))] + [load_b17_task(p) for p in sorted(SUITE.glob("*.b17"))]
+    tasks = [load_task(p) for p in sorted(TASKS.rglob("*.dfy"))] + [load_b17_task(p) for p in sorted(SUITE.glob("*.b17"))] \
+        + [load_b17_task(p, 1) for p in sorted(SUITE1.glob("*.b17"))]
     # An entry ending in "/" selects a whole task set, e.g. "algoveri/".
     return [t for t in tasks if not only
             or any(t["id"] == o or (o.endswith("/") and t["id"].startswith(o)) for o in only)]
@@ -291,18 +310,19 @@ def verify_b17(task, code):
     has a def, and every goal is proved under the canonical seed and 10 shuffled ones (D23).
     Specs are modular, so a spec with no def would let a call assume anything."""
     agent, syntax = b17c()
+    subset = task.get("subset", 0)
     try:
-        m = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode(), 0)
+        m = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode(), subset)
     except syntax.ParseError as e:
         return "rejected", json.dumps([{"code": e.code, "node": f"module@{e.line}:{e.col}", "message": e.reason}], indent=1)
     try:
-        if errors := agent.tier0(m, 0):
+        if errors := agent.tier0(m, subset):
             return "rejected", json.dumps(errors, indent=1)
         defs = {it.items[1].text for it in m.items[3:] if it.items[0].text == "def"}
         if missing := [it.items[1].text for it in m.items[3:] if it.items[0].text == "spec" and it.items[1].text not in defs]:
             return "no_def", f"Every spec needs a def, and these have none: {', '.join(missing)}."
         with tempfile.TemporaryDirectory() as cache:  # a fresh cache, so every verdict is solved anew
-            diags = agent.diagnostics(m, cache=Path(cache), subset=0)  # as Dafny's are; reverify is independent
+            diags = agent.diagnostics(m, cache=Path(cache), subset=subset)  # as Dafny's are; reverify is independent
     except Exception as e:  # a b17c bug, not the agent's: an infrastructure error, retried on resume
         return "checker_error", f"{type(e).__name__}: {e}"
     if errors := [d for d in diags if " goal is error" in d["message"]]:  # Z3 itself failed
@@ -314,7 +334,7 @@ def allows_panic(task):
     """Whether a B17-0 task's spec lists panic: ensures bind only normal returns, so such a spec
     is met by a def that always panics, and the task would grade nothing."""
     _, syntax = b17c()
-    spec = next(it for it in syntax.parse(task["frozen"].encode(), 0).items[3:] if it.items[0].text == "spec")
+    spec = next(it for it in syntax.parse(task["frozen"].encode(), task.get("subset", 0)).items[3:] if it.items[0].text == "spec")
     effects = next(c for c in spec.items if isinstance(c, syntax.Form) and c.items[0].text == "effects")
     return any(e.text == "panic" for e in effects.items[1:])
 
@@ -400,8 +420,10 @@ def call_cli(cli, prompt):
 
 def render(task, dafny_version, code=None, feedback=None):
     if task.get("lang") == "b17":
-        prompt = B17_TASK_PROMPT.format(manual=MANUAL.read_text(), frozen=task["frozen"], name=task["name"],
-                                        first_line=task["frozen"].count("\n") + 2)
+        one = task.get("subset", 0)
+        prompt = (B17_1_TASK_PROMPT if one else B17_TASK_PROMPT).format(
+            manual=MANUAL.read_text(), supplement=MANUAL1.read_text() if one else "", frozen=task["frozen"],
+            name=task["name"], first_line=task["frozen"].count("\n") + 2)
         if feedback is not None:
             prompt += B17_REPAIR_PROMPT.format(code=code or "(none)", feedback=feedback[:FEEDBACK_CHARS])
         return prompt
@@ -462,10 +484,13 @@ def settings(tasks, dafny_version):
              z3=tool_version(["z3", "--version"]), harness_sha=sha(Path(__file__).read_text()))
     if any(t.get("lang", "dafny") == "dafny" for t in tasks) or not tasks:  # Dafny verdicts rest on Dafny
         s |= dict(prompt_sha=sha(TASK_PROMPT + PREAMBLE_BLOCK + REPAIR_PROMPT), dafny=dafny_version, dafny_args=DAFNY)
-    if any(t.get("lang") == "b17" for t in tasks):  # B17-0 verdicts rest on b17c and the manual
-        sources = sorted(B17C.glob("*.py")) + [B17C / "core.b17"]
+    ones = [t for t in tasks if t.get("subset")]
+    if any(t.get("lang") == "b17" for t in tasks):  # B17 verdicts rest on b17c and the manual
+        sources = sorted(B17C.glob("*.py")) + [B17C / "core.b17"] + ([B17C / "core1.b17"] if ones else [])
         s |= dict(b17_prompt_sha=sha(B17_TASK_PROMPT + B17_REPAIR_PROMPT + MANUAL.read_text()),
                   b17c_sha=sha("".join(f.name + f.read_text() for f in sources if not f.name.startswith("test_"))))
+    if ones:  # and B17-1's on its supplement too (D112)
+        s |= dict(b17_1_prompt_sha=sha(B17_1_TASK_PROMPT + B17_REPAIR_PROMPT + MANUAL.read_text() + MANUAL1.read_text()))
     return s
 
 
@@ -557,7 +582,7 @@ def cmd_reverify(args):
     tasks = {t["id"]: t for t in load_tasks(meta["tasks"])}
     now = settings(list(tasks.values()), tool_version(["dafny", "--version"]))
     # Verdict changes from a harness edit show up as mismatches below, so its hash isn't required.
-    changed = [k for k in now if k not in ("prompt_sha", "b17_prompt_sha", "harness_sha") and meta.get(k) != now[k]]
+    changed = [k for k in now if k not in ("prompt_sha", "b17_prompt_sha", "b17_1_prompt_sha", "harness_sha") and meta.get(k) != now[k]]
     if changed:
         sys.exit(f"can't reverify {args.run_id}: {', '.join(changed)} changed since the run")
     recs = [r for r in read_records(RUNS / args.run_id)
@@ -579,8 +604,9 @@ def summarize(run_id):
     finals = {sample_key(r): r for r in sorted((r for r in recs if r.get("final")),
                                                 key=lambda r: r["stage"] != "infra_error")}
     stats = {}
-    # B17-0 attempts count apart from Dafny ones, as CLI/b17; records from before D98 are Dafny's.
-    track = lambda r: r["cli"] + ("/b17" if r.get("lang") == "b17" else "")
+    # B17-0 attempts count apart from Dafny ones, as CLI/b17, and B17-1's as CLI/b17-1 (D112);
+    # records from before D98 are Dafny's.
+    track = lambda r: r["cli"] + ("/b17-1" if r["task"].startswith("b17-1/") else "/b17" if r.get("lang") == "b17" else "")
     for cli in sorted({track(r) for r in finals.values()}):
         done = [r for r in finals.values() if track(r) == cli and r["stage"] != "infra_error"]
         used = [r for r in recs if track(r) == cli and sample_key(r) in finals]

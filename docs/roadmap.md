@@ -104,7 +104,7 @@ None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
    - **`agent.py` at subset 1 (WP6): done.** B17-1's codes and goals, and counterexamples that show tuple and data values as terms the interpreter replays. Sets, maps and multisets have none yet;
    - **`docs/manual-1.md` (WP8): done.** The manual's B17-1 supplement, 20 KB: what B17-1 adds, with 27 examples whose outcomes `test_manual.py` checks at subset 1, both of B17-1's new codes among them;
-   - **the harness track (WP17),** posing each port's first spec with the data types and ghost-fns it refers to;
+   - **the harness track (WP17): done.** `--tasks b17-1/` runs the 10 ports, each posing its first spec with the data items and ghost-fns it refers to. Every port's solution verifies, and each task alone is `no_def`;
    - **a first run,** which the owner starts.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
