@@ -20,9 +20,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from syntax import Form, Int, ParseError, Str, Sym, _head, _print, parse, parse_expr
+from syntax import SUBSET, Form, Int, ParseError, Str, Sym, _head, _print, parse, parse_expr
 
-CORE = parse((Path(__file__).parent / "core.b17").read_bytes())
+CORE = parse((Path(__file__).parent / "core.b17").read_bytes(), 0)
 CORE1 = parse((Path(__file__).parent / "core1.b17").read_bytes(), 1)  # B17-1's option (docs/b17-1.md §9)
 MIN, MAX = -2**63, 2**63 - 1
 FUEL, DEPTH = 1_000_000, 1_000  # D59: steps per run, and nested def and ghost-fn calls
@@ -257,7 +257,7 @@ class Unchecked:
     node: Node
 
 
-def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH, subset=0):
+def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH, subset=SUBSET):
     """Run the def name of module (a tree, or source text) on args per §8, or with check=True
     with its contracts evaluated too (D57). Args are bools, ints, tuples (or lists) for
     sequences, and in B17-1 Tups and Datas."""
@@ -285,7 +285,7 @@ def run(module, name, args, check=False, fuel=FUEL, depth=DEPTH, subset=0):
     return replace(out, trace=tuple(r.trace), unchecked=tuple(r.unchecked))
 
 
-def value(module, text, subset=0):
+def value(module, text, subset=SUBSET):
     """The value of a closed expression, such as a command-line argument, in ghost context."""
     tree = parse_expr(text, subset)
     r = _Run(_Program(module, subset), True, FUEL, DEPTH)
@@ -433,7 +433,7 @@ def _types(params):
 class _Program:
     """A module's runnable items and data types, with the core library's, and the ID of every node (D56)."""
 
-    def __init__(self, module, subset=0):
+    def __init__(self, module, subset=SUBSET):
         self.fns, self.ids, specs, defs = {}, {}, {}, {}
         self.sub, self.datas, self.ctors = subset, {}, {}  # data name -> item; constructor -> (item, field names)
         for m in (CORE, CORE1, module) if subset else (CORE, module):
@@ -1268,7 +1268,7 @@ def _settle(lo, hi, steps):
 
 
 def main(argv):
-    subset = 0
+    subset = SUBSET
     if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
         subset, argv = int(argv[1]), argv[2:]
     check, fuel = False, FUEL

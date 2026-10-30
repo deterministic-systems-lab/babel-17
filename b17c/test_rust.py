@@ -20,7 +20,13 @@ from pathlib import Path
 import interp as i
 import rust as r
 from check import check, show, subst
-from syntax import ParseError, parse
+import syntax
+from syntax import ParseError
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 SUITE = Path(__file__).resolve().parent.parent / "suite"
 TMP = Path(tempfile.mkdtemp(prefix="b17c-rust-"))
@@ -116,7 +122,7 @@ def cases(m, rng, per_def, subset=0):
 programs = {f"suite-{p.stem}": parse(p.read_bytes())
             for p in sorted((SUITE / "accept").glob("*.b17")) + sorted((SUITE / "reject").glob("E-PROOF-*.b17"))}
 assert len(programs) == 29, len(programs)
-sources = {name: r.emit(m) for name, m in programs.items()}
+sources = {name: r.emit(m, subset=0) for name, m in programs.items()}
 
 
 # 2. Corners: each runtime construct, the failures §8 names, and the lowering's own risks.
@@ -207,8 +213,8 @@ CORNERS = module(
     "(def seps (body (if b (panic \"a b c\u0085d\") (block)) (return)))",
     "(spec unbuilt (params (x i64)) (returns (r i64)) (requires (> x 0)) (effects))",
 )
-assert check(CORNERS) == [], check(CORNERS)
-sources["corners"] = r.emit(CORNERS)
+assert check(CORNERS, subset=0) == [], check(CORNERS, subset=0)
+sources["corners"] = r.emit(CORNERS, subset=0)
 
 # Recursion as deep as D59 lets the interpreter go, through a frame that holds 450 vectors,
 # whether or not the branch that declares them runs. 1,000 such frames overflow the 8 MiB a
@@ -219,7 +225,7 @@ DEEP = module(
     + " ".join(f"(let v{k} (vec i64) (seq-build n (fn (k{k}) (+ k{k} {k}))))" for k in range(450))
     + " (let ((r1 i64)) (call deep (- n 1) big)) " + " ".join(f"(print (idx v{k} 0))" for k in range(450))
     + " (return r1)) (block)) (let ((r2 i64)) (call deep (- n 1) big)) (return (+ r2 1))))")
-sources["deep"] = r.emit(DEEP)
+sources["deep"] = r.emit(DEEP, subset=0)
 
 # Each line: a run, then what the interpreter and the binary must both print. An expectation
 # with "err " in it is a regular expression, so that \S+ can stand for the node's line and
@@ -561,12 +567,12 @@ generated = {}
 for seed in range(4):
     text = Gen(random.Random(seed)).module(30)
     m = parse(text)
-    found = check(m)
+    found = check(m, subset=0)
     if found:
         failures.append(f"generated module {seed} doesn't pass tier 0, a generator bug: {found[:3]}")
         continue
     generated[f"generated-{seed}"] = m
-    sources[f"generated-{seed}"] = r.emit(m)
+    sources[f"generated-{seed}"] = r.emit(m, subset=0)
 
 
 # 4. B17-1, under subset 1 (docs/b17-1.md, D101, D110, D111): its suite, corners and generated
@@ -1331,7 +1337,7 @@ for name, source in sources.items():
     code = re.sub(r'"(?:[^"\\]|\\.)*"', '""', source)  # names in string literals aren't code
     assert not re.search(r"(?<![#\w])unsafe(?!_code)\b", code), name
 for name, m in list(programs.items())[:3] + [("corners", CORNERS)]:
-    assert r.emit(m) == sources[name], name
+    assert r.emit(m, subset=0) == sources[name], name
 assert "        } else if x < 10 {\n            return 1;\n" in sources["corners"]  # chains read as written
 for name, m in [("corners1", CORNERS_1), ("suite1-trie_insert", programs_1["suite1-trie_insert"])]:
     assert r.emit(m, 1) == sources[name], name
@@ -1411,13 +1417,13 @@ for bad, why in [
             "(def f (body (let ((y i64)) (call g x)) (return y)))"), "g is a spec with no def"),
 ]:
     try:
-        r.emit(bad)
+        r.emit(bad, subset=0)
     except ValueError as e:
         assert why in str(e), e
     else:
         failures.append(f"emitted a module it should refuse: {why}")
 # A module with no defs is a crate whose driver knows no names.
-empty = r.build(r.emit(module("(ghost-fn twice ((x int)) int (body (* 2 x)))")), TMP / "empty", flags=STRICT)
+empty = r.build(r.emit(module("(ghost-fn twice ((x int)) int (body (* 2 x)))"), subset=0), TMP / "empty", flags=STRICT)
 assert r.batch(empty, [("twice", ["1"])]) == ["refused: no def named 'twice'"]
 # Arguments that aren't UTF-8 can't start a run, on the command line or in a batch (D96).
 p = subprocess.run([str(binaries["corners"]), b"\xff", b"1"], capture_output=True)
@@ -1451,13 +1457,13 @@ for argv in [(abs_file, "abs", "-5"), (abs_file, "abs", "-9223372036854775808"),
              (merge_file, "merge_sorted", "(seq-lit 1 3)", "(seq-build 2 (fn (i) (* i 2)))"),
              (abs_file, "abs", "(neg 5)"), (abs_file, "abs", "9223372036854775808"), (abs_file, "nope", "1"),
              (abs_file, "abs"), (abs_file, "\udcff", "1"), (str(SUITE / "accept/isqrt.b17"), "isqrt", "-4")]:
-    want, got = cli(i.main, *argv), cli(r.main, "--run", *argv)
+    want, got = cli(i.main, "--subset", "0", *argv), cli(r.main, "--subset", "0", "--run", *argv)
     assert got[:2] == want[:2], (argv, want, got)
     assert (got[2] == "") == (want[2] == ""), (argv, want, got)
-code, text, _ = cli(r.main, abs_file)
+code, text, _ = cli(r.main, "--subset", "0", abs_file)
 assert code == 0 and text.startswith("// Emitted by b17c's Rust backend") and "pub fn abs(x: i64) -> i64" in text
-assert cli(r.main, str(SUITE / "reject/E-OWN-001-use-after-move.b17"))[0] == 2
-assert cli(r.main, "--run", str(SUITE / "reject/E-OWN-001-use-after-move.b17"), "f")[0] == 2
+assert cli(r.main, "--subset", "0", str(SUITE / "reject/E-OWN-001-use-after-move.b17"))[0] == 2
+assert cli(r.main, "--subset", "0", "--run", str(SUITE / "reject/E-OWN-001-use-after-move.b17"), "f")[0] == 2
 assert cli(r.main)[0] == 2 and cli(r.main, "--report", "x.json", abs_file)[0] == 2
 # B17-1, with --subset 1 on both command lines (D101).
 bst, root_file = str(SUITE_1 / "accept/bst_insert.b17"), str(SUITE_1 / "reject/E-PROOF-FIELD-wrong-constructor.b17")
@@ -1468,24 +1474,24 @@ for argv in [(bst, "insert", "(leaf)", "5"), (bst, "insert", "(node 5 (leaf) (no
     want, got = cli(i.main, "--subset", "1", *argv), cli(r.main, "--subset", "1", "--run", *argv)
     assert got[:2] == want[:2], (argv, want, got)
     assert (got[2] == "") == (want[2] == ""), (argv, want, got)
-code, text, _ = cli(r.main, "--subset", "1", bst)
+code, text, _ = cli(r.main, bst)  # B17-1 is the default, the newest frozen subset (D101)
 assert code == 0 and "    pub enum tree {" in text and "pub fn insert(t: data::tree, x: i64) -> data::tree {" in text, text
-assert cli(r.main, bst)[0] == 2  # a data item isn't B17-0 (D101)
+assert cli(r.main, "--subset", "0", bst)[0] == 2  # a data item isn't B17-0
 
 # -o builds; --report writes the backend's fields into the trusted base report (D25, D97).
 report, binary = TMP / "abs.json", TMP / "abs-cli"
 report.write_text(json.dumps({"module": "abs", "input_sha256": r.sha256(r.canonical(parse(Path(abs_file).read_bytes()))),
                               "level": "L3-S"}))
-assert cli(r.main, "-o", str(binary), "--report", str(report), abs_file)[0] == 0
+assert cli(r.main, "--subset", "0", "-o", str(binary), "--report", str(report), abs_file)[0] == 0
 data = json.loads(report.read_text())
 assert data["level"] == "L3-S", data  # verify.py's fields stay
 backend = data["backend"]
 assert backend["rustc"].startswith("rustc ") and backend["target"] and backend["flags"] == list(r.FLAGS), backend
 assert backend["binary_sha256"] == r.sha256(binary.read_bytes()), backend
-assert backend["rust_sha256"] == r.sha256(r.emit(parse(Path(abs_file).read_bytes())).encode()), backend
+assert backend["rust_sha256"] == r.sha256(r.emit(parse(Path(abs_file).read_bytes()), subset=0).encode()), backend
 r.build(sources["suite-abs"], TMP / "abs-again")
 assert (TMP / "abs-again").read_bytes() == binary.read_bytes()  # a build is reproducible
-code, _, err = cli(r.main, "-o", str(binary), "--report", str(report), merge_file)
+code, _, err = cli(r.main, "--subset", "0", "-o", str(binary), "--report", str(report), merge_file)
 assert code == 2 and "report of a different input" in err, err
 assert r.sha256(binary.read_bytes()) == backend["binary_sha256"]  # refused before building
 

@@ -34,7 +34,7 @@ import interp
 from check import _Checker
 from check import ttype as _type  # a type form, as check.py writes types
 from check import types as tier0_types
-from syntax import Form, Int, ParseError, Sym, _head, _print, canonical, parse
+from syntax import SUBSET, Form, Int, ParseError, Sym, _head, _print, canonical, parse
 
 BOOL, I64 = ("bool",), ("i64",)
 FLAGS = ("--edition", "2021", "-O", "-C", "overflow-checks=on")  # D97
@@ -64,7 +64,7 @@ class BuildError(Exception):
     """rustc rejected emitted code. The module passed tier 0, so this is a backend bug (D18)."""
 
 
-def emit(module, subset=0):
+def emit(module, subset=SUBSET):
     """module, which must pass tier 0, as the source of one Rust crate (D95, D110). Text that
     doesn't parse raises ParseError. A module that fails tier 0 raises ValueError, and so
     does a call to a spec with no def, in code that can run, since a binary can't make
@@ -1202,7 +1202,7 @@ def add_report(path, module, source, binary, rustc="rustc"):
 def main(argv):
     usage = ("usage: uv run --no-project b17c/rust.py [--subset 1] [-o BINARY [--report JSON]] FILE\n"
              "       uv run --no-project b17c/rust.py [--subset 1] --run FILE NAME ARG...")
-    subset = 0
+    subset = SUBSET
     if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
         subset, argv = int(argv[1]), argv[2:]
     out = report = None

@@ -7,14 +7,19 @@ import tempfile
 from pathlib import Path
 
 import verify as v
-from syntax import parse
+import syntax
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 SUITE = Path(__file__).resolve().parent.parent / "suite"
 CACHE = Path(tempfile.mkdtemp())
 
 
 def run(text, seeds=1):
-    return v.verify(parse(text), seeds, CACHE)[0]
+    return v.verify(parse(text), seeds, CACHE, subset=0)[0]
 
 
 def src(name):
@@ -59,7 +64,7 @@ assert v.cache_key("d", [], "q", cfg) != v.cache_key("d", [], "q", {"seeds": 2})
 # A failing goal is reported by node ID, contract clause and family; the report gives the
 # level, input hash and goals D24 and D25 ask for.
 bad = (SUITE / "reject/E-PROOF-POST-wrong-result.b17").read_text()
-rows, cfg = v.verify(parse(bad), 1, CACHE)
+rows, cfg = v.verify(parse(bad), 1, CACHE, subset=0)
 failed = [r for r in rows if r["verdict"] != "proved"]
 assert [r["family"] for r in failed] == ["POST"] and failed[0]["node"].startswith("def bad_abs/2.1@14:7 spec bad_abs/"), rows
 rep = v.report(parse(bad), rows, cfg)

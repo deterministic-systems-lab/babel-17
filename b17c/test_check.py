@@ -7,7 +7,13 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 import check as c
-from syntax import ParseError, parse
+import syntax
+from syntax import ParseError
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 SUITE = Path(__file__).resolve().parent.parent / "suite"
 HEAD = '(module m (header (purpose "p") (invariants "i") (failures "f"))'
@@ -321,9 +327,9 @@ bad(f("(x (seq (seq int)))", "(r i64)", "(return 0)"), "E-TYPE-001", "(seq int)"
 # share a name with one of its binders, as with sorted's i and j (found in WP7's review).
 for name in ("i", "j", "s", "x"):
     m = parse(module(f"(spec {name} (params (n i64)) (returns (r i64)) (effects))", f"(def {name} (body (return n)))"))
-    assert c.check(m) == [] and isinstance(c.types(m), dict), name
+    assert c.check(m, subset=0) == [] and isinstance(c.types(m, subset=0), dict), name
 try:
-    c.types(parse(f("(x i64)", "(r i64)", "(return true)")))
+    c.types(parse(f("(x i64)", "(r i64)", "(return true)")), subset=0)
 except ValueError as e:
     assert "E-TYPE-001" in str(e), e
 else:
@@ -336,14 +342,15 @@ for name, want in [("accept/abs.b17", (0, "")),
                    ("reject/E-PARSE-001-while-without-decreases.b17", (1, "E-PARSE-001"))]:
     out = io.StringIO()
     with redirect_stdout(out):
-        code = c.main([str(SUITE / name)])
+        code = c.main(["--subset", "0", str(SUITE / name)])
     assert code == want[0] and want[1] in out.getvalue(), (name, code, out.getvalue())
-# --subset picks the subset (D101): B17-0 may name a ghost-fn as B17-1 reserves.
+# --subset picks the subset, and with none it's B17-1, the newest frozen one (D101): B17-0 may
+# name a ghost-fn as B17-1 reserves.
 with tempfile.TemporaryDirectory() as tmp:
     named = Path(tmp) / "union.b17"
     named.write_text('(module t (header (purpose "p") (invariants "i") (failures "f"))'
                      ' (ghost-fn union ((n int)) bool (body (>= n 0))))')
-    for flags, want in [(["--subset", "0"], 0), ([], 0), (["--subset", "1"], 1)]:
+    for flags, want in [(["--subset", "0"], 0), ([], 1), (["--subset", "1"], 1)]:
         with redirect_stdout(io.StringIO()):
             assert c.main([*flags, str(named)]) == want, flags
 

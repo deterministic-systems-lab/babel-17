@@ -13,9 +13,9 @@ import hashlib
 import sys
 from pathlib import Path
 
-from syntax import KEYWORDS, KEYWORDS_1, OPS, Form, ParseError, Sym, _head, _print, parse
+from syntax import KEYWORDS, KEYWORDS_1, OPS, SUBSET, Form, ParseError, Sym, _head, _print, parse
 
-CORE = parse((Path(__file__).parent / "core.b17").read_bytes())
+CORE = parse((Path(__file__).parent / "core.b17").read_bytes(), 0)
 CORE1 = parse((Path(__file__).parent / "core1.b17").read_bytes(), 1)  # B17-1's option (docs/b17-1.md §9)
 PROOF = {"decreases", "body"}  # a lemma's implementation part (D45)
 
@@ -165,7 +165,7 @@ def _bytes(tree):
     return _print(tree).encode("utf-8")
 
 
-def hashes(module, subset=0, types=None):
+def hashes(module, subset=SUBSET, types=None):
     """{name: (kind, spec hash, implementation hash or None)} for the module's items, in order.
 
     In subset 1 a data type's key is ("data", NAME), since type and value names are apart (D82).
@@ -291,13 +291,13 @@ def hashes(module, subset=0, types=None):
     return out
 
 
-def report(module, subset=0):
+def report(module, subset=SUBSET):
     return [f"{module.items[1].text} {kind} {name[1] if kind == 'data' else name} {spec} {impl or '-'}"
             for name, (kind, spec, impl) in hashes(module, subset).items()]
 
 
 if __name__ == "__main__":
-    args, subset = sys.argv[1:], 0
+    args, subset = sys.argv[1:], SUBSET
     if args[:1] == ["--subset"] and args[1:2] in (["0"], ["1"]):
         args, subset = args[2:], int(args[1])
     if not args:

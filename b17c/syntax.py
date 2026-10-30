@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 CODE = "E-PARSE-001"
+SUBSET = 1  # every tool's subset by default: the newest frozen one (D101)
 WHITESPACE = " \t\n\r"  # D48: nothing else separates tokens; there are no comments
 NAME = re.compile(r"[a-z][a-z0-9_]*\Z")
 DIGITS = re.compile(r"[+-]?[0-9]+\Z")
@@ -87,7 +88,7 @@ class ParseError(Exception):
         super().__init__(f"{self.line}:{self.col}: {CODE}: {reason}")
 
 
-def parse(text, subset=0):
+def parse(text, subset=SUBSET):
     """Parse a module of the subset from str or UTF-8 bytes into a tree of Form, Sym, Int and Str."""
     _use(subset)
     tree = _read(_decode(text))
@@ -95,7 +96,7 @@ def parse(text, subset=0):
     return tree
 
 
-def parse_expr(text, subset=0):
+def parse_expr(text, subset=SUBSET):
     """Parse one expression, such as `5` or `(seq-lit 1 2 3)`, from str or UTF-8 bytes."""
     _use(subset)
     tree = _read(_decode(text), expr=True)
@@ -673,7 +674,7 @@ def _expr(x):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    subset = 0
+    subset = SUBSET
     if args[:1] == ["--subset"] and len(args) == 3 and args[1] in ("0", "1"):
         subset, args = int(args[1]), args[2:]
     if len(args) != 1:

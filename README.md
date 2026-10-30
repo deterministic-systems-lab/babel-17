@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are drafted ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)), its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, and WP8, the agent reference manual, are done for B17-0, and WP7, the Rust backend, for B17-0 and B17-1.
+Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, and WP8, the agent reference manual, are done for B17-0, and WP7, the Rust backend, for B17-0 and B17-1.
 
 | WP | What | State |
 |---|---|---|
@@ -30,7 +30,7 @@ Phase 1, the embedded MVP, has begun. B17-1's spec text and labelled suite are d
 | WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 and B17-1 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on both suites, corner cases and generated programs. Its readings are D95–D97 for B17-0 and D110–D111 for B17-1, all accepted. With `--subset 1` it lowers B17-1, with data types as Rust enums. |
 | WP8 | Agent reference manual | Done for B17-0 ([docs/manual.md](docs/manual.md)): every rule and all 25 error codes with a minimal example, each checked against its stated outcome by `test_manual.py`. |
-| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. With `--subset 1` it runs B17-1 too, including every accept program of `suite/b17-1/`. |
+| WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. It runs B17-1 too, by default since B17-1 froze, including every accept program of `suite/b17-1/`. |
 | WP16 | Core spec library | In progress: [b17c/core.b17](b17c/core.b17) holds 3 ghost-fns and 33 laws: §9's background facts and integer order. The interpreter confirms each on a grid, and the verifier proves each. |
 | WP17 | Baseline harness: agents writing verified Dafny | Done ([gym/](gym/)). Baselines are in for the seed, AlgoVeri and vericoding sets; Gemini and Grok have tasks left. |
 
@@ -67,7 +67,7 @@ What this shows:
 - **Ghost code:** `ghost-fn`s and `lemma`s exist only for proofs and are erased before the program runs.
 - **Ownership:** vectors are owned and move, and slices are borrows that can't escape a call. There are no lifetimes (D36).
 
-The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md](docs/b17-0.md). B17-1, the second subset, adds data types, tuples, ghost sets and maps, and verification levels, and is drafted in [docs/b17-1.md](docs/b17-1.md).
+The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md](docs/b17-0.md). B17-1, the second subset, adds data types, tuples, ghost sets and maps, and verification levels, and is frozen in [docs/b17-1.md](docs/b17-1.md). The tools read B17-1 by default, and B17-0 with `--subset 0` (D101).
 
 ## Repository layout
 
@@ -75,18 +75,18 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 |---|---|
 | [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.1 Frozen |
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
-| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v0.1 Draft |
+| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.0 Frozen |
 | [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 58, which the checker agrees with too |
-| [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar with `--subset 1` (D101) |
+| [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar by default, and B17-0's with `--subset 0` (D101) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46); B17-1's data types and binders (D92) |
-| [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78); B17-1's with `--subset 1` |
+| [`b17c/check.py`](b17c/check.py) | Tier 0 checker: names, types, ghost code, ownership, effects, returns, recursion (§2–§7, D66–D78); B17-1's by default, and B17-0's with `--subset 0` |
 | [`b17c/core.b17`](b17c/core.b17) | The core library (WP16): `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas |
 | [`b17c/core1.b17`](b17c/core1.b17) | B17-1's addition to the core library: the `option` type |
 | [`b17c/hashes.txt`](b17c/hashes.txt) | Golden hashes of every accept program |
-| [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59); B17-1's with `--subset 1` |
-| [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97); B17-1's with `--subset 1` (D110, D111) |
-| [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels; B17-1's with `--subset 1` |
-| [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63); B17-1's with `--subset 1` |
+| [`b17c/interp.py`](b17c/interp.py) | Reference interpreter: §8, with contracts checked on request (D56–D59); B17-1's by default, and B17-0's with `--subset 0` |
+| [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97); B17-1's by default, and B17-0's with `--subset 0` (D110, D111) |
+| [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels; B17-1's by default, and B17-0's with `--subset 0` |
+| [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63); B17-1's by default, and B17-0's with `--subset 0` |
 | [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8) |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 for M3 (D98) |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 64 from AlgoVeri, 28 from vericoding |
@@ -120,18 +120,18 @@ uv run --no-project gym/test_b17.py        # the harness's B17-0 track: tasks, v
 **The toolchain:**
 
 ```sh
-uv run --no-project b17c/syntax.py suite/accept/merge_sorted.b17     # canonical bytes, or E-PARSE-001 with line:col
-uv run --no-project b17c/syntax.py --subset 1 suite/b17-1/accept/bst_insert.b17   # the same for B17-1 (D101)
-uv run --no-project b17c/hashing.py suite/accept/*.b17                # MODULE KIND NAME SPEC-HASH IMPL-HASH per item
-uv run --no-project b17c/check.py suite/reject/E-OWN-001-use-after-move.b17   # FILE:LINE:COL: CODE: message per diagnostic
-uv run --no-project b17c/check.py --subset 1 suite/b17-1/reject/E-OWN-007-match-on-moving-field.b17   # the same for B17-1
-uv run --no-project b17c/interp.py --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5
-uv run --no-project b17c/interp.py --subset 1 --check suite/b17-1/accept/discrete_logarithm.b17 discrete_log_naive 2 8 11   # ok (some 3)
-uv run --no-project b17c/rust.py --run suite/accept/abs.b17 abs -5       # the same, from emitted Rust: ok 5
-uv run --no-project b17c/rust.py -o abs suite/accept/abs.b17             # the binary; with FILE alone, the Rust it's built from
-uv run --no-project b17c/rust.py --subset 1 --run suite/b17-1/accept/bst_insert.b17 insert "(leaf)" 5   # ok (node 5 (leaf) (leaf))
-uv run --no-project b17c/verify.py suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part
-uv run --no-project b17c/verify.py --subset 1 suite/b17-1/accept/bst_insert.b17   # the same for B17-1
+uv run --no-project b17c/syntax.py --subset 0 suite/accept/merge_sorted.b17     # canonical bytes, or E-PARSE-001 with line:col
+uv run --no-project b17c/syntax.py suite/b17-1/accept/bst_insert.b17   # the same for B17-1, the default since it froze (D101)
+uv run --no-project b17c/hashing.py --subset 0 suite/accept/*.b17                # MODULE KIND NAME SPEC-HASH IMPL-HASH per item
+uv run --no-project b17c/check.py --subset 0 suite/reject/E-OWN-001-use-after-move.b17   # FILE:LINE:COL: CODE: message per diagnostic
+uv run --no-project b17c/check.py suite/b17-1/reject/E-OWN-007-match-on-moving-field.b17   # the same for B17-1
+uv run --no-project b17c/interp.py --subset 0 --check suite/accept/abs.b17 abs -5   # the trace and outcome: ok 5
+uv run --no-project b17c/interp.py --check suite/b17-1/accept/discrete_logarithm.b17 discrete_log_naive 2 8 11   # ok (some 3)
+uv run --no-project b17c/rust.py --subset 0 --run suite/accept/abs.b17 abs -5       # the same, from emitted Rust: ok 5
+uv run --no-project b17c/rust.py --subset 0 -o abs suite/accept/abs.b17             # the binary; with FILE alone, the Rust it's built from
+uv run --no-project b17c/rust.py --run suite/b17-1/accept/bst_insert.b17 insert "(leaf)" 5   # ok (node 5 (leaf) (leaf))
+uv run --no-project b17c/verify.py --subset 0 suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part
+uv run --no-project b17c/verify.py suite/b17-1/accept/bst_insert.b17   # the same for B17-1
 uv run --no-project b17c/agent.py check suite/reject/E-PROOF-OVERFLOW-unbounded-increment.b17   # diagnostics as JSON, with a counterexample
 uv run --no-project b17c/agent.py explain E-OWN-005                   # a code's rule, with the suite's labelled example
 ```
@@ -198,8 +198,7 @@ M3's first run, the same seed tasks in B17-0, failed 6 of its 120 attempts, all 
   - the interfaces it touched;
   - the proofs and tests it added;
   - anything it left admitted.
-- **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44). The rest are Draft:
-  - B17-1's parts of 1 and 6, in `docs/b17-1.md`, until B17-1 freezes;
+- **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44), and so are B17-1's parts of 1 and 6, in `docs/b17-1.md`. The rest are Draft:
   - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94);
   - 10, interpreter traces, at version 0.1 (D56);
   - 11, solver queries, at version 0.1, with 0.2 for B17-1 implemented by WP5 (D63, D89, D103, D105, D106);

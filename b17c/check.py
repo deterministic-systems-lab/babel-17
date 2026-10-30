@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from hashing import CORE, CORE1, HashError, hashes
-from syntax import Form, Int, ParseError, Sym, _head, parse
+from syntax import SUBSET, Form, Int, ParseError, Sym, _head, parse
 
 MIN, MAX = -2**63, 2**63 - 1
 BOOL, I64, INT = ("bool",), ("i64",), ("int",)
@@ -47,17 +47,17 @@ class Diagnostic:
         return f"{self.line}:{self.col}: {self.code}: {self.message}"
 
 
-def check(module, subset=0):
+def check(module, subset=SUBSET):
     """module's tier 0 diagnostics, in position order; none means it passes tier 0."""
     return sorted(_Checker(module, subset).run())
 
 
-def types(module, subset=0):
+def types(module, subset=SUBSET):
     """The type tier 0 gives each expression of module and of the core library, by node id,
     for WP5's goals and WP7's backend. Raises ValueError, listing the diagnostics, if module
     fails tier 0. The core library is typed on its own, as check() leaves it, since its
     binders, such as sorted's i and j, may share a name with an item of module (§2)."""
-    c, core = _Checker(module, subset), _Checker(CORE)
+    c, core = _Checker(module, subset), _Checker(CORE, 0)  # core.b17 is B17-0
     if diags := sorted(c.run()) or sorted(core.run(core=True)):
         raise ValueError("\n".join(map(str, diags)))
     return core.types | c.types
@@ -231,7 +231,7 @@ class _Bind:
 
 
 class _Checker:
-    def __init__(self, module, subset=0):
+    def __init__(self, module, subset=SUBSET):
         self.module, self.sub = module, subset
         self.datas, self.ctors = {}, {}  # B17-1: type name -> _Data; constructor name -> (type name, index)
         self.pending = None  # data applications written in field types, checked once data_types() knows them all
@@ -2079,7 +2079,7 @@ def _components(graph):
 
 
 def main(argv):
-    subset = 0
+    subset = SUBSET
     if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
         subset, argv = int(argv[1]), argv[2:]
     if len(argv) != 1:

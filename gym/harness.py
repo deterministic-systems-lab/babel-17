@@ -218,7 +218,7 @@ def load_b17_task(path):
     only a proof uses are the hidden solution."""
     _, syntax = b17c()
     text = path.read_text()
-    m = syntax.parse(text.encode())
+    m = syntax.parse(text.encode(), 0)  # M3's track is B17-0 (D101)
     items = [it for it in m.items[3:] if it.items[0].text != "def"]
     [spec] = [it for it in items if it.items[0].text == "spec"]
     fns = {it.items[1].text: it for it in items if it.items[0].text == "ghost-fn"}
@@ -292,7 +292,7 @@ def verify_b17(task, code):
     Specs are modular, so a spec with no def would let a call assume anything."""
     agent, syntax = b17c()
     try:
-        m = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode())
+        m = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode(), 0)
     except syntax.ParseError as e:
         return "rejected", json.dumps([{"code": e.code, "node": f"module@{e.line}:{e.col}", "message": e.reason}], indent=1)
     try:
@@ -314,7 +314,7 @@ def allows_panic(task):
     """Whether a B17-0 task's spec lists panic: ensures bind only normal returns, so such a spec
     is met by a def that always panics, and the task would grade nothing."""
     _, syntax = b17c()
-    spec = next(it for it in syntax.parse(task["frozen"].encode()).items[3:] if it.items[0].text == "spec")
+    spec = next(it for it in syntax.parse(task["frozen"].encode(), 0).items[3:] if it.items[0].text == "spec")
     effects = next(c for c in spec.items if isinstance(c, syntax.Form) and c.items[0].text == "effects")
     return any(e.text == "panic" for e in effects.items[1:])
 

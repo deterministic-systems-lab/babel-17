@@ -71,7 +71,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **What it does:** it sends canonical queries (interface 11, D63), caches every verdict under D22's key, and reports solver-trusted goals by node ID (D24, D25).
   - **Its three done-whens hold:** the worked example verifies, seed-shuffle checks pass, and the proof cache hits on unchanged code. It also hits on renamed code, and after a callee's body edit.
   - **Goals from WP3's types:** each expression's SMT sort is the type the checker gives it, where the goal spike guessed. Multisets of booleans and empty literals typed only by what they're compared with now verify. A module that fails tier 0 gets its diagnostics instead of goals.
-- **B17-1's spec text** is drafted (PR #21): `docs/b17-1.md`, version 0.1, written as changes to B17-0's, with D81–D92 accepted.
+- **B17-1 froze** on 2026-10-30 under D44: `docs/b17-1.md`, version 1.0, written as changes to B17-0's, and its suite `suite/b17-1/`. The tools now read B17-1 by default, and B17-0 with `--subset 0` (D101).
 - **B17-1's labelled suite** is written: `suite/b17-1/`, with 10 AlgoVeri ports to accept and 48 programs to reject, one per rule. The checker agrees with every tier 0 label (PR #30). Writing it found two gaps in B17's proofs: none could apply a lemma at every value of a quantifier, or name the witness of an ∃. D99's `forall` statement and D100's `obtain` close them, and are in the spec text.
 - **WP15, the interpreter, reads B17-1** with `--subset 1`: data values, tuples, places, `match`, sets and maps, and `rank`. It runs all 10 accept programs, and shows the fault of each proof reject that has a def or ghost-fn. D102 lets a quantifier range over a finite collection its guard names, so set-based specs such as `is_bst` are checked rather than left unknown.
 - **WP5, the verifier, reads B17-1** with `--subset 1`, encoding it as D89 says, refined by D103 and D105.
@@ -101,7 +101,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 None new. D79–D101 were accepted on 2026-10-28, and D102–D108, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D108 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. All ten of its accept programs verify, `kruskal`'s minimum spanning tree included.
+1. **WP10's AlgoVeri ports,** now that B17-1 is frozen. 50 of the 64 need its tuples or data types (D79), and they're the harder tasks M3 needs next. Running M3 on them also takes the manual (WP8) and the harness's track extended to B17-1.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.
@@ -118,7 +118,7 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
 
 ## Phase 1
 
-From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11, and of the second B17-1, WP10 and WP11.
+From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11. B17-1 froze on 2026-10-30, so what's left of the second is WP10 and WP11.
 
 | WP | What | Depends on | Done when |
 |---|---|---|---|
@@ -130,13 +130,13 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Spec text and suite drafted, with D81–D92, D99, D100 and D102–D108 accepted. The checker agrees with every tier 0 label, so it can freeze. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 and L1 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D108. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.
-- **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It can start on B17-0's tasks and add B17-1's when B17-1 freezes (D65).
+- **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It started on B17-0's tasks, and can add B17-1's now that B17-1 is frozen (D65).
 - **What it measures:** the success metrics: verified pass rate, repair rounds and tokens per verified task.
-- **What it needs:** with WP5, WP6, WP8 and the harness's B17-0 track done, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
+- **What it needs:** with WP5, WP6, WP8 and the harness's B17-0 track done, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports were enough to start, and the AlgoVeri ports can follow now that B17-1 is frozen.
 - **How it's used:** its results steer the design (D14).
 - **First run,** on the seed tasks, 2026-10-29: Claude verified 59 of 60 and Codex 55 of 60 in B17-0, against 120 of 120 each in Dafny. The gap came from the manual, D70's multiset rule and the encoding's missing sequence extensionality. **Rerun** of the two failed tasks, 2026-10-30, with all three fixed: 12 of 12 in round 1, so the seed tasks don't separate the two languages in what verifies, though the other 18 haven't been rerun under the new manual. On those two tasks, B17-0 cost Claude about 4.6 times Dafny's tokens per verified task, and Codex about 1.2 times.
 
@@ -175,7 +175,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 | Subset | What it adds | When |
 |---|---|---|
 | **B17-0** | Checked integers, booleans, sequences, slices and owned vectors; contracts; the `alloc`, `panic` and `io` effects (D20) | Phase 0. Frozen on 2026-10-28, once WP3's checker agreed with the suite (D44). |
-| **B17-1** | Data types with type parameters, tuples, collections of any type, quantifiers over any ghost type, and ghost sets and maps (D79); verification levels L0 to L3, and what a goal that isn't proved does below L2 (D80) | Phase 1. Its scope (D79, D80) and its spec text's decisions (D81–D92) were accepted on 2026-10-28. The spec text is drafted ([b17-1.md](b17-1.md), v0.1), and its labelled suite is written (`suite/b17-1/`). |
+| **B17-1** | Data types with type parameters, tuples, collections of any type, quantifiers over any ghost type, and ghost sets and maps (D79); verification levels L0 to L3, and what a goal that isn't proved does below L2 (D80) | Phase 1. Its scope (D79, D80) and its spec text's decisions (D81–D92) were accepted on 2026-10-28. Its spec text ([b17-1.md](b17-1.md)) and labelled suite (`suite/b17-1/`) froze on 2026-10-30, at version 1.0. |
 | **Later subsets** | From §11 and D79: mutable borrows, floats, strings, runtime sets and maps, and generic functions; mutual recursion, once there's group hashing (D22); and vector capacity, once there are allocation bounds (D30). From D64: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. Effects for files, network and time. | Benchmarks set the order (D14), within §11's prerequisites. Growth continues past Phase 4 until D64's scope is covered. |
 
 - **The standard library** grows with the subsets. The design spec's library covers collections, numerics, text, parsers, cryptography and time. Each subset's scope includes the library entries it makes expressible.

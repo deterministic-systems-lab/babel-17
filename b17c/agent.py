@@ -26,6 +26,7 @@ from syntax import Form, ParseError, Sym, _head, _print, parse
 
 ROOT = Path(__file__).resolve().parent.parent
 MIN = "-9223372036854775808"
+SUBSET = 0  # the agent protocol reads B17-0, until WP6 extends it to B17-1 (D101)
 SHOWN = 8  # sequence elements a counterexample shows; a longer one shows its length and a prefix
 
 
@@ -35,7 +36,7 @@ def diagnostics(module, seeds=V.SEEDS, cache=V.CACHE):
     """Every tier 0 error of module, or once tier 0 passes, every goal that isn't proved."""
     if errors := tier0(module):
         return errors
-    gen, goals, rows, _ = V.verify_goals(module, seeds, cache)
+    gen, goals, rows, _ = V.verify_goals(module, seeds, cache, SUBSET)
     out = []
     for g, r in zip(goals, rows):
         if r["verdict"] == "proved":
@@ -157,7 +158,7 @@ def counterexample(module, gen, g):
     cex = {k: cex[k] for k in g[8]}  # in parameter order
     if g[6] == "impl" and "def" in gen.defs[g[0]] and complete:
         try:
-            out = I.run(module, g[0], [cex[k] for k in g[8]], check=True)
+            out = I.run(module, g[0], [cex[k] for k in g[8]], check=True, subset=SUBSET)
             reproduced = not isinstance(out, I.Ok)
         except ValueError:
             pass
@@ -206,7 +207,7 @@ def _smt_value(v):
 
 def obligations(module, name, seeds=V.SEEDS, cache=V.CACHE):
     """Every proof goal of the item name, with its verdict."""
-    gen, goals, rows, _ = V.verify_goals(module, seeds, cache)
+    gen, goals, rows, _ = V.verify_goals(module, seeds, cache, SUBSET)
     if name not in gen.defs:
         raise ValueError(f"no item named {name!r}")
     return [{"node": r["node"], "family": r["family"], "goal": goal_text(gen, g), "verdict": r["verdict"],
@@ -244,8 +245,8 @@ def impact(module, changed, seeds=V.SEEDS, cache=V.CACHE):
     if diags := tier0(after):
         return {"changed": sorted(names), "tier0": diags}
     key = lambda r: (re.sub(r"@\d+:\d+", "", r["node"]), r["family"])  # paths survive moves; positions don't (D56)
-    before = {key(r): r["verdict"] for r in V.verify(module, seeds, cache)[0]}
-    broken = [r for r in V.verify(after, seeds, cache)[0] if r["verdict"] != "proved"
+    before = {key(r): r["verdict"] for r in V.verify(module, seeds, cache, SUBSET)[0]}
+    broken = [r for r in V.verify(after, seeds, cache, SUBSET)[0] if r["verdict"] != "proved"
               and before.get(key(r), "proved") == "proved"]
     return {"changed": sorted(names),
             "callers": sorted({_item(r["node"]) for r in broken} - names),
@@ -257,7 +258,7 @@ def tier0(module):
     """module's tier 0 errors, as interface 3 diagnostics."""
     ids = V._node_ids(module, G.CORE)
     return [{"code": d.code, "severity": "error", "node": V._node(ids, d.node), "message": d.message}
-            for d in C.check(module)]
+            for d in C.check(module, SUBSET)]
 
 
 def search(module, query, seeds=V.SEEDS, cache=V.CACHE):
@@ -290,7 +291,7 @@ def search(module, query, seeds=V.SEEDS, cache=V.CACHE):
         body = (f"(let ({binds}) (call {name} {args})) (return {' '.join(found)})" if results
                 else f"(call {name} {args}) (return)")
         probe = parse(f"(module probe (header (purpose \"p\") (invariants \"i\") (failures \"f\")) "
-                      f"{spec} (def {probe_name} (body {body})))".encode())
+                      f"{spec} (def {probe_name} (body {body})))".encode(), SUBSET)
         trial = Form(module.items + probe.items[3:], module.pos, module.end)
         if diags := tier0(trial):
             same = [d for d in diags if "is identical to" in d["message"] and f"'{name}'" in d["message"]]
@@ -298,7 +299,7 @@ def search(module, query, seeds=V.SEEDS, cache=V.CACHE):
                         "why": "identical spec" if same else [d["code"] for d in diags]})
             continue
         # Every goal of the probe counts: its def's, and its spec's own well-definedness.
-        failed = [r["family"] for r in V.verify(trial, seeds, cache)[0]
+        failed = [r["family"] for r in V.verify(trial, seeds, cache, SUBSET)[0]
                   if _item(r["node"]) == probe_name and r["verdict"] != "proved"]
         out.append({"name": name, "guarantees": not failed, **({"why": failed} if failed else {})})
     return {"query": q.items[1].text, "candidates": sorted(out, key=lambda c: not c["guarantees"])}
@@ -311,7 +312,7 @@ def _item(node):
 
 def simulate(module, name, args):
     """A checked run of def name in the reference interpreter (D57), as interface 10 reports it."""
-    out = I.run(module, name, [I.value(module, a) for a in args], check=True)
+    out = I.run(module, name, [I.value(module, a, SUBSET) for a in args], check=True, subset=SUBSET)
     kind = type(out).__name__.lower()
     fields = {k: _json(getattr(out, k)) for k in out.__dataclass_fields__ if k not in ("trace", "unchecked")}
     return {"outcome": kind, **fields, "trace": [_json(v) for v in out.trace],
@@ -343,13 +344,14 @@ def main(argv):
         if cmd == "explain" and len(args) == 1:
             result = explain(args[0])
         elif cmd == "check" and len(args) == 1:
-            result = diagnostics(G.read(args[0]), seeds, cache)
+            result = diagnostics(G.read(args[0], SUBSET), seeds, cache)
         elif cmd == "obligations" and len(args) == 2:
-            result = obligations(G.read(args[0]), args[1], seeds, cache)
+            result = obligations(G.read(args[0], SUBSET), args[1], seeds, cache)
         elif cmd in ("impact", "search") and len(args) == 2:
-            result = {"impact": impact, "search": search}[cmd](G.read(args[0]), G.read(args[1]), seeds, cache)
+            a, b = G.read(args[0], SUBSET), G.read(args[1], SUBSET)
+            result = {"impact": impact, "search": search}[cmd](a, b, seeds, cache)
         elif cmd == "simulate" and len(args) >= 2:
-            result = simulate(G.read(args[0]), args[1], args[2:])
+            result = simulate(G.read(args[0], SUBSET), args[1], args[2:])
         else:
             print(__doc__, file=sys.stderr)
             return 2
