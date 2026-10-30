@@ -403,6 +403,11 @@ ok1("(ghost-fn g () bool (body (== (tuple (seq-lit) true) (tuple (seq-lit true) 
 ok1("(ghost-fn g ((s (iset (seq bool)))) (iset (seq bool)) (body (union (if true (iset-lit (seq-lit)) (iset-lit (seq-lit))) s)))")
 ok1("(ghost-fn g () (map int (seq bool)) (body (update (map-lit (1 (seq-lit))) 2 (seq-lit true))))")  # update's value fixes it
 bad1("E-TYPE-001", "(ghost-fn g ((n (map int (seq int)))) bool (body (== (update (map-lit (1 (seq-lit))) 2 (seq-lit true)) n)))")
+# A literal refines an open destination from its entries, which must agree; and a value whose open
+# types nothing fixes must be well-formed once they're integers, i64 in a vector (§3).
+bad1("E-TYPE-001", "(ghost-fn g () bool (body (!= (map-lit (1 (seq-lit))) (map-lit (1 (seq-lit true)) (2 (seq-lit 1))))))")
+bad1("E-TYPE-001", "(data d (a) (d (x a) (ys (vec a))))", "(ghost-fn g () bool (body (is d (d (seq-lit) (vec-new)))))")
+ok1("(data d (a) (d (x a) (ys (vec a))))", "(ghost-fn g () bool (body (is d (d (vec-new) (vec-new)))))")
 bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
 ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")
 ok1("(data rose () (rose (kids (seq rose))))")  # a sequence may be empty: a finite value (§3)

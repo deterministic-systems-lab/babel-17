@@ -280,7 +280,8 @@ OPEN = ["(== (len (lookup (map-lit (1 (seq-lit))) 1)) 0)", "(== (len (field (som
         "(contains (iset-lit (seq-lit)) (seq-lit))", "(!= (tuple (seq-lit) true) (tuple (seq-lit true) true))",
         "(!= (field (some (seq-lit)) value) (seq-lit true))", "(!= (get (tuple (seq-lit) 1) 0) (seq-lit true))",
         "(not (contains (seq-lit (seq-lit)) (seq-lit true)))", "(== (lookup (map-lit ((seq-lit) 1)) (seq-lit)) 1)",
-        "(== (lookup (update (map-lit (1 (seq-lit))) 2 (seq-lit true)) 1) (seq-lit))"]
+        "(== (lookup (update (map-lit (1 (seq-lit))) 2 (seq-lit true)) 1) (seq-lit))",
+        "(!= (map-lit (1 (seq-lit))) (map-lit (1 (seq-lit true))))", "(!= (iset-lit (seq-lit)) (iset-lit (seq-lit true)))"]
 for e in OPEN:
     assert open_(run1(H0 + f"(lemma l (params) (ensures {e}) (body)))")) == [], e
 assert open_(run1(H0 + "(lemma l (params) (ensures (!= (match (tuple (seq-lit) 1) (case (tuple a b) a)) (seq-lit true))) (body)))")) == ["POST"]

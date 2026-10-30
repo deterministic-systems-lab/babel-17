@@ -80,7 +80,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Soundness fixes that reach B17-0:** a review found two ways the verifier proved `false`, in B17-0 too. One was a recursive ghost-fn's equation holding outside its parameter types. The other was a `seq-build` under a quantifier being one constant. Both are fixed (D103).
   - **B17-0's suite is unchanged:** every one of its 511 queries is byte-identical, so no suite proof relied on either hole.
   - **Open types inside values:** an empty literal nested in a map, tuple, set, sequence or constructor value used to reach goal generation with its type open, and crash it or send an ill-sorted query. After tier 0, each open type now takes its type where the value is used, or becomes an integer, as `docs/b17-1.md` §4 says. Every suite and core query is byte-identical.
-    - **One tier 0 change:** `update`'s key and value now fix its map's open types, as §7's `(map K V)` says. So comparing the result with a map of another value type is rejected, where `main` accepted it.
+    - **Tier 0 changes, in programs with such open types only:** a literal's entries and `update`'s key and value now fix the open parts of its destination or map, as §4 and §7 say, so a later use that disagrees is rejected. A value whose open types nothing fixes must be well-formed once they're integers, so a sequence put in a vector that way is rejected.
     - **Still open:** a type that only a `match` binder's use fixes. Its query is ill-sorted, so the goal fails closed.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.

@@ -60,7 +60,6 @@ def types(module, subset=0):
     c, core = _Checker(module, subset), _Checker(CORE)
     if diags := sorted(c.run()) or sorted(core.run(core=True)):
         raise ValueError("\n".join(map(str, diags)))
-    c.resolve(module)
     return core.types | c.types
 
 
@@ -93,7 +92,7 @@ def fill(t, w):
     """t with each open part (ANY) taken from the same place in w, the type its use gives it."""
     if t == ANY:
         return w or ANY
-    if (not w or len(t) == 1 or len(t) != len(w) or t[0] == "data" and t[1] != w[1]
+    if (not w or len(t) != len(w) or t[0] == "data" and t[1] != w[1]
             or t[0] != w[0] and not (t[0] in SEQUENCES and w[0] in SEQUENCES)):
         return t
     return (t[0],) + tuple(a if isinstance(a, str) else fill(a, b) for a, b in zip(t[1:], w[1:]))
@@ -103,6 +102,7 @@ def close(t, g):
     """t with each open part nothing fixed an integer: int in ghost code, i64 in runtime code (§4, D70)."""
     if t == ANY:
         return INT if g else I64
+    g = g and t[0] not in ("vec", "slice")  # a vector holds runtime values (§3)
     return (t[0],) + tuple(a if isinstance(a, str) else close(a, g) for a in t[1:])
 
 
@@ -259,6 +259,8 @@ class _Checker:
         self.recursion()
         if not self.diags:  # D45's rule is defined once the rest of tier 0 passes
             self.duplicates()
+        if not self.diags:  # open types take their types where they're used (§4)
+            self.resolve(self.module)
         return self.diags
 
     def duplicates(self):
@@ -1339,20 +1341,23 @@ class _Checker:
         return t
 
     def resolve(self, x, w=None):
-        """Once x passes tier 0: each open part of x's type taken from w, the type its use gives
-        it, or from its destination, and made an integer if nothing fixes it (§4, D70); then
-        x's operands' from x's type, so that every part of one expression agrees. Only the types
-        WP5 and WP7 read change. A match's binders don't pass their use back to its scrutinee."""
+        """Once the rest of tier 0 passes: each open part of x's type taken from w, the type its
+        use gives it, or from its destination, and made an integer if nothing fixes it (§4, D70);
+        then x's operands' from x's type, so that every part of one expression agrees for WP5 and
+        WP7. A constructor application closed here must be well-formed, as any other (§3). A
+        match's binders don't pass their use back to its scrutinee."""
         t = self.types.get(id(x))
         if t is not None:
             want, g = self.uses.get(id(x), (None, True))  # places and borrows are typed whole, never open
-            t = self.types[id(x)] = close(fill(fill(t, w), want), g)
+            if self.has_any(t) and (t := close(fill(fill(t, w), want), g))[0] == "data":
+                self.check_app(x, t)  # tier 0 left an open application unchecked (§3)
+            self.types[id(x)] = t
         if not isinstance(x, Form):
             return
         h, a, T = _head(x), x.items[1:], lambda y: self.types[id(y)]
         ws = []
         if t is None:  # a statement, clause or item
-            pass
+            a = x.items
         elif h in ("==", "!="):
             ws = [self.join(T(a[0]), T(a[1]))] * 2
         elif h == "if":
@@ -1389,7 +1394,7 @@ class _Checker:
             a, ws = [a[0]] + [case.items[2] for case in a[1:]], [None] + [t] * (len(a) - 1)
         elif h == "seq-build":
             a, ws = [a[0], a[1].items[2]], [None, t[1]]
-        for k, y in enumerate(a if t is not None else x.items):
+        for k, y in enumerate(a):
             self.resolve(y, ws[k] if k < len(ws) else None)
 
     def _expr(self, x, g, want, own=False):
@@ -1868,7 +1873,8 @@ class _Checker:
         t = elem
         for e in x.items[1:]:
             u = self.expr(e, True, want=None if elem == ANY else elem)
-            j = (elem if self.sub1(u, elem) else None) if elem != ANY else self.join(t, u)
+            fits = self.sub1(u, elem)  # an open part of the destination takes the elements' join
+            j = self.join(t, u) if fits and self.has_any(elem) else elem if fits else None
             if j is None:
                 self.report("E-TYPE-001", e, f"an element of {show(('iset', elem if elem != ANY else t))} can't be "
                                              f"{show(u)}")
@@ -1890,8 +1896,8 @@ class _Checker:
             for e, which in ((entry.items[0], 0), (entry.items[1], 1)):
                 fixed = (k0, v0)[which]
                 u = self.expr(e, True, want=None if fixed == ANY else fixed)
-                cur = (k, v)[which]
-                j = (fixed if self.sub1(u, fixed) else None) if fixed != ANY else self.join(cur, u)
+                cur, fits = (k, v)[which], self.sub1(u, fixed)
+                j = self.join(cur, u) if fits and self.has_any(fixed) else fixed if fits else None
                 if j is None:
                     self.report("E-TYPE-001", e, f"a map entry's {'key' if which == 0 else 'value'} can't be {show(u)}")
                     return ERR
