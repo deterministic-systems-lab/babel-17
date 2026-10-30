@@ -108,7 +108,8 @@ None new. D79–D101 were accepted on 2026-10-28, and D102–D108, D110 and D111
    - **The encoding (WP5), D108:** `==` on sequences makes them the same sequence, so every function agrees on them. A query gets its axioms only where it compares sequences.
    - **Optional:** the 18 other seed tasks ran under the old manual. Rerunning them would show whether its 2–3k more input tokens per call cost anything there.
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
-3. **WP16** grows the core library as B17-1 and the ports need it.
+3. **B17-1's verification levels (WP5):** `docs/b17-1.md` §10 fixes `verify --level`, the report's level fields and D88's property tests, but `verify.py` only names the level a module reaches. They froze before being built, as B17-0's proof goals did before WP5, so a fix to §10 now takes a decision. M3 doesn't need them: it counts a task verified only when every goal is proved.
+4. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
