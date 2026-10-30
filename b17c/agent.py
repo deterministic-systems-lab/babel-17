@@ -136,20 +136,19 @@ def counterexample(module, gen, g, subset=SUBSET):
     parameter's type can't be shown. A tuple or data value is a B17-1 term, such as
     "(node 5 (leaf) (leaf))", which a run reads as simulate reads its arguments (D112)."""
     q = _trimmed(G.query(gen, g[3], g[4], g[0]))
-    # A validity predicate's axioms (D103, D105) quantify over every value of a data type, so Z3
-    # never builds a model under them. Without them a model may break an i64 range, which
-    # the check below and the interpreter's run then catch.
+    # A validity predicate's own axioms (D103, D105) quantify over every value of a data type,
+    # so Z3 never builds a model under them. Without them a model may break an i64 range, which
+    # _model then rejects, and the interpreter's run checks the rest.
     oks = set(gen.oks.values())
-    q = "\n".join(l for l in q.split("\n") if not (l.startswith("(assert (forall") and oks & set(G.TOKEN.findall(l))))
+    drop = {l for _, names, text in gen.blocks if names & oks for l in text.split("\n") if l.startswith("(assert (forall")}
+    q = "\n".join(l for l in q.split("\n") if l not in drop)
     used = set(G.TOKEN.findall(q))
-    names = {smt: c for d in gen.dts.values() for c, (smt, _) in d["ctors"].items()}
+    back = {smt: c for d in gen.dts.values() for c, (smt, _) in d["ctors"].items()}
     shapes, terms, cex = {}, [], {}
-    complete = True
     for name, (t, typ) in g[8].items():
         ty, srt = gen.ty(typ), gen.sort(typ)
-        if t not in used:  # the goal doesn't constrain it, so any value will do
-            cex[name] = False if srt == "Bool" else 0 if srt == "Int" else [] if ty[0] in C.SEQUENCES else None
-            complete &= cex[name] is not None
+        if t not in used:  # the goal doesn't constrain it, so any value will do: the smallest (§10)
+            cex[name] = _smallest(gen, ty, True)
             continue
         if _shown(gen, ty):
             ts = [t]
@@ -157,7 +156,7 @@ def counterexample(module, gen, g, subset=SUBSET):
             ts = [G.fn("len", srt, t)] + [G.fn("nth", srt, t, str(k)) for k in range(SHOWN)]
         else:  # a set, map or multiset, or a sequence inside a value: no model term shows it
             return None
-        shapes[name], terms = (len(terms), len(ts)), terms + ts
+        shapes[name], terms = (len(terms), len(ts), ty), terms + ts
     values = []
     if terms:
         r = subprocess.run(["z3", f"rlimit={G.RLIMIT}", "-T:60", "-in"], input=f"{q}\n(get-value ({' '.join(terms)}))",
@@ -165,17 +164,19 @@ def counterexample(module, gen, g, subset=SUBSET):
         lines = r.stdout.strip().split("\n", 1)
         if lines[0] not in ("sat", "unknown") or len(lines) < 2 or lines[1].startswith("(error") or "(let " in lines[1]:
             return None
-        values = [_smt_value(pair[1], names) for pair in _sexp(lines[1])]
-        if any(not -2 ** 63 <= int(n) < 2 ** 63 for v in values if isinstance(v, str) for n in re.findall(r"-?\d+", v)):
-            return None  # a value outside its type, which the dropped validity axioms rule out
-    for name, (start, n) in shapes.items():
+        values = [pair[1] for pair in _sexp(lines[1])]
+    complete = True
+    for name, (start, n, ty) in shapes.items():
         vs = values[start:start + n]
         if n == 1:
-            cex[name] = vs[0]
+            cex[name] = _model(gen, vs[0], ty, back)
         else:
-            length, elems = vs[0], vs[1:1 + min(vs[0], SHOWN)]
-            cex[name] = elems if length <= SHOWN else {"len": length, "prefix": elems}
-            complete &= length <= SHOWN
+            length = _model(gen, vs[0], C.INT, back)
+            cex[name] = [_model(gen, v, ty[1], back) for v in vs[1:1 + min(length, SHOWN)]]
+            if length > SHOWN:
+                cex[name], complete = {"len": length, "prefix": cex[name]}, False
+        if None in (cex[name] if isinstance(cex[name], list) else [cex[name]]):
+            return None  # an i64 out of range, which the dropped validity axioms rule out
     reproduced = None
     cex = {k: cex[k] for k in g[8]}  # in parameter order
     if g[6] == "impl" and "def" in gen.defs[g[0]] and complete:
@@ -199,6 +200,68 @@ def _shown(gen, t, seen=()):
     if t[0] == "data":
         return t in seen or all(_shown(gen, f[2], seen + (t,)) for _, fs in gen.data(t)["ctors"].values() for f in fs)
     return False
+
+
+def _model(gen, v, t, back):
+    """Model term v of type t: a bool or an integer, or a tuple or data value as a B17-1 term. None
+    where an i64 is out of range, which only the dropped validity axioms rule out."""
+    if t == C.BOOL:
+        return v == "true"
+    if t in (C.I64, C.INT):
+        n = -int(v[1]) if isinstance(v, list) else int(v)  # (- n)
+        return n if t == C.INT or -2 ** 63 <= n < 2 ** 63 else None
+    head, args = (v, []) if isinstance(v, str) else (v[0], v[1:])
+    name = "tuple" if head.startswith("mk.T") else back[head]
+    types = t[1:] if t[0] == "tuple" else [f[2] for f in gen.data(t)["ctors"][name][1]]
+    parts = [_model(gen, a, u, back) for a, u in zip(args, types)]
+    return None if None in parts else "(" + " ".join([name] + [str(x).lower() if isinstance(x, bool) else str(x) for x in parts]) + ")"
+
+
+def _smallest(gen, t, top=False):
+    """t's smallest value (docs/b17-1.md §10): false, 0, an empty collection, a tuple of smallest
+    values, or the data value built with the fewest constructors, the first declared among ties.
+    At the top, a bool, integer or sequence is a JSON value; anything else is a B17-1 term."""
+    insts, todo = [], [t]  # every data instance t reaches
+    while todo:
+        u = todo.pop()
+        if u[0] == "data" and u not in insts:
+            insts.append(u)
+            todo += [f[2] for _, fs in gen.data(u)["ctors"].values() for f in fs]
+        elif u[0] != "data":
+            todo += [a for a in u[1:] if isinstance(a, tuple)]
+    count = {}  # constructors in each instance's smallest value: a fixpoint, since §3 gives every type one
+
+    def size(u):  # constructors in u's smallest value, None while not yet known
+        if u[0] == "data":
+            return count.get(u)
+        parts = [size(a) for a in u[1:]] if u[0] == "tuple" else []
+        return None if None in parts else sum(parts)
+
+    def cost(fields):  # constructors in the smallest value a constructor with these fields builds
+        parts = [size(f[2]) for f in fields]
+        return None if None in parts else 1 + sum(parts)
+    while (new := {u: min((c for _, fs in gen.data(u)["ctors"].values() if (c := cost(fs)) is not None), default=None)
+                   for u in insts}) != count:
+        count = new
+
+    def term(u):
+        if u == C.BOOL:
+            return "false"
+        if u in (C.I64, C.INT):
+            return "0"
+        if u[0] in C.SEQUENCES:
+            return "(seq-lit)"
+        if u[0] in ("iset", "map"):
+            return f"({u[0]}-lit)"
+        if u[0] == "multiset":
+            return "(multiset (seq-lit))"
+        if u[0] == "tuple":
+            return "(tuple " + " ".join(map(term, u[1:])) + ")"
+        name, fs = next((c, fs) for c, (_, fs) in gen.data(u)["ctors"].items() if cost(fs) == count[u])
+        return "(" + " ".join([name] + [term(f[2]) for f in fs]) + ")"
+    if top and t in (C.BOOL, C.I64, C.INT) or top and t[0] in C.SEQUENCES:
+        return {"false": False, "0": 0, "(seq-lit)": []}[term(t)]
+    return term(t)
 
 
 def _read(module, v, subset):
@@ -236,16 +299,6 @@ def _sexp(text):
         else:
             stack[-1].append(t)
     return stack[0][0]
-
-
-def _smt_value(v, names=None):
-    """A model value: a bool or an integer, or a tuple or data value as a B17-1 term."""
-    if not isinstance(v, list):
-        return v == "true" if v in ("true", "false") else int(v) if v.lstrip("-").isdigit() else f"({names[v]})"
-    if v[0] == "-":  # (- n)
-        return -int(v[1])
-    head = "tuple" if v[0].startswith("mk.T") else names[v[0]]
-    return "(" + " ".join([head] + [str(x).lower() if isinstance(x, bool) else str(x) for x in (_smt_value(y, names) for y in v[1:])]) + ")"
 
 
 # Interface 8: the five queries.

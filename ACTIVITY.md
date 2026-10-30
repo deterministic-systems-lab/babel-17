@@ -2051,3 +2051,36 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - D109's heading, which records that D113 refines it;
   - the README's status and layout row, the roadmap's recent work, Phase 1 table, subset table and decisions, and `suite/README.md`'s status.
 - **Interfaces touched:** B17-1's parts of 1 and 6, now version 1.1.
+
+## 2026-10-30 · D112, M3's B17-1 track; and WP6 at subset 1
+- **Asked by the owner:** after the freeze, the next roadmap item. The critical path now runs through M3's B17-1 tasks.
+- **Proposed, then accepted by the owner:** D112, M3's B17-1 track, built as D98's B17-0 track is.
+  - **Tasks:** the 10 AlgoVeri ports in `suite/b17-1/accept/`, posing each one's first spec with the data types and ghost-fns it refers to.
+  - **The prompt:** the manual plus a B17-1 supplement, `docs/manual-1.md`.
+  - **Feedback:** `agent.py` at subset 1.
+  - **Why these tasks:** they're harder than the seed tasks even in Dafny. Claude took up to 5 rounds and Codex up to 6 in the AlgoVeri runs, and Codex failed `kruskal` both times.
+- **Step 1 is done: `agent.py` reads B17-1, by default (D101).**
+  - **Subsets:** every entry point takes a subset, and the command line takes `--subset`. M3's B17-0 track, B17-0's agent tests, and the manual's and README's B17-0 commands name subset 0.
+  - **`explain`:** at subset 1 it reads `docs/b17-1.md`'s code table after B17-0's, so B17-1's rows win, and gives B17-1's suite examples first.
+  - **Goals in B17-1's families:**
+    - an `obtain`'s goal is its `(exists ...)`;
+    - a lookup's is `(contains m k)`;
+    - a field read's is the test for the constructor that has the field, such as `(is node t)`.
+  - **Counterexamples:**
+    - **What's shown:** a tuple or data value is a B17-1 term, such as `(node 2 (leaf) (leaf))` or `(tuple 0 true)`, and the checked run reads it as `simulate` reads its arguments.
+    - **Unused parameters** get their type's smallest value (`docs/b17-1.md` §10).
+    - **What isn't shown:** sets, maps, multisets, and sequences inside values. Their goals get no counterexample yet.
+  - **How Z3 finds the model:** a validity predicate's own axioms quantify over every value of a data type, and under them Z3 timed out even on `(is node t)`. So the model search drops just those axioms. A model value that breaks an `i64` range is then discarded, and the interpreter's run checks the rest.
+- **Codex review** (`gpt-5.6-sol`): it confirmed the goal texts, the translation of nested, parameterized and recursive values, `explain` for all 27 codes, the command line, and that no case claims a replay that doesn't happen. It found three issues, all fixed and tested:
+  - **Unused parameters:** an unused tuple or data parameter showed `null`, which blocked a replay that fails. It now gets its smallest value.
+  - **Ranges:** the `i64` range check read every numeral, so it rejected a `(box int)` holding 2^63. Values are now typed, and only `i64` positions are checked.
+  - **Dropped axioms:** the model search dropped every quantified axiom that mentioned a validity predicate, recursive ghost-fns' equations among them. It now drops only the predicate's own definition.
+- **Unchanged:** all 187 recorded M3 rounds get `main`'s verdicts and feedback, since B17-0's counterexamples are found as before.
+- **Ponytail review:** an unused helper, `_smt_value`, removed; nothing else to cut.
+- **Updated:**
+  - the README's WP6 row, layout row, toolchain commands, and the interface 3 and 8 note;
+  - the roadmap's WP6 entry, decisions and critical path;
+  - `docs/manual.md` §13's agent commands.
+- **Interfaces touched:** 3 and 8, now version 0.2 for B17-1's counterexample terms (D112).
+- **Proofs and tests added:** `test_agent.py`'s B17-1 cases.
+- **Next:** `docs/manual-1.md`, step 2 of D112.

@@ -142,5 +142,20 @@ if shutil.which("z3"):
     assert d["goal"].startswith("(exists ((k int)) "), d
     [d] = A.diagnostics(read1("reject/E-PROOF-BOUNDS-lookup-outside-map.b17"), 1, CACHE)
     assert d["goal"] == "(contains m 2)" and "counterexample" not in d, d  # a map can't be shown (D112)
+    # Codex's review: an unused parameter takes its type's smallest value (§10), so the run replays;
+    # an int inside a data value isn't held to i64's range; a recursive ghost-fn keeps its equation.
+    flag = parse(f"""{HEAD} (data flag () (off) (on (bit bool))) (data nat () (succ (p nat)) (zero))
+      (spec f (params (x i64) (y flag) (n nat)) (returns (r i64)) (ensures (== r (+ x 1))) (effects)) (def f (body (return (+ x 1)))))""", 1)
+    [d] = A.diagnostics(flag, 1, CACHE)
+    assert d["counterexample"] == {"x": 9223372036854775807, "y": "(off)", "n": "(zero)"} and d["reproduced"] is True, d
+    big = parse(f"""{HEAD} (data box (t) (boxed (value t)))
+      (lemma big (params (x (box int))) (body (assert (< (field x value) 9223372036854775808)))))""", 1)
+    [d] = A.diagnostics(big, 1, CACHE)
+    assert d["counterexample"] == {"x": "(boxed 9223372036854775808)"}, d
+    total = parse(f"""{HEAD} {T} (ghost-fn total ((t tree)) int (decreases (rank t))
+      (body (match t (case (leaf) 0) (case (node v l r) (+ v (+ (total l) (total r)))))))
+      (lemma use (params (t tree)) (body (assert (>= (total t) 1)))))""", 1)
+    [d] = A.diagnostics(total, 1, CACHE)
+    assert d["counterexample"] == {"t": "(leaf)"}, d  # (total (leaf)) is 0, so the equation was kept
 
 print("agent protocol self-check passed" + ("" if shutil.which("z3") else " (without z3: explain, tier 0 and simulate only)"))
