@@ -1,5 +1,6 @@
 """WP8's done-when: every example in docs/manual.md has the outcome it states, and every code in
-docs/b17-0.md §9 has an example. The manual lists b17c/core.b17's items as they are, since the
+docs/b17-0.md §9 has an example; likewise for docs/manual-1.md, B17-1's supplement (D112), at
+subset 1, against docs/b17-1.md §9. The manual lists b17c/core.b17's items as they are, since the
 prompt doesn't include that file. uv run --no-project b17c/test_manual.py
 
 An example is a ```lisp block right after a line `<!-- expect: OUTCOME -->`. OUTCOME is `ok`, a
@@ -24,47 +25,53 @@ def parse(text, subset=0):  # B17-0's tests name their subset (D101)
 
 ROOT = Path(__file__).resolve().parent.parent
 MANUAL = (ROOT / "docs" / "manual.md").read_text()
-DOC = (ROOT / "docs" / "b17-0.md").read_text()
 EXAMPLE = re.compile(r"<!-- expect: (\S+) -->\n```lisp\n(.*?)```", re.S)
 WRAP = '(module example\n  (header (purpose "An example.") (invariants "None.") (failures "None."))\n{}\n)'
 z3 = shutil.which("z3")
 cache = Path(tempfile.mkdtemp())
+failures, counts = [], {}
 
-failures, seen = [], set()
-for k, (want, text) in enumerate(EXAMPLE.findall(MANUAL), 1):
-    seen.add(want)
-    src = text if text.lstrip().startswith("(module") else WRAP.format(text.rstrip())
-    where = f"example {k} ({want}): {text.strip().splitlines()[0][:60]}"
-    try:
-        m = parse(src.encode())
-    except ParseError as e:
-        if want != "E-PARSE-001":
-            failures.append(f"{where}: doesn't parse: {e}")
-        continue
-    if want == "E-PARSE-001":
-        failures.append(f"{where}: parses")
-        continue
-    codes = sorted({d.code for d in C.check(m, subset=0)})
-    if want.startswith("E-PROOF-") or want == "ok":
-        if codes:
-            failures.append(f"{where}: fails tier 0 with {codes}")
-        elif z3:
-            failed = sorted({"E-PROOF-" + r["family"] for r in V.verify(m, 1, cache, subset=0)[0] if r["verdict"] != "proved"})
-            if failed != ([] if want == "ok" else [want]):
-                failures.append(f"{where}: proof outcome {failed or 'all proved'}")
-    elif codes != [want]:
-        failures.append(f"{where}: tier 0 gives {codes or 'nothing'}")
 
-# Every code in §9's tables has an example.
-codes = set()
-for first, last in re.findall(r"^\| `(E-[A-Z0-9-]+)`(?: to `(E-[A-Z0-9-]+)`)? \|", DOC, re.M):
-    if last:
-        codes |= {f"{first[:-3]}{n:03}" for n in range(int(first[-3:]), int(last[-3:]) + 1)}
-    else:
-        codes.add(first)
-missing = sorted(codes - seen)
-if missing:
-    failures.append(f"codes with no example: {', '.join(missing)}")
+def examples(name, subset, doc):
+    """Check every example of docs/NAME at the subset, and that every code in doc's §9 tables has one."""
+    seen, text = set(), (ROOT / "docs" / name).read_text()
+    for k, (want, ex) in enumerate(EXAMPLE.findall(text), 1):
+        seen.add(want)
+        src = ex if ex.lstrip().startswith("(module") else WRAP.format(ex.rstrip())
+        where = f"{name} example {k} ({want}): {ex.strip().splitlines()[0][:60]}"
+        try:
+            m = parse(src.encode(), subset)
+        except ParseError as e:
+            if want != "E-PARSE-001":
+                failures.append(f"{where}: doesn't parse: {e}")
+            continue
+        if want == "E-PARSE-001":
+            failures.append(f"{where}: parses")
+            continue
+        codes = sorted({d.code for d in C.check(m, subset=subset)})
+        if want.startswith("E-PROOF-") or want == "ok":
+            if codes:
+                failures.append(f"{where}: fails tier 0 with {codes}")
+            elif z3:
+                failed = sorted({"E-PROOF-" + r["family"] for r in V.verify(m, 1, cache, subset=subset)[0] if r["verdict"] != "proved"})
+                if failed != ([] if want == "ok" else [want]):
+                    failures.append(f"{where}: proof outcome {failed or 'all proved'}")
+        elif codes != [want]:
+            failures.append(f"{where}: tier 0 gives {codes or 'nothing'}")
+    codes = set()
+    for first, last in re.findall(r"^\| `(E-[A-Z0-9-]+)`(?: to `(E-[A-Z0-9-]+)`)? \|", (ROOT / "docs" / doc).read_text(), re.M):
+        if last:
+            codes |= {f"{first[:-3]}{n:03}" for n in range(int(first[-3:]), int(last[-3:]) + 1)}
+        else:
+            codes.add(first)
+    if missing := sorted(codes - seen):
+        failures.append(f"{name}: codes with no example: {', '.join(missing)}")
+    counts[name] = (len(EXAMPLE.findall(text)), len(codes))
+
+
+# The manual is B17-0's; its B17-1 supplement (D112) covers what docs/b17-1.md adds, at subset 1.
+examples("manual.md", 0, "b17-0.md")
+examples("manual-1.md", 1, "b17-1.md")
 
 # §12 lists every core item on its canonical line, without a law's empty body.
 core = canonical(parse((ROOT / "b17c" / "core.b17").read_bytes()))[:-1].decode().splitlines()[1:]
@@ -74,5 +81,5 @@ if not listed or listed[1].splitlines() != core:
     failures.append("§12's core items differ from b17c/core.b17's")
 
 assert not failures, "\n".join(failures)
-print(f"manual self-check passed: {len(EXAMPLE.findall(MANUAL))} examples, all {len(codes)} codes covered"
+print("manual self-check passed: " + "; ".join(f"{n}, {e} examples and all {c} codes" for n, (e, c) in counts.items())
       + ("" if z3 else " (without z3: proof outcomes not checked)"))

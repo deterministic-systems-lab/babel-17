@@ -2084,3 +2084,39 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** 3 and 8, now version 0.2 for B17-1's counterexample terms (D112).
 - **Proofs and tests added:** `test_agent.py`'s B17-1 cases.
 - **Next:** `docs/manual-1.md`, step 2 of D112.
+
+## 2026-10-30 · The manual's B17-1 supplement (D112, step 2)
+- **Asked by the owner:** after #49 merged, the next step of D112.
+- **`docs/manual-1.md`,** 20 KB: what B17-1 adds, for the model writing it. The agent reads it after `docs/manual.md`, whose rules hold unless the supplement changes them.
+  - **How a task reaches you:** D112's posing, with the task's data items and ghost-fns.
+  - **What it covers:**
+    - names and syntax: two namespaces, constructors as value names, case binders (D109);
+    - types, runtime and ghost, with well-formedness and covariance;
+    - ghost-only forms and how literals take their types (D109's operand rule);
+    - ownership of moving values: places, `replace`, `match`, where moving values may be built, and `E-OWN-001` to `E-OWN-007`;
+    - effects, expressions, sets and maps, exact binders, and `forall` statements and `obtain`;
+    - proof goals, what the verifier knows, and patterns from the suite's proofs;
+    - the core library's `option`, and the codes.
+  - **27 examples,** each with its stated outcome. `test_manual.py` now checks them at subset 1, as it checks the manual's, and requires one for each code in `docs/b17-1.md` §9's tables, `E-OWN-007` and `E-PROOF-FIELD`. A mutation check, relabelling the `E-OWN-007` example `ok`, fails it.
+- **Writing it found two of my own wrong examples,** both caught by the test: a parameter named like a single-constructor type's constructor, which constructors' being value names forbids, and the same local declared in two arms (D41). The prose now says both.
+- **Codex review** (`gpt-5.6-sol`): it found no wrong stated outcome among the examples, and confirmed all ten accept programs prove every goal, 1,654 in all. It found rules the supplement stated wrong or left out, each likely to make an agent fail, and each now fixed:
+  - **Wrong:** it let a built moving value be a `match` statement's scrutinee. A moving scrutinee must be a variable, and `(len (vec-new))`'s `E-OWN-006` now has a mention.
+  - **Missing:**
+    - a sequence used as a set member, map key, multiset element or nested element needs its equality asserted first, as one inside a tuple does. A new example proves with the `assert`, and its POST goal stays unknown without it;
+    - a place update's `FIELD` goals;
+    - `match` arms joining moves as `if` branches do;
+    - slices of moving values;
+    - D113's sequence-literal caveat;
+    - recursion through a `seq` making a binder inexact.
+  - **Smaller gaps:** lemma calls are exempt from one argument each, and `rank` takes data values only. A data type's arity, `map-lit`'s duplicate keys, and `match` in lemma bodies are covered too.
+  - **Proof patterns from the suite:** a ghost snapshot before a mutation, `replace` before matching a moving field, and `obtain` for a witness.
+- **A checker fix it led to:** a built moving `match` scrutinee was reported twice, once by the match and once by the constructor, against D78. The scrutinee is now typed as an `if` expression's branches are, so only the match reports it. `test_check.py` has a case.
+- **Codex re-review:** no remaining problems.
+  - **Confirmed:** every earlier finding is handled, every B17-1 suite diagnostic is unchanged by the checker fix, and six more probes prove as the supplement says.
+- **Updated:** the README's status, WP8 row, layout and self-check line, and the roadmap's WP8 entries and critical path.
+- **Interfaces touched:** none. The supplement is WP8's, and the checker fix changes only how many diagnostics one error gets.
+- **Proofs and tests added:**
+  - `test_manual.py` now checks a second manual at its subset;
+  - `test_check.py` has a case for the doubled diagnostic.
+- **The M3 prompt:** the B17-1 track's prompt will be `docs/manual.md` then `docs/manual-1.md` (D112). The B17-0 track's prompt doesn't change.
+- **Next:** the harness's B17-1 track, step 3 of D112.
