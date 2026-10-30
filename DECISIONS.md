@@ -1514,7 +1514,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note say so. B17-0's language doesn't change: §9 already defined equality this way. So it stays at version 1.1.
 - **Touches:** D61; D89; D103; WP5 (`b17c/goals.py`); interface 11's queries; `docs/b17-0.md` §9; `docs/b17-1.md` §9; `b17c/test_verify.py`.
 
-## D109 · B17-1's readings from its freeze review · Accepted (refines D41, D73, D82, D92 and D110)
+## D109 · B17-1's readings from its freeze review · Accepted (refines D41, D73, D82, D92 and D110; refined by D113)
 - **Date:** 2026-10-30
 - **Decision:** before B17-1 freezes, `docs/b17-1.md` states seven rules its draft left unclear or stated wrong.
   - **Moving call arguments:** a call argument of a moving type is a variable, as D73 says of vectors. A constructor call, `tuple` or `(vec-new)` there is `E-OWN-006` (§5 rule 7).
@@ -1541,3 +1541,14 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - `docs/b17-1.md` §2, §4, §5, §7 and §9;
   - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
   - `suite/b17-1/reject/`.
+
+## D113 · Corrections to B17-1's frozen text · Accepted (refines D109)
+- **Date:** 2026-10-30
+- **Decision:** `docs/b17-1.md` becomes version 1.1, with four statements corrected to what the tools already did. No program's outcome changes, and the suite doesn't change.
+  - **A sequence literal's destination (§4):** a sequence literal takes its element type only from a `seq` destination, as in B17-0 (D70). A vector or slice gives it none. So with v a `(vec i64)`, in `(== v (seq-lit 9223372036854775808))` the literal is a `(seq int)`, and the two compare as `(seq int)`s. D109's operand rule hands the vector's type over, but the literal doesn't take it.
+  - **An `iset-of` set equals itself (§8):** in the interpreter, such a set is equal to itself, as every value is (§7), and its equality with any other value is unknown. The draft said every equality with one was unknown. The interpreter has done this since its B17-1 review (ACTIVITY, 2026-10-29).
+  - **Checked lemma calls (§8):** a checked run evaluates a lemma call's `requires` and `ensures` (D57). Only a `forall` statement checks nothing, since it applies the lemma at every value of its binders. The draft said a lemma call checks nothing either.
+  - **`option` in the suite (§9):** five of the accept programs use `none` or `some`. The draft said no suite program did.
+- **Why:** Codex's review of the frozen text, the one its quota had cut short, found these four (ACTIVITY, 2026-10-30). Each is a statement the tools contradict, and the tools follow the accepted decisions.
+- **Alternatives:** for the first, let a vector or slice destination type a sequence literal's elements. That would make `(== v (seq-lit 9223372036854775808))` `E-TYPE-001`. The same program passes B17-0's frozen rules, and D101 keeps B17-0's outcomes as they are.
+- **Touches:** D57; D70; D101; D109; `docs/b17-1.md` status, §4, §8, §9 and §14; the README's and roadmap's version references.

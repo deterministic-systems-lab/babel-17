@@ -2036,3 +2036,18 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - `test_check.py` cases for every fix;
   - the default-subset tests in `test_check.py` and `test_rust.py`.
 - **Left admitted:** §10's verification levels and property tests, and the `match`-binder limit.
+
+## 2026-10-30 · Codex's review of the frozen B17-1, and D113
+- **Asked by the owner:** after the freeze merged, the owner reported Codex's quota had reset. Codex then ran the freeze review its quota had cut short, on `main`, as a second read after the two Claude reviews.
+- **Codex found four statements the tools contradict,** none a soundness issue, and checked all 64 suite labels and every decision citation besides. Each was confirmed by running it:
+  - **§4:** a sequence literal compared with a vector, `(== v (seq-lit 9223372036854775808))`, takes no element type from it, so the literal is a `(seq int)`. D109's operand rule reads as though it would be `E-TYPE-001`. B17-0 accepts the same program.
+  - **§8:** the interpreter makes an `iset-of` set equal itself. The text said every equality with one is unknown, but this was a deliberate choice, recorded in the interpreter's review (2026-10-29).
+  - **§8:** the text said a lemma call checks nothing, but a checked run evaluates its `requires` and `ensures` (D57).
+  - **§9:** the text said no suite program uses `option`, but five accept programs do.
+- **Owner decision:** accepted D113, which corrects all four to what the tools do and makes `docs/b17-1.md` version 1.1, as D107 made B17-0 version 1.1. For the first, changing the checker instead would reject a program that B17-0's frozen rules accept, against D101.
+- **Not changed:** any tool or suite program. All four are text.
+- **Updated:**
+  - `docs/b17-1.md`'s status, §4, §8, §9 and §14;
+  - D109's heading, which records that D113 refines it;
+  - the README's status and layout row, the roadmap's recent work, Phase 1 table, subset table and decisions, and `suite/README.md`'s status.
+- **Interfaces touched:** B17-1's parts of 1 and 6, now version 1.1.

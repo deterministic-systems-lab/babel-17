@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, and WP8, the agent reference manual, are done for B17-0, and WP7, the Rust backend, for B17-0 and B17-1.
+Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite, and D113 corrected four of its statements, making it v1.1 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, and WP8, the agent reference manual, are done for B17-0, and WP7, the Rust backend, for B17-0 and B17-1.
 
 | WP | What | State |
 |---|---|---|
@@ -76,7 +76,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.1 Frozen |
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/roadmap.md`](docs/roadmap.md) | The phases and their gates, what's done, and what comes next |
-| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.0 Frozen |
+| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.1 Frozen |
 | [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 64, 10 to accept and 54 to reject, which the checker and verifier agree with too |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar by default, and B17-0's with `--subset 0` (D101) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46); B17-1's data types and binders (D92) |
