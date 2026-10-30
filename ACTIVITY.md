@@ -1915,6 +1915,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **What it settles:** B17-0's gap on the seed tasks is closed under the current manual.
   - **Not measured:** the other 18 tasks ran under the old manual, so whether its growth changed them is unknown.
   - **What's left:** the seed tasks separate the two languages only in tokens. M3 needs harder tasks (WP10), as the roadmap already says.
+- **Codex fact-check** (`gpt-5.6-sol`): it recomputed every count, token figure and ratio above from the records and confirmed them. It can't run the older-checker replay, and found that claim stated consistently. It found two errors, now fixed:
+  - **What changed:** the entry said only the prompt did, but the checker did too.
+  - **Codex's first-run sorts:** one of its three was bubble sort, not insertion sort.
+  - **Also clarified:** "no lemmas" means none of their own, since four Codex programs call core laws. The roadmap's first-run token figures are now in the past tense, and so is D70's multiset rule. The README and roadmap say the other 18 seed tasks haven't been rerun under the new manual.
 - **Not changed:** the harness, `b17c` and the manual.
 - **Updated:** the README's results table and its note on M3; the roadmap's recent work, critical path, M3 entry and the open question on hard tasks.
 - **Interfaces touched:** none.
