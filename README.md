@@ -27,7 +27,7 @@ Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. It checks B17-1 too, by default, and agrees with every tier 0 label of `suite/b17-1/`. B17-1's freeze review settled seven more readings (D109). |
 | WP4a | The spec language | Done (D62, D79): B17-0's spec language is WP1a's, and B17-1 adds no data-type invariants or refinement links. |
 | WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. It verifies B17-1 too, by default (D89, D103, D105, D106, D108): its 6 proof rejects fail as labelled, and all 10 of its accept programs prove every goal, `kruskal`'s minimum spanning tree included. A review of that work found two ways the verifier could prove `false`, in B17-0 as well, and both are fixed (D103). No B17-0 suite proof relied on them. B17-1's verification levels and property tests (`docs/b17-1.md` §10) are specified but not built yet. |
-| WP6 | Agent protocol and diagnostics | Done for B17-0 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). It reads B17-0 only. Repairs wait for WP2's typed edits. |
+| WP6 | Agent protocol and diagnostics | Done for B17-0 and B17-1 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). In B17-1 a counterexample shows tuple and data values as terms, but none yet for sets, maps or multisets (D112). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 and B17-1 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on both suites, corner cases and generated programs. Its readings are D95–D97 for B17-0 and D110–D111 for B17-1, all accepted. It lowers B17-1 too, by default, with data types as Rust enums. |
 | WP8 | Agent reference manual | Done for B17-0 ([docs/manual.md](docs/manual.md)): every rule and all 25 error codes with a minimal example, each checked against its stated outcome by `test_manual.py`. |
 | WP15 | Reference interpreter | Done ([b17c/interp.py](b17c/interp.py)): passes WP1a's conformance tests. Interface 10 (traces, D56) is v0.1 Draft. It runs B17-1 too, by default since B17-1 froze, including every accept program of `suite/b17-1/`. |
@@ -88,7 +88,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97); B17-1's by default, and B17-0's with `--subset 0` (D110, D111) |
 | [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels; B17-1's by default, and B17-0's with `--subset 0` |
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63); B17-1's by default, and B17-0's with `--subset 0` |
-| [`b17c/agent.py`](b17c/agent.py) | The agent protocol, for B17-0: diagnostics as JSON (interface 3), and the five queries (interface 8) |
+| [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8); B17-1's by default, and B17-0's with `--subset 0` |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 for M3 (D98) |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 64 from AlgoVeri, 28 from vericoding |
 | [`gym/runs/`](gym/runs/) | One directory per run: `meta.json` holds the configuration and fingerprints, and `attempts.jsonl` every round of every attempt |
@@ -133,7 +133,8 @@ uv run --no-project b17c/rust.py --subset 0 -o abs suite/accept/abs.b17         
 uv run --no-project b17c/rust.py --run suite/b17-1/accept/bst_insert.b17 insert "(leaf)" 5   # ok (node 5 (leaf) (leaf))
 uv run --no-project b17c/verify.py --subset 0 suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part
 uv run --no-project b17c/verify.py suite/b17-1/accept/bst_insert.b17   # the same for B17-1
-uv run --no-project b17c/agent.py check suite/reject/E-PROOF-OVERFLOW-unbounded-increment.b17   # diagnostics as JSON, with a counterexample
+uv run --no-project b17c/agent.py --subset 0 check suite/reject/E-PROOF-OVERFLOW-unbounded-increment.b17   # diagnostics as JSON, with a counterexample
+uv run --no-project b17c/agent.py check suite/b17-1/reject/E-PROOF-FIELD-wrong-constructor.b17   # the same for B17-1: t is (leaf)
 uv run --no-project b17c/agent.py explain E-OWN-005                   # a code's rule, with the suite's labelled example
 ```
 
@@ -201,7 +202,7 @@ M3's first run, the same seed tasks in B17-0, failed 6 of its 120 attempts, all 
   - the proofs and tests it added;
   - anything it left admitted.
 - **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44), and so are B17-1's parts of 1 and 6, in `docs/b17-1.md`. The rest are Draft:
-  - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94);
+  - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94), with 0.2 for B17-1's counterexample terms (D112);
   - 10, interpreter traces, at version 0.1 (D56);
   - 11, solver queries, at version 0.1, with 0.2 for B17-1 implemented by WP5 (D63, D89, D103, D105, D106, D108);
   - 5, the trusted base report, which now carries WP7's backend fields (D25, D97).
