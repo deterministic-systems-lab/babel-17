@@ -1719,4 +1719,61 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Updated:** the roadmap's date, baselines, next steps, M3 section and two open questions; the README's B17-0 track note and results table.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
+## 2026-10-29 · `kruskal`, stage 1: the result is a spanning tree
+- **Asked by the owner:** stage 1 of `kruskal`'s proof, that its result is a spanning tree, before deciding on stage 2, that it has minimum weight.
+- **Found first: the implementation was wrong for its spec.**
+  - **The gap:** AlgoVeri's spec says "undirected" in its comment but never requires an edge to be listed from both ends. So a graph with one-way edges satisfies every `requires`.
+  - **The bug:** the port collected only edges `(u, v)` with `u < v` from `u`'s list, ignoring an edge listed only from its larger end.
+  - **Shown by the interpreter:** on the cycle `0 → 2 → 1 → 0`, it returned one edge for three vertices.
+- **The new implementation:** each round, it scans every stored adjacency entry for the lightest edge joining two components, treating each as joining its endpoints whichever way it's listed. It adds that edge and relabels one component to the other, and stops when no edge crosses components.
+  - **Kruskal's rule:** that's Kruskal's greedy rule without a separate sort, so it picks the same tree up to ties.
+  - **The spec is unchanged.**
+- **Stage 1's proof:** 305 of 306 goals prove under 10 shuffled seeds. The open one is the postcondition's minimum-weight half.
+  - **The `assert`:** the result is a spanning tree. Its edges are the graph's, it connects every pair of vertices, and it has n − 1 edges.
+  - **Folded predicates:**
+    - `labels`, where each component's label is its own vertex's;
+    - `joined`, where the same label means connected in the tree;
+    - `settled` and `settled_row`, where no scanned edge crosses components;
+    - `crossing`, `relabelled`, `root_change` and `extends`.
+  - **Counting without cardinality:** `roots(comp, n)`, a recursive ghost-fn, counts the vertices that are their own label. The tree's length plus `roots` stays `n`. Each merge drops `roots` by one (`roots_drop`), and at the end `roots` is 1 (`roots_one`).
+  - **Paths:** `conn_extend`, `conn_join` and `conn_sym` build tree paths. `path_comp` and `one_comp` carry a component along a graph path, applied at every vertex with D99, so the graph's connectivity puts every vertex in one component.
+  - **Unpacking lemmas:** `label_of` and `cross_of` turn a folded predicate's content into ground facts where it's needed. Without them, two bounds goals after the relabel loop proved under only some seeds.
+- **Mutants:** four broke the relabel, the edge's orientation, the stopping rule and the crossing test. Each left a goal unproved beyond the postcondition.
+- **Codex review:** two wording findings in `suite/README.md` and this entry, both fixed. Codex confirmed:
+  - the spec is unchanged;
+  - the old implementation's bug is real;
+  - the lemmas are true, with premises that hold where they're called;
+  - picking the globally lightest crossing edge each round gives a minimum spanning tree, by the cut property, even with one-way entries and different weights in each direction.
+- **Tests:**
+  - **`test_interp.py`:** the cycle case, and `kruskal`'s new unchecked clauses.
+  - **`test_verify.py`:** checks that only the postcondition is open.
+- **Stage 2,** that no spanning tree weighs less, remains: the exchange argument over cycles. The greedy rule makes it the cut property, applied at each round.
+- **Updated:** `suite/README.md`'s table, findings and port notes; the roadmap's WP5 status and next steps; the README's WP5 row.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
+
+## 2026-10-29 · `kruskal`, stage 2: no spanning tree weighs less
+
+- **Done:** `kruskal` proves its postcondition, `is_mst`, so all 10 of B17-1's accept programs verify. Its 620 goals prove under 10 shuffled seeds.
+- **The invariant:** `good(g, tree)`. For every spanning tree o, some spanning tree no heavier than o starts with the tree so far (`better`). It holds for the empty tree, with o itself (`good_nil`).
+- **The scan:** two new invariants, `lightest` and `lightest_row`, keep the chosen edge no heavier than any crossing edge scanned so far. The implementation is unchanged.
+- **One round (`good_step`, `walk`, `swap_ok`):**
+  - **The path:** `good` gives a spanning tree t, no heavier than o, that starts with the tree. Take a path in t from the new edge's end b to its other end a.
+  - **The crossing edge f:** `walk` follows the path to where it first enters a's component. The edge there, f, joins two components. The tree's own edges stay within a component (the new invariant `internal`), so f lies past the tree's prefix in t, and the scan made the new edge no heavier than f.
+  - **The swap:** t2 puts the new edge at the tree's next index, and moves the edge that was there into f's place. Two applications of `tw_point` give its weight: t's, less f's, plus the new edge's.
+  - **Still spanning:** every edge of t but f is in t2 (`kept`). f's ends stay connected: the one in a's component reaches a through the old tree, then the new edge reaches b, and the path's earlier steps lead back from b without using f, since they never enter a's component. `transfer` and `span_pair` then carry every path in t over to t2.
+- **The end (`good_end`):** the result has n − 1 edges, so a spanning tree that starts with it equals it, and `tw_eq` gives it the same weight.
+- **Encoding notes:** sequences have no extensionality in the encoding, so `tw_eq` proves by induction that sequences with equal elements have equal `total_weight`. `extends` now means a prefix of any length, not exactly one shorter; stage 1 only used the prefix part.
+- **First run:** 665 of 669 goals proved. Three `forall` statements passed indexed terms such as `(idx q i)`, whose bounds D99 checks at every value. Passing the binders and letting the lemma's `requires` guard them, as `docs/b17-1.md` §7 says, fixed them. The fourth, the loop's `are_valid_edges` invariant, needed an `assert` before the new facts.
+- **Mutants:** five changes each left a goal unproved: a scan that keeps the heavier edge, `swap_ok` without the hypothesis that the path's prefix avoids a's component, a swap that doesn't move the displaced entry, no `kept` facts, and no `good_step`, `swap_ok` or `good_end` call. Others showed 13 `assert`s, the lemmas `light_edge` and `keep_step`, and the `in_range` loop invariant were redundant, so they were removed and the result rechecked under 10 seeds. Dropping `internal_merge` too left a goal proving under only 9 of 10 seeds, so it stays.
+- **Codex review:** no findings, on the proof before the redundant parts were cut. Codex confirmed:
+  - the spec, `is_mst` included, is unchanged;
+  - no lemma's `requires` and no invariant is contradictory where it's used, including `walk` at the path's end, which recursion can't reach;
+  - every use of the wider `extends` is sound;
+  - the exchange is correct, and the weight bound is t's weight less f's plus the new edge's.
+- **Tests:** `test_verify.py` now requires `kruskal` to prove every goal. `test_interp.py` lists the new `good` invariant as unchecked, since it ranges over sequences. The emitted Rust is unchanged except for its hash and node IDs.
+- **Updated:** `suite/README.md`'s table and findings; the roadmap's WP5 status and next steps; the README's WP5 row.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
 - **Left admitted:** none.
