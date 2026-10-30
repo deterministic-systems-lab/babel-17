@@ -2120,3 +2120,32 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - `test_check.py` has a case for the doubled diagnostic.
 - **The M3 prompt:** the B17-1 track's prompt will be `docs/manual.md` then `docs/manual-1.md` (D112). The B17-0 track's prompt doesn't change.
 - **Next:** the harness's B17-1 track, step 3 of D112.
+
+## 2026-10-30 · The harness's B17-1 track (D112, step 3)
+- **Asked by the owner:** after #50 merged, the next step of D112.
+- **`--tasks b17-1/`** runs the 10 AlgoVeri ports in `suite/b17-1/accept/`.
+  - **Each task poses** the module's header, its first spec, which is AlgoVeri's entry point, and the data items and ghost-fns that spec refers to. They're reached transitively through ghost-fn names, data type names and constructor names.
+  - **Hidden:** its defs, helper specs, and the lemmas and ghost-fns only a proof uses. `bfs` hides 36 items, `kruskal` 46 and `lca` 7, among them its helper spec `find`.
+  - **The prompt** is the manual, then its B17-1 supplement, which changes it where it says so. The rules add data items to what an agent may write.
+  - **Verdicts and feedback** are b17c's at subset 1, as the B17-0 track's are at subset 0.
+- **`check-tasks`:** every port's solution verifies under 11 seeds, and every task with no def is `no_def`.
+- **B17-0's track is unchanged:**
+  - its tasks' dicts, and so their `task_sha`, since only B17-1's tasks carry a `subset`;
+  - its prompt;
+  - a B17-0-only run's settings.
+- **Summaries** count B17-1 attempts as their own track, CLI/b17-1. A run with B17-1 tasks also pins the supplement's prompt hash and `core1.b17`.
+- **Tests:** `gym/test_b17.py` now also checks:
+  - the 10 tasks' posing, and that each task alone is `no_def`;
+  - that `bst_search`'s own def verifies and a wrong one fails `POST`;
+  - that a restated data item is rejected;
+  - the prompt's order;
+  - the track in summaries, and the settings.
+- **Codex review** (`gpt-5.6-sol`): no findings. Its checks:
+  - every posed item is byte-identical to its source, and each task holds its first spec's whole dependency closure, with no helper leaking;
+  - B17-0's 20 task dicts and prompts equal the previous commit's;
+  - restating a frozen item, or naming a constructor like a frozen ghost-fn, is rejected, and a legal cross-namespace name doesn't shadow one (D82);
+  - `reverify` and summaries handle mixed runs.
+- **Ponytail review:** nothing to cut.
+- **Updated:** the README's layout row, self-check line, benchmark commands and track description, and the roadmap's critical path.
+- **Interfaces touched:** none.
+- **Next:** step 4, a first B17-1 run, which the owner starts: `uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17-1/`.
