@@ -98,7 +98,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28, and D102–D108, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, and D109 on 2026-10-30. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **WP10's AlgoVeri ports,** now that B17-1 is frozen. 50 of the 64 need its tuples or data types (D79), and they're the harder tasks M3 needs next. Running M3 on them also takes the manual (WP8) and the harness's track extended to B17-1.
@@ -131,7 +131,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D108. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.
@@ -176,7 +176,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 | Subset | What it adds | When |
 |---|---|---|
 | **B17-0** | Checked integers, booleans, sequences, slices and owned vectors; contracts; the `alloc`, `panic` and `io` effects (D20) | Phase 0. Frozen on 2026-10-28, once WP3's checker agreed with the suite (D44). |
-| **B17-1** | Data types with type parameters, tuples, collections of any type, quantifiers over any ghost type, and ghost sets and maps (D79); verification levels L0 to L3, and what a goal that isn't proved does below L2 (D80) | Phase 1. Its scope (D79, D80) and its spec text's decisions D81–D92, D99 and D100 were accepted on 2026-10-28, and D102–D108 on 2026-10-29. Its spec text ([b17-1.md](b17-1.md)) and labelled suite (`suite/b17-1/`) froze on 2026-10-30, at version 1.0. |
+| **B17-1** | Data types with type parameters, tuples, collections of any type, quantifiers over any ghost type, and ghost sets and maps (D79); verification levels L0 to L3, and what a goal that isn't proved does below L2 (D80) | Phase 1. Its scope (D79, D80) and its spec text's decisions D81–D92, D99 and D100 were accepted on 2026-10-28, D102–D108 on 2026-10-29, and D109 on 2026-10-30. Its spec text ([b17-1.md](b17-1.md)) and labelled suite (`suite/b17-1/`) froze on 2026-10-30, at version 1.0. |
 | **Later subsets** | From §11 and D79: mutable borrows, floats, strings, runtime sets and maps, and generic functions; mutual recursion, once there's group hashing (D22); and vector capacity, once there are allocation bounds (D30). From D64: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. Effects for files, network and time. | Benchmarks set the order (D14), within §11's prerequisites. Growth continues past Phase 4 until D64's scope is covered. |
 
 - **The standard library** grows with the subsets. The design spec's library covers collections, numerics, text, parsers, cryptography and time. Each subset's scope includes the library entries it makes expressible.

@@ -799,7 +799,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The rule says "at most once among a call's arguments, whether owned or borrowed", which on the strict reading covers any appearance. Counting per argument keeps the rule about aliasing between arguments. It matches Rust, which rejects `f(v, v.len())` and `(v, v.len())`.
 - **Touches:** WP3; D36; `docs/b17-0.md` §5, §7.
 
-## D73 · An owned vector argument is a variable · Accepted
+## D73 · An owned vector argument is a variable · Accepted (refined by D109)
 - **Date:** 2026-10-28
 - **Decision:** An argument for a `(vec T)` parameter must be a variable, which then moves (§7). `(vec-new)`, a `seq-build` or any other expression in that place is `E-OWN-006`.
 - **Why:** §7 says "An owned vector argument must be a live variable, which then moves." `E-OWN-006` is already the code for a vector expression of the wrong form. A program writes `(let-mut v (vec i64) (vec-new))` first and passes `v`.
@@ -962,7 +962,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The form of a constructor call:** it matches the ghost-fn call agents already write, and the name tells them apart.
 - **Touches:** D47; D79; `docs/b17-1.md` §2, §7; interfaces 1 and 6.
 
-## D82 · Types and values have separate namespaces · Accepted
+## D82 · Types and values have separate namespaces · Accepted (refined by D109)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Type names:** data types and type parameters are unique within a module. They may not be a built-in type word or the core library's `option`.
@@ -1098,7 +1098,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
 - **Touches:** D63; D80; WP5; `docs/b17-1.md` §10.
 
-## D92 · How B17-1's data items and binders are hashed · Accepted (refines D45)
+## D92 · How B17-1's data items and binders are hashed · Accepted (refines D45; refined by D109)
 - **Date:** 2026-10-28
 - **Decision:** the format stays version 0 (D46). B17-0's items hash as before, and these rules cover B17-1's new forms.
   - **Data items** have only a spec hash, covering the whole item, as ghost-fns do. Inside one, its own name becomes `_`, its type parameters `$0`, `$1`, … in order, its constructors `#0`, `#1`, … in order, and its fields `.0`, `.1`, … across all its constructors in declaration order.
@@ -1373,7 +1373,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Alternatives:** a verifier error for such a module. That would be a type the checker accepts but no other tool can handle.
 - **Touches:** D83; D103; WP3; WP5; WP7; `docs/b17-1.md` §3 and §13; `suite/b17-1/`.
 
-## D110 · How B17-1 lowers to safe Rust · Accepted (extends D95)
+## D110 · How B17-1 lowers to safe Rust · Accepted (extends D95; refined by D109)
 - **Date:** 2026-10-29
 - **Decision:** with subset 1 (D101), `b17c/rust.py` turns each B17-1 module that passes tier 0 into one crate, as D95 does for B17-0. Without a subset, its output is the same, byte for byte, as before B17-1.
   - **Data types:** each data type the program uses becomes an enum in a module of its own, `data`, with a variant per constructor and its fields in order. Names Rust reserves become raw identifiers, as D95 says for values.
@@ -1514,7 +1514,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note say so. B17-0's language doesn't change: §9 already defined equality this way. So it stays at version 1.1.
 - **Touches:** D61; D89; D103; WP5 (`b17c/goals.py`); interface 11's queries; `docs/b17-0.md` §9; `docs/b17-1.md` §9; `b17c/test_verify.py`.
 
-## D109 · B17-1's readings from its freeze review · Proposed (refines D73, D82, D92 and D110)
+## D109 · B17-1's readings from its freeze review · Accepted (refines D73, D82, D92 and D110)
 - **Date:** 2026-10-30
 - **Decision:** before B17-1 freezes, `docs/b17-1.md` states six rules its draft left unclear or stated wrong. Each is what `b17c` already does, so no program's outcome changes.
   - **Moving call arguments:** a call argument of a moving type is a variable, as D73 says of vectors. A constructor call, `tuple` or `(vec-new)` there is `E-OWN-006` (§5 rule 7).
