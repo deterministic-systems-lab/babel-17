@@ -1842,3 +1842,20 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Updated:** the README's WP1a row and B17-0's version; the roadmap's gate table, M3 next steps and the open-type item.
 - **Interfaces touched:** interface 1's typing rules, as D107 says.
 - **Proofs and tests added:** as above.
+
+## 2026-10-29 · The manual's fixes from M3's first run
+- **Asked by the owner:** after D107's merge, start the next roadmap item. That's WP8's part of the M3 follow-ups.
+- **`docs/manual.md` §12, the core library:**
+  - **Every item of `b17c/core.b17`,** one per line on its canonical form, with each law's empty `(body)` left out: the 3 ghost-fns and all 33 laws. The prompt doesn't include `core.b17`, and agents run without tools, so the old pointer to it was a dead end. Codex had called a `law_multiset_swap` that doesn't exist.
+  - **The three facts no law covers** (`b17-0.md` §9): `set-idx`'s effect, its multiset effect included, `push`'s, and multiset equality by counts.
+  - **A swap that needs no lemma:** a checked `ok` example whose two `set-idx`s keep the vector's multiset, which proves all 5 goals under 10 seeds. That's the fact every round-1 pass on `insertion_sort` and `partition` relied on, and every failure tried to prove.
+- **Citations:** the manual cited `b17-0.md`'s sections as bare §N, and its own as §N below, so "§9's facts" read as its own §9, Effects. Its 11 citations of `b17-0.md` now name it.
+- **Tests:** `test_manual.py` checks the item list against `core.b17`'s canonical lines, and the swap's proof outcome with Z3. A mutation check broke each: a renamed law parameter, and a swap writing the wrong value, which fails `POST`. There are now 38 examples.
+- **Prompt size:** the manual grows from 26,199 bytes to 31,859, about 1.5k tokens more per call. It's part of the prompt's hash, so the rerun is a new run.
+- **Codex review** (`gpt-5.6-sol`): it confirmed that the list matches all 36 items, that the test catches additions, removals, reordering and changed signatures, that each rewritten citation points at the right section, and that the three facts match `goals.py`. It found two issues.
+  - **Fixed:** the text said every law is one of §9's facts or the laws of order, but `law_update_len`, `law_update_at` and `law_update_other` follow from `seq_update`'s body. It now says each law is one, or follows directly from them and that body.
+  - **Kept:** CI has no Z3, so it checks only the swap's tier 0 outcome, as for every proof example in the manual. Locally, with Z3, its proof is checked.
+- **Ponytail review:** nothing to cut.
+- **Not changed:** `b17c`'s checker and verifier, and the harness. The encoding's missing sequence extensionality is the other follow-up, still to do.
+- **Updated:** the README's note on M3's first run; the roadmap's M3 findings, WP8 entry, next steps and the open question on hard tasks.
+- **Interfaces touched:** none.

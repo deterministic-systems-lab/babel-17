@@ -521,7 +521,7 @@ An `assert` must follow from what's known at that point.
 ```
 
 - **The ghost-fns:** `sorted`, `in_i64` for stating ranges, and `seq_update`, which is s with element i replaced by e. Callers see their bodies.
-- **The laws** are lemmas you call. The verifier already knows them, since they're `b17-0.md` §9's background facts and the laws of integer order. So you call a law only to point a proof at a particular instance. They're stated over `int`, and every `i64` collection fits (§3 below).
+- **The laws** are lemmas you call. The verifier already knows them, since each is one of `b17-0.md` §9's background facts or the laws of integer order, or follows directly from them and `seq_update`'s body. So you call a law only to point a proof at a particular instance. They're stated over `int`, and every `i64` collection fits (§3 below).
 - **Three more facts** are known with no law to call (`b17-0.md` §9):
   - after `(set-idx v i e)`, v has the same length, `(idx v i)` is e, every other element is unchanged, and `(multiset v)` loses one count of the old `(idx v i)` and gains one of e;
   - after `(push v e)`, v is `(concat v (seq-lit e))`;
