@@ -611,7 +611,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
 - **Touches:** D42; `docs/b17-0.md` §10; `suite/accept/` `fib`, `power`, `sum` and `prefix_sums`; the ported-ranges table in `suite/README.md`; WP10.
 
-## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103, D105 and D106)
+## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103, D105, D106 and D108)
 - **Date:** 2026-10-27
 - **Decision:** for WP5 and interface 11, and replacing §9's line "vectors, slices and seqs become SMT sequences":
   - **Sequences:** vectors, slices and seqs are an uninterpreted sort per element type, and §9's background facts, with triggers, are their only axioms. SMT-LIB's sequence theory isn't used.
@@ -1062,7 +1062,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Fixed counts:** they bound a test run's cost, as D59's fuel bounds a run.
 - **Touches:** D22; D23; D57; D59; D80; WP15; `docs/b17-1.md` §10.
 
-## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted (refined by D103)
+## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted (refined by D103 and D108)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Datatypes:** tuples and data types are SMT-LIB datatypes, generic ones parametric.
@@ -1337,7 +1337,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Enumerating whole types:** booleans and tuples of them are finite, but data and sequence types aren't, and a bound read off the guard covers what the suite needs.
 - **Touches:** D57; D58; D80; WP15; `docs/b17-1.md` §8.
 
-## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89; refined by D105 and D106)
+## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89; refined by D105, D106 and D108)
 - **Date:** 2026-10-29
 - **Decision:** WP5 implements interface 11 v0.2 as D89 says, with four changes.
   - **A datatype per instance:** each instance of a data type, such as `(option int)` or `(option node)`, is a monomorphic SMT datatype, not one parametric datatype per data item. Instances are keyed by their sorts, so `i64` is `int` and vectors and slices are sequences. An instance is declared together with the instances it refers to and that refer back to it, as `node` and `(option node)` do. Tuples stay one parametric datatype per arity.
@@ -1487,3 +1487,29 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Core ghost-fns at `i64` too:** a second copy of the library, per element type.
   - **A hint in `E-TYPE-001` only,** as the roadmap offered: it names a workaround, but the workaround is still needed.
 - **Touches:** D34; D70; D83; D85; WP3 (`b17c/check.py`); WP8 (`docs/manual.md` §3); `docs/b17-0.md`'s status and §3; `docs/b17-1.md` §3, §4, §7 and §14's summary of D83; `suite/b17-1/reject/`; `b17c/test_check.py`; the README and roadmap's version references.
+
+## D108 · Equal sequences are the same sequence · Accepted (refines D61, D89 and D103)
+- **Date:** 2026-10-29
+- **Decision:** in both subsets, `==` on sequences is a predicate per sequence sort, `eq`, with two axioms.
+  - **By elements:** two sequences with equal lengths and equal elements are `eq`. Nested sequences compare their elements by their own sort's `eq`.
+  - **Identity:** `eq` sequences are equal in SMT. So `multiset`, `take`, ghost-fns and every other function agree on them once they're compared, and so does SMT equality of a tuple or data value that holds them.
+  - **The limit, in B17-1:** identity comes from an `eq` the query states. A comparison the program doesn't write is still SMT identity: a sequence looked up in a set, a map, a multiset's counts or a sequence of sequences. So it may need an `assert` comparing the two sequences first. `(contains (seq-lit (drop s 0)) s)` proves after `(assert (== (drop s 0) s))`, and fails without it, as both did before D108. B17-0 can't meet this, since its collections hold only `bool` and integers.
+  - **Only where used:** a query gets a sort's axioms only when it compares sequences of that sort, as D61's division axioms are included only where they're used. Every other query is unchanged, byte for byte.
+  - **D89's predicate:** this is D89's "per-sort equality predicate that implies SMT equality". D103 kept the comparison of lengths and elements but never added the implication, and B17-0 never had it.
+- **Why:** M3's first run (ACTIVITY, 2026-10-29).
+  - **The gap:** `==` on sequences was a formula over lengths and elements, never SMT equality. So nothing else learned from it. A body-less lemma with `(requires (== x y))` and `(ensures (== (multiset x) (multiset y)))` failed at both `i64` and `int`.
+  - **What it cost:** Claude's two attempts that took more than one round stalled there. Its slow `insertion_sort` proved the fact by induction in round 5, and its failed `partition` spent all 8 rounds on it. The suite worked around it too: `kruskal`'s `tw_eq` and `coin_change`'s `ext_totals` are induction lemmas for a function's value on equal sequences.
+  - **Replayed with D107** on the run's 175 recorded rounds: 17 that failed a proof now verify, and D107 alone verified none.
+    - **Claude:** both attempts that took more than one round now verify in round 1, which doesn't depend on feedback. Those are the slow `insertion_sort` and the failed `partition`.
+    - **Codex:** two failed `insertion_sort` attempts verify from their recorded round 6. Their earlier rounds' feedback would have differed, so this shows only that those proofs were right. No `partition` attempt verifies.
+  - **With D108:** that lemma proves in both subsets. A tuple holding a sequence proves equal to another once an `assert` compares their sequences. Before, it couldn't be proved at all, as `docs/b17-1.md` §9 says.
+- **Sound:** §9 defines sequence equality by lengths and elements, and every function of a sequence depends only on its value. A model: finite sequences, with `nth` outside the range a fixed default. Every other axiom holds there.
+- **Measured** under 10 shuffled seeds:
+  - **B17-0:** all 442 of the suite's queries are byte-identical. 40 of `core.b17`'s 69 change, and all 69 prove, in 9.11M units against 9.10M.
+  - **B17-1:** 680 of 1,660 queries change, all in `bfs`, `coin_change` and `trie_insert`. All three still prove every goal, in 0.1% more units, 1.5% fewer and 6% fewer. The rest are byte-identical, and every proof label holds.
+- **Not done: comparing by `eq` inside lookups.** Membership in a sequence of sequences could compare by `eq`. Array keys would need every set and map of sequences to be a lambda, as D105's literals are. Nothing in the suite or M3 needs either. It's left until a task does.
+- **Two variants were tried and dropped:**
+  - **Dafny's form, in every query:** `eq` as equivalent to equal lengths and elements, with triggers on the elements. The suites took 6% and 7% more units, and `coin_change`'s `keep_ok_wc` ran out of budget under the canonical seed. Its elements direction is redundant, since identity gives it by congruence.
+  - **One implication, in every query:** two of `lca`'s goals ran out of budget under one seed in 11. `lca` has no sequences, so only the prelude's growth moved them. That's why a query gets the axioms only when it compares sequences.
+- **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note say so. B17-0's language doesn't change: §9 already defined equality this way. So it stays at version 1.1.
+- **Touches:** D61; D89; D103; WP5 (`b17c/goals.py`); interface 11's queries; `docs/b17-0.md` §9; `docs/b17-1.md` §9; `b17c/test_verify.py`.

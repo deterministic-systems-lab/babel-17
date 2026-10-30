@@ -79,6 +79,17 @@ def seq_facts(E, S, f):
 """
 
 
+def seq_eq(S, f, same=lambda a, b: f"(= {a} {b})"):
+    """§9's equality for sequences of sort S, whose elements compare by same: equal lengths and
+    elements make two sequences eq, and eq ones are the same sequence (D108)."""
+    L, N, Q = f("len"), f("nth"), f("eq")
+    return f"""(declare-fun {Q} ({S} {S}) Bool)
+(assert (forall ((s {S}) (t {S})) (! (=> (and (= ({L} s) ({L} t)) (forall ((j Int))
+  (=> (and (<= 0 j) (< j ({L} s))) {same(f"({N} s j)", f"({N} t j)")}))) ({Q} s t)) :pattern (({Q} s t)))))
+(assert (forall ((s {S}) (t {S})) (! (=> ({Q} s t) (= s t)) :pattern (({Q} s t)))))
+"""
+
+
 def ms_facts(E, S, f):
     """§9's multiset facts for sequences of sort S."""
     M, C, U, Z, ZERO = f("ms"), f("cat"), f("unit"), f("empty"), f"((as const (Array {E} Int)) 0)"
@@ -94,6 +105,7 @@ for E, X in (("Int", "I"), ("Bool", "B")):
 for E, X in (("Int", "I"), ("Bool", "B")):
     PRELUDE += ms_facts(E, f"S{X}", lambda op: f"{op}.{X}")
 ELEM = {"SI": "Int", "SB": "Bool"}
+EQ = {X: seq_eq(f"S{X}", lambda op: f"{op}.{X}") for X in "IB"}  # only in queries that compare such sequences
 EXPRS_1 = {"match", "is", "field", "tuple", "get", "rank", "iset-lit", "iset-of", "map-lit", "union", "diff", "inter",
            "update", "lookup"}  # B17-1's expressions, apart from constructor calls
 
@@ -362,6 +374,7 @@ class Gen:
             self.declare(3, map(f, ("len", "nth", "take", "drop", "cat", "unit", "empty", "has")),
                        seq_facts(e, S, f).rstrip())
             self.declare(3, {f("ms")}, ms_facts(e, S, f).rstrip())
+            self.declare(3, {f("eq")}, seq_eq(S, f, lambda a, b: self.equal(e, a, b)).rstrip())
         return self.seqs[e]
 
     def tuple(self, n):
@@ -634,17 +647,8 @@ class Gen:
 
     def equal(self, srt, l, r):
         """l = r at sort srt. Sequences are equal when their lengths and elements are (§9), and
-        their elements compare the same way, so nested sequences do too."""
-        if srt not in self.elems:
-            return f"(= {l} {r})"
-        j = self.bound("j")
-        body = (f"(=> (and (<= 0 {j}) (< {j} {fn('len', srt, l)})) "
-                f"{self.equal(self.elems[srt], fn('nth', srt, l, j), fn('nth', srt, r, j))})")
-        # Z3 rejects a pattern holding a logical operator, as a sequence-valued if or a
-        # literal of comparisons does, so such a side gets none.
-        pats = "".join(f" :pattern ({fn('nth', srt, t, j)})" for t in (l, r) if not LOGICAL.search(t))
-        return (f"(and (= {fn('len', srt, l)} {fn('len', srt, r)}) "
-                f"(forall (({j} Int)) {f'(! {body}{pats})' if pats else body}))")
+        then they're the same sequence, so every function agrees on them (D108)."""
+        return fn("eq", srt, l, r) if srt in self.elems else f"(= {l} {r})"
 
     def binders(self, bs, st):
         """Bound variables for binders bs: their SMT declaration, and a state that sees them."""
@@ -1237,11 +1241,11 @@ def query(gen, facts, g, item=None):
                 grew = True
     body = "\n".join([*(t for k, (_, _, t) in enumerate(blocks) if k in taken), *decls,
                       *(t for k, (_, t) in enumerate(funs) if k in keep), *asserts])
-    return PRELUDE + (VDIV if "(vdiv " in body or "(vmod " in body else "") + body
+    return (PRELUDE + (VDIV if "(vdiv " in body or "(vmod " in body else "")
+            + "".join(t for X, t in EQ.items() if f"(eq.{X} " in body) + body)
 
 
 TOKEN = re.compile(r"[^\s()]+")
-LOGICAL = re.compile(r"\((?:ite|not|and|or|=>|=|distinct|<|<=|>|>=|forall|exists) ")
 DEFINES = re.compile(r"\((?:define-fun|declare-fun) (\S+)")
 
 
