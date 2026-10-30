@@ -1893,3 +1893,28 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **`docs/b17-1.md`:** its status line and §14 count D102–D108, and §14 summarizes D108.
 - **Updated:** the README's note on M3's first run; the roadmap's waiting decisions, its M3 next steps, and B17-1's decision count in the critical path and the Phase 1 table, which had stopped at D106.
 - **Interfaces touched:** none beyond D108's own.
+
+## 2026-10-30 · M3's rerun of `insertion_sort` and `partition`
+- **Started by the owner** after D108's merge: `20261030T154025Z-claude-codex`, the two tasks that failed in M3's first run, 3 samples each for Claude and Codex, from a clean `main` at `3a5deac`.
+- **All 12 attempts verified in round 1.** On these tasks the first run verified 6 of 12, 4 of them in round 1, and Codex 1 of 6. The two tasks took 12 calls and 285k tokens, against 65 calls and 1.59M.
+- **Reproduced:** `reverify` reproduced all 12 verdicts.
+- **Only the prompt changed:** the CLIs, models, Z3 and task specs are the same as in the first run.
+- **The manual made the difference, not D107 or D108:**
+  - **On older checkers:** all 12 programs also verify with the first run's `b17c` (`78661fe`), with D107's (`3df9a0b`) and with the manual's merge before D108 (`89d24a0`).
+  - **As a control,** two first-run attempts that D108 turned to verified still fail on `78661fe` and `89d24a0`.
+  - **So:** D107 and D108 fixed what the first run's programs ran into, and the rerun's programs don't run into it.
+- **What the agents write now:** the plain loop of the manual's swap example.
+  - **No lemmas or ghost sequences:** each program keeps `(== (multiset v) (multiset a))` as an invariant and swaps with two `set-idx`s.
+  - **In the first run,** 7 of the 12 round-1 programs stated their own lemma, as did 51 of all 65 rounds.
+- **Codex wrote selection sort for `insertion_sort`** in all 3 samples. In the first run it wrote insertion sort, and Claude still does, by adjacent swaps. The spec asks only for a sorted permutation, so both are correct. It's the README's open question again: a functional spec doesn't enforce the named algorithm.
+- **Against Dafny,** on the same two tasks in the two seed runs:
+  - **What verifies:** both languages verify all 12 attempts. In Dafny, two of Codex's `insertion_sort` samples took 2 and 3 rounds in the first seed run.
+  - **Claude:** 21.4k tokens per verified task in B17-0, against about 4.7k in Dafny. Most of it is the manual: 17.5k input tokens per call against 3.2k. Its output, mostly thinking, is 3.9k per call against 1.45k.
+  - **Codex:** 26.1k per verified task, against 17.6k and 26.3k in the two Dafny runs. Its input is 22.7k per call against 12.6k, and its output 3.5k against 5.0k.
+- **Prompt cost:** the manual's growth added about 3.0k input tokens to Claude's round-1 calls and 2.3k to Codex's, more than the 1.5k its size suggested. It now adds about 14k to each of Claude's calls and 10k to Codex's.
+- **What it settles:** B17-0's gap on the seed tasks is closed under the current manual.
+  - **Not measured:** the other 18 tasks ran under the old manual, so whether its growth changed them is unknown.
+  - **What's left:** the seed tasks separate the two languages only in tokens. M3 needs harder tasks (WP10), as the roadmap already says.
+- **Not changed:** the harness, `b17c` and the manual.
+- **Updated:** the README's results table and its note on M3; the roadmap's recent work, critical path, M3 entry and the open question on hard tasks.
+- **Interfaces touched:** none.
