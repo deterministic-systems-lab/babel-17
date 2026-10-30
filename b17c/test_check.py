@@ -467,6 +467,9 @@ bad1("E-OWN-006", TREE, spec("f", "(t tree)", "(r bool)", "alloc"), "(def f (bod
 # The freeze review: a value built as a call's argument is reported once, not again for its parts (D73, D78).
 if len(diagnose(module(TREE, spec("g", "(t tree)", ""), spec("f", "", "", "alloc"), "(def f (body (call g (node 1 (leaf) (leaf))) (return)))"), 1)) != 1:
     failures.append("a constructor argument's parts were reported too")
+# A match statement's built moving scrutinee is reported once, by the match (D78).
+if len(diagnose(module(TREE, spec("f", "", "(r i64)"), "(def f (body (match (leaf) (case (leaf) (return 0)) (case (node v l r) (return v)))))"), 1)) != 1:
+    failures.append("a match statement's built scrutinee was reported twice")
 # Runtime code can't build a value of a ghost type (§3).
 bad1("E-GHOST-002", "(data gd () (ga) (gb (x int)))", spec("g", "", "(r i64)"), "(def g (body (return (match (ga) (case (ga) 1) (case (gb x) 2)))))")
 bad1("E-GHOST-002", "(data gd () (ga) (gb (x int)))", spec("g", "", "(r bool)"), "(def g (body (return (is gb (gb 1)))))")  # once (D78)

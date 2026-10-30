@@ -1067,7 +1067,7 @@ class _Checker:
             if t != ERR and self.moving(t) and self.lookup(e.text) is not None:
                 self.moves[e.text] = e
         else:
-            t = self.expr(e, False)
+            t = self.expr(e, False, own=BRANCH)  # the match reports a moving scrutinee, so its value doesn't (D78)
             if t != ERR and self.moving(t):
                 if self.place_read(e):
                     self.report("E-OWN-007", e, f"this moves {show(t)} out of a place to match it: take it out with "

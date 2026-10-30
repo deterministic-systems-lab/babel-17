@@ -66,6 +66,7 @@ The full semantics is `docs/b17-1.md`, written as changes to `docs/b17-0.md`. It
 | `(tuple T1 ... Tn)`, n ≥ 2 | when every Ti is |
 | `D` or `(D T1 ... Tn)`, a data type | when every field type is, after substitution |
 | `(vec T)` | for any runtime T, vectors of tuples and data included |
+| `(ref (slice T))` | a spec's parameter only, for any runtime T |
 | `(iset T)`, `(map K V)` | ghost only |
 | `(seq T)`, `(multiset T)` | ghost only, now of any well-formed T |
 
@@ -77,6 +78,7 @@ So `(option i64)` is a runtime type and `(option int)` a ghost one. A ghost type
 ```
 
 **A data type must be well-formed** (`E-TYPE-001` otherwise):
+- it's applied to exactly as many types as it has parameters, so `(option i64 bool)` is wrong;
 - it has a finite value, so some constructor's fields all have one;
 - it never contains itself inside an `iset`, `map` or `multiset`;
 - a vector field holds a runtime type;
@@ -121,7 +123,7 @@ Runtime code also can't build a value of a ghost data type (`E-GHOST-002`).
 - with no destination, an open type is `int` in ghost code and `i64` in runtime code;
 - an empty literal inside another value, as in `(some (seq-lit))`, takes its type where that value is used.
 
-**In a comparison or join,** the second operand takes the first's type, unless only the first is a literal (D109). So put the value whose type you know first:
+**In a comparison or join,** the second operand takes the first's type when that isn't `bool`, `i64` or `int`, unless only the first is a literal (D109). So put the value whose type you know first. A sequence literal takes its element type only from a `seq`, never from a vector or slice, so compared with a `(vec i64)` its integers are `int`s (D113):
 
 <!-- expect: E-TYPE-001 -->
 ```lisp
@@ -148,7 +150,12 @@ The manual's rules hold, with "vector" read as "moving value".
 (def f (body (let u tree t) (return t)))
 ```
 
-**`match` in runtime code.** A `match` statement moves its scrutinee when that's a moving variable, and each arm owns the fields it binds. A `match` expression never moves anything, so its scrutinee must have a copied type. A data value can't be borrowed, so a recursive read of a tree consumes it. A function that must keep its tree returns it rebuilt.
+**`match` in runtime code.**
+- **A `match` statement** moves its scrutinee when that's a moving variable, and each arm owns the fields it binds. A moving scrutinee must be a variable, so bind a built value first.
+- **A `match` expression** never moves anything, so its scrutinee must have a copied type.
+- **Arms join moves** as an `if`'s branches do: a variable moved in an arm that continues past the `match` is moved afterwards. An arm that returns or panics doesn't count.
+
+A data value can't be borrowed, so a recursive read of a tree consumes it. A function that must keep its tree returns it rebuilt.
 
 <!-- expect: ok -->
 ```lisp
@@ -164,7 +171,7 @@ The manual's rules hold, with "vector" read as "moving value".
 ```
 
 **Places** name a part of a value: a variable, `(idx p i)`, `(get p K)` or `(field p F)`.
-- **Reading:** a copied part is read freely. A moving part can only be read further, by `len`, `idx`, `get`, `field` or `is`, or viewed in ghost code.
+- **Reading:** a copied part is read freely. A moving part can only be read further, by `len`, `idx`, `get`, `field` or `is`, or viewed in ghost code. That holds for a slice's moving elements too: `(len (idx rows 0))` is fine, but a slice is read-only, so nothing in it moves or changes.
 - **Moving out:** using a moving part whole moves it out of its place, which is `E-OWN-007`. That includes making it a `match` statement's scrutinee:
 
 <!-- expect: E-OWN-007 -->
@@ -185,14 +192,15 @@ The manual's rules hold, with "vector" read as "moving value".
 (def f (body (let-mut q pair p) (let a tree (replace (field q fst) (leaf))) (return a)))
 ```
 
-- **Updating:** `(set-idx p i e)` and `(push p e)` change a vector inside a place. Their root must be a `let-mut` local, or it's `E-OWN-003`. The root must still be live once the statement's values are evaluated, so `(push (field x kids) x)` is `E-OWN-001`.
+- **Updating:** `(set-idx p i e)` and `(push p e)` change a vector inside a place. Their root must be a `let-mut` local, or it's `E-OWN-003`.
+- **Goals:** a `set-idx`, `push` or `replace` through a place carries a `BOUNDS` goal for each `idx` the place passes through, and a `FIELD` goal for each `field`. The root must still be live once the statement's values are evaluated, so `(push (field x kids) x)` is `E-OWN-001`.
 
 **Building moving values** (`E-OWN-006`). A constructor call, `tuple`, `(vec-new)` or `seq-build` of a moving type may only be:
 - the whole value of a `let`, `let-mut`, `set`, `return`, `set-idx`, `push` or `replace`;
-- a runtime `seq-build`'s body, or a `match` statement's scrutinee;
+- a runtime `seq-build`'s body;
 - an argument of a constructor or `tuple` that is itself one of those.
 
-  It may not be a call's argument: bind it to a variable first (D109). And it may never come out of an `if` or `match` expression.
+  It may not be a call's argument or a `match` scrutinee: bind it to a variable first (D109). It may never come out of an `if` or `match` expression, or be read as a temporary, as in `(len (vec-new))`.
 
 <!-- expect: E-OWN-006 -->
 ```lisp
@@ -202,7 +210,7 @@ The manual's rules hold, with "vector" read as "moving value".
 ```
 
 **Other rules:**
-- **One argument each:** a moving variable may appear in only one argument of a call, constructor or `tuple`, and in only one of a return's expressions (`E-OWN-005`).
+- **One argument each:** a moving variable may appear in only one argument of a def call, constructor or `tuple`, and in only one of a return's expressions (`E-OWN-005`). A lemma call is ghost, so it's exempt.
 - **`seq-build` bodies:** a runtime `seq-build`'s body runs once per element, so it can't move a variable declared outside it (`E-OWN-004`).
 - **Slices:** no type may contain one (`E-OWN-002`).
 
@@ -231,7 +239,7 @@ A constructor with a boxed field has effect `alloc`: a field whose type mentions
 - **`(is C e)`:** `bool`, for C a constructor of e's type.
 - **`(field e F)`:** F's value. It carries a `FIELD` goal unless every constructor has F, so read fields inside the right `match` arm, or after `is`.
 - **`(tuple e1 ... en)`:** a tuple of n ≥ 2 components, and `(get e K)` its K-th, for a literal K counting from 0.
-- **`(rank e)`:** ghost only, `int`.
+- **`(rank e)`:** ghost only, `int`, for e a data value. Anything else, a tuple included, is `E-TYPE-001`.
 
 **`match`.** It takes one arm per constructor, in the type's declaration order. A tuple's single arm is `(case (tuple a b) ...)`. A missing, repeated or misplaced arm is `E-TYPE-001`.
 - **As an expression,** every arm has the match's type.
@@ -246,7 +254,7 @@ A constructor with a boxed field has effect `alloc`: a field whose type mentions
 
 **Sets and maps,** ghost only:
 - **Sets:** `(iset-lit e*)`, `(iset-of ((x T)) e)` for every x where e holds, `union`, `diff`, `inter`, and `(contains s x)`.
-- **Maps:** `(map-lit (k v)*)`, `(update m k v)`, `(lookup m k)` and `(contains m k)` for a key, and `union`, where the second map's values win.
+- **Maps:** `(map-lit (k v)*)`, where a later entry with the same key wins, `(update m k v)`, `(lookup m k)` and `(contains m k)` for a key, and `union`, where the second map's values win.
 - **`(lookup m k)`** carries the goal `(contains m k)`, `E-PROOF-BOUNDS`.
 
 <!-- expect: ok -->
@@ -255,13 +263,15 @@ A constructor with a boxed field has effect `alloc`: a field whose type mentions
   (body (and (contains (union s (iset-lit 1 2)) 2) (lookup (update m 1 true) 1))))
 ```
 
-**Quantifier binders** need an exact type (D90): `bool`, `int`, and sequences, sets, tuples and data types built only of exact types. Anything with an `i64`, a vector, a slice, a multiset or a map inside is inexact, and is `E-TYPE-001`. So quantify over `int`, and keep runtime data types out of binders:
+**Quantifier binders** need an exact type (D90): `bool`, `int`, and sequences, sets, tuples and data types built only of exact types. Anything with an `i64`, a vector, a slice, a multiset or a map inside is inexact, and is `E-TYPE-001`. So is a data type that contains itself through a `seq`, such as `(data rose () (bud) (rose (kids (seq rose))))`. So quantify over `int`, and keep runtime data types out of binders:
 
 <!-- expect: E-TYPE-001 -->
 ```lisp
 (data tree () (leaf) (node (val i64) (left tree) (right tree)))
 (ghost-fn g () bool (body (forall ((t tree)) true)))
 ```
+
+**Lemma bodies** may also use `match`, `forall` statements and `obtain`.
 
 **`forall` statements** (D99) apply a lemma at every value of their binders. They are allowed wherever a lemma call is.
 - **The form:** `(forall ((x T) ...) (call L e*))`.
@@ -303,7 +313,7 @@ A constructor with a boxed field has effect `alloc`: a field whose type mentions
 - **Recursive ghost-fns:** their equations hold only for arguments of their parameter types that satisfy their `requires`.
 - **Equality:** values compare field by field, and sets and maps by members.
   - Sequences compare by length and elements, and equal ones are the same sequence (D108).
-  - A tuple or data value holding a sequence is compared by SMT equality. So prove its sequences equal first, with an `assert`, and then the two values are equal:
+  - A tuple or data value holding a sequence is compared by SMT equality, and so is a sequence used as a set's member, a map's key, a multiset's element or another sequence's element. So prove the sequences equal first, with an `assert`, and then the values that hold them are equal too:
 
 <!-- expect: ok -->
 ```lisp
@@ -312,10 +322,21 @@ A constructor with a boxed field has effect `alloc`: a field whose type mentions
   (body (assert (== (concat (take s 1) (drop s 1)) s))))
 ```
 
+<!-- expect: ok -->
+```lisp
+(lemma member (params (s (seq int)) (m (iset (seq int))))
+  (requires (>= (len s) 1) (contains m s))
+  (ensures (contains m (concat (take s 1) (drop s 1))))
+  (body (assert (== (concat (take s 1) (drop s 1)) s))))
+```
+
 **Patterns from the suite's proofs** (`suite/b17-1/accept/`):
 - **Long invariants:** write them as ghost-fns, so a loop invariant is one call the verifier unfolds only where needed. `bfs`, `coin_change` and `kruskal` do this.
 - **A fact at every index:** prove it with a lemma at one index and a `forall` statement.
 - **A recursive def on a tree** needs no loop invariant. Each recursive call's `ensures` describes a subtree, and the def proves its own from them, as `bst_insert` does.
+- **Before changing a moving value,** keep a ghost snapshot of it, `(ghost-let before node n)`, and relate the new value to the old one with lemmas, as `trie_insert` does.
+- **To match a moving field,** take it out with `replace` first, as `segmenttree_query` does.
+- **To use an ∃** from a `requires` or a lemma, name its witness with `obtain`, then state what follows for it.
 
 ## 9. The core library's `option`
 
