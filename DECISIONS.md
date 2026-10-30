@@ -1492,7 +1492,8 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-10-29
 - **Decision:** in both subsets, `==` on sequences is a predicate per sequence sort, `eq`, with two axioms.
   - **By elements:** two sequences with equal lengths and equal elements are `eq`. Nested sequences compare their elements by their own sort's `eq`.
-  - **Identity:** `eq` sequences are equal in SMT. So `multiset`, `take`, ghost-fns and every other function agree on them, and so does SMT equality of a tuple or data value that holds them.
+  - **Identity:** `eq` sequences are equal in SMT. So `multiset`, `take`, ghost-fns and every other function agree on them once they're compared, and so does SMT equality of a tuple or data value that holds them.
+  - **The limit, in B17-1:** identity comes from an `eq` the query states. A comparison the program doesn't write is still SMT identity: a sequence looked up in a set, a map, a multiset's counts or a sequence of sequences. So it may need an `assert` comparing the two sequences first. `(contains (seq-lit (drop s 0)) s)` proves after `(assert (== (drop s 0) s))`, and fails without it, as both did before D108. B17-0 can't meet this, since its collections hold only `bool` and integers.
   - **Only where used:** a query gets a sort's axioms only when it compares sequences of that sort, as D61's division axioms are included only where they're used. Every other query is unchanged, byte for byte.
   - **D89's predicate:** this is D89's "per-sort equality predicate that implies SMT equality". D103 kept the comparison of lengths and elements but never added the implication, and B17-0 never had it.
 - **Why:** M3's first run (ACTIVITY, 2026-10-29).
@@ -1506,6 +1507,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Measured** under 10 shuffled seeds:
   - **B17-0:** all 442 of the suite's queries are byte-identical. 40 of `core.b17`'s 69 change, and all 69 prove, in 9.11M units against 9.10M.
   - **B17-1:** 680 of 1,660 queries change, all in `bfs`, `coin_change` and `trie_insert`. All three still prove every goal, in 0.1% more units, 1.5% fewer and 6% fewer. The rest are byte-identical, and every proof label holds.
+- **Not done: comparing by `eq` inside lookups.** Membership in a sequence of sequences could compare by `eq`, but array keys can't, and nothing in the suite or M3 needs either. It's left until a task does.
 - **Two variants were tried and dropped:**
   - **Dafny's form, in every query:** `eq` as equivalent to equal lengths and elements, with triggers on the elements. The suites took 6% and 7% more units, and `coin_change`'s `keep_ok_wc` ran out of budget under the canonical seed. Its elements direction is redundant, since identity gives it by congruence.
   - **One implication, in every query:** two of `lca`'s goals ran out of budget under one seed in 11. `lca` has no sequences, so only the prelude's growth moved them. That's why a query gets the axioms only when it compares sequences.
