@@ -92,7 +92,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Diagnostics** carry interface 3's fields (D93). That includes the goal over the program's names, a counterexample the interpreter replays, the slice of items needed to fix it, and how many goals depend on it.
   - **The five queries answer** (interface 8, D94). `search` finds specs by what they guarantee, by verifying a def that only calls each candidate.
   - **Not yet:** repairs, which wait for WP2's typed edits.
-- **WP8, the agent reference manual,** is done for B17-0: `docs/manual.md`.
+- **WP8, the agent reference manual,** is done for B17-0, `docs/manual.md`, and for B17-1, with its supplement `docs/manual-1.md` (D112).
   - **Every rule and every code:** it covers all 25 codes of §9, each with a minimal example and the fix, along with the rules an agent writing B17-0 needs.
   - **Every example is checked:** `test_manual.py` holds each of its 38 examples to its stated outcome, tier 0 in CI and proofs with Z3, and fails if a code loses its example or its list of `core.b17`'s items drifts from the file.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
@@ -103,7 +103,7 @@ None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
    - **`agent.py` at subset 1 (WP6): done.** B17-1's codes and goals, and counterexamples that show tuple and data values as terms the interpreter replays. Sets, maps and multisets have none yet;
-   - **`docs/manual-1.md` (WP8):** a B17-1 supplement to the manual, every example checked;
+   - **`docs/manual-1.md` (WP8): done.** The manual's B17-1 supplement, 17 KB: what B17-1 adds, with 26 examples whose outcomes `test_manual.py` checks at subset 1, both of B17-1's new codes among them;
    - **the harness track (WP17),** posing each port's first spec with the data types and ghost-fns it refers to;
    - **a first run,** which the owner starts.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
@@ -134,7 +134,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8). Done for B17-0 (D93, D94), except repairs, which wait for WP2's typed edits. |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
-| WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`). |
+| WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`) and B17-1 (`docs/manual-1.md`, D112). |
 | B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
