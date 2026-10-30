@@ -1786,7 +1786,16 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Free in the encoding:** `i64` and `int` share SMT's `Int`, and data-type instances are already keyed on it.
   - **It amends frozen B17-0,** but only loosens it. B17-0 is the subset M3 runs, so a rerun measures the change.
   - **One B17-1 label changes:** `E-TYPE-001-iset-without-subtyping` would become a narrowing case.
-- **Not implemented:** D107 waits for the owner. Implementing it touches `check.py`'s `join` and `sub` and its variance pass, the manual's §3, both spec documents' §3, one reject and `test_check.py`.
+- **Not implemented:** D107 waits for the owner. Implementing it touches:
+  - `check.py`'s joins and subtyping in both subsets, and its set and multiset operations;
+  - the manual's §3, both spec documents, and B17-0's version, 1.0 to 1.1;
+  - one reject and three `test_check.py` cases.
+- **Codex review** (`gpt-5.6-sol`): no soundness problem. Widening only forgets an `i64` fact, never adds one. A trial implementation in memory changed no type or query in either subset's suite. It found five gaps, all fixed in the draft:
+  - **A blocker:** the variance fixed point also catches a data type that reaches itself inside a set through another type's parameter, which Z3 can't declare. So it stays, as a well-formedness check only.
+  - **The checker's change was understated:** B17-1 has its own `join1` and `sub1`, and `union`, `diff` and `inter` ask for equal operand types, so they must join instead.
+  - **Three test cases flip, not two:** an `msum` case too.
+  - **Missed touches:** `docs/b17-1.md` §7 and §14, and the version references in the README and roadmap.
+  - **Wording:** the 511 queries are the suite's and the core library's, and Dafny has no bounded-versus-mathematical split rather than one integer type.
 - **Also fixed:** the roadmap's next steps listed items 1 and 2 twice after PRs #39 and #40 merged, one stale copy of each. The stale copies are gone.
 - **Updated:** the roadmap's waiting decisions and M3 next steps.
 - **Interfaces touched:** none yet. D107 would change interface 1's typing rules.

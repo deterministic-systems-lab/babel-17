@@ -1453,8 +1453,11 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:**
   - **In both subsets:** in ghost code, `(multiset T) <: (multiset U)` when T <: U, as sequences already are.
   - **In B17-1:** also `(iset T) <: (iset U)` when T <: U, and `(map K V) <: (map K' V')` when K <: K' and V <: V'.
-  - **Data types:** every parameter is then covariant, so D83's variances, and the fixed point that finds them, go away.
+  - **Data types:** every parameter is then covariant, so D83's variances no longer decide subtyping.
+    - **The fixed point stays,** for D83's other use of it: a data type may not reach itself inside an `iset`, `map` or `multiset`, even through another type's parameter.
+    - **An example:** `(data box (t) (mkbox (s (iset t))))` with `(data bad () (base) (mkbad (x (box bad))))` stays `E-TYPE-001`, since Z3 can't declare it.
   - **Joins:** two collections of the same kind join at their elements' join. So `(== (multiset a) (multiset (seq_update a i e)))`, with `a` a vector of `i64`, compares two `(multiset int)`s.
+  - **Two-collection operations:** `msum`, `union`, `diff` and `inter` take two collections whose types join, and give the join. Today `docs/b17-1.md` §7 asks for one type.
   - **Unchanged:**
     - narrowing: `(seq int)` still isn't a `(seq i64)`;
     - the rest of D70: ghost arithmetic is `int`, and `occurrences` takes a sequence;
@@ -1463,24 +1466,24 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** M3's first run (ACTIVITY, 2026-10-29).
   - **The trap:** every core ghost-fn, such as `seq_update`, is stated over `int`. So `(multiset (seq_update b i e))` is a `(multiset int)` while `(multiset b)` is a `(multiset i64)`, and D70 says they don't compare.
   - **No way out:** declaring the update `(seq i64)` instead is narrowing, and fails the other way. In `partition`'s third sample, Codex switched between the two errors from round 3 to round 8.
-  - **What it cost:** 26 of Codex's 104 calls were rejected for D70, and two of its five failures ended on it. Dafny has one integer type, so it has no such case.
+  - **What it cost:** 26 of Codex's 104 calls were rejected for D70, and two of its five failures ended on it. Dafny has no split between a bounded integer and a mathematical one, so it has no such case.
 - **Sound:**
   - **Same values:** ghost values are immutable, and every `i64` is an `int`. So a multiset, set or map of `i64` values is the same mathematical value as one of `int`. Equality is extensional on both, so it compares the same either way.
   - **Mutation is where covariance fails,** since a writer could put an `int` through the wider view. Ghost collections are never written in place.
   - **D83's reason answered:** it kept parameters inside sets and maps invariant "or a wrapper around `(map i64 bool)` would pass for one around `(map int bool)`." As ghost values the two are the same map, so it may.
 - **Free outside the checker:**
-  - **The encoding:** `i64` and `int` share SMT's `Int`. So both multisets are `(Array Int Int)` and both sets `(Array Int Bool)`, and data-type instances are already keyed on that sort (`norm` in `goals.py`). An accepted program's types don't change, so its queries shouldn't. The implementation checks that B17-0's 511 suite queries stay byte-identical.
+  - **The encoding:** `i64` and `int` share SMT's `Int`. So both multisets are `(Array Int Int)` and both sets `(Array Int Bool)`, and data-type instances are already keyed on that sort (`norm` in `goals.py`). An accepted program's types don't change, so its queries shouldn't. The implementation must show that B17-0's 511 suite and core queries stay byte-identical. A trial implementation, in memory, during Codex's review changed no type or query in either subset's suite.
   - **The interpreter and Rust:** the interpreter holds Python integers either way, and the Rust backend erases ghost types.
-- **Smaller:** `check.py`'s `join` and `sub` each gain one case for the three collections. D83's variance pass and its uses go.
+- **The checker's change:** `check.py`'s `join` and `sub`, and B17-1's `join1` and `sub1`, gain the three collections, and the four operations join their operands. The variance pass stays, but now only checks well-formedness.
 - **B17-0 is frozen; this changes it.**
   - **Only loosens it:** it accepts programs B17-0 rejected, and every program it accepted keeps its types, meaning, hashes and queries. No B17-0 suite label changes.
-  - **Version 1.1:** `docs/b17-0.md` §3 would say so in its status line.
+  - **Version 1.1:** `docs/b17-0.md`'s status line would say so, and so would the README and roadmap where they cite 1.0.
   - **Why amend it at all:** B17-0 is the subset M3 runs, so a rerun of the hard tasks measures the change.
-- **Labels:** B17-1's reject `E-TYPE-001-iset-without-subtyping` widens an `(iset i64)` to an `(iset int)`, which becomes valid. It would become `E-TYPE-001-iset-narrowing`, which narrows instead, so the suite still pins the rule's edge. `test_check.py`'s D70 case and its invariant-`bag` case flip to accepts.
+- **Labels:** B17-1's reject `E-TYPE-001-iset-without-subtyping` widens an `(iset i64)` to an `(iset int)`, which becomes valid. It would become `E-TYPE-001-iset-narrowing`, which narrows instead, so the suite still pins the rule's edge. Three `test_check.py` rejects become accepts: D70's multiset comparison, an `msum` of the two multisets, and the invariant `bag`.
 - **Alternatives:**
   - **Multisets only:** fixes what M3 saw. But it leaves sets and maps with the same trap for B17-1's ports, and keeps D83's variances.
   - **B17-1 only, with B17-0 left as frozen:** the M3 track keeps the trap until its tasks move to B17-1, which needs a manual for B17-1 first.
   - **An explicit `widen`:** a cast agents would have to know about. M3 showed they don't find what the manual doesn't state.
   - **Core ghost-fns at `i64` too:** a second copy of the library, per element type.
   - **A hint in `E-TYPE-001` only,** as the roadmap offered: it names a workaround, but the workaround is still needed.
-- **Touches:** D34; D70; D83; D85; WP3 (`b17c/check.py`); WP8 (`docs/manual.md` §3); `docs/b17-0.md` §3; `docs/b17-1.md` §3, §4; `suite/b17-1/reject/`; `b17c/test_check.py`.
+- **Touches:** D34; D70; D83; D85; WP3 (`b17c/check.py`); WP8 (`docs/manual.md` §3); `docs/b17-0.md`'s status and §3; `docs/b17-1.md` §3, §4, §7 and §14's summary of D83; `suite/b17-1/reject/`; `b17c/test_check.py`; the README and roadmap's version references.
