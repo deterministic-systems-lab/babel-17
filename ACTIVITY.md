@@ -1777,3 +1777,38 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
 - **Left admitted:** none.
+
+## 2026-10-29 · D107 proposed: ghost multisets, sets and maps covariant
+- **Asked by the owner:** after M3's first run, draft the decision on D70's multiset rule.
+- **Proposed, D107:** in ghost code, `(multiset T) <: (multiset U)` when T <: U, in both subsets. In B17-1, `iset` and `map` are covariant too, so every data-type parameter is covariant and D83's variances go.
+  - **The evidence:** M3's entry above. Core ghost-fns are stated over `int`, so a swap's multiset fact compares `(multiset int)` with `(multiset i64)`. Narrowing the other way is also an error, and Codex switched between the two for six rounds.
+  - **Sound:** ghost collections are immutable values, and every `i64` is an `int`. D83's reason for invariance, a wrapper around `(map i64 bool)` passing for one around `(map int bool)`, describes two equal ghost values.
+  - **Free in the encoding:** `i64` and `int` share SMT's `Int`, and data-type instances are already keyed on it.
+  - **It amends frozen B17-0,** but only loosens it. B17-0 is the subset M3 runs, so a rerun measures the change.
+  - **One B17-1 label changes:** `E-TYPE-001-iset-without-subtyping` would become a narrowing case.
+- **Not implemented:** D107 waits for the owner. Implementing it touches:
+  - `check.py`'s joins and subtyping in both subsets, and its set and multiset operations;
+  - the manual's §3, both spec documents, and B17-0's version, 1.0 to 1.1;
+  - one reject and three `test_check.py` cases.
+- **Codex review** (`gpt-5.6-sol`): no soundness problem. Widening only forgets an `i64` fact, never adds one. A trial implementation in memory changed no type or query in either subset's suite. It found five gaps, all fixed in the draft:
+  - **A blocker:** the variance fixed point also catches a data type that reaches itself inside a set through another type's parameter, which Z3 can't declare. So it stays, as a well-formedness check only.
+  - **The checker's change was understated:** B17-1 has its own `join1` and `sub1`, and `union`, `diff` and `inter` ask for equal operand types, so they must join instead.
+  - **Three test cases flip, not two:** an `msum` case too.
+  - **Missed touches:** `docs/b17-1.md` §7 and §14, and the version references in the README and roadmap.
+  - **Wording:** the 511 queries are the suite's and the core library's, and Dafny has no bounded-versus-mathematical split rather than one integer type.
+- **Also fixed:** the roadmap's next steps listed items 1 and 2 twice after PRs #39 and #40 merged, one stale copy of each. The stale copies are gone.
+- **Updated:** the roadmap's waiting decisions and M3 next steps.
+- **Interfaces touched:** none yet. D107 would change interface 1's typing rules.
+- **Proofs and tests added:** none.
+
+## 2026-10-29 · D107 accepted
+- **The owner accepted D107 as drafted:**
+  - covariant ghost multisets in both subsets, and sets and maps in B17-1;
+  - frozen B17-0 amended too, to version 1.1, since the change only loosens it.
+- **Statuses updated:**
+  - D70's and D83's subtyping clauses are superseded by D107;
+  - D85 is refined by it, since its literal rule's stated reason, that sets have no subtyping, no longer holds.
+- **Not yet implemented.** The spec documents and the manual change with the checker, in the implementation PR, so they don't describe rules the checker doesn't enforce. That PR also renames one reject, flips three test cases, and must keep B17-0's 511 suite and core queries byte-identical.
+- **Updated:** the roadmap's waiting decisions and M3 next steps.
+- **Interfaces touched:** interface 1's typing rules, once implemented.
+- **Proofs and tests added:** none.
