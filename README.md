@@ -160,7 +160,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 - **Frozen contracts:** the agent's code is checked against the task's frozen contracts through a generated wrapper, so it can't weaken them.
 - **The B17-0 track (D98):** the same seed tasks, posed in B17-0 with the agent manual in the prompt. The agent's items join the task module, so restating its spec is an error.
   - **Verified:** tier 0 passes, every spec has a def, and every goal is proved under 11 seeds. A spec without a def would let a call assume anything.
-  - **Feedback:** between rounds, the agent gets `agent.py check`'s JSON diagnostics. No B17-0 run has been made yet.
+  - **Feedback:** between rounds, the agent gets `agent.py check`'s JSON diagnostics.
 - **Verdicts:** banned constructs (`assume`, `{:axiom}`, `{:verify false}`, `decreases *`, and similar) fail outright, and an exhausted resource budget counts as a failure, never a pass.
 - **Re-checking:** `reverify` re-runs every recorded verdict, and so far each one has reproduced exactly. One did only when run alone: under load, it hit the verifier's wall-clock timeout before Dafny's resource limit, so that timeout is now a 2-hour backstop.
 
@@ -169,6 +169,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 | Run | Tasks | Claude | Codex | Gemini | Grok |
 |---|---|---|---|---|---|
 | Seed, 3 samples | 20 textbook tasks | 60/60 | 60/60 | 60/60 | 60/60 |
+| Seed in B17-0 (M3), 3 samples | the same 20 tasks | 59/60 | 55/60 | — | — |
 | AlgoVeri, 1 sample | 66 algorithm specs | 64/66 | 60/66 | 28/28 before its quota ran out | — |
 | AlgoVeri and vericoding, 1 sample | 93 tasks | 92/93 | 90/93 | — | 49/49 before its balance ran out |
 
@@ -181,6 +182,8 @@ The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-a
 - **An open question:** a functional spec can't tell Aho-Corasick from naive search, so the named algorithm is never enforced. That's the cost question D29 deferred.
 
 Every set so far is near the ceiling for current models. The vericoding tasks were picked because at most a quarter of the models in its published results solved them, yet Claude and Codex verified all 28. Both of Claude's AlgoVeri failures in the first run, and its only failure in the second, were on specs no program can verify: `matrix_multiplication` is ill-formed and `rod_cutting` unsatisfiable, and both are now removed. The models still differ in rounds and tokens, but barely in what they verify. So the tasks hard enough to compare the two languages will have to be found elsewhere or written (WP10).
+
+M3's first run, the same seed tasks in B17-0, failed 6 of its 120 attempts, all on `insertion_sort` and `partition`. Mostly, the manual doesn't say that swapping two elements with `set-idx` keeps a vector's multiset, so agents tried to prove it themselves. A rerun with the manual fixed will show whether B17-0 is left with any gap on these tasks.
 
 ## How work is recorded
 
