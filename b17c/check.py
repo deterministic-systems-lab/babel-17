@@ -120,6 +120,14 @@ def _subforms(t):
             yield from _subforms(a)
 
 
+def closed(t, g):
+    """t with each open part an int in ghost code and an i64 in runtime code: a literal's types
+    when nothing fixes them (docs/b17-1.md §4), at every depth."""
+    if t == ANY:
+        return INT if g else I64
+    return tuple(a if isinstance(a, str) else closed(a, g) for a in t)
+
+
 def _elem(t):
     return t[1] if t[0] in COLLECTIONS else None
 
@@ -134,14 +142,14 @@ def join(a, b):
         return b
     if a in (I64, INT) and b in (I64, INT):
         return INT
+    if a[0] == b[0] and a[0] in ("vec", "slice") and ANY in (a[1], b[1]):  # an open vector stays a vector
+        return (a[0], a[1] if b[1] == ANY else b[1])
     if a[0] in SEQUENCES and b[0] in SEQUENCES:
         e = join(a[1], b[1])
         return None if e is None or e[0] in COLLECTIONS else ("seq", e)
     if a[0] == b[0] == "multiset":  # covariant, as sequences are (D107)
         e = join(a[1], b[1])
         return None if e is None else ("multiset", e)
-    if a[0] == b[0] and a[0] in ("vec", "slice") and ANY in (a[1], b[1]):
-        return (a[0], a[1] if b[1] == ANY else b[1])
     return None
 
 
@@ -746,14 +754,14 @@ class _Checker:
             return b
         if a in (I64, INT) and b in (I64, INT):
             return INT
+        if a[0] == b[0] and a[0] in ("vec", "slice") and self.equal(a, b):  # an open vector stays a vector
+            return b if self.has_any(a) else a
         if a[0] in SEQUENCES and b[0] in SEQUENCES:
             e = self.join1(a[1], b[1])
             return None if e is None else ("seq", e)
         if self.alike(a, b):
             es = [self.join1(x, y) for x, y in zip(parts(a), parts(b))]
             return None if None in es else a[:len(a) - len(es)] + tuple(es)
-        if self.equal(a, b):
-            return b if self.has_any(a) else a
         return None
 
     def has_any(self, t):
@@ -1611,7 +1619,7 @@ class _Checker:
         for a in args[len(fs):]:
             self.expr(a, g)
         self.quiet = quiet
-        env = {a: env.get(a, INT if g else I64) for a in d.params}  # §4: open with no destination
+        env = {a: env[a] if a in given else closed(env.get(a, ANY), g) for a in d.params}  # §4: open with no destination
         t = ("data", dname) + tuple(env.get(a, ANY) for a in d.params)
         if not self.has_any(t) and not self.check_app(x, t):
             return ERR
@@ -1648,6 +1656,7 @@ class _Checker:
         if not g:
             self.once(x.items[1:])
         t = ("tuple",) + tuple(self.part(a, want[k + 1] if want else ANY, g, own) for k, a in enumerate(x.items[1:]))
+        t = t if want else closed(t, g)  # §4: open with no destination
         self.quiet = quiet
         for a, u, w in zip(x.items[1:], parts(t), parts(want) if want else [ANY] * len(parts(t))):
             if not self.fits(u, w, g):
@@ -1800,7 +1809,7 @@ class _Checker:
                                              f"{show(u)}")
                 return ERR
             t = j
-        return ("iset", INT if t == ANY and want is None else t)
+        return closed(("iset", t), True) if want in (None, ANY) else ("iset", t)
 
     def e_iset_of(self, x, g, want, own):
         self.scopes.append({})
@@ -1822,9 +1831,7 @@ class _Checker:
                     self.report("E-TYPE-001", e, f"a map entry's {'key' if which == 0 else 'value'} can't be {show(u)}")
                     return ERR
                 k, v = (j, v) if which == 0 else (k, j)
-        if want is None:
-            k, v = (INT if k == ANY else k), (INT if v == ANY else v)
-        return ("map", k, v)
+        return closed(("map", k, v), True) if want in (None, ANY) else ("map", k, v)
 
     def pair(self, x, kinds):
         """The two operands of union, diff or inter, one of the kinds, and their join (D107); a

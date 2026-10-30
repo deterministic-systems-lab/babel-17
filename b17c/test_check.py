@@ -395,6 +395,7 @@ ok1("(ghost-fn g ((a (iset i64)) (b (iset int))) (iset int) (body (union a b)))"
 ok1("(ghost-fn g ((a (map int i64)) (b (map i64 int))) (map int int) (body (union a b)))")
 bad1("E-TYPE-001", "(ghost-fn g ((a (iset bool)) (b (iset int))) (iset int) (body (inter a b)))")
 bad1("E-TYPE-001", "(ghost-fn g ((a (iset i64)) (b (iset int))) (iset i64) (body (diff a b)))")
+ok1("(data vb (a) (vb (xs (vec a))))", "(ghost-fn g ((c bool) (v (vec i64))) (vb i64) (body (vb (if c (vec-new) v))))")  # an open vector stays one
 bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
 ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")
 ok1("(data rose () (rose (kids (seq rose))))")  # a sequence may be empty: a finite value (§3)

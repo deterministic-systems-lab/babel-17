@@ -145,6 +145,11 @@ for old, new in [("(call insert l x)) (return (node v l2 r))", "(call insert r x
     assert open_(run1(insert.replace(old, new))) == ["POST"], old
 
 H1 = '(module t (header (purpose "p") (invariants "i") (failures "f"))\n  (data tree () (leaf) (node (val i64) (left tree) (right tree)))\n'
+# A literal with no destination closes its open parts at every depth (§4), so a nested empty
+# literal gets a sort, including through a union's join (D107).
+for body in ["(len (lookup (map-lit (1 (seq-lit))) 1))", "(len (field (some (seq-lit)) value))",
+             "(len (lookup (union (get (tuple (map-lit (x (seq-lit))) 0) 0) (get (tuple (map-lit (1 (seq-lit))) 0) 0)) 1))"]:
+    assert open_(run1(H1 + f"(lemma l (params (x i64)) (ensures (>= {body} 0)) (body)))")) == [], body
 # rank: a structural recursion terminates, and one on its own argument doesn't (D87, D89).
 assert open_(run1(H1 + "(ghost-fn size ((t tree)) int (decreases (rank t)) (body (match t (case (leaf) 0)"
                        " (case (node v l r) (+ 1 (+ (size l) (size r))))))))")) == []
