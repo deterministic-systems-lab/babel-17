@@ -611,7 +611,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - Have the verifier instantiate range preconditions at the next index. That needs a heuristic with no principled trigger, and it risks matching loops.
 - **Touches:** D42; `docs/b17-0.md` §10; `suite/accept/` `fib`, `power`, `sum` and `prefix_sums`; the ported-ranges table in `suite/README.md`; WP10.
 
-## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103, D105 and D106)
+## D61 · §9's encoding: axiomatized sequences, division by a variable through its truncation facts, and a resource budget · Accepted (refined by D103, D105, D106 and D108)
 - **Date:** 2026-10-27
 - **Decision:** for WP5 and interface 11, and replacing §9's line "vectors, slices and seqs become SMT sequences":
   - **Sequences:** vectors, slices and seqs are an uninterpreted sort per element type, and §9's background facts, with triggers, are their only axioms. SMT-LIB's sequence theory isn't used.
@@ -1062,7 +1062,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Fixed counts:** they bound a test run's cost, as D59's fuel bounds a run.
 - **Touches:** D22; D23; D57; D59; D80; WP15; `docs/b17-1.md` §10.
 
-## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted (refined by D103)
+## D89 · Interface 11 version 0.2 encodes B17-1 · Accepted (refined by D103 and D108)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Datatypes:** tuples and data types are SMT-LIB datatypes, generic ones parametric.
@@ -1337,7 +1337,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Enumerating whole types:** booleans and tuples of them are finite, but data and sequence types aren't, and a bound read off the guard covers what the suite needs.
 - **Touches:** D57; D58; D80; WP15; `docs/b17-1.md` §8.
 
-## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89; refined by D105 and D106)
+## D103 · How the verifier encodes B17-1, refining D89 · Accepted (refines D61 and D89; refined by D105, D106 and D108)
 - **Date:** 2026-10-29
 - **Decision:** WP5 implements interface 11 v0.2 as D89 says, with four changes.
   - **A datatype per instance:** each instance of a data type, such as `(option int)` or `(option node)`, is a monomorphic SMT datatype, not one parametric datatype per data item. Instances are keyed by their sorts, so `i64` is `int` and vectors and slices are sequences. An instance is declared together with the instances it refers to and that refer back to it, as `node` and `(option node)` do. Tuples stay one parametric datatype per arity.
@@ -1488,7 +1488,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A hint in `E-TYPE-001` only,** as the roadmap offered: it names a workaround, but the workaround is still needed.
 - **Touches:** D34; D70; D83; D85; WP3 (`b17c/check.py`); WP8 (`docs/manual.md` §3); `docs/b17-0.md`'s status and §3; `docs/b17-1.md` §3, §4, §7 and §14's summary of D83; `suite/b17-1/reject/`; `b17c/test_check.py`; the README and roadmap's version references.
 
-## D108 · Equal sequences are the same sequence · Proposed (refines D61, D89 and D103)
+## D108 · Equal sequences are the same sequence · Accepted (refines D61, D89 and D103)
 - **Date:** 2026-10-29
 - **Decision:** in both subsets, `==` on sequences is a predicate per sequence sort, `eq`, with two axioms.
   - **By elements:** two sequences with equal lengths and equal elements are `eq`. Nested sequences compare their elements by their own sort's `eq`.

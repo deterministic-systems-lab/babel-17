@@ -1884,3 +1884,12 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note. B17-0's language doesn't change, so it stays at version 1.1.
 - **Updated:** the README's note on M3's first run; the roadmap's waiting decisions and M3 next steps.
 - **Interfaces touched:** interface 11's queries, for those that compare sequences.
+
+## 2026-10-29 · D108 accepted
+- **The owner accepted D108:** equal sequences are the same sequence, so every function agrees on them once they're compared. A query gets its axioms only where it compares sequences.
+- **Headings:** D108 is Accepted, and D61, D89 and D103 record that it refines them.
+- **Spec text:**
+  - **`docs/b17-0.md`:** its list of implemented decisions gains D108. The language doesn't change, since §9 already defined equality by lengths and elements, so it stays at version 1.1.
+  - **`docs/b17-1.md`:** its status line and §14 count D102–D108, and §14 summarizes D108.
+- **Updated:** the README's note on M3's first run; the roadmap's waiting decisions, its M3 next steps, and B17-1's decision count in the critical path and the Phase 1 table, which had stopped at D106.
+- **Interfaces touched:** none beyond D108's own.
