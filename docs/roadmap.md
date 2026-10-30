@@ -88,7 +88,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **WP7 reads B17-1,** by default since it froze (D110, D111).
   - **Data types become Rust enums,** with boxed recursive fields and only the type parameters a value holds. Updates through places happen in place, in the interpreter's order, and `replace` is `std::mem::replace`.
   - **Runs match the interpreter:** every accept program on its spec's inputs, the two proof rejects whose defs reach `err BOUNDS` and `err FIELD`, corner cases and generated programs. B17-0's crates are unchanged, byte for byte.
-- **WP6, the agent protocol,** is done for B17-0: `b17c/agent.py`.
+- **WP6, the agent protocol,** is done for B17-0 and B17-1: `b17c/agent.py`, with `--subset` (D112).
   - **Diagnostics** carry interface 3's fields (D93). That includes the goal over the program's names, a counterexample the interpreter replays, the slice of items needed to fix it, and how many goals depend on it.
   - **The five queries answer** (interface 8, D94). `search` finds specs by what they guarantee, by verifying a def that only calls each candidate.
   - **Not yet:** repairs, which wait for WP2's typed edits.
@@ -98,10 +98,14 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, and D109 and D113 on 2026-10-30. D2–D10, carried over from the design spec, are still Proposed.
+None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, and D109, D112 and D113 on 2026-10-30. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
-1. **WP10's AlgoVeri ports,** now that B17-1 is frozen. 50 of the 64 need its tuples or data types (D79), and they're the harder tasks M3 needs next. Running M3 on them also takes the manual (WP8) and the harness's track extended to B17-1.
+1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
+   - **`agent.py` at subset 1 (WP6): done.** B17-1's codes and goals, and counterexamples that show tuple and data values as terms the interpreter replays. Sets, maps and multisets have none yet;
+   - **`docs/manual-1.md` (WP8):** a B17-1 supplement to the manual, every example checked;
+   - **the harness track (WP17),** posing each port's first spec with the data types and ghost-fns it refers to;
+   - **a first run,** which the owner starts.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.

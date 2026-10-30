@@ -296,13 +296,13 @@ def verify_b17(task, code):
     except syntax.ParseError as e:
         return "rejected", json.dumps([{"code": e.code, "node": f"module@{e.line}:{e.col}", "message": e.reason}], indent=1)
     try:
-        if errors := agent.tier0(m):
+        if errors := agent.tier0(m, 0):
             return "rejected", json.dumps(errors, indent=1)
         defs = {it.items[1].text for it in m.items[3:] if it.items[0].text == "def"}
         if missing := [it.items[1].text for it in m.items[3:] if it.items[0].text == "spec" and it.items[1].text not in defs]:
             return "no_def", f"Every spec needs a def, and these have none: {', '.join(missing)}."
         with tempfile.TemporaryDirectory() as cache:  # a fresh cache, so every verdict is solved anew
-            diags = agent.diagnostics(m, cache=Path(cache))  # as Dafny's are, and reverify is independent
+            diags = agent.diagnostics(m, cache=Path(cache), subset=0)  # as Dafny's are; reverify is independent
     except Exception as e:  # a b17c bug, not the agent's: an infrastructure error, retried on resume
         return "checker_error", f"{type(e).__name__}: {e}"
     if errors := [d for d in diags if " goal is error" in d["message"]]:  # Z3 itself failed

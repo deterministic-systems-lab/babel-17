@@ -548,17 +548,17 @@ So a swap keeps a vector's multiset with no lemma, and a sort's invariant `(== (
 
 ## 13. The toolchain
 
-The tools read B17-1 by default, so B17-0 takes `--subset 0`. `agent.py` reads only B17-0.
+The tools read B17-1 by default, so B17-0 takes `--subset 0`.
 
 ```sh
 uv run --no-project b17c/check.py --subset 0 FILE      # tier 0: FILE:LINE:COL: CODE: message
 uv run --no-project b17c/verify.py --subset 0 FILE     # every goal, under the canonical seed and 10 shuffled ones
-uv run --no-project b17c/agent.py check FILE           # every error as JSON (interface 3); exit 1 if any
-uv run --no-project b17c/agent.py explain CODE         # a code's rule, with a labelled example
-uv run --no-project b17c/agent.py obligations FILE NAME     # every goal of an item, with its verdict
-uv run --no-project b17c/agent.py impact FILE CHANGED       # which goals a changed spec breaks
-uv run --no-project b17c/agent.py search FILE QUERY         # specs that guarantee QUERY's spec
-uv run --no-project b17c/agent.py simulate FILE NAME ARG... # a checked run
+uv run --no-project b17c/agent.py --subset 0 check FILE    # every error as JSON (interface 3); exit 1 if any
+uv run --no-project b17c/agent.py --subset 0 explain CODE  # a code's rule, with a labelled example
+uv run --no-project b17c/agent.py --subset 0 obligations FILE NAME     # every goal of an item, with its verdict
+uv run --no-project b17c/agent.py --subset 0 impact FILE CHANGED       # which goals a changed spec breaks
+uv run --no-project b17c/agent.py --subset 0 search FILE QUERY         # specs that guarantee QUERY's spec
+uv run --no-project b17c/agent.py --subset 0 simulate FILE NAME ARG... # a checked run
 uv run --no-project b17c/interp.py --subset 0 --check FILE NAME ARG...  # a run, contracts checked with --check
 uv run --no-project b17c/rust.py --subset 0 --run FILE NAME ARG...      # the same run, as emitted Rust
 ```

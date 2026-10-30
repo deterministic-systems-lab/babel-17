@@ -1233,7 +1233,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Pinning:** D23 pins the solver for the same reason. A newer rustc can add lints or change code generation, and the report must name the toolchain a binary came from (D25).
 - **Touches:** D18; D23; D25; D59; WP7; `.github/workflows/check.yml`.
 
-## D98 · M3's B17-0 track in the harness · Accepted
+## D98 · M3's B17-0 track in the harness · Accepted (extended by D112)
 - **Date:** 2026-10-28
 - **Decision:** `gym/harness.py` gains a B17-0 track. It runs the same CLIs, isolation, samples and round limit as the Dafny track (WP17), so only the language differs.
   - **Tasks:** the 20 seed tasks, from `suite/accept/`. Each poses:
@@ -1541,6 +1541,40 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - `docs/b17-1.md` §2, §4, §5, §7 and §9;
   - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
   - `suite/b17-1/reject/`.
+
+## D112 · M3's B17-1 track · Accepted (extends D98)
+- **Date:** 2026-10-30
+- **Decision:** `gym/harness.py` gains a B17-1 track, built as D98's B17-0 track is, so M3 can add B17-1's tasks now that B17-1 is frozen (D65).
+  - **Tasks:** first the 10 AlgoVeri ports in `suite/b17-1/accept/`, then each port WP10 adds. Each poses:
+    - the module's header;
+    - its first spec, which is AlgoVeri's entry point;
+    - the data items and ghost-fns that spec refers to, transitively.
+
+    The other specs and every def are the hidden solution, and so is any lemma or ghost-fn only a proof uses. Three ports have helper specs: `lca`, `longest_palindrome_substring` and `trie_insert`. The Dafny side is the same task in `gym/tasks/algoveri/`, whose contracts the ports keep (D42).
+  - **The prompt:** `docs/manual.md`, then a new B17-1 supplement, `docs/manual-1.md` (WP8), then the task and D98's rules.
+    - **The supplement** teaches what `docs/b17-1.md` adds, with every example checked, as `test_manual.py` checks the manual's.
+    - **The B17-0 track's prompt** doesn't change.
+  - **Verified:** as in D98, at subset 1: tier 0 passes, every spec has a def, and every goal is proved under 11 seeds.
+  - **Feedback:** `agent.py check`'s diagnostics at subset 1. So WP6's protocol extends to B17-1:
+    - its codes and node IDs;
+    - counterexamples with tuple and data values, which the interpreter replays.
+    - `agent.py` takes `--subset`, with D101's default, and M3's B17-0 track names subset 0.
+- **Why:**
+  - **M3 needs harder tasks.** On the seed tasks, the two languages differ only in tokens (ACTIVITY, 2026-10-30).
+  - **These are harder:** in Dafny, the 10 took Claude up to 5 rounds and Codex up to 6, and Codex failed `kruskal` in both AlgoVeri runs. Their B17-1 proofs are long: `kruskal` has 28 lemmas and `bfs` 19.
+  - **They're ready:** they cover every B17-1 feature (`docs/b17-1.md` §13), and all verify end to end.
+- **Alternatives:**
+  - **One manual for both subsets.** That changes the B17-0 track's prompt, so its next run would be a new run, and every B17-0 task would pay for features it can't use.
+  - **Posing every spec.** That gives away the helpers' design, which the agent should choose, as D98 leaves the B17-0 solutions' lemmas out.
+  - **Waiting for more ports.** The 10 can run now, and later ports join the same track.
+- **Order of work:**
+  1. `agent.py` at subset 1;
+  2. `docs/manual-1.md`, with its checks;
+  3. the harness track and its self-check;
+  4. a first run, which the owner starts, as with M3's first.
+
+  WP10's further ports proceed alongside.
+- **Touches:** D42; D65; D98; D101; WP6 (`b17c/agent.py`); WP8 (`docs/manual-1.md`, `b17c/test_manual.py`); WP10; WP17 (`gym/harness.py`, `gym/test_b17.py`).
 
 ## D113 · Corrections to B17-1's frozen text · Accepted (refines D109)
 - **Date:** 2026-10-30
