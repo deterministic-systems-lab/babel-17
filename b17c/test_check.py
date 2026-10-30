@@ -396,6 +396,11 @@ ok1("(ghost-fn g ((a (map int i64)) (b (map i64 int))) (map int int) (body (unio
 bad1("E-TYPE-001", "(ghost-fn g ((a (iset bool)) (b (iset int))) (iset int) (body (inter a b)))")
 bad1("E-TYPE-001", "(ghost-fn g ((a (iset i64)) (b (iset int))) (iset i64) (body (diff a b)))")
 ok1("(data vb (a) (vb (xs (vec a))))", "(ghost-fn g ((c bool) (v (vec i64))) (vb i64) (body (vb (if c (vec-new) v))))")  # an open vector stays one
+# An open part takes its type where it's used (D70), so nothing closes it before an enclosing join.
+ok1("(data d (a) (d (x a) (y a)))", "(ghost-fn g () bool (body (is d (d (tuple (seq-lit) true) (tuple (seq-lit true) true)))))")
+ok1("(ghost-fn g () bool (body (is some (if true (some (seq-lit)) (some (seq-lit true))))))")
+ok1("(ghost-fn g () bool (body (== (tuple (seq-lit) true) (tuple (seq-lit true) true))))")
+ok1("(ghost-fn g ((s (iset (seq bool)))) (iset (seq bool)) (body (union (if true (iset-lit (seq-lit)) (iset-lit (seq-lit))) s)))")
 bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
 ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")
 ok1("(data rose () (rose (kids (seq rose))))")  # a sequence may be empty: a finite value (§3)

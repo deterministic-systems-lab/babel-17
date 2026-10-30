@@ -104,6 +104,7 @@ None new. D79–D101 were accepted on 2026-10-28, and D102–D107, D110 and D111
      - **Still rejected, by design:** the 16 that gave a `(seq int)` where they'd declared a `(seq i64)`. The manual's §3 now says to state ghost helpers over `int`.
    - **Then** rerun `insertion_sort` and `partition`. It's a new run, since the manual is part of the prompt's hash.
 3. **WP16** grows the core library as B17-1 and the ports need it.
+4. **Open types inside compound values (WP3, WP5):** an empty literal nested in a map, tuple or constructor, with nothing that fixes its element type, can reach goal generation open, and `goals.py` crashes on its sort. It fails closed, and no suite program meets it. It predates D107, whose `union` joins add one route. The fix resolves open parts where they're used, across a whole expression. Closing them early at each literal rejects programs D70 accepts.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
