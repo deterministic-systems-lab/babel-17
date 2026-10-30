@@ -1,0 +1,65 @@
+{
+  "run_id": "20261030T154025Z-claude-codex",
+  "started": "2026-10-30T15:40:26.879135+00:00",
+  "git_commit": "3a5deacb2436f52fd18bb494d9d6f7846fdf9bc2",
+  "git_dirty": false,
+  "samples": 3,
+  "max_iters": 8,
+  "tasks": [
+    "b17/insertion_sort",
+    "b17/partition"
+  ],
+  "task_sha": {
+    "b17/insertion_sort": "5630a1a6455e1995bf1db79d65d3d76ef8bac7c1f1fda1397860c50d88e03644",
+    "b17/partition": "2f316f0598b52b58967a71dbd1d8ae926954b77df090cded66ac1ece8fe0da32"
+  },
+  "z3": "Z3 version 5.3.2 - 64 bit",
+  "harness_sha": "27731205bd9832970adb4f49a11415680c4a4a813386938a56d15696216bb978",
+  "b17_prompt_sha": "fec46ba078ffef2e7894c8451a3433ffade8432abe9c2878089d4a8db66bf1c8",
+  "b17c_sha": "0524850813e6ee3806bced5239b6efa55d6073136d214c9623e9c9d63d3c282a",
+  "clis": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--model",
+        "opus",
+        "--effort",
+        "high",
+        "--tools",
+        "",
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--output-format",
+        "json"
+      ],
+      "version": "2.1.308 (Claude Code)"
+    },
+    "codex": {
+      "cmd": [
+        "codex",
+        "exec",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--ignore-rules",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "-m",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "-s",
+        "read-only",
+        "--skip-git-repo-check",
+        "--json",
+        "-"
+      ],
+      "version": "codex-cli 0.145.0"
+    }
+  }
+}
