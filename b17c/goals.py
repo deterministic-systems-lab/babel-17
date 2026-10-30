@@ -1,6 +1,6 @@
 """B17-0's proof goals (docs/b17-0.md §7, §9), one Z3 query each, for WP5's verifier.
 
-    uv run --no-project b17c/goals.py [--subset 1] [--seeds N] FILE...
+    uv run --no-project b17c/goals.py [--subset 0|1] [--seeds N] FILE...
 
 prints each file's goals that aren't proved, and checks them against the suite label
 its path implies: an accept program must prove every goal, and an E-PROOF-<FAMILY>

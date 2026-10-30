@@ -1,7 +1,7 @@
-"""The reference interpreter: B17-0's (docs/b17-0.md §8, D28, D56-D59), and B17-1's with
---subset 1 (docs/b17-1.md §8, D101).
+"""The reference interpreter: B17-0's (docs/b17-0.md §8, D28, D56-D59), and B17-1's, the
+default subset (docs/b17-1.md §8, D101).
 
-    uv run --no-project b17c/interp.py [--subset 1] [--check] [--fuel N] FILE NAME ARG...
+    uv run --no-project b17c/interp.py [--subset 0|1] [--check] [--fuel N] FILE NAME ARG...
 
 runs the def NAME in FILE on the ARGs, each a closed expression such as 5,
 (seq-lit 1 2 3) or, in B17-1, (some 5), and prints the run's trace and outcome in
@@ -1280,7 +1280,7 @@ def main(argv):
         else:
             argv = []
     if len(argv) < 2:
-        print("usage: uv run --no-project b17c/interp.py [--subset 1] [--check] [--fuel N] FILE NAME ARG...",
+        print("usage: uv run --no-project b17c/interp.py [--subset 0|1] [--check] [--fuel N] FILE NAME ARG...",
               file=sys.stderr)
         return 2
     path, name, *exprs = argv

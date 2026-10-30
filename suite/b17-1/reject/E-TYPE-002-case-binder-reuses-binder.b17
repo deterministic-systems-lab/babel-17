@@ -1,0 +1,12 @@
+(module unwrap_all
+  (header
+    (purpose "A case binder can't reuse the name of a binder in scope.")
+    (invariants "None.")
+    (failures "None."))
+  (spec unwrap_all
+    (params (o (option i64)))
+    (returns (r (vec i64)))
+    (effects alloc))
+  (def unwrap_all
+    (body
+      (return (seq-build 2 (fn (i) (match o (case (none) 0) (case (some i) i))))))))

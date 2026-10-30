@@ -1,6 +1,6 @@
 """WP5's verifier: goals from WP3's types, cached and reported (D17, D22-D25, D63).
 
-    uv run --no-project b17c/verify.py [--subset 1] [--seeds N] [--cache DIR] [--report FILE] FILE
+    uv run --no-project b17c/verify.py [--subset 0|1] [--seeds N] [--cache DIR] [--report FILE] FILE
 
 checks every goal of FILE, prints each one that isn't proved, and a summary. A FILE that
 fails tier 0 has no goals: its diagnostics are printed instead, as `b17c/check.py` prints them. With
@@ -207,7 +207,7 @@ def main(argv):
         else:
             out = Path(val)
     if len(argv) != 1:
-        print("usage: uv run --no-project b17c/verify.py [--subset 1] [--seeds N] [--cache DIR] [--report FILE] FILE",
+        print("usage: uv run --no-project b17c/verify.py [--subset 0|1] [--seeds N] [--cache DIR] [--report FILE] FILE",
               file=sys.stderr)
         return 2
     try:

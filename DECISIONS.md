@@ -1513,3 +1513,18 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **One implication, in every query:** two of `lca`'s goals ran out of budget under one seed in 11. `lca` has no sequences, so only the prelude's growth moved them. That's why a query gets the axioms only when it compares sequences.
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note say so. B17-0's language doesn't change: §9 already defined equality this way. So it stays at version 1.1.
 - **Touches:** D61; D89; D103; WP5 (`b17c/goals.py`); interface 11's queries; `docs/b17-0.md` §9; `docs/b17-1.md` §9; `b17c/test_verify.py`.
+
+## D109 · B17-1's readings from its freeze review · Proposed (refines D73, D82, D92 and D110)
+- **Date:** 2026-10-30
+- **Decision:** before B17-1 freezes, `docs/b17-1.md` states six rules its draft left unclear or stated wrong. Each is what `b17c` already does, so no program's outcome changes.
+  - **Moving call arguments:** a call argument of a moving type is a variable, as D73 says of vectors. A constructor call, `tuple` or `(vec-new)` there is `E-OWN-006` (§5 rule 7).
+  - **The core library's `option` counts for D92:** a module's data item with `option`'s spec hash, such as `(data maybe (a) (nothing) (just (v a)))`, is `E-TYPE-002` (§2).
+  - **Which operand types the other:** in `union`, `diff`, `inter`, `==` and `!=`, the second operand takes the first's type as its destination, unless only the first is a literal, which then takes the second's (§4). The draft named only a literal operand, and not `!=` or two literals.
+  - **Constructors take the destination first:** a constructor call's type parameters come from its destination, and then from its arguments (§4, §7). §7's draft said arguments first, and §4 the reverse.
+  - **Type parameters' names (D82):** data type names are unique within a module, and a type parameter may not reuse its item's other type names or be `option`. It hides any other data type of the same name within its item (§2). The draft made type parameters "unique within a module", which every data item with a parameter `t` would break, `option` included.
+  - **D110's default:** its byte-identical output is now that of `--subset 0`, since B17-1 is the default subset once it freezes (D101).
+- **Why:** a fresh review of the frozen text against `b17c`, finishing the one Codex began before its quota ran out, found each one (ACTIVITY, 2026-10-30). After the freeze each would take a decision. Settling them now keeps the text and the tools in agreement at version 1.0.
+- **Alternatives:**
+  - **Change the tools instead.** Allowing a constructor as a moving call argument, or making operands symmetric, accepts more programs. That's a loosening, which can follow the freeze cheaply, as D107 did for B17-0. So the stricter readings freeze now.
+  - **Leave the text as drafted.** Then the frozen text and the tools would disagree from the start, and every port would meet the difference.
+- **Touches:** D73; D82; D92; D101; D110; `docs/b17-1.md` §2, §4, §5 and §7; WP3 (`b17c/check.py`'s message for `E-OWN-006`).

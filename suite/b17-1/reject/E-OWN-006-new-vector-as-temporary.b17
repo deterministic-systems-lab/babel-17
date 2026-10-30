@@ -1,0 +1,12 @@
+(module size
+  (header
+    (purpose "A new vector is never read as a temporary.")
+    (invariants "None.")
+    (failures "None."))
+  (spec size
+    (params)
+    (returns (n i64))
+    (effects))
+  (def size
+    (body
+      (return (len (vec-new))))))

@@ -1,0 +1,11 @@
+(module all_below
+  (header
+    (purpose "A forall statement's calls are recursive calls too, so they must decrease.")
+    (invariants "None.")
+    (failures "None."))
+  (lemma all_below
+    (params (n int))
+    (requires (>= n 0))
+    (decreases n)
+    (body
+      (forall ((k int)) (call all_below (+ n 1))))))

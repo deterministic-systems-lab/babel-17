@@ -1,6 +1,6 @@
 """Content hashes: B17-0's (D45, D46), and B17-1's data types and binders (D92).
 
-    uv run --no-project b17c/hashing.py [--subset 1] FILE...
+    uv run --no-project b17c/hashing.py [--subset 0|1] FILE...
 
 prints one line per item of each FILE: MODULE KIND NAME SPEC-HASH IMPL-HASH, with
 `-` where there's no implementation hash (a ghost-fn, a data type, or a spec with no def).
@@ -301,7 +301,7 @@ if __name__ == "__main__":
     if args[:1] == ["--subset"] and args[1:2] in (["0"], ["1"]):
         args, subset = args[2:], int(args[1])
     if not args:
-        sys.exit("usage: uv run --no-project b17c/hashing.py [--subset 1] FILE...")
+        sys.exit("usage: uv run --no-project b17c/hashing.py [--subset 0|1] FILE...")
     for path in args:
         try:
             print("\n".join(report(parse(Path(path).read_bytes(), subset), subset)))

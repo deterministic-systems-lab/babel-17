@@ -1,7 +1,7 @@
 """The tier 0 checker: B17-0's (docs/b17-0.md §2-§7 and §9's tier 0 table; D33-D45, D51, D53,
-D66-D78), and with subset 1, B17-1's (docs/b17-1.md §2-§7 and §9; D79-D92, D99, D100, D101).
+D66-D78), and B17-1's, the default subset (docs/b17-1.md §2-§7 and §9; D79-D92, D99-D101, D109).
 
-    uv run --no-project b17c/check.py [--subset 1] FILE
+    uv run --no-project b17c/check.py [--subset 0|1] FILE
 
 parses and checks FILE and prints `FILE:LINE:COL: CODE: message` for each diagnostic,
 exiting 1 if there are any. A parse error prints the same way, as E-PARSE-001.
@@ -359,7 +359,8 @@ class _Checker:
         if sym.text in seen:
             self.report("E-TYPE-002", sym, f"'{sym.text}' is already declared in this item (D41)")
         elif sym.text in self.items or sym.text in self.defs or sym.text in self.ctors:
-            self.report("E-TYPE-002", sym, f"'{sym.text}' is an item's name, so no parameter or local may take it (D41)")
+            what = "a constructor's" if sym.text in self.ctors and sym.text not in self.items else "an item's"
+            self.report("E-TYPE-002", sym, f"'{sym.text}' is {what} name, so no parameter or local may take it (D41, D82)")
         seen.add(sym.text)
 
     def type_of(self, node, runtime, slices):
@@ -407,6 +408,8 @@ class _Checker:
         for a in ps:
             if a.text in d.params or a.text == name:
                 self.report("E-TYPE-002", a, f"type parameter '{a.text}' reuses a type name of its item (D82)")
+            elif a.text in CORE1_TYPES and it not in CORE1.items:
+                self.report("E-TYPE-002", a, f"'{a.text}' is the core library's type (docs/b17-1.md §2)")
             d.params.append(a.text)
         for i, c in enumerate(ctors):
             cname = c.items[0]
@@ -789,6 +792,8 @@ class _Checker:
     def declare(self, sym, bind):
         """Bind a local in the innermost scope; it's visible to the end of that scope (D66). A
         name already declared keeps the binding in scope, so its uses don't report again (D78)."""
+        if sym.text not in self.names and self.lookup(sym.text) is not None:  # a binder or result (D41)
+            self.report("E-TYPE-002", sym, f"'{sym.text}' is already declared in this item (D41)")
         self.unique(sym, self.names)
         if self.lookup(sym.text) is None:
             self.scopes[-1][sym.text] = bind
@@ -1681,7 +1686,8 @@ class _Checker:
         quiet = self.quiet
         if not g:
             self.once(args)
-        got = [self.part(a, subst(ft, given), g, own) for a, (_, ft) in zip(args, fs)]
+        # A call not in an owned position reports a moving value itself, so its parts don't (D78).
+        got = [self.part(a, subst(ft, given), g, own or BRANCH) for a, (_, ft) in zip(args, fs)]
         for u, (_, ft) in zip(got, fs):
             self.unify(ft, u, env)
         for a, u, (_, ft) in zip(args, got, fs):  # every argument fixes the parameters, then each is checked
@@ -1694,10 +1700,13 @@ class _Checker:
         t = ("data", dname) + tuple(env.get(a, ANY) for a in d.params)
         if not self.has_any(t) and not self.check_app(x, t):
             return ERR
+        if not g and not self.has_any(t) and not self.runtime(t):
+            self.report("E-GHOST-002", x, f"{show(t)} is a ghost type, so runtime code can't build it (§3)")
+            return ERR
         if not g:
             if self.moving(t) and not own:
-                self.report("E-OWN-006", x, f"a moving value is built only as an owned position's whole value: a let, "
-                                            f"set, return or argument (docs/b17-1.md §5 rule 7)")
+                self.report("E-OWN-006", x, f"a moving value is built only as an owned position's whole value, and "
+                                            f"never as a call's argument (docs/b17-1.md §5 rule 7, D73)")
             if d.boxed[i]:
                 self.effects.append(("alloc", x))
         return t
@@ -1726,7 +1735,7 @@ class _Checker:
         quiet = self.quiet
         if not g:
             self.once(x.items[1:])
-        t = ("tuple",) + tuple(self.part(a, want[k + 1] if want else ANY, g, own) for k, a in enumerate(x.items[1:]))
+        t = ("tuple",) + tuple(self.part(a, want[k + 1] if want else ANY, g, own or BRANCH) for k, a in enumerate(x.items[1:]))
         self.quiet = quiet
         for a, u, w in zip(x.items[1:], parts(t), parts(want) if want else [ANY] * len(parts(t))):
             if not self.fits(u, w, g):
@@ -2083,7 +2092,7 @@ def main(argv):
     if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
         subset, argv = int(argv[1]), argv[2:]
     if len(argv) != 1:
-        print("usage: uv run --no-project b17c/check.py [--subset 1] FILE", file=sys.stderr)
+        print("usage: uv run --no-project b17c/check.py [--subset 0|1] FILE", file=sys.stderr)
         return 2
     path = argv[0]
     try:

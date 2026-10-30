@@ -1,6 +1,6 @@
 """The parser and canonical printer: B17-0's (docs/b17-0.md §2, D47-D54) and B17-1's (docs/b17-1.md §2).
 
-    uv run --no-project b17c/syntax.py [--subset 1] FILE
+    uv run --no-project b17c/syntax.py [--subset 0|1] FILE
 
 prints FILE's canonical bytes, or `FILE:LINE:COL: E-PARSE-001: reason` on stderr
 and exits 1.
@@ -8,7 +8,7 @@ and exits 1.
 parse() checks only §2's grammar and its lexical rules: names, integers, strings.
 Name resolution, uniqueness, types and the rest of §3-§9 belong to WP3. parse_expr()
 reads a single expression, such as the interpreter's command-line arguments. Both take
-the subset (D101): 0 by default, for B17-0 exactly as frozen, or 1 for B17-1's grammar.
+the subset (D101): 1 by default, B17-1's grammar since it froze, or 0 for B17-0 exactly as frozen.
 """
 import bisect
 import re
@@ -678,7 +678,7 @@ if __name__ == "__main__":
     if args[:1] == ["--subset"] and len(args) == 3 and args[1] in ("0", "1"):
         subset, args = int(args[1]), args[2:]
     if len(args) != 1:
-        sys.exit("usage: uv run --no-project b17c/syntax.py [--subset 1] FILE")
+        sys.exit("usage: uv run --no-project b17c/syntax.py [--subset 0|1] FILE")
     path = args[0]
     try:
         out = canonical(parse(Path(path).read_bytes(), subset))

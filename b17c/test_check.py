@@ -365,7 +365,7 @@ for path in sorted((SUITE / "b17-1").rglob("*.b17")):
         code = re.match(r"E-[A-Z]+-\d+", path.name).group()
         assert [d.code for d in ds] == [code], (path.name, [str(d) for d in ds])  # one error, one diagnostic (D78)
         seen["parse" if code == "E-PARSE-001" else "tier 0"] += 1
-assert seen == {"accept": 10, "proof": 5, "tier 0": 41, "parse": 2}, seen
+assert seen == {"accept": 10, "proof": 6, "tier 0": 46, "parse": 2}, seen
 
 
 def codes1(*items):
@@ -394,6 +394,7 @@ bad1("E-TYPE-002", spec("f", "(t nowhere)", "(r i64)"))
 bad1("E-TYPE-001", "(data wrap (a) (wrap (xs (vec a))))", "(ghost-fn g ((w (wrap int))) bool (body true))")
 ok1("(data wrap (a) (wrap (xs (vec a))))", "(ghost-fn g ((w (wrap (option i64)))) bool (body true))")
 bad1("E-TYPE-002", "(data pair (a a) (pair (x a)))")  # a parameter twice
+bad1("E-TYPE-002", "(data box (option) (mkbox (v option)))")  # the core library's type (§2)
 ok1(BOX, "(ghost-fn g ((b (box i64))) (box int) (body b))")  # covariant (§3)
 ok1(SETBOX, "(ghost-fn g ((b (bag i64))) (bag int) (body b))")  # covariant though a set holds it (D107)
 bad1("E-TYPE-001", SETBOX, "(ghost-fn g ((b (bag int))) (bag i64) (body b))")  # never narrowing
@@ -429,6 +430,9 @@ bad1("E-TYPE-002", "(data cell () (cell (some i64)))", "(data opt () (some))")
 bad1("E-TYPE-001", TREE, "(ghost-fn g () tree (body leaf))")  # a constructor isn't a value: (leaf) is
 ok1(TREE, "(data pair () (pair (val i64) (left bool)))")  # field names may repeat across types
 bad1("E-TYPE-002", TREE, "(ghost-fn g ((t tree)) int (body (match t (case (leaf) 0) (case (node v v r) 0))))")
+# The freeze review: a case binder reuses no name in scope, binders and results included (D41).
+bad1("E-TYPE-002", "(ghost-fn g ((o (option bool))) bool (body (forall ((x bool)) (match o (case (none) x) (case (some x) x)))))")
+bad1("E-TYPE-002", "(spec f (params (o (option i64))) (returns (r i64)) (ensures (match o (case (none) true) (case (some r) true))) (effects))")
 # Expressions (§4, §7).
 ok1(TREE, "(ghost-fn g ((t tree)) bool (body (and (is node t) (== (rank t) (rank t)))))")
 bad1("E-TYPE-001", TREE, "(ghost-fn g ((t tree)) int (body (match t (case (leaf) 0) (case (node v l r) false))))")
@@ -460,6 +464,11 @@ bad1("E-OWN-004", TREE, spec("f", "(t tree) (n i64)", "(r tree)"),
      "(def f (body (let-mut i i64 0) (while (< i n) (invariant true) (decreases (- n i)) (let u tree t) (set i (+ i 1))) "
      "(return (leaf))))")
 bad1("E-OWN-006", TREE, spec("f", "(t tree)", "(r bool)", "alloc"), "(def f (body (return (is node (node 1 t (leaf))))))")
+# The freeze review: a value built as a call's argument is reported once, not again for its parts (D73, D78).
+if len(diagnose(module(TREE, spec("g", "(t tree)", ""), spec("f", "", "", "alloc"), "(def f (body (call g (node 1 (leaf) (leaf))) (return)))"), 1)) != 1:
+    failures.append("a constructor argument's parts were reported too")
+# Runtime code can't build a value of a ghost type (§3).
+bad1("E-GHOST-002", "(data gd () (ga) (gb (x int)))", spec("g", "", "(r i64)"), "(def g (body (return (match (ga) (case (ga) 1) (case (gb x) 2)))))")
 ok1(TREE, spec("f", "(x i64)", "(r tree)", "alloc"), "(def f (body (let t tree (node x (leaf) (leaf))) (return t)))")
 bad1("E-OWN-007", TREE, "(data pair () (pair (fst tree) (snd tree)))", spec("f", "(p pair)", "(r tree)"),
      "(def f (body (return (field p fst))))")

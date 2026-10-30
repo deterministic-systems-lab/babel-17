@@ -1,0 +1,9 @@
+(module witness
+  (header
+    (purpose "An obtain binder has an exact type, and i64 isn't one.")
+    (invariants "None.")
+    (failures "None."))
+  (lemma witness
+    (params)
+    (body
+      (obtain ((k i64)) (> k 0)))))
