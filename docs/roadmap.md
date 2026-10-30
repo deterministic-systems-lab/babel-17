@@ -55,8 +55,8 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - On the hard run, 65 AlgoVeri and 28 vericoding tasks, Claude verified 92 of 93, Codex 90 and Grok all 49 it finished before its balance ran out.
   - Claude's only failure, `rod_cutting`, has a spec no program can satisfy, so it's removed. Every set is near the ceiling, vericoding's included.
 - **M3's first run** (`20261029T232328Z-claude-codex`): the seed tasks in B17-0, 3 samples each. Claude verified 59 of 60 and Codex 55, against 120 of 120 each in Dafny's two seed runs. Every verdict reproduced.
-  - **Every failure is on `insertion_sort` or `partition`.** The verifier knows that `set-idx` keeps a vector's multiset, but the manual doesn't say so. The round-1 passes relied on it, and the failures tried to prove it themselves.
-  - **What stopped them:** for Codex, multisets of `int` and `i64` not comparing (D70), which got 28 of its 104 calls rejected. For Claude, a gap in the encoding: equal sequences don't give equal multisets.
+  - **Every failure is on `insertion_sort` or `partition`.** The verifier knows how `set-idx` changes a vector's multiset, so a swap keeps it with no proof, but the manual doesn't say so. The round-1 passes relied on it, and the failures tried to prove it themselves.
+  - **What stopped them:** for Codex, multisets of `int` and `i64` not comparing (D70), which got 26 of its 104 calls rejected, and swap lemmas it couldn't prove. For Claude, a gap in the encoding: equal sequences don't give equal multisets.
   - **Tokens:** the manual adds about 11k input tokens to each of Claude's calls and 8k to Codex's. On the 18 other tasks, Claude thinks about nine times as much as in Dafny, and Codex about as much.
   - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
@@ -131,7 +131,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 - **What it measures:** the success metrics: verified pass rate, repair rounds and tokens per verified task.
 - **What it needs:** with WP5, WP6, WP8 and the harness's B17-0 track done, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
 - **How it's used:** its results steer the design (D14).
-- **First run,** on the seed tasks, 2026-10-29: Claude verified 59 of 60 and Codex 55 of 60 in B17-0, against 120 of 120 each in Dafny. The gap came from the manual and D70's multiset rule, not from harder proofs, so the seed tasks still don't separate the two languages.
+- **First run,** on the seed tasks, 2026-10-29: Claude verified 59 of 60 and Codex 55 of 60 in B17-0, against 120 of 120 each in Dafny. The gap came from the manual, D70's multiset rule and the encoding's missing sequence extensionality. A rerun with those fixed will show whether the seed tasks separate the two languages at all.
 
 ## Phase 2
 
@@ -176,8 +176,8 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 ## Open questions that shape the plan
 
-- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). M3's first run agrees: on the seed tasks, B17-0's only gap came from a fact the manual leaves out. What makes a task hard for them, and how to show it in advance, is open.
-- **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost. In M3's first run no overflow goal failed, since the frozen specs already state ranges per step. The cost showed up in typing instead: 28 of Codex's 104 calls were rejected because multisets of `int` and `i64` don't compare (D70).
+- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). M3's first run doesn't settle it: B17-0's gap on the seed tasks traces mostly to a fact the manual leaves out, and a rerun with it fixed will show whether any gap is left. What makes a task hard for them, and how to show it in advance, is open.
+- **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost. In M3's first run no overflow goal failed, since the frozen specs already state ranges per step. A cost showed up in typing instead: 26 of Codex's 104 calls were rejected because multisets of `int` and `i64` don't compare (D70).
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a model. WP6 solves it again against only the axioms it mentions, and the interpreter replays the model (D93). That found one for each of the suite's 9 proof rejects, and 8 replayed. How often it works on harder programs is open.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).
 - **Training resources.** Phase 2 needs open weights and compute that the project doesn't have yet.
