@@ -272,4 +272,17 @@ TUP = H0 + """(lemma l (params (s (seq int))) (requires (>= (len s) 2))
     (ensures (== (tuple (concat (take s 1) (drop s 1)) 1) (tuple s 1))) (body (assert (== (concat (take s 1) (drop s 1)) s)))))"""
 assert open_(run1(TUP)) == [] and open_(run1(TUP.replace("(drop s 1)) s)", "(drop s 2)) s)"))) == ["ASSERT"]
 
+# An empty literal inside a compound value takes its type where the value is used, and is an
+# integer where nothing fixes it (docs/b17-1.md §4, D70). Each of these crashed goal generation
+# or sent an ill-sorted query. Through a match's binders, an open part still fails closed.
+OPEN = ["(== (len (lookup (map-lit (1 (seq-lit))) 1)) 0)", "(== (len (field (some (seq-lit)) value)) 0)",
+        "(== (len (match (tuple (seq-lit) 1) (case (tuple a b) a))) 0)", "(== (len (seq-lit (seq-lit))) 1)",
+        "(contains (iset-lit (seq-lit)) (seq-lit))", "(!= (tuple (seq-lit) true) (tuple (seq-lit true) true))",
+        "(!= (field (some (seq-lit)) value) (seq-lit true))", "(!= (get (tuple (seq-lit) 1) 0) (seq-lit true))",
+        "(not (contains (seq-lit (seq-lit)) (seq-lit true)))", "(== (lookup (map-lit ((seq-lit) 1)) (seq-lit)) 1)",
+        "(== (lookup (update (map-lit (1 (seq-lit))) 2 (seq-lit true)) 1) (seq-lit))"]
+for e in OPEN:
+    assert open_(run1(H0 + f"(lemma l (params) (ensures {e}) (body)))")) == [], e
+assert open_(run1(H0 + "(lemma l (params) (ensures (!= (match (tuple (seq-lit) 1) (case (tuple a b) a)) (seq-lit true))) (body)))")) == ["POST"]
+
 print("verifier self-check passed")

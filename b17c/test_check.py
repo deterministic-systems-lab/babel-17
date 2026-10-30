@@ -401,6 +401,8 @@ ok1("(data d (a) (d (x a) (y a)))", "(ghost-fn g () bool (body (is d (d (tuple (
 ok1("(ghost-fn g () bool (body (is some (if true (some (seq-lit)) (some (seq-lit true))))))")
 ok1("(ghost-fn g () bool (body (== (tuple (seq-lit) true) (tuple (seq-lit true) true))))")
 ok1("(ghost-fn g ((s (iset (seq bool)))) (iset (seq bool)) (body (union (if true (iset-lit (seq-lit)) (iset-lit (seq-lit))) s)))")
+ok1("(ghost-fn g () (map int (seq bool)) (body (update (map-lit (1 (seq-lit))) 2 (seq-lit true))))")  # update's value fixes it
+bad1("E-TYPE-001", "(ghost-fn g ((n (map int (seq int)))) bool (body (== (update (map-lit (1 (seq-lit))) 2 (seq-lit true)) n)))")
 bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
 ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")
 ok1("(data rose () (rose (kids (seq rose))))")  # a sequence may be empty: a finite value (§3)

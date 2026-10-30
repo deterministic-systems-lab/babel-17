@@ -79,6 +79,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Accept programs:** all 10 verify under 10 shuffled seeds. Their proofs use D99's `forall` statement, D100's `obtain` and, for `bfs`, `coin_change` and `kruskal`, D106's folded ghost-fns, with invariants written as folded predicates. `kruskal`'s proof that no spanning tree weighs less is an exchange argument, round by round.
   - **Soundness fixes that reach B17-0:** a review found two ways the verifier proved `false`, in B17-0 too. One was a recursive ghost-fn's equation holding outside its parameter types. The other was a `seq-build` under a quantifier being one constant. Both are fixed (D103).
   - **B17-0's suite is unchanged:** every one of its 511 queries is byte-identical, so no suite proof relied on either hole.
+  - **Open types inside values:** an empty literal nested in a map, tuple, set, sequence or constructor value used to reach goal generation with its type open, and crash it or send an ill-sorted query. After tier 0, each open type now takes its type where the value is used, or becomes an integer, as `docs/b17-1.md` §4 says. Every suite and core query is byte-identical.
+    - **One tier 0 change:** `update`'s key and value now fix its map's open types, as §7's `(map K V)` says. So comparing the result with a map of another value type is rejected, where `main` accepted it.
+    - **Still open:** a type that only a `match` binder's use fixes. Its query is ill-sorted, so the goal fails closed.
 - **WP7, the Rust backend,** is done for B17-0: `b17c/rust.py` (D95–D97).
   - **Emitted code compiles:** every module that passes tier 0 becomes a crate that forbids unsafe code and checks every runtime goal where §8 does.
   - **Runs match the interpreter:** 8,875 differential runs print exactly the interpreter's text, across the suite, corner cases and generated programs, with rustc 1.99.1 pinned. Fuzzing and a mutation check found no mismatch left.
@@ -106,7 +109,6 @@ None new. D79–D101 were accepted on 2026-10-28, and D102–D108, D110 and D111
    - **Optional:** the 18 other seed tasks ran under the old manual. Rerunning them would show whether its 2–3k more input tokens per call cost anything there.
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
 3. **WP16** grows the core library as B17-1 and the ports need it.
-4. **Open types inside compound values (WP3, WP5):** an empty literal nested in a map, tuple or constructor, with nothing that fixes its element type, can reach goal generation open, and `goals.py` crashes on its sort. It fails closed, and no suite program meets it. It predates D107, whose `union` joins add one route. The fix resolves open parts where they're used, across a whole expression. Closing them early at each literal rejects programs D70 accepts.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
