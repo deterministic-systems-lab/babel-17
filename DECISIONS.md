@@ -1498,6 +1498,9 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** M3's first run (ACTIVITY, 2026-10-29).
   - **The gap:** `==` on sequences was a formula over lengths and elements, never SMT equality. So nothing else learned from it. A body-less lemma with `(requires (== x y))` and `(ensures (== (multiset x) (multiset y)))` failed at both `i64` and `int`.
   - **What it cost:** Claude's two attempts that took more than one round stalled there. Its slow `insertion_sort` proved the fact by induction in round 5, and its failed `partition` spent all 8 rounds on it. The suite worked around it too: `kruskal`'s `tw_eq` and `coin_change`'s `ext_totals` are induction lemmas for a function's value on equal sequences.
+  - **Replayed with D107** on the run's 175 recorded rounds: 17 that failed a proof now verify, and D107 alone verified none.
+    - **Claude:** both attempts that took more than one round now verify in round 1, which doesn't depend on feedback. Those are the slow `insertion_sort` and the failed `partition`.
+    - **Codex:** two failed `insertion_sort` attempts verify from their recorded round 6. Their earlier rounds' feedback would have differed, so this shows only that those proofs were right. No `partition` attempt verifies.
   - **With D108:** that lemma proves in both subsets. A tuple holding a sequence proves equal to another once an `assert` compares their sequences. Before, it couldn't be proved at all, as `docs/b17-1.md` §9 says.
 - **Sound:** §9 defines sequence equality by lengths and elements, and every function of a sequence depends only on its value. A model: finite sequences, with `nth` outside the range a fixed default. Every other axiom holds there.
 - **Measured** under 10 shuffled seeds:

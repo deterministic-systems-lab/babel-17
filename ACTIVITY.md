@@ -1859,3 +1859,24 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** `b17c`'s checker and verifier, and the harness. The encoding's missing sequence extensionality is the other follow-up, still to do.
 - **Updated:** the README's note on M3's first run; the roadmap's M3 findings, WP8 entry, next steps and the open question on hard tasks.
 - **Interfaces touched:** none.
+
+## 2026-10-29 · Equal sequences are the same sequence (D108 proposed)
+- **Asked by the owner:** the M3 follow-ups, after D107's merge. This is WP5's, the encoding's missing sequence extensionality.
+- **The gap:** `goals.py` encoded `==` on sequences as a formula over lengths and elements, never SMT equality. So `multiset`, `take` and ghost-fns got nothing from it, and a body-less lemma from `(== x y)` to `(== (multiset x) (multiset y))` failed at both `i64` and `int`.
+- **Proposed:** D108. `==` on sequences is a predicate per sort, `eq`. Equal lengths and elements make it hold, and `eq` sequences are equal in SMT. That's D89's predicate, which D103 never finished, and B17-0 never had it. A query gets the axioms only when it compares sequences, as D61 does for division.
+- **Implemented** with it, in `goals.py`: `seq_eq` gives a sort's two axioms, `equal` is now one line, and `LOGICAL`, used only by the old formula's triggers, goes.
+- **Measured** under 10 shuffled seeds:
+  - **B17-0:** all 442 suite queries are byte-identical. 40 of `core.b17`'s 69 change, and all 69 prove, in 9.11M units against 9.10M.
+  - **B17-1:** 680 of 1,660 queries change, in `bfs`, `coin_change` and `trie_insert` only. All three prove every goal, in 0.1% more units, 1.5% fewer and 6% fewer. Every proof label holds, since no proof reject's query changes.
+- **Two variants were dropped:**
+  - **Dafny's form, in every query:** `eq` equivalent to equal lengths and elements, with triggers on the elements. The suites took 6% and 7% more units, and `coin_change`'s `keep_ok_wc` ran out of budget under the canonical seed.
+  - **One implication, in every query:** `coin_change` passed, but two of `lca`'s goals ran out of budget under one seed in 11. `lca` has no sequences. Its two goals already took up to 5.6M units on `main`, and only the prelude's growth moved them.
+- **Replayed with D107** on M3's 175 recorded rounds: 17 that failed a proof now verify, and D107 alone verified none.
+  - **Claude:** its two attempts that took more than one round, the slow `insertion_sort` and the failed `partition`, now verify in round 1. Round 1 doesn't depend on feedback, so with both decisions Claude's run would be 60 of 60.
+  - **Codex:** two failed `insertion_sort` attempts verify from their recorded round 6. Their earlier rounds' feedback would have differed, so that only shows those proofs were right. No `partition` attempt verifies.
+  - **The rest:** the 21 rounds still rejected are 16 narrowings, 2 `occurrences` on a multiset, 2 unclosed parens and 1 undefined law.
+- **Also proved now:** a tuple holding a sequence proves equal to another once an `assert` compares their sequences. On `main` it couldn't be proved. The suite's two induction lemmas that worked around the gap, `kruskal`'s `tw_eq` and `coin_change`'s `ext_totals`, stay as they are.
+- **Tests:** `test_verify.py` checks that lemma in both subsets, and the tuple case in B17-1, with a mutation that has to fail its `ASSERT`. Both positive cases fail on `main`. Every self-check passes.
+- **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note. B17-0's language doesn't change, so it stays at version 1.1.
+- **Updated:** the README's note on M3's first run; the roadmap's waiting decisions and M3 next steps.
+- **Interfaces touched:** interface 11's queries, for those that compare sequences.

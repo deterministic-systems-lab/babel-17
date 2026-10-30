@@ -92,13 +92,15 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-None new. D79–D101 were accepted on 2026-10-28, and D102–D107, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
+**D108**, equal sequences are the same sequence: WP5's follow-up from M3's first run, proposed with its implementation. D79–D101 were accepted on 2026-10-28, and D102–D107, D110 and D111 on 2026-10-29. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D106 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. All ten of its accept programs verify, `kruskal`'s minimum spanning tree included.
 2. **M3 on the seed tasks** has had its first run ([above](#recent-and-current-work)). Before the next one:
    - **The manual (WP8): done.** It lists all 36 of `core.b17`'s items, the laws' signatures among them, since the prompt doesn't include the file. It states the three facts no law covers, `set-idx`'s multiset effect among them, with a checked swap that needs no lemma. And it cites `b17-0.md`'s sections by name, so its own §9 isn't mistaken for them.
-   - **The encoding (WP5):** an extensionality axiom for sequences, which §9's definition of equality makes sound, checked against the suite's solve times.
+   - **The encoding (WP5): D108 is proposed,** with its implementation. `==` on sequences becomes a predicate whose equal sequences are the same sequence, so every function agrees on them.
+     - **Unchanged elsewhere:** a query gets the axioms only where it compares sequences. None of B17-0's 442 suite queries change, and in B17-1 only `bfs`', `coin_change`'s and `trie_insert`'s do. All three still verify, at about the same cost.
+     - **Replayed with D107 on the run's recorded attempts:** Claude's two attempts that took more than one round now verify in round 1. Two of Codex's failed `insertion_sort` attempts verify from their recorded round 6.
    - **The checker (WP3): D107 is in.** Ghost multisets are covariant in both subsets, and B17-1's sets and maps too, so `(multiset i64)` compares with `(multiset int)`. B17-0 is at v1.1, and every suite and core query is byte-identical.
      - **Replayed on the run's recorded attempts:** 10 of Codex's rounds rejected for D70 now pass tier 0, though none verifies as written.
      - **Still rejected, by design:** the 16 that gave a `(seq int)` where they'd declared a `(seq i64)`. The manual's §3 now says to state ghost helpers over `int`.
