@@ -39,7 +39,7 @@ The labels were first checked by review: by the author, and by an independent mo
 
 ## B17-1's programs
 
-`b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. Its suite froze with B17-1 on 2026-10-30, at version 1.0, once WP3's checker agreed with every tier 0 label (D44).
+`b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. Its suite froze with B17-1 on 2026-10-30, at version 1.0, once WP3's checker agreed with every tier 0 label (D44). D113's version 1.1 left it unchanged.
 
 **Accept:** a port of the smallest AlgoVeri task for each feature, from `gym/tasks/algoveri/`.
 
