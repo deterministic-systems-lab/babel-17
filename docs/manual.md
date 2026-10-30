@@ -2,9 +2,9 @@
 
 This manual is for the model writing B17-0. It gives every rule you need, every error code you can meet, and a minimal example of each. Every example states its outcome, and `b17c/test_manual.py` checks each one: in CI its tier 0 outcome, and wherever Z3 is installed its proof outcome too. So the examples can't drift from the language. The prose is checked by review.
 
-The full semantics is `docs/b17-0.md`, cited here as §2 to §12. When the two disagree, `b17-0.md` wins, and the disagreement is a bug in this manual.
+The full semantics is `docs/b17-0.md`. Its sections are cited as `b17-0.md` §2, and this manual's own as §2 below. When the two disagree, `b17-0.md` wins, and the disagreement is a bug in this manual.
 
-**How a task reaches you** (§10). You get a module header, frozen `ghost-fn`s and one frozen `spec`. You return a `def` for that spec. You may add `lemma`s, `ghost-fn`s, and `spec`-and-`def` pairs for helpers. You never edit the task's spec.
+**How a task reaches you** (`b17-0.md` §10). You get a module header, frozen `ghost-fn`s and one frozen `spec`. You return a `def` for that spec. You may add `lemma`s, `ghost-fn`s, and `spec`-and-`def` pairs for helpers. You never edit the task's spec.
 
 **How to use the toolchain** (§13 below). `b17c/agent.py check FILE` gives every error as JSON. For a failed proof it gives the goal, the items it depends on, and often a counterexample, with whether the interpreter reproduces it.
 
@@ -31,9 +31,9 @@ The full semantics is `docs/b17-0.md`, cited here as §2 to §12. When the two d
 - **The header** comes first: `purpose`, `invariants` and `failures`, each a string.
 - **Items** follow in any order: `spec`, `def`, `ghost-fn` and `lemma`. A `def` implements the `spec` of the same name and never repeats its contracts (D39).
 - **The spec's clauses** are `params`, `returns`, then `requires` and `ensures` if present, and always `effects`. Leave out an empty `requires` or `ensures` rather than writing `(requires)` (D54).
-- **Clause order is fixed** (§2). A `ghost-fn` is `(ghost-fn NAME (param*) TYPE (requires e)* (decreases e)? (body e))`. A `lemma` is `(lemma NAME (params ...) (requires e*)? (ensures e*)? (decreases e)? (body stmt*))`. A `def` is `(def NAME (decreases e)? (body stmt*))`.
+- **Clause order is fixed** (`b17-0.md` §2). A `ghost-fn` is `(ghost-fn NAME (param*) TYPE (requires e)* (decreases e)? (body e))`. A `lemma` is `(lemma NAME (params ...) (requires e*)? (ensures e*)? (decreases e)? (body stmt*))`. A `def` is `(def NAME (decreases e)? (body stmt*))`.
 - **Effects** appear at most once each, in the order `alloc`, `panic`, `io`.
-- **Layout** is free, but only whitespace may differ from the canonical form (§2):
+- **Layout** is free, but only whitespace may differ from the canonical form (`b17-0.md` §2):
   - whitespace is space, tab, line feed or carriage return, and list elements need at least one between them;
   - there are no comments;
   - integers have no `+`, no leading zeros and no `-0`, and `(neg 5)` is written `-5`;
@@ -76,7 +76,7 @@ The examples below show only items. Each sits in a module with a header, like th
 | `(ref (slice T))` | a spec's parameters only | a borrowed vector, read-only |
 | `(seq T)`, `(multiset T)` | ghost code only | sequences and multisets of `bool`, `i64` or `int` |
 
-- **Collections don't nest** in B17-0, and there are no tuples, data types, strings or floats (§11).
+- **Collections don't nest** in B17-0, and there are no tuples, data types, strings or floats (`b17-0.md` §11).
 - **Runtime code has no conversions** (D34): `i64` never mixes with `bool`.
 - **In ghost code,** `i64` is a subtype of `int`, a vector or slice is viewed as a `seq`, and `(seq T)` and `(multiset T)` are subtypes of `(seq U)` and `(multiset U)` when T is of U (D107).
   - **So they compare:** `(multiset a)`, for a vector `a` of `i64`, compares with the multiset of a `(seq int)`, such as a core ghost-fn's result.
@@ -250,7 +250,7 @@ A lemma is ghost code, so it can't call a def.
 
 ## 8. Ownership
 
-Vectors are owned and move. Slices are borrows that never outlive the call they're passed to. There are no lifetimes (§5, D36).
+Vectors are owned and move. Slices are borrows that never outlive the call they're passed to. There are no lifetimes (`b17-0.md` §5, D36).
 
 1. **Copying and moving.** `bool`, `i64` and slices are copied. Vectors move when used whole: as a `let` initializer, the right side of `set`, an owned argument or in `return`. `len`, `idx`, `borrow` and ghost code read a vector without moving it.
 2. **Use after move** is `E-OWN-001`, until `set` gives the variable a new value. Ghost code may read any binding, moved or not, and a moved parameter still denotes its entry value.
@@ -323,7 +323,7 @@ Use an `if` statement with a `return` or a `set` in each branch instead.
 
 ## 9. Effects
 
-A spec's `effects` lists what its def may do, in the order `alloc`, `panic`, `io`. `push` and a runtime `seq-build` have `alloc`, `panic` has `panic`, `print` has `io`, `vec-new` has none, and a call has its callee's effects. A statement's effects include everything inside it. An empty `(effects)` promises none of them (§6).
+A spec's `effects` lists what its def may do, in the order `alloc`, `panic`, `io`. `push` and a runtime `seq-build` have `alloc`, `panic` has `panic`, `print` has `io`, `vec-new` has none, and a call has its callee's effects. A statement's effects include everything inside it. An empty `(effects)` promises none of them (`b17-0.md` §6).
 
 `ensures` constrain only normal returns. Leaving out `panic` rules out `(panic ...)`. The runtime errors the proof goals rule out, and allocation failure, which aborts, are outside the effects.
 
@@ -363,7 +363,7 @@ A spec's `effects` lists what its def may do, in the order `alloc`, `panic`, `io
 
 ## 11. Proof goals
 
-Once a module passes tier 0, the verifier sends one goal per obligation to Z3 (§9). Each one below fails, and the text after it says how to fix it. Every goal is assumed once it's generated, so one wrong step reports only that step.
+Once a module passes tier 0, the verifier sends one goal per obligation to Z3 (`b17-0.md` §9). Each one below fails, and the text after it says how to fix it. Every goal is assumed once it's generated, so one wrong step reports only that step.
 
 <!-- expect: E-PROOF-BOUNDS -->
 ```lisp
@@ -451,7 +451,7 @@ Every `return` must establish the `ensures`, and so must the end of a lemma's bo
 
 An `assert` must follow from what's known at that point.
 
-**Stating ranges** (§10, D60). A computation whose values must fit in `i64` should require it in the terms each step uses, so every overflow goal has its fact at hand. `sum` requires each partial sum plus its next element to fit:
+**Stating ranges** (`b17-0.md` §10, D60). A computation whose values must fit in `i64` should require it in the terms each step uses, so every overflow goal has its fact at hand. `sum` requires each partial sum plus its next element to fit:
 
 <!-- expect: ok -->
 ```lisp
@@ -478,11 +478,73 @@ An `assert` must follow from what's known at that point.
 
 ## 12. The core library
 
-In scope in every module, with names reserved (§9, D51):
-- **`(sorted s)`:** every element at most each later one.
-- **`(in_i64 x)`:** x lies in [-2^63, 2^63).
-- **`(seq_update s i e)`:** s with element i replaced by e. WP16 added it to `b17c/core.b17`, after §9 was written.
-- **Laws, as lemmas you call:** `b17c/core.b17` holds 33, among them `law_take_step`, `law_idx_concat` and `law_le_trans`. Read their exact signatures there. The verifier already states §9's facts as axioms, so you call a law only to point a proof at a particular instance.
+`b17c/core.b17` is in scope in every module, and its names are reserved (D51). These are all its items, one per line, with each law's empty `(body)` left out:
+
+<!-- core items -->
+```lisp
+(ghost-fn sorted ((s (seq int))) bool (body (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i j)) (< j (len s))) (<= (idx s i) (idx s j))))))
+(ghost-fn in_i64 ((x int)) bool (body (and (<= -9223372036854775808 x) (< x 9223372036854775808))))
+(ghost-fn seq_update ((s (seq int)) (i int) (e int)) (seq int) (requires (and (<= 0 i) (< i (len s)))) (body (concat (take s i) (concat (seq-lit e) (drop s (+ i 1))))))
+(lemma law_i64_range (params (x i64)) (ensures (in_i64 x)))
+(lemma law_vec_len_range (params (v (vec i64))) (ensures (< (len v) 9223372036854775808)))
+(lemma law_len_nonneg (params (s (seq int))) (ensures (>= (len s) 0)))
+(lemma law_len_unit (params (x int)) (ensures (== (len (seq-lit x)) 1)))
+(lemma law_len_concat (params (s (seq int)) (t (seq int))) (ensures (== (len (concat s t)) (+ (len s) (len t)))))
+(lemma law_len_take (params (s (seq int)) (k int)) (requires (and (<= 0 k) (<= k (len s)))) (ensures (== (len (take s k)) k)))
+(lemma law_len_drop (params (s (seq int)) (k int)) (requires (and (<= 0 k) (<= k (len s)))) (ensures (== (len (drop s k)) (- (len s) k))))
+(lemma law_idx_concat (params (s (seq int)) (t (seq int)) (i int)) (requires (and (<= 0 i) (< i (+ (len s) (len t))))) (ensures (== (idx (concat s t) i) (if (< i (len s)) (idx s i) (idx t (- i (len s)))))))
+(lemma law_idx_take (params (s (seq int)) (k int) (i int)) (requires (and (and (<= 0 i) (< i k)) (<= k (len s)))) (ensures (== (idx (take s k) i) (idx s i))))
+(lemma law_idx_drop (params (s (seq int)) (k int) (i int)) (requires (and (and (<= 0 k) (<= k (len s))) (and (<= 0 i) (< i (- (len s) k))))) (ensures (== (idx (drop s k) i) (idx s (+ i k)))))
+(lemma law_last (params (s (seq int))) (requires (> (len s) 0)) (ensures (== (last s) (idx s (- (len s) 1)))))
+(lemma law_take_all (params (s (seq int))) (ensures (== (take s (len s)) s)))
+(lemma law_take_none (params (s (seq int))) (ensures (== (take s 0) (seq-lit))))
+(lemma law_take_take (params (s (seq int)) (k int) (j int)) (requires (and (and (<= 0 j) (<= j k)) (<= k (len s)))) (ensures (== (take (take s k) j) (take s j))))
+(lemma law_take_step (params (s (seq int)) (i int)) (requires (and (<= 0 i) (< i (len s)))) (ensures (== (take s (+ i 1)) (concat (take s i) (seq-lit (idx s i))))))
+(lemma law_seq_ext (params (s (seq int)) (t (seq int))) (requires (and (== (len s) (len t)) (forall ((i int)) (=> (and (<= 0 i) (< i (len s))) (== (idx s i) (idx t i)))))) (ensures (== s t)))
+(lemma law_contains (params (s (seq int)) (x int)) (ensures (== (contains s x) (exists ((i int)) (and (and (<= 0 i) (< i (len s))) (== (idx s i) x))))))
+(lemma law_contains_concat (params (s (seq int)) (t (seq int)) (x int)) (ensures (== (contains (concat s t) x) (or (contains s x) (contains t x)))))
+(lemma law_contains_unit (params (y int) (x int)) (ensures (== (contains (seq-lit y) x) (== x y))))
+(lemma law_contains_none (params (s (seq int)) (x int)) (ensures (not (contains (take s 0) x))))
+(lemma law_occurrences_concat (params (s (seq int)) (t (seq int)) (x int)) (ensures (== (occurrences (concat s t) x) (+ (occurrences s x) (occurrences t x)))))
+(lemma law_occurrences_unit (params (y int) (x int)) (ensures (== (occurrences (seq-lit y) x) (if (== x y) 1 0))))
+(lemma law_occurrences_none (params (s (seq int)) (x int)) (ensures (== (occurrences (take s 0) x) 0)))
+(lemma law_multiset_occurrences (params (s (seq int)) (t (seq int)) (x int)) (requires (== (multiset s) (multiset t))) (ensures (== (occurrences s x) (occurrences t x))))
+(lemma law_multiset_concat (params (s (seq int)) (t (seq int))) (ensures (== (multiset (concat s t)) (msum (multiset s) (multiset t)))))
+(lemma law_update_len (params (s (seq int)) (i int) (e int)) (requires (and (<= 0 i) (< i (len s)))) (ensures (== (len (seq_update s i e)) (len s))))
+(lemma law_update_at (params (s (seq int)) (i int) (e int)) (requires (and (<= 0 i) (< i (len s)))) (ensures (== (idx (seq_update s i e) i) e)))
+(lemma law_update_other (params (s (seq int)) (i int) (e int) (k int)) (requires (and (and (<= 0 i) (< i (len s))) (and (and (<= 0 k) (< k (len s))) (!= k i)))) (ensures (== (idx (seq_update s i e) k) (idx s k))))
+(lemma law_le_refl (params (a int)) (ensures (<= a a)))
+(lemma law_le_trans (params (a int) (b int) (c int)) (requires (and (<= a b) (<= b c))) (ensures (<= a c)))
+(lemma law_le_antisym (params (a int) (b int)) (requires (and (<= a b) (<= b a))) (ensures (== a b)))
+(lemma law_le_total (params (a int) (b int)) (ensures (or (<= a b) (<= b a))))
+(lemma law_lt_succ (params (a int) (b int)) (requires (< a b)) (ensures (<= (+ a 1) b)))
+```
+
+- **The ghost-fns:** `sorted`, `in_i64` for stating ranges, and `seq_update`, which is s with element i replaced by e. Callers see their bodies.
+- **The laws** are lemmas you call. The verifier already knows them, since each is one of `b17-0.md` §9's background facts or the laws of integer order, or follows directly from them and `seq_update`'s body. So you call a law only to point a proof at a particular instance. They're stated over `int`, and every `i64` collection fits (§3 below).
+- **Three more facts** are known with no law to call (`b17-0.md` §9):
+  - after `(set-idx v i e)`, v has the same length, `(idx v i)` is e, every other element is unchanged, and `(multiset v)` loses one count of the old `(idx v i)` and gains one of e;
+  - after `(push v e)`, v is `(concat v (seq-lit e))`;
+  - two multisets are equal when every count is.
+
+So a swap keeps a vector's multiset with no lemma, and a sort's invariant `(== (multiset v) (multiset a))` holds across each swap with no help:
+
+<!-- expect: ok -->
+```lisp
+(spec swap
+  (params (a (vec i64)) (i i64) (j i64))
+  (returns (r (vec i64)))
+  (requires (and (and (<= 0 i) (< i (len a))) (and (<= 0 j) (< j (len a)))))
+  (ensures (== (multiset r) (multiset a)))
+  (effects))
+(def swap
+  (body
+    (let-mut v (vec i64) a)
+    (let t i64 (idx v i))
+    (set-idx v i (idx v j))
+    (set-idx v j t)
+    (return v)))
+```
 
 ## 13. The toolchain
 

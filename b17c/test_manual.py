@@ -1,5 +1,6 @@
 """WP8's done-when: every example in docs/manual.md has the outcome it states, and every code in
-docs/b17-0.md §9 has an example. uv run --no-project b17c/test_manual.py
+docs/b17-0.md §9 has an example. The manual lists b17c/core.b17's items as they are, since the
+prompt doesn't include that file. uv run --no-project b17c/test_manual.py
 
 An example is a ```lisp block right after a line `<!-- expect: OUTCOME -->`. OUTCOME is `ok`, a
 tier 0 code such as E-OWN-001, or a proof family such as E-PROOF-POST. A block that isn't a whole
@@ -13,7 +14,7 @@ from pathlib import Path
 
 import check as C
 import verify as V
-from syntax import ParseError, parse
+from syntax import ParseError, canonical, parse
 
 ROOT = Path(__file__).resolve().parent.parent
 MANUAL = (ROOT / "docs" / "manual.md").read_text()
@@ -58,6 +59,13 @@ for first, last in re.findall(r"^\| `(E-[A-Z0-9-]+)`(?: to `(E-[A-Z0-9-]+)`)? \|
 missing = sorted(codes - seen)
 if missing:
     failures.append(f"codes with no example: {', '.join(missing)}")
+
+# §12 lists every core item on its canonical line, without a law's empty body.
+core = canonical(parse((ROOT / "b17c" / "core.b17").read_bytes()))[:-1].decode().splitlines()[1:]
+core = [l.removesuffix(" (body))") + ")" if l.startswith("(lemma ") else l for l in core]
+listed = re.search(r"<!-- core items -->\n```lisp\n(.*?)```", MANUAL, re.S)
+if not listed or listed[1].splitlines() != core:
+    failures.append("§12's core items differ from b17c/core.b17's")
 
 assert not failures, "\n".join(failures)
 print(f"manual self-check passed: {len(EXAMPLE.findall(MANUAL))} examples, all {len(codes)} codes covered"
