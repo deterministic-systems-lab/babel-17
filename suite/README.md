@@ -53,11 +53,10 @@ The labels were first checked by review: by the author, and by an independent mo
 | `trie_insert` | A vector of optional nodes, places, `replace`, a runtime `seq-build` of nodes | Verified, with D99 applying a lemma at every key |
 | `lca` | `option` throughout | Verified, with D99 applying three induction lemmas at every value |
 | `bfs` | A graph record, nested vectors, a quantifier over paths | Verified, with its invariants as folded predicates and each update a lemma |
-| `kruskal` | Tuples in a vector | Spanning tree verified; minimum weight not yet |
+| `kruskal` | Tuples in a vector | Verified, with an exchange argument for its minimum weight |
 | `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
-- **Spanning tree verified:** every goal but the postcondition proves, including an `assert` that the result is a spanning tree: its edges are the graph's, it connects every pair of vertices, and it has n − 1 edges. Only the postcondition's other half is open, that no spanning tree weighs less.
 
 D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
 
@@ -71,6 +70,12 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 - **`kruskal`'s implementation was wrong for its spec.**
   - **The bug:** AlgoVeri's spec calls the graph undirected, but never requires an edge to be listed from both ends, so a graph whose edges run one way satisfies every `requires`. The port collected only edges `(u, v)` with `u < v` from `u`'s list, so it ignored an edge listed only from its larger end. On the cycle `0 → 2 → 1 → 0` it returned one edge for three vertices.
   - **The fix:** it now adds, round by round, the lightest edge joining two components. It scans each stored entry once, and treats it as joining its two endpoints whichever way it's listed. That's Kruskal's greedy rule without a separate sort. It's a test case in `test_interp.py`.
+- **How `kruskal`'s proof goes:**
+  - **Spanning tree:** the loop keeps component labels, and an invariant that vertices with the same label are joined by the tree so far. When one label is left, every pair of vertices is connected.
+  - **Minimum weight:** the loop also keeps the invariant `good`. For every spanning tree o, some spanning tree no heavier than o starts with the tree so far. It holds for the empty tree, with o itself.
+  - **One round:** the scan picks an edge (a, b) no heavier than any edge between two components. Take the spanning tree that `good` gives, and a path in it from b to a. Where that path first enters a's component, it uses some edge f between two components, so f weighs at least as much. Putting the new edge at the tree's next index, and moving the edge that was there into f's place, gives a spanning tree that is no heavier and starts with the extended tree. The path's earlier steps avoid f, so f's ends stay connected.
+  - **The end:** the result has n − 1 edges, so the spanning tree that starts with it is the result itself, and it weighs no more than any spanning tree.
+  - **No change to the language:** the proof needed none. Its first version left 4 goals unproved. Three were `forall` statements passing indexed terms, where D99 wants binders, and one was an invariant that needed an earlier `assert`. Mutants then showed that 13 of its `assert`s, two lemmas and one invariant were redundant, and they were removed.
 - **How the large proofs fit (D106):**
   - **First attempt:** `bfs`'s first full proof didn't verify. Each of its loop's goals carried some twenty quantified invariants, with `is_path` inlined into each, and Z3 ran out of budget.
   - **Two changes made it verify.** In B17-1, a non-recursive ghost-fn is folded, so it unfolds only where a proof applies it (D106). And each invariant became a folded predicate, such as `(sorted_q dist queue)`, with each update's effect on it proved by a small lemma.
