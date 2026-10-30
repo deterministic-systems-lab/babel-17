@@ -55,7 +55,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - On the hard run, 65 AlgoVeri and 28 vericoding tasks, Claude verified 92 of 93, Codex 90 and Grok all 49 it finished before its balance ran out.
   - Claude's only failure, `rod_cutting`, has a spec no program can satisfy, so it's removed. Every set is near the ceiling, vericoding's included.
 - **M3's first run** (`20261029T232328Z-claude-codex`): the seed tasks in B17-0, 3 samples each. Claude verified 59 of 60 and Codex 55, against 120 of 120 each in Dafny's two seed runs. Every verdict reproduced.
-  - **Every failure is on `insertion_sort` or `partition`.** The verifier knows how `set-idx` changes a vector's multiset, so a swap keeps it with no proof, but the manual doesn't say so. The round-1 passes relied on it, and the failures tried to prove it themselves.
+  - **Every failure is on `insertion_sort` or `partition`.** The verifier knows how `set-idx` changes a vector's multiset, so a swap keeps it with no proof, but the manual didn't say so. The round-1 passes relied on it, and the failures tried to prove it themselves.
   - **What stopped them:** for Codex, multisets of `int` and `i64` not comparing (D70), which got 26 of its 104 calls rejected, and swap lemmas it couldn't prove. For Claude, a gap in the encoding: equal sequences don't give equal multisets.
   - **Tokens:** the manual adds about 11k input tokens to each of Claude's calls and 8k to Codex's. On the 18 other tasks, Claude thinks about nine times as much as in Dafny, and Codex about as much.
   - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
@@ -88,7 +88,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Not yet:** repairs, which wait for WP2's typed edits.
 - **WP8, the agent reference manual,** is done for B17-0: `docs/manual.md`.
   - **Every rule and every code:** it covers all 25 codes of §9, each with a minimal example and the fix, along with the rules an agent writing B17-0 needs.
-  - **Every example is checked:** `test_manual.py` holds each of its 37 examples to its stated outcome, tier 0 in CI and proofs with Z3, and fails if a code loses its example.
+  - **Every example is checked:** `test_manual.py` holds each of its 38 examples to its stated outcome, tier 0 in CI and proofs with Z3, and fails if a code loses its example or its list of `core.b17`'s items drifts from the file.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
@@ -97,7 +97,7 @@ None new. D79–D101 were accepted on 2026-10-28, and D102–D107, D110 and D111
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D106 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. All ten of its accept programs verify, `kruskal`'s minimum spanning tree included.
 2. **M3 on the seed tasks** has had its first run ([above](#recent-and-current-work)). Before the next one:
-   - **The manual (WP8):** state §9's update facts, `set-idx`'s multiset effect among them. List the core laws' signatures, since the prompt doesn't include `core.b17`, and say which document's §9 is meant.
+   - **The manual (WP8): done.** It lists all 36 of `core.b17`'s items, the laws' signatures among them, since the prompt doesn't include the file. It states the three facts no law covers, `set-idx`'s multiset effect among them, with a checked swap that needs no lemma. And it cites `b17-0.md`'s sections by name, so its own §9 isn't mistaken for them.
    - **The encoding (WP5):** an extensionality axiom for sequences, which §9's definition of equality makes sound, checked against the suite's solve times.
    - **The checker (WP3): D107 is in.** Ghost multisets are covariant in both subsets, and B17-1's sets and maps too, so `(multiset i64)` compares with `(multiset int)`. B17-0 is at v1.1, and every suite and core query is byte-identical.
      - **Replayed on the run's recorded attempts:** 10 of Codex's rounds rejected for D70 now pass tier 0, though none verifies as written.
@@ -179,7 +179,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 ## Open questions that shape the plan
 
-- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). M3's first run doesn't settle it: B17-0's gap on the seed tasks traces mostly to a fact the manual leaves out, and a rerun with it fixed will show whether any gap is left. What makes a task hard for them, and how to show it in advance, is open.
+- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). M3's first run doesn't settle it: B17-0's gap on the seed tasks traces mostly to a fact the manual left out, which it now states, and a rerun will show whether any gap is left. What makes a task hard for them, and how to show it in advance, is open.
 - **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost. In M3's first run no overflow goal failed, since the frozen specs already state ranges per step. A cost showed up in typing instead: 26 of Codex's 104 calls were rejected because multisets of `int` and `i64` don't compare (D70).
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a model. WP6 solves it again against only the axioms it mentions, and the interpreter replays the model (D93). That found one for each of the suite's 9 proof rejects, and 8 replayed. How often it works on harder programs is open.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).
