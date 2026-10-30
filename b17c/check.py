@@ -792,9 +792,11 @@ class _Checker:
     def declare(self, sym, bind):
         """Bind a local in the innermost scope; it's visible to the end of that scope (D66). A
         name already declared keeps the binding in scope, so its uses don't report again (D78)."""
-        if sym.text not in self.names and self.lookup(sym.text) is not None:  # a binder or result (D41)
+        if sym.text not in self.names and self.lookup(sym.text) is not None:  # a binder or result (D109)
             self.report("E-TYPE-002", sym, f"'{sym.text}' is already declared in this item (D41)")
-        self.unique(sym, self.names)
+            self.names.add(sym.text)
+        else:
+            self.unique(sym, self.names)
         if self.lookup(sym.text) is None:
             self.scopes[-1][sym.text] = bind
             self.moves.pop(sym.text, None)
@@ -1670,9 +1672,10 @@ class _Checker:
     # B17-1's expressions (docs/b17-1.md §4, §5, §7).
 
     def construct(self, x, g, want, own):
-        """(C e*): a value of C's data type, its type parameters inferred from the arguments and
-        then from the destination (§4, §7). In runtime code a moving one is an owned position's
-        whole value (§5 rule 7), and a constructor with a boxed field allocates (§6)."""
+        """(C e*): a value of C's data type, its type parameters taken from the destination and
+        then from the arguments (§4, §7, D109). In runtime code it has a runtime type (§3), a
+        moving one is an owned position's whole value (§5 rule 7), and a constructor with a boxed
+        field allocates (§6)."""
         name, args = x.items[0], x.items[1:]
         dname, i = self.ctors[name.text]
         d = self.datas[dname]
@@ -1690,17 +1693,17 @@ class _Checker:
         got = [self.part(a, subst(ft, given), g, own or BRANCH) for a, (_, ft) in zip(args, fs)]
         for u, (_, ft) in zip(got, fs):
             self.unify(ft, u, env)
+        t = ("data", dname) + tuple(env.get(a, INT if g else I64) for a in d.params)  # §4: open with no destination
+        ghost = not g and not self.has_any(t) and not self.runtime(t)  # reported below, not per argument (D78)
         for a, u, (_, ft) in zip(args, got, fs):  # every argument fixes the parameters, then each is checked
-            if not self.fits(u, subst(ft, env), g):
+            if not ghost and not self.fits(u, subst(ft, env), g):
                 self.report("E-TYPE-001", a, f"expected {show(subst(ft, env))}, found {show(u)}")
         for a in args[len(fs):]:
             self.expr(a, g)
         self.quiet = quiet
-        env = {a: env.get(a, INT if g else I64) for a in d.params}  # §4: open with no destination
-        t = ("data", dname) + tuple(env.get(a, ANY) for a in d.params)
         if not self.has_any(t) and not self.check_app(x, t):
             return ERR
-        if not g and not self.has_any(t) and not self.runtime(t):
+        if ghost:
             self.report("E-GHOST-002", x, f"{show(t)} is a ghost type, so runtime code can't build it (§3)")
             return ERR
         if not g:
@@ -1741,7 +1744,8 @@ class _Checker:
             if not self.fits(u, w, g):
                 self.report("E-TYPE-001", a, f"expected {show(w)}, found {show(u)}")
         if not g and self.moving(t) and not own:
-            self.report("E-OWN-006", x, "a moving tuple is built only as an owned position's whole value (§5 rule 7)")
+            self.report("E-OWN-006", x, "a moving tuple is built only as an owned position's whole value, and never as a "
+                                        "call's argument (docs/b17-1.md §5 rule 7, D73)")
         return t
 
     def e_match(self, x, g, want, own):

@@ -360,7 +360,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** "One way to say it", while still allowing the early returns agents write naturally in search loops.
 - **Touches:** `docs/b17-0.md` §7, §9.
 
-## D41 · No shadowing · Accepted (refined by D66)
+## D41 · No shadowing · Accepted (refined by D66 and D109)
 - **Date:** 2026-10-27
 - **Decision:**
   - Item names are unique within a module, except that a `spec` and its `def` share one name.
@@ -1514,17 +1514,30 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note say so. B17-0's language doesn't change: §9 already defined equality this way. So it stays at version 1.1.
 - **Touches:** D61; D89; D103; WP5 (`b17c/goals.py`); interface 11's queries; `docs/b17-0.md` §9; `docs/b17-1.md` §9; `b17c/test_verify.py`.
 
-## D109 · B17-1's readings from its freeze review · Accepted (refines D73, D82, D92 and D110)
+## D109 · B17-1's readings from its freeze review · Accepted (refines D41, D73, D82, D92 and D110)
 - **Date:** 2026-10-30
-- **Decision:** before B17-1 freezes, `docs/b17-1.md` states six rules its draft left unclear or stated wrong. Each is what `b17c` already does, so no program's outcome changes.
+- **Decision:** before B17-1 freezes, `docs/b17-1.md` states seven rules its draft left unclear or stated wrong.
   - **Moving call arguments:** a call argument of a moving type is a variable, as D73 says of vectors. A constructor call, `tuple` or `(vec-new)` there is `E-OWN-006` (§5 rule 7).
   - **The core library's `option` counts for D92:** a module's data item with `option`'s spec hash, such as `(data maybe (a) (nothing) (just (v a)))`, is `E-TYPE-002` (§2).
-  - **Which operand types the other:** in `union`, `diff`, `inter`, `==` and `!=`, the second operand takes the first's type as its destination, unless only the first is a literal, which then takes the second's (§4). The draft named only a literal operand, and not `!=` or two literals.
-  - **Constructors take the destination first:** a constructor call's type parameters come from its destination, and then from its arguments (§4, §7). §7's draft said arguments first, and §4 the reverse.
-  - **Type parameters' names (D82):** data type names are unique within a module, and a type parameter may not reuse its item's other type names or be `option`. It hides any other data type of the same name within its item (§2). The draft made type parameters "unique within a module", which every data item with a parameter `t` would break, `option` included.
+  - **Which operand types the other:** in `union`, `diff`, `inter`, `==` and `!=`, the second operand takes the first's type as its destination when that type isn't `bool`, `i64` or `int`. When only the first is a literal, a set, map or sequence literal, `(vec-new)` or a constructor call, it takes the second's instead (§4). The draft named only a literal operand, and not `!=` or two literals. An integer comparison gives no destination, so in `(== x 9223372036854775808)` the literal is an `int`, as in B17-0.
+  - **Constructors take the destination first:** a constructor call's type parameters come from its destination, as set and map literals' do, and then from its arguments (§4, §7). §7's draft said arguments first. With the destination first, `(ghost-let x (option i64) (some 1))` is accepted, its 1 an `i64`.
+  - **Names (D82):**
+    - data type names are unique within a module;
+    - a type parameter may not reuse its item's other type names or be `option`, and it hides any other data type of the same name within its item (§2);
+    - `option` is reserved as a type name, and `none` and `some` as value names (§9).
+    - The draft made type parameters "unique within a module", which every data item with a parameter `t` would break, `option` included.
+  - **Case binders and the names in scope (D41):** a case binder may not reuse a name in scope: an enclosing binder's, or a result's in `ensures`. That is `E-TYPE-002`, as for a binder that reuses one (§2). The draft said only that case binders follow D41, which covers parameters and locals.
   - **D110's default:** its byte-identical output is now that of `--subset 0`, since B17-1 is the default subset once it freezes (D101).
-- **Why:** a fresh review of the frozen text against `b17c`, finishing the one Codex began before its quota ran out, found each one (ACTIVITY, 2026-10-30). After the freeze each would take a decision. Settling them now keeps the text and the tools in agreement at version 1.0.
+- **What changes:**
+  - **Five readings change no outcome,** since they are what `b17c` already did.
+  - **Two needed checker fixes, which made the code follow the text:** a type parameter named `option`, which the draft already forbade, and a case binder reusing an enclosing binder's or result's name.
+  - **The case-binder fix was a bug fix.** Tier 0 kept the outer binding while the interpreter, verifier and Rust backend bound the field, so a def returning a `(vec i64)` ran to a vector of booleans.
+- **Why:** a fresh review of the text against `b17c`, finishing the one Codex began before its quota ran out, found each of these, and a second review checked the fixes (ACTIVITY, 2026-10-30). After the freeze, each would take a decision. Settling them now keeps the text and the tools in agreement at version 1.0.
 - **Alternatives:**
   - **Change the tools instead.** Allowing a constructor as a moving call argument, or making operands symmetric, accepts more programs. That's a loosening, which can follow the freeze cheaply, as D107 did for B17-0. So the stricter readings freeze now.
   - **Leave the text as drafted.** Then the frozen text and the tools would disagree from the start, and every port would meet the difference.
-- **Touches:** D73; D82; D92; D101; D110; `docs/b17-1.md` §2, §4, §5 and §7; WP3 (`b17c/check.py`'s message for `E-OWN-006`).
+- **Touches:**
+  - D41; D73; D82; D92; D101; D110;
+  - `docs/b17-1.md` §2, §4, §5, §7 and §9;
+  - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
+  - `suite/b17-1/reject/`.

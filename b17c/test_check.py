@@ -469,6 +469,12 @@ if len(diagnose(module(TREE, spec("g", "(t tree)", ""), spec("f", "", "", "alloc
     failures.append("a constructor argument's parts were reported too")
 # Runtime code can't build a value of a ghost type (§3).
 bad1("E-GHOST-002", "(data gd () (ga) (gb (x int)))", spec("g", "", "(r i64)"), "(def g (body (return (match (ga) (case (ga) 1) (case (gb x) 2)))))")
+bad1("E-GHOST-002", "(data gd () (ga) (gb (x int)))", spec("g", "", "(r bool)"), "(def g (body (return (is gb (gb 1)))))")  # once (D78)
+# A case binder reusing a binder that reuses an item's name: one diagnostic each (D78).
+if len(diagnose(module("(ghost-fn h ((x int)) int (body x))", "(ghost-fn g ((o (option int))) bool (body (forall ((h int)) "
+                       "(match o (case (none) true) (case (some h) true)))))"), 1)) != 2:
+    failures.append("a case binder reusing a binder was reported twice")
+ok1("(ghost-fn big ((x i64)) bool (body (== x 9223372036854775808)))")  # an int literal takes no i64 destination (§4)
 ok1(TREE, spec("f", "(x i64)", "(r tree)", "alloc"), "(def f (body (let t tree (node x (leaf) (leaf))) (return t)))")
 bad1("E-OWN-007", TREE, "(data pair () (pair (fst tree) (snd tree)))", spec("f", "(p pair)", "(r tree)"),
      "(def f (body (return (field p fst))))")

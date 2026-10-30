@@ -1,4 +1,4 @@
-"""B17-0's proof goals (docs/b17-0.md §7, §9), one Z3 query each, for WP5's verifier.
+"""Proof goals, B17-0's (docs/b17-0.md §7, §9) and B17-1's (docs/b17-1.md §9), one Z3 query each, for WP5's verifier.
 
     uv run --no-project b17c/goals.py [--subset 0|1] [--seeds N] FILE...
 

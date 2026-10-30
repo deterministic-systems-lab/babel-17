@@ -94,7 +94,7 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 **Reject:** 54 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 48 with a tier 0 code and 6 with a proof family. The freeze review added six, for rules none covered.
 
 **How the labels are checked:**
-- **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
+- **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label. The six programs B17-1's freeze review added were checked by a fresh Claude reviewer instead, since Codex's quota had run out.
 - **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 64.
 - **Proof labels:** WP5's verifier, `b17c/verify.py --subset 1`, checks them. Each of the 6 fails exactly its labelled goal.
 - **Rust:** WP7's differential tests build each B17-1 program that passes tier 0 as a Rust crate, with `--subset 1`, and compare its runs with the interpreter's (D111). They cover the accept programs on the interpreter's inputs, and the two proof rejects whose defs reach `err BOUNDS` and `err FIELD`.
