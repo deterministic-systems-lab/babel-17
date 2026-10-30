@@ -1,7 +1,0 @@
-(module set_widening
-  (header
-    (purpose "Sets have no subtyping, so an (iset i64) isn't an (iset int).")
-    (invariants "None.")
-    (failures "None."))
-  (ghost-fn widen ((s (iset i64))) (iset int)
-    (body s)))

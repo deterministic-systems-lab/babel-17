@@ -1812,3 +1812,27 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Updated:** the roadmap's waiting decisions and M3 next steps.
 - **Interfaces touched:** interface 1's typing rules, once implemented.
 - **Proofs and tests added:** none.
+
+## 2026-10-29 · D107 implemented: ghost multisets, sets and maps covariant
+- **The checker (`b17c/check.py`):**
+  - **B17-0:** `join` and `sub` treat multisets as they treat sequences, so `(multiset i64)` joins `(multiset int)` at `(multiset int)`.
+  - **B17-1:** `join1` and `sub1` take tuples, data types, sets, maps and multisets component by component, through one helper, `alike`.
+  - **Operands that join:** `union`, `diff` and `inter` take two operands whose types join, and give the join. So does `msum`, through `join`.
+  - **The fixed point stays,** renamed from `covariant` to `unordered`: which data-type parameters reach an `iset`, `map` or `multiset`. It now only checks that no data type reaches itself inside one. Its subtyping uses are gone.
+- **Spec text:**
+  - **`docs/b17-0.md`:** version 1.1, and §3's rule.
+  - **`docs/b17-1.md`:** §3's subtyping, and the well-formedness rule now says the fixed point reaches through other types. Also §4's literal rule, whose reason changed: it still types integer literals, since `(iset-lit 1)` fits an `(iset i64)` only through it. And §7's set and map operations, §13's reject list and §14.
+  - **The manual's §3:** the rule, and advice to state ghost helpers' collections over `int`, where every `i64` collection fits.
+- **Suite:** `E-TYPE-001-iset-without-subtyping` became `E-TYPE-001-iset-narrowing`, which gives an `(iset int)` where an `(iset i64)` is expected. B17-1 still has 48 rejects.
+- **Byte-identical queries:** all 511 of B17-0's suite and core queries, and all 1,660 of B17-1's accept and proof-reject programs.
+- **Tests:**
+  - **`test_check.py`:** the three cases D107 named become accepts. New cases cover narrowing in both subsets, a covariant map of multisets, and set and map operands that join. They also cover `inter` of a bool set and an int set, and a `diff` whose join is wider than its destination. The indirect self-in-set case still fails.
+  - **`test_verify.py`:** a B17-0 spec comparing a vector's multiset with a `(multiset int)` proves, and a false version fails its postcondition.
+  - **Every self-check passes.** `test_rust.py` needs rustc and runs in CI.
+- **Replayed on M3's recorded attempts:** `reverify` won't run once `b17c` has changed, so the harness's own `verify` was called on each of the 175 records.
+  - **10 of Codex's 31 rejected rounds now pass tier 0,** all of them D70's multiset comparisons. None verifies as written. In the run, each got only the type error back, so its proof was never checked.
+  - **16 stay rejected for narrowing,** a `(seq int)` given where the agent had declared `(seq i64)`, which D107 keeps. With D107, declaring it `(seq int)` now works, which is the manual's new advice.
+  - **The other 5** are 2 for `occurrences` on a multiset, 2 unclosed parens and 1 undefined law.
+- **Updated:** the README's WP1a row and B17-0's version; the roadmap's gate table and M3 next steps.
+- **Interfaces touched:** interface 1's typing rules, as D107 says.
+- **Proofs and tests added:** as above.

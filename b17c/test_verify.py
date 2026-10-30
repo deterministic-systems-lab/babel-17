@@ -96,6 +96,12 @@ SORTS = """(module sorts (header (purpose "p") (invariants "i") (failures "f"))
   (spec wrap (params) (returns (v (vec bool))) (ensures (== v (seq-lit))) (effects))
   (def wrap (body (let w (vec bool) (vec-new)) (let ((n i64)) (call count (borrow w))) (return w))))"""
 assert all(r["verdict"] == "proved" for r in run(SORTS))
+# A (multiset i64) compares with a (multiset int) (D107), and the comparison means what it says.
+WIDE = """(module w (header (purpose "p") (invariants "i") (failures "f"))
+  (spec f (params (x i64)) (returns (r (vec i64))) (ensures (== (multiset r) (multiset (seq-lit (+ x 0))))) (effects alloc))
+  (def f (body (let-mut v (vec i64) (vec-new)) (push v x) (return v))))"""
+assert all(r["verdict"] == "proved" for r in run(WIDE))
+assert [r["family"] for r in run(WIDE.replace("(+ x 0)", "(+ x 1)")) if r["verdict"] != "proved"] == ["POST"]
 # A module that fails tier 0 has no goals; the error lists its diagnostics.
 try:
     run(SORTS.replace("(return a)", "(return b)"))

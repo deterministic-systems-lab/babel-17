@@ -1,0 +1,7 @@
+(module set_narrowing
+  (header
+    (purpose "Sets are covariant, but not the other way: an (iset int) isn't an (iset i64).")
+    (invariants "None.")
+    (failures "None."))
+  (ghost-fn narrow ((s (iset int))) (iset i64)
+    (body s)))

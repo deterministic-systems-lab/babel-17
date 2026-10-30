@@ -82,9 +82,13 @@ bad(f("(x i64)", "(r i64)", "(return (- x -9223372036854775809))"), "E-TYPE-001"
 ok(f("(x i64)", "(r i64)", "(return -9223372036854775808)",
      clauses="(ensures (< r 9223372036854775808) (> (* r 99999999999999999999) -1))"))
 bad(f("(x i64)", "(r i64)", "(ghost-let g i64 99999999999999999999) (return x)"), "E-TYPE-001", "9999")
-# D70: ghost arithmetic is int, and int isn't i64; (multiset T) has no subtyping.
+# D70: ghost arithmetic is int, and int isn't i64. D107: (multiset T) is covariant, but never narrows.
 bad(f("(x i64)", "(r i64)", "(ghost-let g i64 (+ x 1)) (return x)"), "E-TYPE-001", "(+ x 1)")
-bad(f("(a (vec i64))", "(r bool)", "(return true)", clauses="(ensures (== (multiset a) (multiset (seq-lit 1))))"),
+ok(f("(a (vec i64))", "(r bool)", "(return true)", clauses="(ensures (== (multiset a) (multiset (seq-lit 1))))"))
+ok(f("(a (vec i64))", "(r bool)", "(return true)",
+     clauses="(ensures (== (msum (multiset a) (multiset (seq-lit 1))) (multiset a)))"))
+bad(module("(ghost-fn g ((s (seq int))) (multiset i64) (body (multiset s)))"), "E-TYPE-001", "(multiset s)")
+bad(f("(a (vec i64))", "(r bool)", "(return true)", clauses="(ensures (== (multiset a) (multiset (seq-lit true))))"),
     "E-TYPE-001", "(== (multiset")
 G = ["(ghost-fn g ((n int)) int (body n))"]
 for body, snippet in [("(let y i64 true) (return y)", "true)"), ("(return (if (> x 0) 1 true))", "(if"),
@@ -102,7 +106,7 @@ for clause, snippet in [("(== (take x 0) (seq-lit))", "x 0)"),
                         ("(== (len (seq-lit (seq-lit 1))) 1)", "(seq-lit 1)"), ("(== (len (seq-lit 1 true)) 2)", "true"),
                         ("(== (len (concat (seq-lit 1) (seq-lit true))) 2)", "(concat"), ("(contains a true)", "true)"),
                         ("(== (msum a a) (multiset a))", "a a)"), ("(sorted a a)", "(sorted a a)"),
-                        ("(== (msum (multiset a) (multiset (seq-lit 1))) (multiset a))", "(msum (multiset a)")]:
+                        ("(== (msum (multiset a) (multiset (seq-lit true))) (multiset a))", "(msum (multiset a)")]:
     bad(f("(x i64) (a (vec i64))", "(r i64)", "(return x)", clauses=f"(ensures {clause})"), "E-TYPE-001", snippet)
 bad(module("(lemma l (params (n int)) (body (call g n)))", *G), "E-TYPE-001", "g n)")  # a ghost-fn isn't called
 bad(f("(x i64)", "(r i64)", "(return x) (return (+ x true))"), "E-TYPE-001", "true")  # unreachable, still checked
@@ -384,7 +388,13 @@ bad1("E-TYPE-001", "(data wrap (a) (wrap (xs (vec a))))", "(ghost-fn g ((w (wrap
 ok1("(data wrap (a) (wrap (xs (vec a))))", "(ghost-fn g ((w (wrap (option i64)))) bool (body true))")
 bad1("E-TYPE-002", "(data pair (a a) (pair (x a)))")  # a parameter twice
 ok1(BOX, "(ghost-fn g ((b (box i64))) (box int) (body b))")  # covariant (§3)
-bad1("E-TYPE-001", SETBOX, "(ghost-fn g ((b (bag i64))) (bag int) (body b))")  # invariant: a set holds it
+ok1(SETBOX, "(ghost-fn g ((b (bag i64))) (bag int) (body b))")  # covariant though a set holds it (D107)
+bad1("E-TYPE-001", SETBOX, "(ghost-fn g ((b (bag int))) (bag i64) (body b))")  # never narrowing
+ok1("(ghost-fn g ((m (map i64 (multiset i64)))) (map int (multiset int)) (body m))")
+ok1("(ghost-fn g ((a (iset i64)) (b (iset int))) (iset int) (body (union a b)))")  # operands join
+ok1("(ghost-fn g ((a (map int i64)) (b (map i64 int))) (map int int) (body (union a b)))")
+bad1("E-TYPE-001", "(ghost-fn g ((a (iset bool)) (b (iset int))) (iset int) (body (inter a b)))")
+bad1("E-TYPE-001", "(ghost-fn g ((a (iset i64)) (b (iset int))) (iset i64) (body (diff a b)))")
 bad1("E-TYPE-001", "(ghost-fn g ((p (tuple i64 bool))) (tuple int int) (body p))")
 ok1("(ghost-fn g ((p (tuple i64 bool))) (tuple int bool) (body p))")
 ok1("(data rose () (rose (kids (seq rose))))")  # a sequence may be empty: a finite value (§3)

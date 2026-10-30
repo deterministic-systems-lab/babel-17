@@ -32,7 +32,7 @@ CORE_NAMES = {it.items[1].text for it in CORE.items[3:]}
 GHOST_ONLY_1 = {"rank", "iset-lit", "iset-of", "map-lit", "union", "diff", "inter", "update", "lookup"}
 CORE1_TYPES = {it.items[1].text for it in CORE1.items[3:]}
 CORE1_CTORS = {c.items[0].text for it in CORE1.items[3:] for c in it.items[3:]}
-UNORDERED = ("iset", "map", "multiset")  # arrays in the encoding: no subtyping, and no type contains itself in one (§3)
+UNORDERED = ("iset", "map", "multiset")  # arrays in the encoding: no type contains itself in one (§3)
 
 
 @dataclass(frozen=True, order=True)
@@ -137,18 +137,21 @@ def join(a, b):
     if a[0] in SEQUENCES and b[0] in SEQUENCES:
         e = join(a[1], b[1])
         return None if e is None or e[0] in COLLECTIONS else ("seq", e)
-    if a[0] == b[0] and a[0] in ("vec", "slice", "multiset") and ANY in (a[1], b[1]):
+    if a[0] == b[0] == "multiset":  # covariant, as sequences are (D107)
+        e = join(a[1], b[1])
+        return None if e is None else ("multiset", e)
+    if a[0] == b[0] and a[0] in ("vec", "slice") and ANY in (a[1], b[1]):
         return (a[0], a[1] if b[1] == ANY else b[1])
-    return None  # D70: (multiset T) has no subtyping
+    return None
 
 
 def sub(t, u):
     """t <: u in ghost code (§3)."""
     if ERR in (t, u) or ANY in (t, u) or t == u or (t == I64 and u == INT):
         return True
-    if t[0] in SEQUENCES and u[0] == "seq":
+    if t[0] in SEQUENCES and u[0] == "seq" or t[0] == u[0] == "multiset":
         return sub(t[1], u[1])
-    if t[0] == u[0] and t[0] in ("vec", "slice", "multiset"):
+    if t[0] == u[0] and t[0] in ("vec", "slice"):
         return ANY in (t[1], u[1]) or t[1] == u[1]
     return False
 
@@ -184,7 +187,7 @@ class _Data:
     form: Form
     params: list = field(default_factory=list)  # [str]
     ctors: list = field(default_factory=list)   # [(name Sym, [(field Sym, type)])]
-    covariant: list = field(default_factory=list)  # per parameter (§3's variances)
+    unordered: list = field(default_factory=list)  # per parameter: reaches an iset, map or multiset (§3)
     recursive: bool = False                        # its fields mention it (§5 rule 1)
     boxed: list = field(default_factory=list)      # per constructor: a boxed field, so building one allocates (§6)
     # Properties that depend on the type's arguments: each holds when its base does and the arguments
@@ -431,7 +434,7 @@ class _Checker:
             graph[d.name] = [(e, None) for e in named if e != d.name]
             d.recursive = d.name in named
             d.boxed = [any(d.name in self.mentions(t, through_vec=False) for _, t in fs) for _, fs in d.ctors]
-            d.covariant = [True] * len(d.params)
+            d.unordered = [False] * len(d.params)
         for scc in _components(graph):  # reported at the later declaration, as the module reads
             later = max((self.datas[n].form.items[1] for n in scc), key=lambda x: x.pos)
             self.report("E-TERM-002", later, f"data types {' and '.join(sorted(scc))} contain each other "
@@ -450,16 +453,16 @@ class _Checker:
             if not d.finite:
                 self.report("E-TYPE-001", d.form.items[1], f"data type {d.name} has no finite value: every constructor "
                                                            f"needs one already (docs/b17-1.md §3)")
-        changed = True  # §3: the largest assignment of variances, starting covariant
+        changed = True  # §3: a least fixed point, through other types' parameters
         while changed:
             changed = False
             for d in self.datas.values():
                 for _, fs in d.ctors:
                     for _, t in fs:
-                        for a in self.invariant_params(t, False):
+                        for a in self.unordered_params(t, False):
                             k = d.params.index(a)
-                            if d.covariant[k]:
-                                d.covariant[k], changed = False, True
+                            if not d.unordered[k]:
+                                d.unordered[k], changed = True, True
         for d in self.datas.values():  # §3: never inside an iset, map or multiset, through other types too
             for c, (_, fs) in zip(d.form.items[3:], d.ctors):
                 for f, (_, t) in zip(c.items[1:], fs):
@@ -552,12 +555,12 @@ class _Checker:
 
     def unordered_occurrence(self, t, name, inside):
         """name occurs in t inside an iset, map or multiset, or as the argument for a parameter that
-        sits in one: the positions that make a parameter invariant (§3)."""
+        sits in one (§3)."""
         if t[0] == "data":
             if inside and t[1] == name:
                 return True
-            cov = self.datas[t[1]].covariant if t[1] in self.datas else []
-            return any(self.unordered_occurrence(a, name, inside or not (cov[k] if k < len(cov) else True))
+            un = self.datas[t[1]].unordered if t[1] in self.datas else []
+            return any(self.unordered_occurrence(a, name, inside or (un[k] if k < len(un) else False))
                        for k, a in enumerate(parts(t)))
         return any(self.unordered_occurrence(a, name, inside or t[0] in UNORDERED) for a in parts(t))
 
@@ -601,18 +604,18 @@ class _Checker:
             return _conj([self.inhabited(a) for a in parts(t)])
         return frozenset({frozenset()})  # bool, i64, int, and every collection, which may be empty
 
-    def invariant_params(self, t, inside):
-        """The type parameters occurring in t in an invariant position (§3)."""
+    def unordered_params(self, t, inside):
+        """The type parameters occurring in t inside an iset, map or multiset (§3)."""
         if t[0] == "param":
             return [t[1]] if inside else []
         out = []
         if t[0] == "data":
-            cov = self.datas[t[1]].covariant if t[1] in self.datas else []
+            un = self.datas[t[1]].unordered if t[1] in self.datas else []
             for k, a in enumerate(parts(t)):
-                out += self.invariant_params(a, inside or not (cov[k] if k < len(cov) else True))
+                out += self.unordered_params(a, inside or (un[k] if k < len(un) else False))
             return out
         for a in parts(t):
-            out += self.invariant_params(a, inside or t[0] in UNORDERED)
+            out += self.unordered_params(a, inside or t[0] in UNORDERED)
         return out
 
     def well_formed(self, node, slices, params):
@@ -715,12 +718,9 @@ class _Checker:
             return True
         if t[0] in SEQUENCES and u[0] == "seq":
             return self.sub1(t[1], u[1])
-        if t[0] == u[0] == "tuple" and len(t) == len(u):
+        if self.alike(t, u):  # covariant in every component (D107)
             return all(self.sub1(a, b) for a, b in zip(parts(t), parts(u)))
-        if t[0] == u[0] == "data" and t[1] == u[1] and len(t) == len(u):
-            cov = self.datas[t[1]].covariant
-            return all(self.sub1(a, b) if c else self.equal(a, b) for a, b, c in zip(parts(t), parts(u), cov))
-        if t[0] == u[0] and t[0] in ("vec", "slice") + UNORDERED and len(t) == len(u):
+        if t[0] == u[0] and t[0] in ("vec", "slice") and len(t) == len(u):
             return all(self.equal(a, b) for a, b in zip(parts(t), parts(u)))
         return False
 
@@ -731,9 +731,13 @@ class _Checker:
         return (t[0] == u[0] and len(t) == len(u) and (t[0] != "data" or t[1] == u[1])
                 and all(self.equal(a, b) for a, b in zip(parts(t), parts(u))))
 
+    def alike(self, t, u):
+        """t and u are tuples, sets, maps or multisets of one arity, or one data type's instances."""
+        return t[0] == u[0] and t[0] in ("tuple", "data") + UNORDERED and len(t) == len(u) and (t[0] != "data" or t[1] == u[1])
+
     def join1(self, a, b):
         """The least type both a and b convert to in B17-1's ghost code, or None: B17-0's join,
-        with any element type, and tuples and data types by their parameters' variance."""
+        with any element type, and the join of each component for the rest (D107)."""
         if a == ERR or b == ERR:
             return ERR
         if a == b or b == ANY:
@@ -745,17 +749,9 @@ class _Checker:
         if a[0] in SEQUENCES and b[0] in SEQUENCES:
             e = self.join1(a[1], b[1])
             return None if e is None else ("seq", e)
-        if a[0] == b[0] == "tuple" and len(a) == len(b):
+        if self.alike(a, b):
             es = [self.join1(x, y) for x, y in zip(parts(a), parts(b))]
-            return None if None in es else ("tuple",) + tuple(es)
-        if a[0] == b[0] == "data" and a[1] == b[1] and len(a) == len(b):
-            out = []
-            for x, y, c in zip(parts(a), parts(b), self.datas[a[1]].covariant):
-                j = self.join1(x, y) if c else (x if not self.has_any(x) else y) if self.equal(x, y) else None
-                if j is None:
-                    return None
-                out.append(j)
-            return ("data", a[1]) + tuple(out)
+            return None if None in es else a[:len(a) - len(es)] + tuple(es)
         if self.equal(a, b):
             return b if self.has_any(a) else a
         return None
@@ -1563,7 +1559,7 @@ class _Checker:
             return ERR
         j = self.join(a, b)
         if j is None:
-            self.report("E-TYPE-001", x, f"msum of {show(a)} and {show(b)} (D70)")
+            self.report("E-TYPE-001", x, f"msum of {show(a)} and {show(b)}, which don't join (§3)")
             return ERR
         return j
 
@@ -1831,8 +1827,8 @@ class _Checker:
         return ("map", k, v)
 
     def pair(self, x, kinds):
-        """The two operands of union, diff or inter, one of the kinds, of the same type; a literal
-        operand takes the other's type (§4)."""
+        """The two operands of union, diff or inter, one of the kinds, and their join (D107); a
+        literal operand takes the other's type (§4)."""
         a, b = x.items[1], x.items[2]
         if self.literal(a) and not self.literal(b):
             tb = self.expr(b, True)
@@ -1846,11 +1842,11 @@ class _Checker:
                 return ERR
         if ERR in (ta, tb):
             return ERR
-        if not self.equal(ta, tb) or ta[0] != tb[0]:
-            self.report("E-TYPE-001", x, f"{x.items[0].text} of {show(ta)} and {show(tb)}: sets and maps have no "
-                                         f"subtyping (§3)")
+        j = self.join(ta, tb)
+        if j is None:
+            self.report("E-TYPE-001", x, f"{x.items[0].text} of {show(ta)} and {show(tb)}, which don't join (§3)")
             return ERR
-        return tb if self.has_any(ta) else ta
+        return j
 
     def e_union(self, x, g, want, own):
         return self.pair(x, ("iset", "map"))
