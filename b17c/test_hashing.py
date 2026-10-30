@@ -7,14 +7,19 @@ import tempfile
 from pathlib import Path
 
 import hashing as h
-from syntax import parse
+import syntax
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 HERE = Path(__file__).resolve().parent
 SUITE = HERE.parent / "suite"
 
 
 def of(text):
-    return h.hashes(parse(text))
+    return h.hashes(parse(text), subset=0)
 
 
 def src(name):
@@ -37,7 +42,7 @@ def error(text, code):
 
 
 # The golden file: any machine must reproduce every accept program's hashes (D46).
-golden = [line for f in sorted((SUITE / "accept").glob("*.b17")) for line in h.report(parse(f.read_bytes()))]
+golden = [line for f in sorted((SUITE / "accept").glob("*.b17")) for line in h.report(parse(f.read_bytes()), subset=0)]
 assert golden == (HERE / "hashes.txt").read_text().splitlines()
 
 # D45's worked examples, through D46's preimages.
@@ -93,7 +98,7 @@ assert of(HEAD + " " + " ".join(CHAIN[::-1]) + ")") == dict(reversed(of(HEAD + "
 
 # B17-1 (D92). Every B17-0 item hashes as before under subset 1.
 for f in sorted((SUITE / "accept").glob("*.b17")):
-    assert h.report(parse(f.read_bytes())) == h.report(parse(f.read_bytes(), 1), 1), f
+    assert h.report(parse(f.read_bytes()), subset=0) == h.report(parse(f.read_bytes(), 1), 1), f
 of1 = lambda text: {k: v[1] for k, v in h.hashes(parse(HEAD + " " + text + ")", 1), 1).items()}
 for f in sorted((SUITE / "b17-1" / "accept").glob("*.b17")):  # a field's index comes from the checker's types
     assert h.report(parse(f.read_bytes(), 1), 1), f

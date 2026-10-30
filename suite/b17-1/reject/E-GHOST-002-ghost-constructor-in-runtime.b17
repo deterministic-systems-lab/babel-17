@@ -1,0 +1,13 @@
+(module is_empty
+  (header
+    (purpose "Runtime code can't build a value of a ghost data type.")
+    (invariants "None.")
+    (failures "None."))
+  (data cell () (empty) (full (n int)))
+  (spec is_empty
+    (params)
+    (returns (r bool))
+    (effects))
+  (def is_empty
+    (body
+      (return (is empty (empty))))))

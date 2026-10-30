@@ -8,10 +8,16 @@ import itertools
 from pathlib import Path
 
 import interp as i
-from syntax import Form, Int, Sym, _head, parse_expr
+import syntax
+from syntax import Form, Int, Sym, _head
+
+
+def parse_expr(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse_expr(text, subset)
+
 
 CORE = i.CORE
-PROGRAM = i._Program(CORE)  # built once; value() would rebuild it for every point
+PROGRAM = i._Program(CORE, subset=0)  # built once; value() would rebuild it for every point
 # Negative elements and two longer sequences, so laws such as "last s >= 0" or "len s <= 3" fail.
 SEQS = ([()] + [s for n in (1, 2, 3) for s in itertools.product((-1, 0, 2), repeat=n)]
         + [(3, -2, 3, 0, -2), (5, 4, 3, 2, 1, 0)])

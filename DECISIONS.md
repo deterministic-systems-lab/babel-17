@@ -360,7 +360,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** "One way to say it", while still allowing the early returns agents write naturally in search loops.
 - **Touches:** `docs/b17-0.md` §7, §9.
 
-## D41 · No shadowing · Accepted (refined by D66)
+## D41 · No shadowing · Accepted (refined by D66 and D109)
 - **Date:** 2026-10-27
 - **Decision:**
   - Item names are unique within a module, except that a `spec` and its `def` share one name.
@@ -799,7 +799,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The rule says "at most once among a call's arguments, whether owned or borrowed", which on the strict reading covers any appearance. Counting per argument keeps the rule about aliasing between arguments. It matches Rust, which rejects `f(v, v.len())` and `(v, v.len())`.
 - **Touches:** WP3; D36; `docs/b17-0.md` §5, §7.
 
-## D73 · An owned vector argument is a variable · Accepted
+## D73 · An owned vector argument is a variable · Accepted (refined by D109)
 - **Date:** 2026-10-28
 - **Decision:** An argument for a `(vec T)` parameter must be a variable, which then moves (§7). `(vec-new)`, a `seq-build` or any other expression in that place is `E-OWN-006`.
 - **Why:** §7 says "An owned vector argument must be a live variable, which then moves." `E-OWN-006` is already the code for a vector expression of the wrong form. A program writes `(let-mut v (vec i64) (vec-new))` first and passes `v`.
@@ -962,7 +962,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The form of a constructor call:** it matches the ghost-fn call agents already write, and the name tells them apart.
 - **Touches:** D47; D79; `docs/b17-1.md` §2, §7; interfaces 1 and 6.
 
-## D82 · Types and values have separate namespaces · Accepted
+## D82 · Types and values have separate namespaces · Accepted (refined by D109)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Type names:** data types and type parameters are unique within a module. They may not be a built-in type word or the core library's `option`.
@@ -1098,7 +1098,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
 - **Touches:** D63; D80; WP5; `docs/b17-1.md` §10.
 
-## D92 · How B17-1's data items and binders are hashed · Accepted (refines D45)
+## D92 · How B17-1's data items and binders are hashed · Accepted (refines D45; refined by D109)
 - **Date:** 2026-10-28
 - **Decision:** the format stays version 0 (D46). B17-0's items hash as before, and these rules cover B17-1's new forms.
   - **Data items** have only a spec hash, covering the whole item, as ghost-fns do. Inside one, its own name becomes `_`, its type parameters `$0`, `$1`, … in order, its constructors `#0`, `#1`, … in order, and its fields `.0`, `.1`, … across all its constructors in declaration order.
@@ -1373,7 +1373,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Alternatives:** a verifier error for such a module. That would be a type the checker accepts but no other tool can handle.
 - **Touches:** D83; D103; WP3; WP5; WP7; `docs/b17-1.md` §3 and §13; `suite/b17-1/`.
 
-## D110 · How B17-1 lowers to safe Rust · Accepted (extends D95)
+## D110 · How B17-1 lowers to safe Rust · Accepted (extends D95; refined by D109)
 - **Date:** 2026-10-29
 - **Decision:** with subset 1 (D101), `b17c/rust.py` turns each B17-1 module that passes tier 0 into one crate, as D95 does for B17-0. Without a subset, its output is the same, byte for byte, as before B17-1.
   - **Data types:** each data type the program uses becomes an enum in a module of its own, `data`, with a variant per constructor and its fields in order. Names Rust reserves become raw identifiers, as D95 says for values.
@@ -1513,3 +1513,31 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **One implication, in every query:** two of `lca`'s goals ran out of budget under one seed in 11. `lca` has no sequences, so only the prelude's growth moved them. That's why a query gets the axioms only when it compares sequences.
 - **Spec text:** `docs/b17-0.md` §9's encoding note and `docs/b17-1.md` §9's equality note say so. B17-0's language doesn't change: §9 already defined equality this way. So it stays at version 1.1.
 - **Touches:** D61; D89; D103; WP5 (`b17c/goals.py`); interface 11's queries; `docs/b17-0.md` §9; `docs/b17-1.md` §9; `b17c/test_verify.py`.
+
+## D109 · B17-1's readings from its freeze review · Accepted (refines D41, D73, D82, D92 and D110)
+- **Date:** 2026-10-30
+- **Decision:** before B17-1 freezes, `docs/b17-1.md` states seven rules its draft left unclear or stated wrong.
+  - **Moving call arguments:** a call argument of a moving type is a variable, as D73 says of vectors. A constructor call, `tuple` or `(vec-new)` there is `E-OWN-006` (§5 rule 7).
+  - **The core library's `option` counts for D92:** a module's data item with `option`'s spec hash, such as `(data maybe (a) (nothing) (just (v a)))`, is `E-TYPE-002` (§2).
+  - **Which operand types the other:** in `union`, `diff`, `inter`, `==` and `!=`, the second operand takes the first's type as its destination when that type isn't `bool`, `i64` or `int`. When only the first is a literal, a set, map or sequence literal, `(vec-new)` or a constructor call, it takes the second's instead (§4). The draft named only a literal operand, and not `!=` or two literals. An integer comparison gives no destination, so in `(== x 9223372036854775808)` the literal is an `int`, as in B17-0.
+  - **Constructors take the destination first:** a constructor call's type parameters come from its destination, as set and map literals' do, and then from its arguments (§4, §7). §7's draft said arguments first. With the destination first, `(ghost-let x (option i64) (some 1))` is accepted, its 1 an `i64`.
+  - **Names (D82):**
+    - data type names are unique within a module;
+    - a type parameter may not reuse its item's other type names or be `option`, and it hides any other data type of the same name within its item (§2);
+    - `option` is reserved as a type name, and `none` and `some` as value names (§9).
+    - The draft made type parameters "unique within a module", which every data item with a parameter `t` would break, `option` included.
+  - **Case binders and the names in scope (D41):** a case binder may not reuse a name in scope: an enclosing binder's, or a result's in `ensures`. That is `E-TYPE-002`, as for a binder that reuses one (§2). The draft said only that case binders follow D41, which covers parameters and locals.
+  - **D110's default:** its byte-identical output is now that of `--subset 0`, since B17-1 is the default subset once it freezes (D101).
+- **What changes:**
+  - **Five readings change no outcome,** since they are what `b17c` already did.
+  - **Two needed checker fixes, which made the code follow the text:** a type parameter named `option`, which the draft already forbade, and a case binder reusing an enclosing binder's or result's name.
+  - **The case-binder fix was a bug fix.** Tier 0 kept the outer binding while the interpreter, verifier and Rust backend bound the field, so a def returning a `(vec i64)` ran to a vector of booleans.
+- **Why:** a fresh review of the text against `b17c`, finishing the one Codex began before its quota ran out, found each of these, and a second review checked the fixes (ACTIVITY, 2026-10-30). After the freeze, each would take a decision. Settling them now keeps the text and the tools in agreement at version 1.0.
+- **Alternatives:**
+  - **Change the tools instead.** Allowing a constructor as a moving call argument, or making operands symmetric, accepts more programs. That's a loosening, which can follow the freeze cheaply, as D107 did for B17-0. So the stricter readings freeze now.
+  - **Leave the text as drafted.** Then the frozen text and the tools would disagree from the start, and every port would meet the difference.
+- **Touches:**
+  - D41; D73; D82; D92; D101; D110;
+  - `docs/b17-1.md` §2, §4, §5, §7 and §9;
+  - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
+  - `suite/b17-1/reject/`.

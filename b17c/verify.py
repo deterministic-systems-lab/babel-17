@@ -1,6 +1,6 @@
 """WP5's verifier: goals from WP3's types, cached and reported (D17, D22-D25, D63).
 
-    uv run --no-project b17c/verify.py [--subset 1] [--seeds N] [--cache DIR] [--report FILE] FILE
+    uv run --no-project b17c/verify.py [--subset 0|1] [--seeds N] [--cache DIR] [--report FILE] FILE
 
 checks every goal of FILE, prints each one that isn't proved, and a summary. A FILE that
 fails tier 0 has no goals: its diagnostics are printed instead, as `b17c/check.py` prints them. With
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import goals as G
 import hashing as H
-from syntax import Form, ParseError, Sym, _head, canonical as canonical_bytes
+from syntax import SUBSET, Form, ParseError, Sym, _head, canonical as canonical_bytes
 
 HERE = Path(__file__).resolve().parent
 SEEDS = 10
@@ -119,18 +119,18 @@ def _write(path, entry):
     os.replace(tmp, path)
 
 
-def verify(module, seeds=SEEDS, cache=CACHE, subset=0):
+def verify(module, seeds=SEEDS, cache=CACHE, subset=SUBSET):
     """Every goal of module: its node, contract clause, family, verdict, resource units and
     whether it came from the cache, plus the run's configuration. Raises ValueError, listing
     the diagnostics, if module fails tier 0."""
     return verify_goals(module, seeds, cache, subset)[2:]
 
 
-def verify_goals(module, seeds=SEEDS, cache=CACHE, subset=0):
+def verify_goals(module, seeds=SEEDS, cache=CACHE, subset=SUBSET):
     """verify(), with the goal generator and its goals, one per row, for WP6's diagnostics."""
     gen = G.Gen(module, subset)
     goals = gen.check(module)
-    hashes, core = H.hashes(module, subset), H.hashes(G.CORE)
+    hashes, core = H.hashes(module, subset), H.hashes(G.CORE, 0)
     ids, cfg, items = _node_ids(module, G.CORE), config(seeds), set(gen.defs)
 
     def check(g):
@@ -195,7 +195,7 @@ def report(module, rows, cfg):
 
 
 def main(argv):
-    seeds, cache, out, subset = SEEDS, CACHE, None, 0
+    seeds, cache, out, subset = SEEDS, CACHE, None, SUBSET
     while argv and argv[0] in ("--subset", "--seeds", "--cache", "--report") and len(argv) > 1:
         flag, val, argv = argv[0], argv[1], argv[2:]
         if flag == "--subset" and val in ("0", "1"):
@@ -207,7 +207,7 @@ def main(argv):
         else:
             out = Path(val)
     if len(argv) != 1:
-        print("usage: uv run --no-project b17c/verify.py [--subset 1] [--seeds N] [--cache DIR] [--report FILE] FILE",
+        print("usage: uv run --no-project b17c/verify.py [--subset 0|1] [--seeds N] [--cache DIR] [--report FILE] FILE",
               file=sys.stderr)
         return 2
     try:

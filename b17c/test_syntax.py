@@ -4,13 +4,22 @@ from pathlib import Path
 
 import syntax as s
 
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return s.parse(text, subset)
+
+
+def parse_expr(text, subset=0):  # B17-0's tests name their subset (D101)
+    return s.parse_expr(text, subset)
+
+
 SUITE = Path(__file__).resolve().parent.parent / "suite"
 PARSE_REJECT = SUITE / "reject/E-PARSE-001-while-without-decreases.b17"
 
 
 def error(text, subset=0):
     try:
-        s.parse(text, subset)
+        parse(text, subset)
     except s.ParseError as e:
         assert e.code == "E-PARSE-001", e
         return e
@@ -33,10 +42,10 @@ for f in files:
         e = error(text)
         assert (e.line, e.col) == at(text, "(set i (+ i 1))") and "decreases" in e.reason, e
         continue
-    tree = s.parse(text)
+    tree = parse(text)
     c = s.canonical(tree)
-    assert s.parse(c) == tree, f
-    assert s.canonical(s.parse(c)) == c, f
+    assert parse(c) == tree, f
+    assert s.canonical(parse(c)) == c, f
     lines = c.decode().split("\n")
     assert len(lines) == len(tree.items) - 2, f      # module line, then one line per item
     assert not c.endswith(b"\n") and b"  " not in c and b" \n" not in c and b" )" not in c, f
@@ -46,15 +55,15 @@ for f in files:
 OK = ('(module m (header (purpose "p") (invariants "i") (failures "f"))\n'
       '(spec f (params (x i64)) (returns (r i64)) (requires (> x -9223372036854775808)) (ensures (== r x)) (effects))\n'
       '(def f (body (return x))))')
-assert s.canonical(s.parse(OK)) == OK.encode()
+assert s.canonical(parse(OK)) == OK.encode()
 # Any whitespace layout parses to the same tree.
 loose = OK.replace(" ", " \t\r\n  ").replace("(module", "\n\n(module") + "\n \n"
-assert s.parse(loose) == s.parse(OK) and s.canonical(s.parse(loose)) == OK.encode()
+assert parse(loose) == parse(OK) and s.canonical(parse(loose)) == OK.encode()
 # Strings keep UTF-8 and the two escapes; a lone module has a one-line canonical form.
 esc = '(module m (header (purpose "a \\"q\\" \\\\ é") (invariants "") (failures "→")))'
-assert s.parse(esc).items[2].items[1].items[1].value == 'a "q" \\ é'
-assert s.canonical(s.parse(esc)) == esc.encode()
-assert s.parse(esc.encode()) == s.parse(esc)
+assert parse(esc).items[2].items[1].items[1].value == 'a "q" \\ é'
+assert s.canonical(parse(esc)) == esc.encode()
+assert parse(esc.encode()) == parse(esc)
 
 
 def bad(old, new, snippet, phrase, base=OK, subset=0):
@@ -97,8 +106,8 @@ def quoted(text, start):
 
 prelude = "\n".join([OK.split("\n")[0], quoted(doc, "(ghost-fn sorted"),
                      quoted((SUITE.parent / "DECISIONS.md").read_text(), "(ghost-fn in_i64")]) + ")"
-assert s.canonical(s.parse(prelude)) == prelude.encode()
-assert s.parse(prelude).items[4].items[4].items[1].items[2].items[2] == s.Int(2**63)
+assert s.canonical(parse(prelude)) == prelude.encode()
+assert parse(prelude).items[4].items[4].items[1].items[2].items[2] == s.Int(2**63)
 # Strings.
 bad('(purpose "p")', '(purpose "a\\nb")', "\\n", "unknown string escape")
 bad('(purpose "p")', '(purpose "a\nb")', "\nb", "control character U+000A")
@@ -135,20 +144,20 @@ assert error(b"(module m \xff)").reason == "input is not valid UTF-8"
 # D55: lists nest at most 128 deep, counting the module, and the deepest legal term still prints.
 HEAD = '(module m (header (purpose "p") (invariants "i") (failures "f")) (ghost-fn f () bool (body '
 deep = lambda n: HEAD + "(not " * n + "true" + ")" * n + ")))"
-assert s.parse(s.canonical(s.parse(deep(125)))) == s.parse(deep(125))
+assert parse(s.canonical(parse(deep(125)))) == parse(deep(125))
 assert error(deep(126)).reason == "lists nest more than 128 deep"
 # D53: integer literals of any size.
 big = int("1" * 5000)
-assert s.canonical(s.parse(HEAD.replace("bool", "int") + f"{big})))")).endswith(f"{big})))".encode())
+assert s.canonical(parse(HEAD.replace("bool", "int") + f"{big})))")).endswith(f"{big})))".encode())
 
 # parse_expr reads exactly one expression, an atom included, under the same rules.
-assert s.parse_expr(" -5\n") == s.Int(-5) and s.parse_expr(b"true") == s.Sym("true")
-assert s.parse_expr("(seq-lit 1 (neg x))") == s.Form((s.Sym("seq-lit"), s.Int(1), s.Form((s.Sym("neg"), s.Sym("x")))))
+assert parse_expr(" -5\n") == s.Int(-5) and parse_expr(b"true") == s.Sym("true")
+assert parse_expr("(seq-lit 1 (neg x))") == s.Form((s.Sym("seq-lit"), s.Int(1), s.Form((s.Sym("neg"), s.Sym("x")))))
 for text, reason in [("", "empty input: expected an expression"), ("1 2", "text after the expression"),
                      ("(neg 5)", "not canonical"), ('"s"', "a string is not an expression"),
                      ("(seq-lit 1", "unclosed '('"), ("len", "'len' is reserved"), ("007", "leading zero")]:
     try:
-        s.parse_expr(text)
+        parse_expr(text)
     except s.ParseError as e:
         assert reason in e.reason, (text, e)
     else:
@@ -161,16 +170,16 @@ for f in sorted((SUITE / "b17-1").rglob("*.b17")):
         e = error(text, 1)
         assert e.reason in ("expected an integer literal, found 'k'", "(replace ...) is not an expression"), (f, e)
         continue
-    tree = s.parse(text, 1)
-    assert s.parse(s.canonical(tree), 1) == tree and s.canonical(s.parse(s.canonical(tree), 1)) == s.canonical(tree), f
-assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 58
+    tree = parse(text, 1)
+    assert parse(s.canonical(tree), 1) == tree and s.canonical(parse(s.canonical(tree), 1)) == s.canonical(tree), f
+assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 64
 # Every B17-0 suite program is a B17-1 program with the same tree (docs/b17-1.md, opening).
-assert all(s.parse(f.read_text(), 1) == s.parse(f.read_text()) for f in files if f != PARSE_REJECT)
+assert all(parse(f.read_text(), 1) == parse(f.read_text()) for f in files if f != PARSE_REJECT)
 # B17-1's reserved words are exactly those docs/b17-1.md §2 adds; B17-0 still reads them as names.
 doc1 = (SUITE.parent / "docs/b17-1.md").read_text()
 added = doc1[doc1.index("**Reserved words:**"):doc1.index("(D51)", doc1.index("**Reserved words:**"))]
 assert set(re.findall(r"`([a-z-]+)`", added)) == s.KEYWORDS_1 - s.KEYWORDS, set(re.findall(r"`([a-z-]+)`", added)) ^ (s.KEYWORDS_1 - s.KEYWORDS)
-assert s.parse(OK.replace("(x i64)", "(map i64)")) and s.parse(OK.replace("(return x)", "(return (field x))"))
+assert parse(OK.replace("(x i64)", "(map i64)")) and parse(OK.replace("(return x)", "(return (field x))"))
 bad("(x i64)", "(map i64)", "map i64", "'map' is reserved", subset=1)
 bad("(x i64)", "(obtain i64)", "obtain i64", "'obtain' is reserved", subset=1)
 # B17-1's forms, each misused once.
@@ -181,7 +190,7 @@ B1 = OK.split("\n")[0] + """
 (ghost-fn k ((p (tuple int int)) (s (iset int)) (m (map int int))) bool (body (match p (case (tuple a b) (== (diff s (iset-lit a)) (iset-of ((c int)) (contains (update m b a) c)))))))
 (spec h (params (x t) (a (vec (vec i64)))) (returns (r i64)) (effects))
 (def h (body (let-mut b (vec (vec i64)) a) (set-idx (idx b 0) 0 1) (set-idx (get b 0) 1 2) (let-mut c (vec i64) (replace (field b f) (vec-new))) (obtain ((k int)) (> k 0)) (return 0))))"""
-assert s.canonical(s.parse(B1, 1)) == B1.encode()
+assert s.canonical(parse(B1, 1)) == B1.encode()
 error(B1)  # B17-0 has none of these forms
 bad1 = lambda old, new, snippet, phrase: bad(old, new, snippet, phrase, B1, 1)
 bad1("(data t () (leaf)", "(data t leaf (leaf)", "leaf (leaf)", "written () when there are none")

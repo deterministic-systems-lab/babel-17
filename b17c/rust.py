@@ -1,8 +1,8 @@
-"""WP7's backend: B17-0 to safe Rust (D18, D95-D97), and B17-1 with --subset 1 (D101, D110).
+"""WP7's backend: B17-0 to safe Rust (D18, D95-D97), and B17-1, the default subset (D101, D110).
 
-    uv run --no-project b17c/rust.py [--subset 1] FILE                              # the emitted Rust
-    uv run --no-project b17c/rust.py [--subset 1] -o BINARY [--report JSON] FILE    # built with rustc
-    uv run --no-project b17c/rust.py [--subset 1] --run FILE NAME ARG...            # built, then run like interp.py
+    uv run --no-project b17c/rust.py [--subset 0|1] FILE                              # the emitted Rust
+    uv run --no-project b17c/rust.py [--subset 0|1] -o BINARY [--report JSON] FILE    # built with rustc
+    uv run --no-project b17c/rust.py [--subset 0|1] --run FILE NAME ARG...            # built, then run like interp.py
 
 emit() turns a module that passes tier 0 (WP3) into the source of one Rust crate. The
 crate forbids unsafe code and erases ghost code. Every runtime goal of §9 is checked
@@ -13,8 +13,8 @@ interp.py does, so the two can be compared line for line. That comparison is WP7
 differential test (test_rust.py).
 
 In B17-1 (docs/b17-1.md), data types become enums, a field read on the wrong constructor
-is err FIELD, places are updated where they are, and match becomes match (D110). B17-0's
-output is the same, byte for byte, as before B17-1 (D101).
+is err FIELD, places are updated where they are, and match becomes match (D110). With
+--subset 0, B17-0's output is the same, byte for byte, as before B17-1 (D101, D109).
 
 --run builds into .b17c/rust/, keyed by the emitted source and the toolchain. Each ARG is
 a closed expression, evaluated as interp.py evaluates it, and the run exits as
@@ -34,7 +34,7 @@ import interp
 from check import _Checker
 from check import ttype as _type  # a type form, as check.py writes types
 from check import types as tier0_types
-from syntax import Form, Int, ParseError, Sym, _head, _print, canonical, parse
+from syntax import SUBSET, Form, Int, ParseError, Sym, _head, _print, canonical, parse
 
 BOOL, I64 = ("bool",), ("i64",)
 FLAGS = ("--edition", "2021", "-O", "-C", "overflow-checks=on")  # D97
@@ -64,7 +64,7 @@ class BuildError(Exception):
     """rustc rejected emitted code. The module passed tier 0, so this is a backend bug (D18)."""
 
 
-def emit(module, subset=0):
+def emit(module, subset=SUBSET):
     """module, which must pass tier 0, as the source of one Rust crate (D95, D110). Text that
     doesn't parse raises ParseError. A module that fails tier 0 raises ValueError, and so
     does a call to a spec with no def, in code that can run, since a binary can't make
@@ -1200,9 +1200,9 @@ def add_report(path, module, source, binary, rustc="rustc"):
 
 
 def main(argv):
-    usage = ("usage: uv run --no-project b17c/rust.py [--subset 1] [-o BINARY [--report JSON]] FILE\n"
-             "       uv run --no-project b17c/rust.py [--subset 1] --run FILE NAME ARG...")
-    subset = 0
+    usage = ("usage: uv run --no-project b17c/rust.py [--subset 0|1] [-o BINARY [--report JSON]] FILE\n"
+             "       uv run --no-project b17c/rust.py [--subset 0|1] --run FILE NAME ARG...")
+    subset = SUBSET
     if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
         subset, argv = int(argv[1]), argv[2:]
     out = report = None

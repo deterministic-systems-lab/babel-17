@@ -1949,3 +1949,90 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Ponytail review:** two simplifications, both made: a redundant length test in `fill`, and a dead branch in `resolve`.
 - **Updated:** the roadmap's WP5 entry and critical path, where item 4 is done; `docs/b17-1.md` §4.
 - **Interfaces touched:** interface 1's typing of open types, in the three ways above; interface 11's queries, only for programs with open types inside values.
+
+## 2026-10-30 · B17-1 frozen
+- **Owner decision:** freeze B17-1 now, and keep the `match` limit recorded, a verifier limit that fails closed.
+  - **Why now:** B17-1 met D44's condition. WP10's AlgoVeri ports need a fixed target, since 50 of the 64 need its features (D79), and they're the harder tasks M3 needs next (D65).
+  - **The `match` limit:** fixing it in the verifier changes no language rule, so it can come at any time. The alternative, a tier 0 rule that closes a scrutinee's open types, would have been cheaper before the freeze. It wasn't chosen.
+- **B17-1 frozen under D44:** `docs/b17-1.md` and `suite/b17-1/` are Frozen at version 1.0. B17-1's parts of interfaces 1 and 6 are Frozen with them (D27). Changing them now takes a new decision.
+- **D101's default:** with B17-1 frozen, every `b17c` tool reads B17-1 by default, and B17-0 with `--subset 0`.
+  - **Where it's set:** once, as `syntax.SUBSET`, the newest frozen subset, so the next freeze changes one line.
+  - **What names subset 0,** as D101 requires of whatever relies on B17-0:
+    - `agent.py`, whose protocol is B17-0's (WP6);
+    - the core library `core.b17`, wherever it's read;
+    - M3's B17-0 track in the harness;
+    - B17-0's tests;
+    - the README's and the manual's B17-0 commands.
+  - **The audit:** `SUBSET` was briefly an object that raises on any use. Every test then ran, so any call still relying on the default failed loudly. The only one left is the test of the default itself, which now expects B17-1.
+- **The manual changed:** §13 adds `--subset 0` to four commands and says why. The manual is part of M3's prompt, so the next M3 run is a new run.
+- **§10 isn't built yet:** the verification levels, meaning `verify --level`, the report's level fields and D88's property tests. Codex's freeze review found the gap before its quota ran out. `verify.py` only names the level a module reaches.
+  - **Owner decision:** freeze with §10 included, and record its implementation as pending WP5 work. B17-0's proof goals likewise froze before WP5 existed, and D44 doesn't wait for them.
+  - **The cost:** if building §10 shows its text is wrong, the fix takes a decision. M3 doesn't need levels, since it counts a task verified only when every goal is proved.
+- **Codex's quota** ran out partway through its freeze review, after 416k tokens, and it resets on 2026-11-03 at 22:41. It gave no final report.
+  - **Owner decision:** finish the review with a fresh Claude reviewer, given the same brief and none of the author's reasoning.
+- **The fresh review** reported 14 findings on the spec text and 6 on the default switch. Each was checked by running it, or by reading the cited text and code.
+  - **Two checker bugs made tier 0 accept programs the text forbids.** Both predate the freeze, and both are fixed and tested.
+    - **A case binder could reuse a binder's or result's name**, against D41's "unique within the item". The checker kept the outer binding, while the interpreter, verifier and backend bound the field. So a def returning a `(vec i64)` ran to `ok (seq-lit true true)`, the Rust didn't build, and Z3 got an ill-sorted query. It's now `E-TYPE-002`.
+    - **Runtime code could build a value of a ghost data type,** such as `(ga)` of a type with an `int` field, and the Rust didn't build. It's now `E-GHOST-002`, as for any ghost type in runtime code (§3).
+  - **Smaller checker fixes:**
+    - A type parameter named `option` is now `E-TYPE-002`, as §2 says.
+    - A moving value built as a call's argument is reported once, not again for each of its parts (D78). Its message no longer lists "argument" among the allowed places.
+    - A parameter named `some` is now called a constructor's name, not an item's.
+  - **Rules the draft stated unclearly or wrong** went into D109, and the second review below added a seventh:
+    - a moving call argument is a variable, as D73 says of vectors;
+    - the core library's `option` counts for D92's one data type per hash;
+    - in a join or comparison, the second operand takes the first's type, unless only the first is a literal;
+    - constructors take their destination's type first;
+    - type parameters' names;
+    - D110's default output is now `--subset 0`'s.
+  - **Text fixes in `docs/b17-1.md`:**
+    - how sections are cited: a bare §N is this document's, and `b17-0.md` §N is B17-0's, which three references and §12's table now say;
+    - `E-OWN-007`'s table entry is a `match` statement's;
+    - `rank` is now defined when a value's only data values sit in sets, maps or multisets;
+    - §9 now lists D103's and D105's soundness rules and names D108;
+    - line 7 now lists the values named `none` or `some` among B17-0 programs that aren't B17-1 programs;
+    - §14's dates and section lists are corrected.
+  - **Six suite programs,** for rules no program covered:
+    - a case binder reusing a binder's name;
+    - a ghost constructor in runtime code;
+    - a type parameter twice;
+    - `(len (vec-new))`;
+    - an `i64` `obtain` binder;
+    - a `forall` statement's termination goal, the one proof reject.
+    - `suite/b17-1/` now has 10 accept and 54 reject programs, and the checker and verifier agree with every label.
+  - **The default switch:** usage lines and docstrings now show `[--subset 0|1]` and the new default. The README's and roadmap's rows that said B17-1 needs `--subset 1` are updated, as are two older roadmap inconsistencies.
+- **D109's first acceptance:** the owner accepted D109, and asked for a full review of the README.
+- **The second review** was by a fresh Claude reviewer, checking the fixes commit.
+  - **Confirmed:** both checker fixes, with no valid program now rejected. Every new suite program fails with exactly its label, every test passes, and five of D109's readings match `b17c`.
+  - **D109's text was wrong in four places,** so it went back to Proposed for the owner to see again. The owner re-accepted it as revised:
+    - the operand rule holds only when the first type isn't `bool`, `i64` or `int`, as written it would have changed a B17-0 program's outcome;
+    - two readings needed checker fixes, so "no outcome changes" was wrong;
+    - it cited §4 for constructors' destination-first rule, which §4 doesn't state.
+    - It also needed a seventh reading: a case binder may not reuse an enclosing binder's or a result's name. The fix enforced that, and "unique within the item" (D41) doesn't say it.
+  - **Smaller fixes:**
+    - a case binder that reuses an enclosing binder named like an item is now reported once;
+    - a ghost-typed constructor value is no longer also reported for its arguments' types;
+    - the tuple's `E-OWN-006` message now matches the constructor's;
+    - §7 and §9 now say what tier 0 enforces about ghost constructors and reserved names;
+    - 15 more bare section references now cite `b17-0.md`;
+    - the suite README says who checked the six new programs.
+  - **Left as is:**
+    - D111's text counts 15 B17-1 programs that pass tier 0, and `test_rust.py` now builds 16. D111 is accepted, so its count stays as written.
+    - A case binder reused across an item's `requires` and body is `E-TYPE-002`, as D41 says.
+- **The README,** reviewed in full against the repository:
+  - **Corrected:** B17-1's suite counts, WP2's remaining interfaces, WP3's mention of D109, WP5's unbuilt §10 levels, WP6's subset, the roadmap in the layout table, the golden hashes' scope, M3's changes among what the benchmarks changed, a `b17-0.md` citation, and D108 for interface 11.
+  - **Checked and right:** the counts, task IDs, the Dafny version, CI's eight steps, and Python 3.11, which compiles every module and passes `test_syntax` and `test_check`.
+- **Unchanged by any of it:**
+  - all 2,171 suite and core queries of `main`;
+  - the Rust emitted for every suite program that passed tier 0 on `main`;
+  - all 187 recorded M3 rounds' verdicts and feedback.
+- **Ponytail review:** nothing to cut. Each B17-0 test file has a two-line local `parse` naming subset 0, which a shared helper module would save 18 lines on.
+- **Updated:** `docs/b17-1.md`'s status, §2, §4, §5, §7, §8, §9, §11, §12 and §14; `suite/README.md`; the README's status, WP table, layout, commands, benchmark notes and interfaces; the roadmap's recent work, decisions waiting, critical path, Phase 1 table and M3 entry; `docs/manual.md` §13.
+- **Interfaces touched:**
+  - B17-1's parts of 1 and 6, now Frozen at version 1.0;
+  - interface 1's tier 0 rules, by the two checker fixes and the type parameter named `option`.
+- **Proofs and tests added:**
+  - six suite programs;
+  - `test_check.py` cases for every fix;
+  - the default-subset tests in `test_check.py` and `test_rust.py`.
+- **Left admitted:** §10's verification levels and property tests, and the `match`-binder limit.

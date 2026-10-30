@@ -14,7 +14,13 @@ from pathlib import Path
 
 import check as C
 import verify as V
-from syntax import ParseError, canonical, parse
+import syntax
+from syntax import ParseError, canonical
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 MANUAL = (ROOT / "docs" / "manual.md").read_text()
@@ -38,12 +44,12 @@ for k, (want, text) in enumerate(EXAMPLE.findall(MANUAL), 1):
     if want == "E-PARSE-001":
         failures.append(f"{where}: parses")
         continue
-    codes = sorted({d.code for d in C.check(m)})
+    codes = sorted({d.code for d in C.check(m, subset=0)})
     if want.startswith("E-PROOF-") or want == "ok":
         if codes:
             failures.append(f"{where}: fails tier 0 with {codes}")
         elif z3:
-            failed = sorted({"E-PROOF-" + r["family"] for r in V.verify(m, 1, cache)[0] if r["verdict"] != "proved"})
+            failed = sorted({"E-PROOF-" + r["family"] for r in V.verify(m, 1, cache, subset=0)[0] if r["verdict"] != "proved"})
             if failed != ([] if want == "ok" else [want]):
                 failures.append(f"{where}: proof outcome {failed or 'all proved'}")
     elif codes != [want]:

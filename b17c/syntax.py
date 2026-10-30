@@ -1,6 +1,6 @@
 """The parser and canonical printer: B17-0's (docs/b17-0.md §2, D47-D54) and B17-1's (docs/b17-1.md §2).
 
-    uv run --no-project b17c/syntax.py [--subset 1] FILE
+    uv run --no-project b17c/syntax.py [--subset 0|1] FILE
 
 prints FILE's canonical bytes, or `FILE:LINE:COL: E-PARSE-001: reason` on stderr
 and exits 1.
@@ -8,7 +8,7 @@ and exits 1.
 parse() checks only §2's grammar and its lexical rules: names, integers, strings.
 Name resolution, uniqueness, types and the rest of §3-§9 belong to WP3. parse_expr()
 reads a single expression, such as the interpreter's command-line arguments. Both take
-the subset (D101): 0 by default, for B17-0 exactly as frozen, or 1 for B17-1's grammar.
+the subset (D101): 1 by default, B17-1's grammar since it froze, or 0 for B17-0 exactly as frozen.
 """
 import bisect
 import re
@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 CODE = "E-PARSE-001"
+SUBSET = 1  # every tool's subset by default: the newest frozen one (D101)
 WHITESPACE = " \t\n\r"  # D48: nothing else separates tokens; there are no comments
 NAME = re.compile(r"[a-z][a-z0-9_]*\Z")
 DIGITS = re.compile(r"[+-]?[0-9]+\Z")
@@ -87,7 +88,7 @@ class ParseError(Exception):
         super().__init__(f"{self.line}:{self.col}: {CODE}: {reason}")
 
 
-def parse(text, subset=0):
+def parse(text, subset=SUBSET):
     """Parse a module of the subset from str or UTF-8 bytes into a tree of Form, Sym, Int and Str."""
     _use(subset)
     tree = _read(_decode(text))
@@ -95,7 +96,7 @@ def parse(text, subset=0):
     return tree
 
 
-def parse_expr(text, subset=0):
+def parse_expr(text, subset=SUBSET):
     """Parse one expression, such as `5` or `(seq-lit 1 2 3)`, from str or UTF-8 bytes."""
     _use(subset)
     tree = _read(_decode(text), expr=True)
@@ -673,11 +674,11 @@ def _expr(x):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    subset = 0
+    subset = SUBSET
     if args[:1] == ["--subset"] and len(args) == 3 and args[1] in ("0", "1"):
         subset, args = int(args[1]), args[2:]
     if len(args) != 1:
-        sys.exit("usage: uv run --no-project b17c/syntax.py [--subset 1] FILE")
+        sys.exit("usage: uv run --no-project b17c/syntax.py [--subset 0|1] FILE")
     path = args[0]
     try:
         out = canonical(parse(Path(path).read_bytes(), subset))

@@ -1,0 +1,6 @@
+(module pair
+  (header
+    (purpose "A data item's type parameters are distinct.")
+    (invariants "None.")
+    (failures "None."))
+  (data pair (a a) (mkpair (x a) (y a))))

@@ -7,7 +7,13 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 import interp as i
-from syntax import _print, parse
+import syntax
+from syntax import _print
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 SUITE = Path(__file__).resolve().parent.parent / "suite"
 MIN, MAX = i.MIN, i.MAX
@@ -33,7 +39,7 @@ def f(params, returns, body, clauses="", effects="", extra=()):
 
 
 def go(m, *args, check=False, **kw):
-    return i.run(m, "f", args, check=check, **kw)
+    return i.run(m, "f", args, check=check, **kw, subset=0)
 
 
 def is_ok(out, *results):
@@ -127,11 +133,11 @@ for name, cases in ACCEPT.items():
     m = load(f"accept/{name}.b17")
     (d,) = [it.items[1].text for it in items(m, "def")]
     for args, want in cases:
-        out = is_ok(i.run(m, d, args, check=True), *want)
+        out = is_ok(i.run(m, d, args, check=True, subset=0), *want)
         accepts(name, out)
-        assert i.run(m, d, args) == i.Ok(want, out.trace), (name, args)
+        assert i.run(m, d, args, subset=0) == i.Ok(want, out.trace), (name, args)
     for args in OUTSIDE.get(name, []):
-        assert at_entry(i.run(m, d, args, check=True)), (name, args)
+        assert at_entry(i.run(m, d, args, check=True, subset=0)), (name, args)
 
 # And on random inputs, keeping those the requires allows. Sorted half the time, so that
 # the sorted-input programs get some.
@@ -168,7 +174,7 @@ for name in [*ORACLE, "binary_search", "partition"]:
     kept = 0
     for _ in range(40):
         args = tuple(draw("i64" if t == "i64" else "seq") for t in types)
-        out = i.run(m, name, args, check=True)
+        out = i.run(m, name, args, check=True, subset=0)
         if at_entry(out):
             continue
         kept += 1
@@ -472,31 +478,31 @@ assert sorted(labels) == sorted(PROOF), labels
 for path, label in zip(files, labels):
     m = parse(path.read_bytes())
     d, bad, good = PROOF[label]
-    out = i.run(m, d, bad, check=True)
+    out = i.run(m, d, bad, check=True, subset=0)
     if label in ("OVERFLOW", "DIV", "BOUNDS"):  # runtime goals: §8's err, with or without check
         is_err(out, label)
-        assert i.run(m, d, bad) == out
+        assert i.run(m, d, bad, subset=0) == out
     else:  # ghost goals: a contract outcome, and nothing at all without check
         is_contract(out, label)
-        assert isinstance(i.run(m, d, bad), i.Ok)
+        assert isinstance(i.run(m, d, bad, subset=0), i.Ok)
     if good is not None:
-        assert isinstance(i.run(m, d, good, check=True), i.Ok), (label, good)
+        assert isinstance(i.run(m, d, good, check=True, subset=0), i.Ok), (label, good)
 halves = load("reject/E-PROOF-PRE-helper-call.b17")
-assert i.run(halves, "caller", (-1,)) == i.Ok((0,))  # half(-1) still runs: -1 / 2 is 0
-out = i.run(halves, "caller", (-1,), check=True)
+assert i.run(halves, "caller", (-1,), subset=0) == i.Ok((0,))  # half(-1) still runs: -1 / 2 is 0
+out = i.run(halves, "caller", (-1,), check=True, subset=0)
 assert (out.clause.item, out.node.item) == ("spec half", "def caller")
 rem = load("reject/E-PROOF-DIV-min-rem-minus-one.b17")
-assert at_entry(i.run(rem, "rem", (1, 0), check=True))  # y != 0 is the requires' job...
-is_err(i.run(rem, "rem", (1, 0)), "DIV")                # ...and §8 is stuck without it
+assert at_entry(i.run(rem, "rem", (1, 0), check=True, subset=0))  # y != 0 is the requires' job...
+is_err(i.run(rem, "rem", (1, 0), subset=0), "DIV")                # ...and §8 is stuck without it
 
 # Interface 10's text form (D56), exactly.
 assert i.text_of(go(show, 2)) == "print 0\nprint 0\nprint 1\nprint 10\nprint -1\nok 2"
 assert i.text_of(go(pair, (4, 5))) == "ok 2 (seq-lit 4 5)"
 assert i.text_of(go(boom, 7)) == 'print 7\npanic "too big"'
-assert i.text_of(i.run(load("reject/E-PROOF-OVERFLOW-unbounded-increment.b17"), "succ", (MAX,))) == \
+assert i.text_of(i.run(load("reject/E-PROOF-OVERFLOW-unbounded-increment.b17"), "succ", (MAX,), subset=0)) == \
     "err OVERFLOW at def succ/2.1.1@13:15: (+ 9223372036854775807 1) = 9223372036854775808 leaves i64"
 assert i.text_of(out) == "contract PRE spec half/4.1@9:15 at def caller/2.1.2@21:22: (>= x 0) is false"
-assert i.text_of(i.run(load("accept/dedup_sorted.b17"), "dedup_sorted", ((1, 1),), check=True)) == (
+assert i.text_of(i.run(load("accept/dedup_sorted.b17"), "dedup_sorted", ((1, 1),), check=True, subset=0)) == (
     "unchecked INV-ENTRY def dedup_sorted/2.3.4.1@21:20 at def dedup_sorted/2.3@18:7\n"
     "unchecked INV-KEEP def dedup_sorted/2.3.4.1@21:20 at def dedup_sorted/2.3@18:7\n"
     "unchecked POST spec dedup_sorted/5.2@12:34 at def dedup_sorted/2.4@28:7\n"
@@ -504,7 +510,7 @@ assert i.text_of(i.run(load("accept/dedup_sorted.b17"), "dedup_sorted", ((1, 1),
 assert i.text_of(go(hang, 0, fuel=100)).startswith("limit steps at def f/")
 
 # run() takes values of the spec's parameter types, and lists for sequences.
-is_ok(i.run(load("accept/sum.b17"), "sum", [[1, 2]]), 3)
+is_ok(i.run(load("accept/sum.b17"), "sum", [[1, 2]], subset=0), 3)
 for bad_args in [(), (1, 2), (MAX + 1,), (True,), ((1, 2),)]:
     try:
         go(neg, *bad_args)
@@ -532,16 +538,16 @@ def cli(*argv):
     return code, out.getvalue(), err.getvalue()
 
 
-assert cli("--check", str(SUITE / "accept/abs.b17"), "abs", "-5") == (0, "ok 5\n", "")
-assert cli(str(SUITE / "accept/merge_sorted.b17"), "merge_sorted", "(seq-lit 1 3)", "(seq-build 2 (fn (i) (* i 2)))") \
-    == (0, "ok (seq-lit 0 1 2 3)\n", "")
-code, text, _ = cli("--fuel", "50", str(SUITE / "accept/isqrt.b17"), "isqrt", "10000")
+assert cli("--subset", "0", "--check", str(SUITE / "accept/abs.b17"), "abs", "-5") == (0, "ok 5\n", "")
+assert cli("--subset", "0", str(SUITE / "accept/merge_sorted.b17"), "merge_sorted", "(seq-lit 1 3)",
+           "(seq-build 2 (fn (i) (* i 2)))") == (0, "ok (seq-lit 0 1 2 3)\n", "")
+code, text, _ = cli("--subset", "0", "--fuel", "50", str(SUITE / "accept/isqrt.b17"), "isqrt", "10000")
 assert code == 1 and text.startswith("limit steps")
-assert cli(str(SUITE / "accept/abs.b17"), "abs", "(neg 5)")[0] == 2  # not canonical (D53)
-assert cli(str(SUITE / "accept/abs.b17"), "abs", "(borrow a)") == (2, "", f"{SUITE / 'accept/abs.b17'}: "
-                                                                   "(borrow a): 'a' isn't defined\n")
-assert cli(str(SUITE / "accept/abs.b17"), "nope", "1")[0] == 2
-assert cli(str(SUITE / "accept/abs.b17"))[0] == 2
+assert cli("--subset", "0", str(SUITE / "accept/abs.b17"), "abs", "(neg 5)")[0] == 2  # not canonical (D53)
+assert cli("--subset", "0", str(SUITE / "accept/abs.b17"), "abs", "(borrow a)") \
+    == (2, "", f"{SUITE / 'accept/abs.b17'}: (borrow a): 'a' isn't defined\n")
+assert cli("--subset", "0", str(SUITE / "accept/abs.b17"), "nope", "1")[0] == 2
+assert cli("--subset", "0", str(SUITE / "accept/abs.b17"))[0] == 2
 
 # B17-1 (docs/b17-1.md §8), with subset=1 (D101).
 D, T = i.Data, i.Tup
@@ -642,7 +648,7 @@ for name, cases in ACCEPT.items():
     m = parse((SUITE / f"accept/{name}.b17").read_bytes(), 1)
     (d,) = [it.items[1].text for it in items(m, "def")]
     for args, _ in cases:
-        assert i.run(m, d, args, check=True, subset=1) == i.run(load(f"accept/{name}.b17"), d, args, check=True)
+        assert i.run(m, d, args, check=True, subset=1) == i.run(load(f"accept/{name}.b17"), d, args, check=True, subset=0)
 # ...while a B17-0 program may name a ghost-fn as B17-1 reserves (D101).
 is_ok(go(f("(x i64)", "(r i64)", "(return x)", clauses="(ensures (union x))",
            extra=["(ghost-fn union ((n int)) bool (body (>= n 0)))"]), 3, check=True), 3)

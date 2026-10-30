@@ -39,7 +39,7 @@ The labels were first checked by review: by the author, and by an independent mo
 
 ## B17-1's programs
 
-`b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. B17-1 is a draft, and its suite freezes with it, once WP3's checker agrees with every tier 0 label (D44).
+`b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. Its suite froze with B17-1 on 2026-10-30, at version 1.0, once WP3's checker agreed with every tier 0 label (D44).
 
 **Accept:** a port of the smallest AlgoVeri task for each feature, from `gym/tasks/algoveri/`.
 
@@ -91,11 +91,11 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 - **Ranges (D42, §10's rule):** `discrete_logarithm` requires `g * (p - 1)` to fit, so every step's `g * cur` does. The others need none, since their own preconditions bound every value.
 - **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` applies Kruskal's rule, adding the lightest edge between two components, by scanning every edge each round, with components as relabelled vertex labels instead of a union-find forest. `bfs` uses a vector as its queue.
 
-**Reject:** 48 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 43 with a tier 0 code and 5 with a proof family.
+**Reject:** 54 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 48 with a tier 0 code and 6 with a proof family. The freeze review added six, for rules none covered.
 
 **How the labels are checked:**
-- **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label.
-- **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 58.
-- **Proof labels:** WP5's verifier, `b17c/verify.py --subset 1`, checks them. Each of the 5 fails exactly its labelled goal.
+- **By review first,** as B17-0's were. Codex reviewed every label against both spec documents, and found no wrong label. The six programs B17-1's freeze review added were checked by a fresh Claude reviewer instead, since Codex's quota had run out.
+- **Tier 0 labels by execution:** WP3's checker, `b17c/check.py`, now checks them with `--subset 1`, and agrees with all 64.
+- **Proof labels:** WP5's verifier, `b17c/verify.py --subset 1`, checks them. Each of the 6 fails exactly its labelled goal.
 - **Rust:** WP7's differential tests build each B17-1 program that passes tier 0 as a Rust crate, with `--subset 1`, and compare its runs with the interpreter's (D111). They cover the accept programs on the interpreter's inputs, and the two proof rejects whose defs reach `err BOUNDS` and `err FIELD`.
-- **Runs:** WP15's interpreter runs every accept program on inputs its `requires` allows, with `--subset 1`. It shows the fault of the three proof rejects that have a def or ghost-fn on a concrete input. The other two are lemmas, whose bodies never run (D57), so only WP5 can show theirs.
+- **Runs:** WP15's interpreter runs every accept program on inputs its `requires` allows, with `--subset 1`. It shows the fault of the three proof rejects that have a def or ghost-fn on a concrete input. The other three are lemmas, whose bodies never run (D57), so only WP5 can show theirs.

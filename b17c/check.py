@@ -1,7 +1,7 @@
 """The tier 0 checker: B17-0's (docs/b17-0.md §2-§7 and §9's tier 0 table; D33-D45, D51, D53,
-D66-D78), and with subset 1, B17-1's (docs/b17-1.md §2-§7 and §9; D79-D92, D99, D100, D101).
+D66-D78), and B17-1's, the default subset (docs/b17-1.md §2-§7 and §9; D79-D92, D99-D101, D109).
 
-    uv run --no-project b17c/check.py [--subset 1] FILE
+    uv run --no-project b17c/check.py [--subset 0|1] FILE
 
 parses and checks FILE and prints `FILE:LINE:COL: CODE: message` for each diagnostic,
 exiting 1 if there are any. A parse error prints the same way, as E-PARSE-001.
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from hashing import CORE, CORE1, HashError, hashes
-from syntax import Form, Int, ParseError, Sym, _head, parse
+from syntax import SUBSET, Form, Int, ParseError, Sym, _head, parse
 
 MIN, MAX = -2**63, 2**63 - 1
 BOOL, I64, INT = ("bool",), ("i64",), ("int",)
@@ -47,17 +47,17 @@ class Diagnostic:
         return f"{self.line}:{self.col}: {self.code}: {self.message}"
 
 
-def check(module, subset=0):
+def check(module, subset=SUBSET):
     """module's tier 0 diagnostics, in position order; none means it passes tier 0."""
     return sorted(_Checker(module, subset).run())
 
 
-def types(module, subset=0):
+def types(module, subset=SUBSET):
     """The type tier 0 gives each expression of module and of the core library, by node id,
     for WP5's goals and WP7's backend. Raises ValueError, listing the diagnostics, if module
     fails tier 0. The core library is typed on its own, as check() leaves it, since its
     binders, such as sorted's i and j, may share a name with an item of module (§2)."""
-    c, core = _Checker(module, subset), _Checker(CORE)
+    c, core = _Checker(module, subset), _Checker(CORE, 0)  # core.b17 is B17-0
     if diags := sorted(c.run()) or sorted(core.run(core=True)):
         raise ValueError("\n".join(map(str, diags)))
     return core.types | c.types
@@ -231,7 +231,7 @@ class _Bind:
 
 
 class _Checker:
-    def __init__(self, module, subset=0):
+    def __init__(self, module, subset=SUBSET):
         self.module, self.sub = module, subset
         self.datas, self.ctors = {}, {}  # B17-1: type name -> _Data; constructor name -> (type name, index)
         self.pending = None  # data applications written in field types, checked once data_types() knows them all
@@ -359,7 +359,8 @@ class _Checker:
         if sym.text in seen:
             self.report("E-TYPE-002", sym, f"'{sym.text}' is already declared in this item (D41)")
         elif sym.text in self.items or sym.text in self.defs or sym.text in self.ctors:
-            self.report("E-TYPE-002", sym, f"'{sym.text}' is an item's name, so no parameter or local may take it (D41)")
+            what = "a constructor's" if sym.text in self.ctors and sym.text not in self.items else "an item's"
+            self.report("E-TYPE-002", sym, f"'{sym.text}' is {what} name, so no parameter or local may take it (D41, D82)")
         seen.add(sym.text)
 
     def type_of(self, node, runtime, slices):
@@ -407,6 +408,8 @@ class _Checker:
         for a in ps:
             if a.text in d.params or a.text == name:
                 self.report("E-TYPE-002", a, f"type parameter '{a.text}' reuses a type name of its item (D82)")
+            elif a.text in CORE1_TYPES and it not in CORE1.items:
+                self.report("E-TYPE-002", a, f"'{a.text}' is the core library's type (docs/b17-1.md §2)")
             d.params.append(a.text)
         for i, c in enumerate(ctors):
             cname = c.items[0]
@@ -789,7 +792,11 @@ class _Checker:
     def declare(self, sym, bind):
         """Bind a local in the innermost scope; it's visible to the end of that scope (D66). A
         name already declared keeps the binding in scope, so its uses don't report again (D78)."""
-        self.unique(sym, self.names)
+        if sym.text not in self.names and self.lookup(sym.text) is not None:  # a binder or result (D109)
+            self.report("E-TYPE-002", sym, f"'{sym.text}' is already declared in this item (D41)")
+            self.names.add(sym.text)
+        else:
+            self.unique(sym, self.names)
         if self.lookup(sym.text) is None:
             self.scopes[-1][sym.text] = bind
             self.moves.pop(sym.text, None)
@@ -1665,9 +1672,10 @@ class _Checker:
     # B17-1's expressions (docs/b17-1.md §4, §5, §7).
 
     def construct(self, x, g, want, own):
-        """(C e*): a value of C's data type, its type parameters inferred from the arguments and
-        then from the destination (§4, §7). In runtime code a moving one is an owned position's
-        whole value (§5 rule 7), and a constructor with a boxed field allocates (§6)."""
+        """(C e*): a value of C's data type, its type parameters taken from the destination and
+        then from the arguments (§4, §7, D109). In runtime code it has a runtime type (§3), a
+        moving one is an owned position's whole value (§5 rule 7), and a constructor with a boxed
+        field allocates (§6)."""
         name, args = x.items[0], x.items[1:]
         dname, i = self.ctors[name.text]
         d = self.datas[dname]
@@ -1681,23 +1689,27 @@ class _Checker:
         quiet = self.quiet
         if not g:
             self.once(args)
-        got = [self.part(a, subst(ft, given), g, own) for a, (_, ft) in zip(args, fs)]
+        # A call not in an owned position reports a moving value itself, so its parts don't (D78).
+        got = [self.part(a, subst(ft, given), g, own or BRANCH) for a, (_, ft) in zip(args, fs)]
         for u, (_, ft) in zip(got, fs):
             self.unify(ft, u, env)
+        t = ("data", dname) + tuple(env.get(a, INT if g else I64) for a in d.params)  # §4: open with no destination
+        ghost = not g and not self.has_any(t) and not self.runtime(t)  # reported below, not per argument (D78)
         for a, u, (_, ft) in zip(args, got, fs):  # every argument fixes the parameters, then each is checked
-            if not self.fits(u, subst(ft, env), g):
+            if not ghost and not self.fits(u, subst(ft, env), g):
                 self.report("E-TYPE-001", a, f"expected {show(subst(ft, env))}, found {show(u)}")
         for a in args[len(fs):]:
             self.expr(a, g)
         self.quiet = quiet
-        env = {a: env.get(a, INT if g else I64) for a in d.params}  # §4: open with no destination
-        t = ("data", dname) + tuple(env.get(a, ANY) for a in d.params)
         if not self.has_any(t) and not self.check_app(x, t):
+            return ERR
+        if ghost:
+            self.report("E-GHOST-002", x, f"{show(t)} is a ghost type, so runtime code can't build it (§3)")
             return ERR
         if not g:
             if self.moving(t) and not own:
-                self.report("E-OWN-006", x, f"a moving value is built only as an owned position's whole value: a let, "
-                                            f"set, return or argument (docs/b17-1.md §5 rule 7)")
+                self.report("E-OWN-006", x, f"a moving value is built only as an owned position's whole value, and "
+                                            f"never as a call's argument (docs/b17-1.md §5 rule 7, D73)")
             if d.boxed[i]:
                 self.effects.append(("alloc", x))
         return t
@@ -1726,13 +1738,14 @@ class _Checker:
         quiet = self.quiet
         if not g:
             self.once(x.items[1:])
-        t = ("tuple",) + tuple(self.part(a, want[k + 1] if want else ANY, g, own) for k, a in enumerate(x.items[1:]))
+        t = ("tuple",) + tuple(self.part(a, want[k + 1] if want else ANY, g, own or BRANCH) for k, a in enumerate(x.items[1:]))
         self.quiet = quiet
         for a, u, w in zip(x.items[1:], parts(t), parts(want) if want else [ANY] * len(parts(t))):
             if not self.fits(u, w, g):
                 self.report("E-TYPE-001", a, f"expected {show(w)}, found {show(u)}")
         if not g and self.moving(t) and not own:
-            self.report("E-OWN-006", x, "a moving tuple is built only as an owned position's whole value (§5 rule 7)")
+            self.report("E-OWN-006", x, "a moving tuple is built only as an owned position's whole value, and never as a "
+                                        "call's argument (docs/b17-1.md §5 rule 7, D73)")
         return t
 
     def e_match(self, x, g, want, own):
@@ -2079,11 +2092,11 @@ def _components(graph):
 
 
 def main(argv):
-    subset = 0
+    subset = SUBSET
     if argv[:1] == ["--subset"] and argv[1:2] in (["0"], ["1"]):
         subset, argv = int(argv[1]), argv[2:]
     if len(argv) != 1:
-        print("usage: uv run --no-project b17c/check.py [--subset 1] FILE", file=sys.stderr)
+        print("usage: uv run --no-project b17c/check.py [--subset 0|1] FILE", file=sys.stderr)
         return 2
     path = argv[0]
     try:

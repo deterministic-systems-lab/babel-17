@@ -9,7 +9,12 @@ import tempfile
 from pathlib import Path
 
 import agent as A
-from syntax import parse
+import syntax
+
+
+def parse(text, subset=0):  # B17-0's tests name their subset (D101)
+    return syntax.parse(text, subset)
+
 
 SUITE = Path(__file__).resolve().parent.parent / "suite"
 CACHE = Path(tempfile.mkdtemp())

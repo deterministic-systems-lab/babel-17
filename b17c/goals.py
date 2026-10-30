@@ -1,6 +1,6 @@
-"""B17-0's proof goals (docs/b17-0.md §7, §9), one Z3 query each, for WP5's verifier.
+"""Proof goals, B17-0's (docs/b17-0.md §7, §9) and B17-1's (docs/b17-1.md §9), one Z3 query each, for WP5's verifier.
 
-    uv run --no-project b17c/goals.py [--subset 1] [--seeds N] FILE...
+    uv run --no-project b17c/goals.py [--subset 0|1] [--seeds N] FILE...
 
 prints each file's goals that aren't proved, and checks them against the suite label
 its path implies: an accept program must prove every goal, and an E-PROOF-<FAMILY>
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 import check as C
-from syntax import Form, Int, Sym, _head, parse
+from syntax import SUBSET, Form, Int, Sym, _head, parse
 
 CORE = C.CORE
 LIM = "9223372036854775808"
@@ -205,7 +205,7 @@ class State:
 
 
 class Gen:
-    def __init__(self, module, subset=0):
+    def __init__(self, module, subset=SUBSET):
         self.sub = subset
         self.types = C.types(module, subset)  # raises if module fails tier 0
         self.defs, self.datas, self.ctors = {}, {}, {}  # data types and constructors are B17-1's (D82)
@@ -1269,13 +1269,13 @@ def solve_stats(text, seed=0):
     return {"unsat": "proved", "sat": "failed", "unknown": "unknown"}.get(first, "unknown: " + first), units
 
 
-def read(path, subset=0):
+def read(path, subset=SUBSET):
     """The module at path; the core library is the one object tier 0 typed, so its goals can be checked."""
     m = parse(Path(path).read_bytes(), subset)
     return CORE if m == CORE else m
 
 
-def run(path, seeds=0, subset=0):
+def run(path, seeds=0, subset=SUBSET):
     gen = Gen(m := read(path, subset), subset)
     goals = gen.check(m)
 
@@ -1293,7 +1293,7 @@ def run(path, seeds=0, subset=0):
 
 
 if __name__ == "__main__":
-    bad, args, seeds, subset = 0, sys.argv[1:], 0, 0
+    bad, args, seeds, subset = 0, sys.argv[1:], 0, SUBSET
     while args[:1] in (["--seeds"], ["--subset"]) and args[1:2] and args[1].isdigit():
         if args[0] == "--seeds":
             seeds = int(args[1])
