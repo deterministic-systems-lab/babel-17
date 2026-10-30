@@ -37,7 +37,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 
 | Gate item | State |
 |---|---|
-| **WP1a frozen** | Done. B17-0 v1.0 ([b17-0.md](b17-0.md)) and the 50-program [suite](../suite/) froze on 2026-10-28 under D44, once WP3's checker agreed with every tier 0 label. D66–D78, the readings the checker settled, are written into `b17-0.md`. |
+| **WP1a frozen** | Done. B17-0 v1.0 ([b17-0.md](b17-0.md)) and the 50-program [suite](../suite/) froze on 2026-10-28 under D44, once WP3's checker agreed with every tier 0 label. D107 amended B17-0 to v1.1 on 2026-10-29, loosening only its subtyping. D66–D78, the readings the checker settled, are written into `b17-0.md`. |
 | **WP2's round-trip tests pass** | Done. The parser and canonical printer round-trip the whole suite. The hasher's golden file reproduces on Linux CI, so content hashes match across machines (D46). |
 | **WP15 passes its conformance tests** | Done. The interpreter is merged (PR #2) and passes WP1a's conformance tests. |
 
@@ -99,9 +99,12 @@ None new. D79–D101 were accepted on 2026-10-28, and D102–D107, D110 and D111
 2. **M3 on the seed tasks** has had its first run ([above](#recent-and-current-work)). Before the next one:
    - **The manual (WP8):** state §9's update facts, `set-idx`'s multiset effect among them. List the core laws' signatures, since the prompt doesn't include `core.b17`, and say which document's §9 is meant.
    - **The encoding (WP5):** an extensionality axiom for sequences, which §9's definition of equality makes sound, checked against the suite's solve times.
-   - **The checker (WP3): D107,** accepted, makes ghost multisets covariant in both subsets, and B17-1's sets and maps too, so `(multiset i64)` compares with `(multiset int)`. Its implementation is next: the checker, both spec documents, the manual's §3, one reject and three test cases. B17-0 becomes version 1.1, and its 511 suite and core queries must stay byte-identical.
+   - **The checker (WP3): D107 is in.** Ghost multisets are covariant in both subsets, and B17-1's sets and maps too, so `(multiset i64)` compares with `(multiset int)`. B17-0 is at v1.1, and every suite and core query is byte-identical.
+     - **Replayed on the run's recorded attempts:** 10 of Codex's rounds rejected for D70 now pass tier 0, though none verifies as written.
+     - **Still rejected, by design:** the 16 that gave a `(seq int)` where they'd declared a `(seq i64)`. The manual's §3 now says to state ghost helpers over `int`.
    - **Then** rerun `insertion_sort` and `partition`. It's a new run, since the manual is part of the prompt's hash.
 3. **WP16** grows the core library as B17-1 and the ports need it.
+4. **Open types inside compound values (WP3, WP5):** an empty literal nested in a map, tuple or constructor, with nothing that fixes its element type, can reach goal generation open, and `goals.py` crashes on its sort. It fails closed, and no suite program meets it. It predates D107, whose `union` joins add one route. The fix resolves open parts where they're used, across a whole expression. Closing them early at each literal rejects programs D70 accepts.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 

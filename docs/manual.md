@@ -78,7 +78,9 @@ The examples below show only items. Each sits in a module with a header, like th
 
 - **Collections don't nest** in B17-0, and there are no tuples, data types, strings or floats (§11).
 - **Runtime code has no conversions** (D34): `i64` never mixes with `bool`.
-- **In ghost code,** `i64` is a subtype of `int`, a vector or slice is viewed as a `seq`, and `(seq T)` is a subtype of `(seq U)` when T is of U. Multisets have no subtyping, so `(multiset i64)` and `(multiset int)` don't compare (D70).
+- **In ghost code,** `i64` is a subtype of `int`, a vector or slice is viewed as a `seq`, and `(seq T)` and `(multiset T)` are subtypes of `(seq U)` and `(multiset U)` when T is of U (D107).
+  - **So they compare:** `(multiset a)`, for a vector `a` of `i64`, compares with the multiset of a `(seq int)`, such as a core ghost-fn's result.
+  - **Nothing narrows:** a `(seq int)` is never a `(seq i64)`. So state your own ghost-fns' and lemmas' collections over `int`, where every `i64` collection fits.
 - **Element types** are only `bool`, `i64` and, in ghost code, `int`. Anything else, such as `(seq (seq int))`, is `E-TYPE-001` (D68).
 - **A literal** is an `i64` in runtime code, and an `int` in ghost code unless its destination is an `i64` (D70).
 
