@@ -1,6 +1,6 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-10-28.
+Where the project stands, and what comes next. This is the state as of 2026-10-29.
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
@@ -54,6 +54,11 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - On AlgoVeri, Claude verified 64 of 66 tasks and Codex 60 of 66.
   - On the hard run, 65 AlgoVeri and 28 vericoding tasks, Claude verified 92 of 93, Codex 90 and Grok all 49 it finished before its balance ran out.
   - Claude's only failure, `rod_cutting`, has a spec no program can satisfy, so it's removed. Every set is near the ceiling, vericoding's included.
+- **M3's first run** (`20261029T232328Z-claude-codex`): the seed tasks in B17-0, 3 samples each. Claude verified 59 of 60 and Codex 55, against 120 of 120 each in Dafny's two seed runs. Every verdict reproduced.
+  - **Every failure is on `insertion_sort` or `partition`.** The verifier knows that `set-idx` keeps a vector's multiset, but the manual doesn't say so. The round-1 passes relied on it, and the failures tried to prove it themselves.
+  - **What stopped them:** for Codex, multisets of `int` and `i64` not comparing (D70), which got 28 of its 104 calls rejected. For Claude, a gap in the encoding: equal sequences don't give equal multisets.
+  - **Tokens:** the manual adds about 11k input tokens to each of Claude's calls and 8k to Codex's. On the 18 other tasks, Claude thinks about nine times as much as in Dafny, and Codex about as much.
+  - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -91,7 +96,11 @@ None new. D79–D101 were accepted on 2026-10-28, and D102–D106, D110 and D111
 
 ### Next on the critical path
 1. **B17-1's spec text and suite** are drafted: `docs/b17-1.md`, version 0.1 Draft, with D81–D92, D99, D100 and D102–D106 accepted, and `suite/b17-1/`. The parser, hasher, checker, interpreter and verifier read B17-1 under D101. The checker agrees with every tier 0 label in the suite, and the verifier with every proof label. That meets D44's condition for B17-1 to freeze, which is the owner's call. Nine of its ten accept programs verify. What's left is `kruskal`'s claim that its tree has minimum weight, an exchange argument over every spanning tree, which the owner is to decide on.
-2. **M3 on the seed tasks** can start. The 20 seed tasks are already ported, as the suite's accept programs. The harness's B17-0 track is built (D98): `run --tasks b17/` poses each seed task with the manual in context (D8), against the Dafny baselines already recorded. It runs when the owner starts it, since it spends the agents' subscriptions.
+2. **M3 on the seed tasks** has had its first run ([above](#recent-and-current-work)). Before the next one:
+   - **The manual (WP8):** state §9's update facts, `set-idx`'s multiset effect among them. List the core laws' signatures, since the prompt doesn't include `core.b17`, and say which document's §9 is meant.
+   - **The encoding (WP5):** an extensionality axiom for sequences, which §9's definition of equality makes sound, checked against the suite's solve times.
+   - **For the owner:** whether `(multiset i64)` should compare with `(multiset int)`, which would supersede part of D70, or `E-TYPE-001` should only gain a hint for that case.
+   - **Then** rerun `insertion_sort` and `partition`. It's a new run, since the manual is part of the prompt's hash.
 3. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
@@ -122,6 +131,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 - **What it measures:** the success metrics: verified pass rate, repair rounds and tokens per verified task.
 - **What it needs:** with WP5, WP6, WP8 and the harness's B17-0 track done, WP10's ports for the tasks it runs, and tasks hard enough to separate the two languages. The seed ports are enough to start; the AlgoVeri ports wait for B17-1.
 - **How it's used:** its results steer the design (D14).
+- **First run,** on the seed tasks, 2026-10-29: Claude verified 59 of 60 and Codex 55 of 60 in B17-0, against 120 of 120 each in Dafny. The gap came from the manual and D70's multiset rule, not from harder proofs, so the seed tasks still don't separate the two languages.
 
 ## Phase 2
 
@@ -166,8 +176,8 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 
 ## Open questions that shape the plan
 
-- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). What makes a task hard for them, and how to show it before M3 runs, is open.
-- **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost, and M3 will show whether agents pay it.
+- **Hard enough tasks.** Today's models differ in rounds and tokens on every set so far, but barely in what they verify. Claude and Codex verified all 28 vericoding tasks, though at most a quarter of 2025's models solved each. So M3's tasks will have to be found elsewhere or written (WP10). M3's first run agrees: on the seed tasks, B17-0's only gap came from a fact the manual leaves out. What makes a task hard for them, and how to show it in advance, is open.
+- **The cost of i64 rigor.** Ranges stated the obvious way left four suite proofs needing a hint, or a solver's luck. Stated per step (D60), all four are stable and about 80 times cheaper. How specs must be phrased for the solver is part of Bet 1's cost. In M3's first run no overflow goal failed, since the frozen specs already state ranges per step. The cost showed up in typing instead: 28 of Codex's 104 calls were rejected because multisets of `int` and `i64` don't compare (D70).
 - **Counterexamples.** With quantified axioms, a failing goal comes back unknown rather than with a model. WP6 solves it again against only the axioms it mentions, and the interpreter replays the model (D93). That found one for each of the suite's 9 proof rejects, and 8 replayed. How often it works on harder programs is open.
 - **Algorithms specs can't see.** A functional spec can't tell Aho-Corasick from naive search. Cost contracts were deferred (D29, D30).
 - **Training resources.** Phase 2 needs open weights and compute that the project doesn't have yet.

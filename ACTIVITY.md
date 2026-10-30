@@ -1693,3 +1693,29 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none. `test_verify.py` already covers D106.
 - **Left admitted:** none.
+
+## 2026-10-29 · M3's first run: the seed tasks in B17-0
+- **Run `20261029T232328Z-claude-codex`:** the 20 seed tasks in B17-0 (D98) × Claude and Codex × 3 samples, up to 8 rounds, from 23:23 to 23:52 UTC. The models and CLI versions are the Dafny seed runs' (`20261027T034550Z` and `20261027T035814Z`). The run's tree was dirty, but its tasks, prompts, manual, `b17c` sources and harness hash the same as `78661fe`'s.
+
+  | CLI | Verified | In round 1 | Mean rounds | Tokens per verified task | Dafny, both seed runs |
+  |---|---|---|---|---|---|
+  | Claude | 59/60 | 58 | 1.07 | 22,433 | 120/120, 120 in round 1, 1.00, 3,814 and 3,797 |
+  | Codex | 55/60 | 52 | 1.16 | 43,445 | 120/120, 107 in round 1, 1.08 and 1.17, 16,570 and 15,132 |
+- **`reverify`:** 175/175 recorded verdicts reproduced, each under 11 seeds.
+- **By task:** on 18 tasks both CLIs verified 3/3, all in round 1 but two of Codex's `merge_sorted` attempts, each fixing an unclosed paren in round 2. Every failure is on the two hard tasks that sort in place:
+  - **`insertion_sort`:** Claude 3/3, one in round 5. Codex 0/3: two proofs failed and one was rejected after 8 rounds.
+  - **`partition`:** Claude 2/3, one proof failing after 8 rounds. Codex 1/3, in round 8, and two rejected after 8 rounds.
+- **Codex's drop is significant, Claude's isn't,** if attempts were independent: one-sided Fisher p ≈ 0.004 and 0.33. They aren't, since every failure is on two tasks.
+- **Findings:**
+  - **The manual leaves out the fact that decides both tasks.** After `set-idx`, the verifier knows the vector's multiset lost the old element and gained the new one (`b17-0.md` §9). The manual never says so. The four round-1 passes on these tasks, all Claude's, are 22 to 49 lines with no helper items: `set-idx` and a `(== (multiset v) (multiset a))` invariant, as in the reference programs. Each of the six failures instead tried to prove that a swap keeps the multiset, in 46 to 230 lines with up to 17 helper items. Codex's one `partition` pass came in round 8, once it dropped that proof and relied on `set-idx`.
+  - **The manual points at text the agent can't see.** §12 says to read the 33 laws' signatures in `b17c/core.b17`, which isn't in the prompt, and agents run without tools. Codex called `law_multiset_swap`, which doesn't exist. §11 and §12 cite "§9" for the background facts, meaning `b17-0.md`'s §9, but the manual's own §9 is Effects.
+  - **Multisets of `int` and `i64` don't compare (D70).** 28 of Codex's 104 calls were tier 0 rejections for it, and none of Claude's 71. All five of Codex's failures used `seq_update`, which, like every core ghost-fn, is stated over `int`. So `(multiset (seq_update b i e))` is a `(multiset int)` and `(multiset b)` a `(multiset i64)`, and `E-TYPE-001` says they don't compare. Declaring the update `(seq i64)` fails the other way: "expected (seq i64), found (seq int)". In `partition`'s third sample, Codex switched between the two errors for all 8 rounds, changing nothing else. The diagnostic names the mismatch but no way out.
+  - **Equal sequences don't give equal multisets.** `goals.py` encodes `==` on sequences as equal lengths and elements, over a sort with no extensionality, so it never becomes Z3's equality, and `multiset`, `take` and ghost-fns get no congruence from it. A body-less lemma with `(requires (== x y))` and `(ensures (== (multiset x) (multiset y)))` fails at both `i64` and `int`. Claude's two attempts that took more than one round stalled here: its slow `insertion_sort` proved it by induction in round 5, and its `partition` failure spent all 8 rounds on that lemma. `kruskal`'s `tw_eq` met the same gap for `total_weight`. §9 defines equality by lengths and elements, so an extensionality axiom would be sound.
+  - **No overflow goals failed.** The frozen specs already state ranges per step (D60), so i64 rigor cost nothing in proofs. It cost Codex its type rejections instead.
+  - **The manual is most of the token cost.** It adds about 11k input tokens per call for Claude and 8k for Codex: a median of 14.5k against 3.2k, and 20.4k against 12.3k. Claude's prompt cache wrote 1,008,404 tokens and read 46,079, because the manual shares a message with each task. So compare output tokens: on the 18 other tasks' first calls, the medians are Claude 1,480 against Dafny's 334, of which thinking is 1,236 against 134, and Codex 736 against 604.
+  - **The seed tasks still can't separate the languages.** The other 18 are at the ceiling in both, and the four round-1 passes show the hard two are easy once the `set-idx` fact is known. With it in the manual, both CLIs would likely be back at the ceiling.
+- **Not changed:** the manual, `b17c` and the harness. The follow-ups are in the roadmap's next steps.
+- **Updated:** the roadmap's date, baselines, next steps, M3 section and two open questions; the README's B17-0 track note and results table.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.
