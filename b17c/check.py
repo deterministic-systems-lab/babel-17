@@ -88,6 +88,24 @@ def subst(t, env):
     return (t[0],) + tuple(a if isinstance(a, str) else subst(a, env) for a in t[1:])
 
 
+def fill(t, w):
+    """t with each open part (ANY) taken from the same place in w, the type its use gives it."""
+    if t == ANY:
+        return w or ANY
+    if (not w or len(t) != len(w) or t[0] == "data" and t[1] != w[1]
+            or t[0] != w[0] and not (t[0] in SEQUENCES and w[0] in SEQUENCES)):
+        return t
+    return (t[0],) + tuple(a if isinstance(a, str) else fill(a, b) for a, b in zip(t[1:], w[1:]))
+
+
+def close(t, g):
+    """t with each open part nothing fixed an integer: int in ghost code, i64 in runtime code (§4, D70)."""
+    if t == ANY:
+        return INT if g else I64
+    g = g and t[0] not in ("vec", "slice")  # a vector holds runtime values (§3)
+    return (t[0],) + tuple(a if isinstance(a, str) else close(a, g) for a in t[1:])
+
+
 def ttype(t, params=()):
     """A type form, such as (vec (option i64)), as this module writes types, with the names in
     params as type parameters. For WP5's goals and WP7's backend, which read declared types."""
@@ -230,6 +248,7 @@ class _Checker:
         self.defs = set()      # the names of the module's defs
         self.clashes = set()   # names declared wrongly: reported once, then never checked where used (D78)
         self.types = {}        # id(expression) -> its type, for WP5
+        self.uses = {}         # id(expression) -> the type its context wanted, and whether it's ghost
 
     def run(self, core=False):
         """The diagnostics; with core, the core library's items are checked too, for their types."""
@@ -238,7 +257,9 @@ class _Checker:
             self.item, self.names, self.moves, self.effects, self.reported = item, set(), {}, [], set()
             {"spec": self.check_spec, "ghost-fn": self.check_ghost_fn, "lemma": self.check_lemma}[item.kind](item)
         self.recursion()
-        if not self.diags:  # D45's rule is defined once the rest of tier 0 passes
+        if not self.diags:  # open types take their types where they're used (§4)
+            self.resolve(self.module)
+        if not self.diags:  # D45's rule is defined once the rest of tier 0 passes, so it's last (D78)
             self.duplicates()
         return self.diags
 
@@ -1316,7 +1337,65 @@ class _Checker:
         and BRANCH when it's a branch of a runtime if or match expression, which reports a moving
         result itself, so the branch's value doesn't (one diagnostic per error, D78)."""
         t = self.types[id(x)] = self._expr(x, g, want, own)
+        self.uses[id(x)] = want, g
         return t
+
+    def resolve(self, x, w=None):
+        """Once the rest of tier 0 passes: each open part of x's type taken from w, the type its
+        use gives it, or from its destination, and made an integer if nothing fixes it (§4, D70);
+        then x's operands' from x's type, so that every part of one expression agrees for WP5 and
+        WP7. A constructor application closed here must be well-formed, as any other (§3). A
+        match's binders don't pass their use back to its scrutinee."""
+        t = self.types.get(id(x))
+        if t is not None and self.has_any(t):
+            want, g = self.uses.get(id(x), (None, True))  # places and borrows are typed whole, never open
+            t = self.types[id(x)] = close(fill(fill(t, w), want), g)
+            if _head(x) in self.ctors:  # tier 0 left this application open, so unchecked (§3)
+                self.check_app(x, t)
+        if not isinstance(x, Form):
+            return
+        h, a, T = _head(x), x.items[1:], lambda y: self.types[id(y)]
+        ws = []
+        if t is None:  # a statement, clause or item
+            a = x.items
+        elif h in ("==", "!="):
+            ws = [self.join(T(a[0]), T(a[1]))] * 2
+        elif h == "if":
+            ws = [BOOL, t, t]
+        elif h in ("concat", "msum", "union", "diff", "inter", "take", "drop"):
+            ws = [t, t if h not in ("take", "drop") else None]
+        elif h == "update":
+            ws = [t, t[1], t[2]]
+        elif h in ("idx", "last"):
+            ws = [("seq", t)]
+        elif h == "multiset":
+            ws = [("seq", t[1])]
+        elif h in ("seq-lit", "iset-lit"):
+            ws = [t[1]] * len(a)
+        elif h == "tuple":
+            ws = list(t[1:])
+        elif h in self.ctors:
+            ws = [ft for _, ft in self.fields_of(t)[self.ctors[h][1]][1]]
+        elif h == "get":
+            ws = [("tuple",) + tuple(t if k == a[1].value else ANY for k in range(len(T(a[0])) - 1))]
+        elif h == "field":
+            d, env = self.datas[T(a[0])[1]], {}
+            self.unify(next(ft for _, fs in d.ctors for f, ft in fs if f.text == a[1].text), t, env)
+            ws = [("data", d.name) + tuple(env.get(p, ANY) for p in d.params)]
+        elif h in ("contains", "occurrences"):
+            e = self.join(T(a[0])[1], T(a[1]))
+            ws = [T(a[0])[:1] + (e,) + T(a[0])[2:], e]
+        elif h == "lookup":
+            self.resolve(a[0], ("map", ANY, t))
+            a, ws = a[1:], [T(a[0])[1]]
+        elif h == "map-lit":
+            a, ws = [y for entry in a for y in entry.items], [t[1], t[2]] * len(a)
+        elif h == "match":
+            a, ws = [a[0]] + [case.items[2] for case in a[1:]], [None] + [t] * (len(a) - 1)
+        elif h == "seq-build":
+            a, ws = [a[0], a[1].items[2]], [None, t[1]]
+        for k, y in enumerate(a):
+            self.resolve(y, ws[k] if k < len(ws) else None)
 
     def _expr(self, x, g, want, own=False):
         if isinstance(x, Int):
@@ -1794,7 +1873,8 @@ class _Checker:
         t = elem
         for e in x.items[1:]:
             u = self.expr(e, True, want=None if elem == ANY else elem)
-            j = (elem if self.sub1(u, elem) else None) if elem != ANY else self.join(t, u)
+            fits = self.sub1(u, elem)  # an open part of the destination takes the elements' join
+            j = self.join(t, u) if fits and self.has_any(elem) else elem if fits else None
             if j is None:
                 self.report("E-TYPE-001", e, f"an element of {show(('iset', elem if elem != ANY else t))} can't be "
                                              f"{show(u)}")
@@ -1816,8 +1896,8 @@ class _Checker:
             for e, which in ((entry.items[0], 0), (entry.items[1], 1)):
                 fixed = (k0, v0)[which]
                 u = self.expr(e, True, want=None if fixed == ANY else fixed)
-                cur = (k, v)[which]
-                j = (fixed if self.sub1(u, fixed) else None) if fixed != ANY else self.join(cur, u)
+                cur, fits = (k, v)[which], self.sub1(u, fixed)
+                j = self.join(cur, u) if fits and self.has_any(fixed) else fixed if fits else None
                 if j is None:
                     self.report("E-TYPE-001", e, f"a map entry's {'key' if which == 0 else 'value'} can't be {show(u)}")
                     return ERR
@@ -1864,6 +1944,8 @@ class _Checker:
         k, v = (ANY, ANY) if m == ERR else (m[1], m[2])
         self.expect(x.items[2], k, True)
         self.expect(x.items[3], v, True)
+        if m != ERR and self.has_any(m):  # the key and value fix the map's open parts (§4)
+            m = ("map",) + tuple(self.join(t, self.types[id(e)]) or t for t, e in zip(m[1:], x.items[2:]))
         return m
 
     def e_lookup(self, x, g, want, own):
