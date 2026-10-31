@@ -2358,6 +2358,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **The fix:** the tags are capitals, `!B3` and `!P` (`b17c/goals.py`), and no name has a capital. The other generated names were already apart: a local's or lifted function's number is used once, and a sequence function's number is its sort's. Interface 11's canonical form (D63) renames every generated name, its pattern now with the new tags (`b17c/verify.py`), so a query with no collision is the same canonical query as before.
 - **Effect on results:** none recorded. Every collision needs a ghost-fn named `p` or `b` and digits, and no suite program, core library item or agent program in M3's runs has one.
 - **Tests:** `test_verify.py`: both false lemmas fail. `canonical`'s example uses the new tags.
+- **Updated:** the README's WP5 row and the roadmap's soundness fixes.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
 - **Left admitted:** none.
