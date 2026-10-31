@@ -622,6 +622,10 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
     "kruskal": ("kruskal_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),)),
                                 ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),))],  # one-way edges, each listed once
                 ["PRE", "PRE", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "ASSERT", "POST"]),
+    "prim": ("prim_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),)),
+                          ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),)),  # an entry used from its unvisited end
+                          ((D("weighted_graph", (((),),)),), ((),))],
+             ["PRE", "PRE", "POST", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "ASSERT", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
@@ -631,6 +635,7 @@ OUTSIDE_1 = {
     "discrete_logarithm": [(2, 3, 1), (MAX, 1, 3)], "segmenttree_query": [(SEG, 2, 2), (SEG, 0, 5)],
     "trie_insert": [(NONE, (256,)), (some(trie()), (1,))], "lca": [(TREE, 4, 6)],
     "bfs": [(GRAPH, 0, 4), (D("graph", (((5,),),)), 0, 0)], "kruskal": [(D("weighted_graph", ((),)),)],
+    "prim": [(D("weighted_graph", ((),)),)],
     "coin_change": [((), 1), ((0,), 1)],
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE / "b17-1/accept").glob("*.b17"))

@@ -663,6 +663,7 @@ ACCEPT_1 = {
     "bfs": ("bfs_shortest_path", [(GRAPH, 0, 2), (GRAPH, 2, 0), (GRAPH, 3, 3), (GRAPH, 0, 4),
                                   (D("graph", (((5,),),)), 0, 0)]),
     "kruskal": ("kruskal_mst", [(WEIGHTED,), (D("weighted_graph", ((),)),)]),
+    "prim": ("prim_mst", [(WEIGHTED,), (D("weighted_graph", ((),)),)]),
     "coin_change": ("coin_change", [((1, 2, 5), 11), ((2,), 3), ((3,), 0), ((), 1), ((0,), 1)]),
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE_1 / "accept").glob("*.b17"))

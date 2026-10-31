@@ -365,7 +365,7 @@ for path in sorted((SUITE / "b17-1").rglob("*.b17")):
         code = re.match(r"E-[A-Z]+-\d+", path.name).group()
         assert [d.code for d in ds] == [code], (path.name, [str(d) for d in ds])  # one error, one diagnostic (D78)
         seen["parse" if code == "E-PARSE-001" else "tier 0"] += 1
-assert seen == {"accept": 10, "proof": 6, "tier 0": 46, "parse": 2}, seen
+assert seen == {"accept": 11, "proof": 6, "tier 0": 46, "parse": 2}, seen
 
 
 def codes1(*items):

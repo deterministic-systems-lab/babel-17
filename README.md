@@ -165,7 +165,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 - **The B17-0 track (D98):** the same seed tasks, posed in B17-0 with the agent manual in the prompt. The agent's items join the task module, so restating its spec is an error.
   - **Verified:** tier 0 passes, every spec has a def, and every goal is proved under 11 seeds. A spec without a def would let a call assume anything.
   - **Feedback:** between rounds, the agent gets `agent.py check`'s JSON diagnostics.
-- **The B17-1 track (D112):** the 10 AlgoVeri ports in `suite/b17-1/accept/`, posed in B17-1 with the manual and its B17-1 supplement in the prompt. Each task gives its first spec and the data items and ghost-fns that spec refers to. Its defs, helper specs and proof-only items stay hidden. It's verified and fed back as the B17-0 track is, at subset 1.
+- **The B17-1 track (D112):** the AlgoVeri ports in `suite/b17-1/accept/`, posed in B17-1 with the manual and its B17-1 supplement in the prompt. Each task gives its first spec and the data items and ghost-fns that spec refers to. Its defs, helper specs and proof-only items stay hidden. It's verified and fed back as the B17-0 track is, at subset 1.
 - **Verdicts:** banned constructs (`assume`, `{:axiom}`, `{:verify false}`, `decreases *`, and similar) fail outright, and an exhausted resource budget counts as a failure, never a pass.
 - **Re-checking:** `reverify` re-runs every recorded verdict, and so far each one has reproduced exactly. One did only when run alone: under load, it hit the verifier's wall-clock timeout before Dafny's resource limit, so that timeout is now a 2-hour backstop.
 
@@ -195,6 +195,8 @@ Every set so far is near the ceiling for current models. The vericoding tasks we
 M3's first run, the same seed tasks in B17-0, failed 6 of its 120 attempts, all on `insertion_sort` and `partition`. Mostly, the manual didn't say that swapping two elements with `set-idx` keeps a vector's multiset, so agents tried to prove it themselves. It says so now, and in a rerun of the two tasks all 12 attempts verified in round 1, with no lemmas of their own. The manual alone made the difference: the rerun's programs verify with the first run's verifier too. So on the seed tasks B17-0 verifies what Dafny does, though the other 18 haven't been rerun under the new manual, and the two differ in cost. On these two tasks, Claude used about 4.6 times Dafny's tokens per verified task, mostly the manual in its prompt, and Codex about 1.2 times.
 
 M3's first B17-1 run posed 10 of the AlgoVeri tasks, ported to B17-1, and 59 of its 60 attempts verified. Claude verified all 30, and Codex 29, failing once on `kruskal`. In Dafny's two AlgoVeri runs, Claude verified all 10 of these tasks both times, and Codex 9, failing `kruskal` both times. So these tasks don't separate the languages either, though they differ in cost. Claude used about 4.5 times Dafny's tokens per verified task, mostly the manual and its supplement in the prompt, and Codex about 1.7 times. And B17-1 has a cost Dafny doesn't: 22 of the 120 rounds failed on unbalanced parentheses, and for a missing `)` the parser's message didn't say where. It now names the item that probably lacks it.
+
+So the next ports are the AlgoVeri tasks that were hardest in Dafny. Besides `kruskal`, only `prim`, `edmond_karp` and `push_relabel` had a Dafny failure in the two runs, and `bellman_ford` and `dijkstra` took Codex 6 or 7 rounds. `prim` is ported and verified, and joins the B17-1 track; the other four are next.
 
 ## How work is recorded
 

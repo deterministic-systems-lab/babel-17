@@ -41,7 +41,7 @@ The labels were first checked by review: by the author, and by an independent mo
 
 `b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. Its suite froze with B17-1 on 2026-10-30, at version 1.0, once WP3's checker agreed with every tier 0 label (D44). D113's version 1.1 left it unchanged.
 
-**Accept:** a port of the smallest AlgoVeri task for each feature, from `gym/tasks/algoveri/`.
+**Accept:** a port of the smallest AlgoVeri task for each feature, from `gym/tasks/algoveri/`. WP10's further ports, chosen as the tasks hardest in Dafny, join them for M3's B17-1 track (D112). Each adds a program, and changes no label.
 
 | Program | Shows | Proof |
 |---|---|---|
@@ -55,6 +55,7 @@ The labels were first checked by review: by the author, and by an independent mo
 | `bfs` | A graph record, nested vectors, a quantifier over paths | Verified, with its invariants as folded predicates and each update a lemma |
 | `kruskal` | Tuples in a vector | Verified, with an exchange argument for its minimum weight |
 | `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
+| `prim` | WP10: `kruskal`'s spec, solved with Prim's rule | Verified, with `kruskal`'s exchange argument over the set of vertices reached |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
 

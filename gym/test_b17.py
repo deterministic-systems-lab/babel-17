@@ -78,7 +78,7 @@ assert h.allows_panic(dict(ABS, frozen=ABS["frozen"].replace("(effects))", "(eff
 # B17-1's track (D112): the AlgoVeri ports, each posing its first spec with the data items and
 # ghost-fns it refers to; helper specs, defs and proof-only items stay hidden.
 ones = {t["id"]: t for t in h.load_tasks(["b17-1/"])}
-assert len(ones) == 10 and all(t["subset"] == 1 for t in ones.values()), sorted(ones)
+assert len(ones) == 11 and all(t["subset"] == 1 for t in ones.values()), sorted(ones)
 assert all("subset" not in t for t in tasks.values())  # B17-0's tasks, and so their task_sha, are as before
 for t in ones.values():
     assert "(def " not in t["frozen"] and "(lemma " not in t["frozen"] and t["frozen"].count("(spec ") == 1, t["id"]
