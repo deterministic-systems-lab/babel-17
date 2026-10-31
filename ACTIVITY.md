@@ -2206,3 +2206,34 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Ponytail review:** one test case repeated another, and it's gone.
 - **Updated:** the README's note on M3's B17-1 run and its list of what the benchmarks changed; the roadmap's account of the run and its critical path.
 - **Interfaces touched:** interface 3's E-PARSE-001 diagnostic for an unclosed `(`, its position and message.
+
+## 2026-10-31 · Counterexamples for sequences inside values
+- **Asked by the owner:** the next item after locating a missing `)`. In M3's first B17-1 run, 4 of the 137 failed-goal diagnostics had a counterexample.
+- **What blocked them, found by re-solving the run's 126 failed goals under the canonical seed:**
+  - **80 took a parameter no model term showed:** a data value with a sequence inside, such as `bfs`'s and `kruskal`'s `graph`, or a sequence of them.
+  - **Under those terms,** Z3 still had no model. A nested sequence sort brings §9's sequence facts as a block of quantified axioms, and the search trimmed only the prelude's.
+- **The change,** in `b17c/agent.py`, for finding a model only, since the verdict still comes from the full query:
+  - **Showing a value by its parts.** A sequence is shown through its `len` and its first 8 `nth`s. A data value is shown through its own term for its constructor, then every constructor's fields through their selectors, and a tuple through its `get`s, to 4 data values deep.
+  - **The form of the values.** At the top a sequence is a list, as D93 says, and a sequence of sequences is nested lists. Inside a term it's a `seq-lit`, so `bfs`'s graph shows as `(graph (seq-lit (seq-lit)))`, and a checked run reads it as simulate does. A nested sequence longer than 8, or a value deeper than 4, gets no counterexample. Only the top keeps D93's `{len, prefix}`.
+  - **Declarations the goal lacks,** such as a nested sequence's `len` and `nth`, join the query through a tautology that names them, only when the terms need them.
+  - **Trimming B17-1's sequence facts** as the prelude's are: each axiom is kept only if the query's own part uses every function it names.
+- **Unchanged where it already worked:** a goal whose parameters were all shown and whose query has no B17-1 sequence facts gets the same Z3 input as before.
+  - **M3's 187 B17-0 rounds:** replayed through the branch, every verdict and feedback matches `main`'s, except two rounds that changed in PR #53, the `merge_sorted` parse errors that now name an item.
+  - **This run's 4 counterexamples** are the same.
+- **The run's failed goals, re-solved under the canonical seed:** 13 of 126 now get a counterexample, against 4.
+  - **The 9 new ones** are all in `bfs` and `kruskal` ghost-fns, mostly a `graph` with an empty or short adjacency, where a ghost-fn indexes it.
+  - **None replays,** since all 13 are goals in ghost-fns and lemmas, which have no run.
+- **What's still missing:** 105 of the 113 left come back unknown with no model.
+  - **The quantifiers in the agents' own ghost-fns and contracts** cause it. A B17-1 ghost-fn is an axiom (D106), and its body often quantifies itself.
+  - **Tried and dropped:** writing the non-recursive ghost-fns back as the macros they're equivalent to. On 40 of those queries, it found a model for 1.
+  - **So it stays open,** in the roadmap's question on counterexamples.
+- **Not changed:** the manuals, so the B17-1 prompt is the same. `manual-1.md` still says what holds: a tuple or data value is a term, and sets, maps and multisets get none.
+- **Tests:** `test_agent.py` checks a graph's counterexample, which replays, and a sequence of sequences as nested lists. It also pins both bugs Codex found.
+- **Self-checks:** all eleven pass, `test_rust.py` included.
+- **Codex review** (`gpt-5.6-sol`): it found two bugs, both fixed and tested:
+  - **A constructor named `mk`** was taken for a tuple, so its counterexample became `(tuple ...)`, and the replay's parse error crashed diagnostics. Tuples are now told apart by type, and no constructor can be named `tuple`, a grammar word.
+  - **A type argument of `i64`,** as in `(bag i64)`, reached its fields as `int`, since the SMT instance normalizes it, so a value out of range was shown. Field types now come from the declaration, in shown values too, where the same gap was.
+  - **Re-review:** no remaining issues.
+- **Ponytail review:** one duplicated formatter, now `_text` for both.
+- **Updated:** the README's WP6 row; the roadmap's critical path and its open question on counterexamples.
+- **Interfaces touched:** interface 3's `counterexample`: sequences inside tuple and data values, and sequences of sequences (D93, D112).
