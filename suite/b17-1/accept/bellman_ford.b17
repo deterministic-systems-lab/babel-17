@@ -154,17 +154,12 @@
              (forall ((k int)) (=> (and (<= 0 k) (< k (- (len q) (- j i))))
                (== (idx (join (take q (+ i 1)) (drop q j)) k) (if (<= k i) (idx q k) (idx q (+ k (- j i))))))))
     (body))
-  (lemma path_cut (params (g (seq (seq (tuple int int)))) (q (seq int)) (i int) (j int))
-    (requires (is_path g q) (and (and (<= 0 i) (< i j)) (< j (len q))) (== (idx q i) (idx q j)))
-    (ensures (is_path g (join (take q (+ i 1)) (drop q j))))
-    (body (call cut_elems q i j)))
   (lemma path_range (params (g (seq (seq (tuple int int)))) (p (seq int)) (i int))
     (requires (in_range g) (is_path g p) (and (<= 0 (idx p 0)) (< (idx p 0) (len g))) (and (<= 0 i) (< i (len p))))
     (ensures (and (<= 0 (idx p i)) (< (idx p i) (len g))))
     (body
       (if (> i 0)
         (block
-          (assert (connected g (idx p (- i 1)) (idx p i)))
           (obtain ((w int)) (has_edge g (idx p (- i 1)) (idx p i) w))
           (obtain ((e int)) (and (and (<= 0 e) (< e (len (idx g (idx p (- i 1)))))) (== (get (idx (idx g (idx p (- i 1))) e) 0) (idx p i)))))
         (block))))
@@ -206,7 +201,6 @@
             (assert (is_path g (take (drop q i) (+ (- j i) 1))))
             (block
               (call cut_elems q i j)
-              (call path_cut g q i j)
               (call negative g start dist seen (join (take q (+ i 1)) (drop q j))))))
         (block))))
   (lemma neg_edge (params (g (seq (seq (tuple int int)))) (start int) (dist (seq int)) (seen (seq bool)) (wit (seq (seq int))) (u int) (i int))
@@ -221,8 +215,6 @@
       (call gew_entry g u i)
       (call pw_append g (idx wit u) (get (idx (idx g u) i) 0))
       (assert (has_edge g u (get (idx (idx g u) i) 0) (get (idx (idx g u) i) 1)))
-      (assert (connected g u (get (idx (idx g u) i) 0)))
-      (assert (is_path g (concat (idx wit u) (seq-lit (get (idx (idx g u) i) 0)))))
       (forall ((k int)) (call path_range g (concat (idx wit u) (seq-lit (get (idx (idx g u) i) 0))) k))
       (call negative g start dist seen (concat (idx wit u) (seq-lit (get (idx (idx g u) i) 0))))))
   (lemma relax (params (g (seq (seq (tuple int int)))) (start int) (d0 (seq int)) (s0 (seq bool)) (wit0 (seq (seq int)))
@@ -273,7 +265,6 @@
       (forall ((k int)) (call path_range g p k))
       (if (> (len p) r)
         (block
-          (assert (connected g (idx p (- (len p) 2)) (idx p (- (len p) 1))))
           (obtain ((w int)) (has_edge g (idx p (- (len p) 2)) (idx p (- (len p) 1)) w))
           (obtain ((e int)) (and (and (<= 0 e) (< e (len (idx g (idx p (- (len p) 2))))))
                                  (and (== (get (idx (idx g (idx p (- (len p) 2))) e) 0) (idx p (- (len p) 1))) (== (get (idx (idx g (idx p (- (len p) 2))) e) 1) w))))
@@ -298,7 +289,6 @@
       (if (> k 1)
         (block
           (call low g start dist seen p (- k 1))
-          (assert (connected g (idx p (- k 2)) (idx p (- k 1))))
           (obtain ((w int)) (has_edge g (idx p (- k 2)) (idx p (- k 1)) w))
           (obtain ((e int)) (and (and (<= 0 e) (< e (len (idx g (idx p (- k 2))))))
                                  (and (== (get (idx (idx g (idx p (- k 2))) e) 0) (idx p (- k 1))) (== (get (idx (idx g (idx p (- k 2))) e) 1) w))))
@@ -324,7 +314,6 @@
                  (forall ((p (seq int))) (=> (and (is_path g p) (and (== (idx p 0) start) (== (idx p (- (len p) 1)) v))) false))))
     (body
       (forall ((p (seq int))) (call low_all g start dist seen p))
-      (assert (is_path g (idx wit start)))
       (if (idx seen v) (assert (is_path g (idx wit v))) (block))))
   (def bellman_ford
     (body

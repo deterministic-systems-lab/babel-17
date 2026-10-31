@@ -196,7 +196,7 @@ M3's first run, the same seed tasks in B17-0, failed 6 of its 120 attempts, all 
 
 M3's first B17-1 run posed 10 of the AlgoVeri tasks, ported to B17-1, and 59 of its 60 attempts verified. Claude verified all 30, and Codex 29, failing once on `kruskal`. In Dafny's two AlgoVeri runs, Claude verified all 10 of these tasks both times, and Codex 9, failing `kruskal` both times. So these tasks don't separate the languages either, though they differ in cost. Claude used about 4.5 times Dafny's tokens per verified task, mostly the manual and its supplement in the prompt, and Codex about 1.7 times. And B17-1 has a cost Dafny doesn't: 22 of the 120 rounds failed on unbalanced parentheses, and for a missing `)` the parser's message didn't say where. It now names the item that probably lacks it.
 
-So the next ports are the AlgoVeri tasks that were hardest in Dafny. Besides `kruskal`, only `prim`, `edmond_karp` and `push_relabel` had a Dafny failure in the two runs, and `bellman_ford` and `dijkstra` took Codex 6 or 7 rounds. `prim` and `dijkstra` are ported and verified, and join the B17-1 track; the other three are next.
+So the next ports are the AlgoVeri tasks that were hardest in Dafny. Besides `kruskal`, only `prim`, `edmond_karp` and `push_relabel` had a Dafny failure in the two runs, and `bellman_ford` and `dijkstra` took Codex 6 or 7 rounds. `prim`, `dijkstra` and `bellman_ford` are ported and verified, and join the B17-1 track; `edmond_karp` and `push_relabel` are next.
 
 ## How work is recorded
 

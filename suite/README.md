@@ -57,6 +57,7 @@ The labels were first checked by review: by the author, and by an independent mo
 | `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
 | `prim` | WP10: `kruskal`'s spec, solved with Prim's rule | Verified, with `kruskal`'s exchange argument over the set of vertices reached |
 | `dijkstra` | WP10: weighted paths, an edge's weight found by a scan | Verified, with a witness path for each distance and a lower bound for each settled vertex |
+| `bellman_ford` | WP10: negative weights, and a negative cycle as the other result | Verified, with a pigeonhole lemma that finds the cycle |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
 
@@ -106,9 +107,9 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 - **Names:** B17-1 reserves `contains`, so `lca`'s `contains` is `holds` and `trie_insert`'s is `has_key`. Constructors are value names, so `bfs`'s `graph` parameter is `g`.
 - **Types:** runtime fields and parameters are `i64`, and `seq<int>` parameters are slices. Ghost functions keep `int` and `seq`, and `set<int>` is `(iset int)`. Dafny's `Option` is the core library's `option`, whose field is `value`.
 - **Methods inside a datatype** are top-level ghost-fns (§11).
-- **A choice:** `dijkstra`'s `get_edge_weight` picks the weight of an edge from u to v with Dafny's `:|`, which B17 lacks. The port's scans u's entries for the first with target v, through a recursive ghost-fn, `weight_from`. `well_formed` requires an entry's targets to be distinct, so the two give the same weight, 0 when there is no such edge.
+- **A choice:** in `dijkstra` and `bellman_ford`, Dafny's `get_edge_weight` picks the weight of an edge from u to v with `:|`, which B17 lacks. The ports' version scans u's entries for the first with target v, through a recursive ghost-fn, `weight_from`. `well_formed` requires an entry's targets to be distinct, so the two give the same weight, 0 when there is no such edge.
 - **Ranges (D42, §10's rule):** `discrete_logarithm` requires `g * (p - 1)` to fit, so every step's `g * cur` does. The others need none, since their own preconditions bound every value.
-- **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` applies Kruskal's rule, adding the lightest edge between two components, by scanning every edge each round, with components as relabelled vertex labels instead of a union-find forest. `prim` applies Prim's, adding the lightest edge between a vertex reached and one not, by the same scan, with no priority queue. `dijkstra` settles, each round, the unsettled vertex with the least tentative distance, found by a scan, and relaxes its edges. `bfs` uses a vector as its queue.
+- **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` applies Kruskal's rule, adding the lightest edge between two components, by scanning every edge each round, with components as relabelled vertex labels instead of a union-find forest. `prim` applies Prim's, adding the lightest edge between a vertex reached and one not, by the same scan, with no priority queue. `dijkstra` settles, each round, the unsettled vertex with the least tentative distance, found by a scan, and relaxes its edges. `bellman_ford` relaxes every edge n − 1 times, each round from the distances the round started with, then reports a negative cycle if an edge would still relax. `bfs` uses a vector as its queue.
 
 **Reject:** 54 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 48 with a tier 0 code and 6 with a proof family. The freeze review added six, for rules none covered.
 
