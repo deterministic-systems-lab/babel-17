@@ -615,7 +615,7 @@ def holds_data(t):
 SUITE_1 = SUITE / "b17-1"
 programs_1 = {f"suite1-{p.stem}": parse(p.read_bytes(), 1)
               for p in sorted((SUITE_1 / "accept").glob("*.b17")) + sorted((SUITE_1 / "reject").glob("E-PROOF-*.b17"))}
-assert len(programs_1) == 16, len(programs_1)
+assert len(programs_1) == 17, len(programs_1)
 for name, m in programs_1.items():
     sources[name] = r.emit(m, 1)
 

@@ -625,7 +625,7 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
     "prim": ("prim_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),)),
                           ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),)),  # an entry used from its unvisited end
                           ((D("weighted_graph", (((),),)),), ((),))],
-             ["PRE", "PRE", "POST", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "ASSERT", "POST"]),
+             ["PRE", "PRE", "POST", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),

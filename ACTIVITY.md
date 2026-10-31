@@ -2254,7 +2254,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Mutants:** six changes each left a goal unproved: a scan that keeps the heavier edge, one that takes any edge between two different vertices, marking the reached end instead of the new one, starting with no vertex reached, no `good_step` call, and `swap_ok` without the point where the path enters the reached set.
 - **No change to the language,** the encoding or the core library.
 - **Joining the track:** `--tasks b17-1/` now poses 11 ports. D112 adds WP10's ports to the same track, and `suite/README.md` says that each adds a program to the accept suite and changes no label.
-- **Tests:** `test_verify.py` requires `prim` to prove every goal. `test_interp.py` runs it on `kruskal`'s two graphs and on one vertex, with the same trees as `kruskal`'s, the one-way cycle's included. `test_rust.py` builds it. The suite counts in `test_syntax.py`, `test_check.py` and `gym/test_b17.py` are 11 ports.
+- **Tests:** `test_verify.py` requires `prim` to prove every goal. `test_interp.py` runs it on `kruskal`'s two graphs and on one vertex, with the same trees as `kruskal`'s, the one-way cycle's included. `test_rust.py` builds it and compares its runs with the interpreter's. The suite counts in `test_syntax.py`, `test_check.py`, `test_rust.py` and `gym/test_b17.py` include it.
 - **Updated:** `suite/README.md`'s table and port notes; the README's B17-1 track and benchmark paragraphs; the roadmap's critical path and its open question on hard tasks.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
