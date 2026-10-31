@@ -639,7 +639,8 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
                                       ((NEG_CYCLE, 0), (NONE,)),
                                       ((FAR_CYCLE, 0), (some((some(0), some(2), NONE, NONE)),)),
                                       ((D("weighted_graph", (((T((0, -1)),),),)), 0), (NONE,))],  # a negative self-loop
-                     "UNCHECKED"),
+                     ["PRE", "INV-ENTRY", "PRE", "POST", "INV-KEEP", "PRE", "INV-KEEP", "PRE", "POST", "INV-KEEP", "INV-KEEP",
+                      "INV-ENTRY", "INV-ENTRY", "PRE", "PRE", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
