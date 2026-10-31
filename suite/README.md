@@ -56,6 +56,7 @@ The labels were first checked by review: by the author, and by an independent mo
 | `kruskal` | Tuples in a vector | Verified, with an exchange argument for its minimum weight |
 | `coin_change` | A quantifier over sequences | Verified, with witnesses in a ghost map and the same structure as `bfs` |
 | `prim` | WP10: `kruskal`'s spec, solved with Prim's rule | Verified, with `kruskal`'s exchange argument over the set of vertices reached |
+| `dijkstra` | WP10: weighted paths, an edge's weight found by a scan | Verified, with a witness path for each distance and a lower bound for each settled vertex |
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
 
@@ -84,6 +85,15 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
   - **The end:** no entry joins a reached vertex to one not reached, and the graph is connected, so every vertex is reached.
   - **Reuse:** of its 24 lemmas, 9 are `kruskal`'s unchanged, 8 are adapted to the reached set, and 7 are new.
   - **Getting there:** its first version left one `assert` unproved, which a lemma, `inside_step`, closed. Under 10 seeds, `swap_ok`'s postcondition then proved under only 7, until steps named the swapped edge's entry in the graph and bounded the new edge's weight by it. Six mutants each left a goal unproved. 18 proof steps turned out redundant and are removed, and 3 lemmas with them.
+- **How `dijkstra`'s proof goes:** each round settles the unsettled vertex with the least tentative distance, and the loop keeps four invariants.
+  - **Witnesses:** every vertex seen has a path from the start whose weight is its distance, in a ghost vector of paths, as `bfs` keeps them. Relaxing an edge extends the path of its tail.
+  - **Settled:** no path from the start to a settled vertex weighs less than its distance.
+  - **Closed:** every edge from a settled vertex to an unsettled one leaves its head seen, and no farther than the tail's distance plus the edge's weight.
+  - **Bounded:** every distance is at least 0 and at most 100000 times the number of vertices settled, so each sum fits an `i64`.
+  - **The vertex settled next:** take any path to it. Where it first leaves the settled set, by an edge from x to y, its prefix weighs at least x's distance, so with that edge at least y's distance, which is at least the new vertex's. Weights are non-negative, so the whole path weighs at least its prefix (`cross`, `walk`).
+  - **The end:** when no unsettled vertex is seen, every vertex seen is settled. A path to a vertex never seen would leave the settled set by an edge that `closed` says makes its head seen (`all_done`).
+  - **Weights:** `gew_entry` shows by induction along a vertex's entries that `get_edge_weight` gives an entry's weight, since targets are distinct. `pw_eq` shows that paths with equal elements weigh the same, as `kruskal`'s `tw_eq` does for its trees, so a path's prefixes and extensions can be weighed.
+  - **Getting there:** the first version left 3 of 669 goals unproved: two `requires` that indexed before stating their ranges, and an invariant kept on the branch that doesn't relax, which a lemma, `skip`, now proves. Under 10 seeds, the scan's invariant then proved under only 4, until three small lemmas split its cases, and those needed `u` kept in range by an invariant. 18 proof steps turned out redundant and are removed, and 5 lemmas with them. Six mutants each left a goal unproved.
 - **How the large proofs fit (D106):**
   - **First attempt:** `bfs`'s first full proof didn't verify. Each of its loop's goals carried some twenty quantified invariants, with `is_path` inlined into each, and Z3 ran out of budget.
   - **Two changes made it verify.** In B17-1, a non-recursive ghost-fn is folded, so it unfolds only where a proof applies it (D106). And each invariant became a folded predicate, such as `(sorted_q dist queue)`, with each update's effect on it proved by a small lemma.
@@ -96,8 +106,9 @@ D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding 
 - **Names:** B17-1 reserves `contains`, so `lca`'s `contains` is `holds` and `trie_insert`'s is `has_key`. Constructors are value names, so `bfs`'s `graph` parameter is `g`.
 - **Types:** runtime fields and parameters are `i64`, and `seq<int>` parameters are slices. Ghost functions keep `int` and `seq`, and `set<int>` is `(iset int)`. Dafny's `Option` is the core library's `option`, whose field is `value`.
 - **Methods inside a datatype** are top-level ghost-fns (§11).
+- **A choice:** `dijkstra`'s `get_edge_weight` picks the weight of an edge from u to v with Dafny's `:|`, which B17 lacks. The port's scans u's entries for the first with target v, through a recursive ghost-fn, `weight_from`. `well_formed` requires an entry's targets to be distinct, so the two give the same weight, 0 when there is no such edge.
 - **Ranges (D42, §10's rule):** `discrete_logarithm` requires `g * (p - 1)` to fit, so every step's `g * cur` does. The others need none, since their own preconditions bound every value.
-- **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` applies Kruskal's rule, adding the lightest edge between two components, by scanning every edge each round, with components as relabelled vertex labels instead of a union-find forest. `prim` applies Prim's, adding the lightest edge between a vertex reached and one not, by the same scan, with no priority queue. `bfs` uses a vector as its queue.
+- **Implementations:** the simplest that meet the spec. `longest_palindrome_substring` checks every substring, since the spec asks for no particular algorithm. `kruskal` applies Kruskal's rule, adding the lightest edge between two components, by scanning every edge each round, with components as relabelled vertex labels instead of a union-find forest. `prim` applies Prim's, adding the lightest edge between a vertex reached and one not, by the same scan, with no priority queue. `dijkstra` settles, each round, the unsettled vertex with the least tentative distance, found by a scan, and relaxes its edges. `bfs` uses a vector as its queue.
 
 **Reject:** 54 programs, each with exactly one error named by its code. They cover every case §13 lists, and each new rule of §2–§9: 48 with a tier 0 code and 6 with a proof family. The freeze review added six, for rules none covered.
 

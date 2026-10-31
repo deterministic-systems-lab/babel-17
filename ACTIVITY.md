@@ -2262,3 +2262,25 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
 - **Left admitted:** none.
+
+## 2026-10-31 · `dijkstra`, the second of WP10's harder ports
+- **Asked by the owner:** to continue, after `prim` merged (PR #55).
+- **`dijkstra`'s port:** `suite/b17-1/accept/dijkstra.b17`. Its data item and `well_formed` are `kruskal`'s, and its other ghost-fns and spec state what `dijkstra.dfy` states.
+  - **Contracts:** AlgoVeri's `requires` and `ensures` are kept, with the start vertex an `i64` in range. The result is a `(vec (option i64))`.
+  - **One change, for a choice:** Dafny's `get_edge_weight` picks the weight with `:|`, which B17 lacks. The port's scans u's entries for the first with target v, through a recursive ghost-fn, `weight_from`. `well_formed` requires an entry's targets to be distinct, so where the spec applies, both give the edge's one weight, and 0 when there's no edge. `suite/README.md` lists it among the ports' differences.
+- **The implementation:** Dijkstra's algorithm with a scan in place of a priority queue. Each round it settles the unsettled vertex with the least tentative distance, then relaxes the edges to unsettled vertices.
+- **The proof:** 643 goals prove under 10 shuffled seeds.
+  - **Invariants:** every vertex seen has a witness path of its distance's weight, kept in a ghost vector as `bfs` keeps its witnesses (`witnesses`). No path to a settled vertex is lighter than its distance (`settled`). An edge from a settled vertex leaves its head seen, at most the tail's distance plus the weight away (`closed`). Every distance lies between 0 and 100000 times the number settled (`bounded`), so the sums fit `i64`.
+  - **The vertex settled next:** any path to it first leaves the settled set by some edge, whose head is no nearer than the new vertex. The prefix up to that edge weighs at least its head's distance, and with weights non-negative the whole path weighs at least its prefix (`cross`, `walk`, `extract`).
+  - **The end:** a vertex never seen is unreachable, since a path to it would leave the settled set by an edge whose head `closed` makes seen (`all_done`, `unreached`).
+  - **Weights:** `gew_entry` shows by induction along a vertex's entries that `get_edge_weight` gives the entry's weight. `pw_eq` shows by induction that paths with equal elements weigh the same, since sequences have no extensionality, so `pw_mono` and `pw_append` can weigh prefixes and extensions.
+  - **Getting there:** the first version proved 666 of 669 goals under one seed. Two `requires` indexed before stating their ranges, and the `partial` invariant needed a lemma, `skip`, on the branch that doesn't relax. Under 10 seeds the scan's `least` invariant proved under only 4, until three lemmas split its cases, with `u` kept in range by an invariant. The cut script then found 18 redundant steps, all 18 together too, and 5 lemmas went with them.
+- **Mutants:** six changes each left a goal unproved: a scan that settles a farther vertex, relaxing only the first time a vertex is seen, reporting every vertex as reached, a witness missing its last step, no lower bound for the vertex settled, and a bound one weight too tight.
+- **No change to the language,** the encoding or the core library.
+- **Tests:** `test_verify.py` requires `dijkstra` to prove every goal. `test_interp.py` runs it on a graph with an unreachable vertex from two starts, and on `kruskal`'s triangle, and checks that a start out of range and a repeated target fail its `requires`. A negative weight can't be one: `weights_non_negative` ranges over every `int` weight, so the run leaves it unchecked. `test_rust.py` builds it and compares its runs with the interpreter's. The suite counts include it.
+- **Codex review** (`gpt-5.6-sol`): no findings. It confirmed that the port's `get_edge_weight` equals Dafny's wherever the `ensures` is evaluated, that the sums can't overflow, that `cross`'s step is sound, and that `unreached`'s `false` is reached only under a path that would contradict the end state.
+- **Ponytail review:** nothing to cut. The `requires` that `cross`, `walk` and `extract` repeat could be one predicate, as `kruskal`'s could, but folding it would change what the solver unfolds.
+- **Updated:** `suite/README.md`'s table, port notes and differences; the README's and roadmap's lists of the ports done.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
