@@ -674,7 +674,7 @@ ACCEPT_1 = {
     "prim": ("prim_mst", [(WEIGHTED,), (D("weighted_graph", ((),)),)]),
     "dijkstra": ("dijkstra_shortest_paths", [(DIJKSTRA, 0), (DIJKSTRA, 4), (WEIGHTED, 1), (WEIGHTED, 3)]),
     "bellman_ford": ("bellman_ford", [(NEG_EDGE, 0), (NEG_CYCLE, 0), (FAR_CYCLE, 0), (WEIGHTED, 3)]),
-    "edmond_karp": ("max_flow_value", [(FLOW, 0, 3), (UNDO, 0, 3), (OPPOSITE, 0, 2), (FLOW, 3, 0), (FLOW, 0, 0)]),
+    "edmond_karp": ("max_flow_value", [(FLOW, 0, 3), (UNDO, 0, 3), (OPPOSITE, 0, 2), (FLOW, 3, 0), (FLOW, 0, 4)]),
     "coin_change": ("coin_change", [((1, 2, 5), 11), ((2,), 3), ((3,), 0), ((), 1), ((0,), 1)]),
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE_1 / "accept").glob("*.b17"))
