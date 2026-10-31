@@ -139,7 +139,7 @@ def open_(rows):
 
 # The suite: every written proof verifies, and each proof reject fails only its label's family.
 for name in ("bst_insert", "bst_search", "discrete_logarithm", "longest_palindrome_substring", "lca", "segmenttree_query",
-             "trie_insert", "bfs", "coin_change", "kruskal"):
+             "trie_insert", "bfs", "coin_change", "kruskal", "prim"):
     assert open_(run1((SUITE / "b17-1/accept" / f"{name}.b17").read_text())) == [], name
 for path in sorted((SUITE / "b17-1/reject").glob("E-PROOF-*.b17")):
     assert open_(run1(path.read_text())) == [path.name.split("-")[2]], path.name

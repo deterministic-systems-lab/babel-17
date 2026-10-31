@@ -179,7 +179,7 @@ for f in sorted((SUITE / "b17-1").rglob("*.b17")):
         continue
     tree = parse(text, 1)
     assert parse(s.canonical(tree), 1) == tree and s.canonical(parse(s.canonical(tree), 1)) == s.canonical(tree), f
-assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 64
+assert len(list((SUITE / "b17-1").rglob("*.b17"))) == 65
 # Every B17-0 suite program is a B17-1 program with the same tree (docs/b17-1.md, opening).
 assert all(parse(f.read_text(), 1) == parse(f.read_text()) for f in files if f != PARSE_REJECT)
 # B17-1's reserved words are exactly those docs/b17-1.md §2 adds; B17-0 still reads them as names.
