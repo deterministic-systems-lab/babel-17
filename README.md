@@ -176,6 +176,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 | Seed, 3 samples | 20 textbook tasks | 60/60 | 60/60 | 60/60 | 60/60 |
 | Seed in B17-0 (M3), 3 samples | the same 20 tasks | 59/60 | 55/60 | — | — |
 | M3 rerun with the manual's fixes, 3 samples | `insertion_sort` and `partition` | 6/6 | 6/6 | — | — |
+| AlgoVeri ports in B17-1 (M3), 3 samples | 10 of the AlgoVeri tasks | 30/30 | 29/30 | — | — |
 | AlgoVeri, 1 sample | 66 algorithm specs | 64/66 | 60/66 | 28/28 before its quota ran out | — |
 | AlgoVeri and vericoding, 1 sample | 93 tasks | 92/93 | 90/93 | — | 49/49 before its balance ran out |
 
@@ -191,6 +192,8 @@ The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-a
 Every set so far is near the ceiling for current models. The vericoding tasks were picked because at most a quarter of the models in its published results solved them, yet Claude and Codex verified all 28. Both of Claude's AlgoVeri failures in the first run, and its only failure in the second, were on specs no program can verify: `matrix_multiplication` is ill-formed and `rod_cutting` unsatisfiable, and both are now removed. The models still differ in rounds and tokens, but barely in what they verify. So the tasks hard enough to compare the two languages will have to be found elsewhere or written (WP10).
 
 M3's first run, the same seed tasks in B17-0, failed 6 of its 120 attempts, all on `insertion_sort` and `partition`. Mostly, the manual didn't say that swapping two elements with `set-idx` keeps a vector's multiset, so agents tried to prove it themselves. It says so now, and in a rerun of the two tasks all 12 attempts verified in round 1, with no lemmas of their own. The manual alone made the difference: the rerun's programs verify with the first run's verifier too. So on the seed tasks B17-0 verifies what Dafny does, though the other 18 haven't been rerun under the new manual, and the two differ in cost. On these two tasks, Claude used about 4.6 times Dafny's tokens per verified task, mostly the manual in its prompt, and Codex about 1.2 times.
+
+M3's first B17-1 run posed 10 of the AlgoVeri tasks, ported to B17-1, and 59 of its 60 attempts verified. Claude verified all 30, and Codex 29, failing once on `kruskal`. In Dafny's two AlgoVeri runs, Claude verified all 10 of these tasks both times, and Codex 9, failing `kruskal` both times. So these tasks don't separate the languages either, though they differ in cost. Claude used about 4.5 times Dafny's tokens per verified task, mostly the manual and its supplement in the prompt, and Codex about 1.7 times. And B17-1 has a cost Dafny doesn't: 22 of the 120 rounds failed on unbalanced parentheses, and for a missing `)` the parser's message doesn't say where.
 
 ## How work is recorded
 
