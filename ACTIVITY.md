@@ -2197,8 +2197,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Otherwise,** the innermost open `(`, as before. That includes `parse_expr`, which reads one expression.
 - **Only this error changes.** Replayed through `main`'s reader and this one, all 306 recorded B17 rounds of M3's three runs give the same parse, success or error, except the 16 unclosed rounds.
   - **All 16 now point into the agent's own lines:** 13 by the first rule and 3 by the second, B17-0's two `merge_sorted` rounds among them. Before, 11 pointed at the module's first line, in the frozen part.
-  - **In each of the 10 that one added `)` fixes,** the fix lies in the lines the message names.
-  - **The other 6** lack two or more, at different places, so no single fix exists. Each names the first item that's still open.
+  - **In each of the 10 that one `)` added at a line's end fixes,** the fix lies in the lines the message names.
+  - **In the other 6,** no single `)` at a line's end fixes it, and five lack two or more. Each names the first item that's still open.
 - **Not a language change:** `docs/b17-0.md` §2 says only that such text is E-PARSE-001, and neither spec fixes its message.
 - **Tests:** `test_syntax.py` pins each branch, with its position: the first rule, the last item, and the innermost `(`.
 - **Self-checks:** all eleven pass, `test_rust.py` included.
