@@ -2255,6 +2255,9 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **No change to the language,** the encoding or the core library.
 - **Joining the track:** `--tasks b17-1/` now poses 11 ports. D112 adds WP10's ports to the same track, and `suite/README.md` says that each adds a program to the accept suite and changes no label.
 - **Tests:** `test_verify.py` requires `prim` to prove every goal. `test_interp.py` runs it on `kruskal`'s two graphs and on one vertex, with the same trees as `kruskal`'s, the one-way cycle's included. `test_rust.py` builds it and compares its runs with the interpreter's. The suite counts in `test_syntax.py`, `test_check.py`, `test_rust.py` and `gym/test_b17.py` include it.
+- **Self-checks:** all eleven pass.
+- **Codex review** (`gpt-5.6-sol`): no findings. It confirmed that the frozen part states what `prim.dfy` does, that the implementation handles one-way entries, that the exchange argument holds, and the per-task counts from the two Dafny runs.
+- **Ponytail review:** nothing to cut beyond the 18 steps already removed.
 - **Updated:** `suite/README.md`'s table and port notes; the README's B17-1 track and benchmark paragraphs; the roadmap's critical path and its open question on hard tasks.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
