@@ -598,6 +598,7 @@ TREE = D("node", (1, D("node", (2, D("node", (4, NIL, NIL)), D("node", (5, NIL, 
 GRAPH = D("graph", (((1,), (2,), (), (0,)),))
 CYCLE = D("weighted_graph", (((T((2, 1)),), (T((0, 1)),), (T((1, 1)),)),))  # 0 -> 2 -> 1 -> 0
 WEIGHTED = D("weighted_graph", (((T((1, 4)), T((2, 1))), (T((0, 4)), T((2, 2))), (T((0, 1)), T((1, 2)))),))
+DIJKSTRA = D("weighted_graph", (((T((1, 5)), T((2, 1))), (T((3, 0)),), (T((1, 2)),), (T((0, 7)),), ()),))  # 4 unreachable
 # Each accept program on inputs its requires allows: ok, and the same with check=False. The
 # clauses left unchecked are those whose quantifiers range over paths, sequences, every int, or
 # the members a ghost-fn's predicate picks out, which no guard bounds (D58, D102), and a proof's
@@ -626,6 +627,10 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
                           ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),)),  # an entry used from its unvisited end
                           ((D("weighted_graph", (((),),)),), ((),))],
              ["PRE", "PRE", "POST", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "POST"]),
+    "dijkstra": ("dijkstra_shortest_paths", [((DIJKSTRA, 0), ((some(0), some(3), some(1), some(3), NONE),)),
+                                             ((DIJKSTRA, 4), ((NONE, NONE, NONE, NONE, some(0)),)),
+                                             ((WEIGHTED, 1), ((some(3), some(0), some(2)),))],
+                 "UNCHECKED"),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
@@ -636,6 +641,7 @@ OUTSIDE_1 = {
     "trie_insert": [(NONE, (256,)), (some(trie()), (1,))], "lca": [(TREE, 4, 6)],
     "bfs": [(GRAPH, 0, 4), (D("graph", (((5,),),)), 0, 0)], "kruskal": [(D("weighted_graph", ((),)),)],
     "prim": [(D("weighted_graph", ((),)),)],
+    "dijkstra": [(WEIGHTED, 3), (D("weighted_graph", (((T((0, -1)),),),)), 0), (D("weighted_graph", (((T((0, 1)), T((0, 2))),),)), 0)],
     "coin_change": [((), 1), ((0,), 1)],
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE / "b17-1/accept").glob("*.b17"))
