@@ -141,7 +141,8 @@ e = error(OK[:-1])
 assert (e.line, e.col) == (3, 1) and e.reason.endswith("at its end, or in its last item, at lines 3-3"), e
 e = error(OK.replace("(effects))\n", "(effects)\n"))
 assert (e.line, e.col) == (2, 1) and "still open at line 3" in e.reason and e.reason.endswith("lines 2-2"), e
-assert error(OK.replace("\n", " ")[:-1]).reason.endswith("lines 1-1")
+e = error("(module m\n  (x")
+assert (e.line, e.col) == (2, 3) and e.reason == "unclosed '('", e
 assert error("(module m").reason == "unclosed '('"
 bad("(module", "(x) (module", "(module", "text after the module")
 assert error("").reason.startswith("empty input")
