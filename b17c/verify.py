@@ -34,7 +34,7 @@ RUNTIME = {"BOUNDS", "OVERFLOW", "DIV", "PRE", "TERM", "FIELD"}  # L2's "no runt
 # b17c's generated SMT names: constants (x!12), bound variables (k!B3), ghost-fn parameters
 # (n!P4), ghost-fn functions and requires (g!fib, p!fib), and B17-1's sorts, constructors,
 # selectors and functions (d!3, c!4, f!5, s!6, len!6, rank!7).
-GENERATED = re.compile(r"(?<![\w.!])(?:[a-z_][a-z0-9_]*!(?:[BP]?\d+)|[gp]![a-z_][a-z0-9_]*)(?![\w.!])")
+GENERATED = re.compile(r"(?<![\w.!])(?:[a-z][a-z0-9_]*![BP]?[0-9]+|[gp]![a-z][a-z0-9_]*)(?![\w.!])")
 
 
 def canonical(query):
