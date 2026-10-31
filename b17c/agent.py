@@ -134,31 +134,33 @@ def counterexample(module, gen, g, subset=SUBSET):
     """The solver's model of a failed goal, as the item's parameter values, and whether a checked
     run of the def on them fails too (D57). None when no parameter appears in the query, or a
     parameter's type can't be shown. A tuple or data value is a B17-1 term, such as
-    "(node 5 (leaf) (leaf))", which a run reads as simulate reads its arguments (D112)."""
-    q = _trimmed(G.query(gen, g[3], g[4], g[0]))
+    "(node 5 (leaf) (leaf))", which a run reads as simulate reads its arguments (D112). A
+    sequence is a list, and inside a term a seq-lit."""
     # A validity predicate's own axioms (D103, D105) quantify over every value of a data type,
     # so Z3 never builds a model under them. Without them a model may break an i64 range, which
     # _model then rejects, and the interpreter's run checks the rest.
     oks = set(gen.oks.values())
     drop = {l for _, names, text in gen.blocks if names & oks for l in text.split("\n") if l.startswith("(assert (forall")}
-    q = "\n".join(l for l in q.split("\n") if l not in drop)
+    seqs = [text for layer, _, text in gen.blocks if layer == 3]  # sequence facts, and declarations
+    query = lambda facts: "\n".join(l for l in _trimmed(G.query(gen, facts, g[4], g[0]), seqs).split("\n") if l not in drop)
+    q = query(g[3])
     used = set(G.TOKEN.findall(q))
     back = {smt: c for d in gen.dts.values() for c, (smt, _) in d["ctors"].items()}
     shapes, terms, cex = {}, [], {}
     for name, (t, typ) in g[8].items():
-        ty, srt = gen.ty(typ), gen.sort(typ)
+        ty = gen.ty(typ)
         if t not in used:  # the goal doesn't constrain it, so any value will do: the smallest (§10)
             cex[name] = _smallest(gen, ty, True)
             continue
-        if _shown(gen, ty):
-            ts = [t]
-        elif ty[0] in C.SEQUENCES and _shown(gen, ty[1]):
-            ts = [G.fn("len", srt, t)] + [G.fn("nth", srt, t, str(k)) for k in range(SHOWN)]
-        else:  # a set, map or multiset, or a sequence inside a value: no model term shows it
+        try:
+            ts, build = _shape(gen, t, ty, back, True)
+        except _Unshown:  # a set, map or multiset: no model term shows it
             return None
-        shapes[name], terms = (len(terms), len(ts), ty), terms + ts
+        shapes[name], terms = (len(terms), len(ts), build), terms + ts
     values = []
     if terms:
+        if set(G.TOKEN.findall(" ".join(terms))) - used:  # a nested sequence's len and nth, say, with their facts
+            q = query([*g[3], f"(or true {' '.join(f'(= {x} {x})' for x in terms)})"])
         r = subprocess.run(["z3", f"rlimit={G.RLIMIT}", "-T:60", "-in"], input=f"{q}\n(get-value ({' '.join(terms)}))",
                            capture_output=True, text=True)
         lines = r.stdout.strip().split("\n", 1)
@@ -166,23 +168,17 @@ def counterexample(module, gen, g, subset=SUBSET):
             return None
         values = [pair[1] for pair in _sexp(lines[1])]
     complete = True
-    for name, (start, n, ty) in shapes.items():
-        vs = values[start:start + n]
-        if n == 1:
-            cex[name] = _model(gen, vs[0], ty, back)
-        else:
-            length = _model(gen, vs[0], C.INT, back)
-            cex[name] = [_model(gen, v, ty[1], back) for v in vs[1:1 + min(length, SHOWN)]]
-            if length > SHOWN:
-                cex[name], complete = {"len": length, "prefix": cex[name]}, False
-        if None in (cex[name] if isinstance(cex[name], list) else [cex[name]]):
-            return None  # an i64 out of range, which the dropped validity axioms rule out
+    for name, (start, n, build) in shapes.items():
+        try:
+            cex[name] = build(values[start:start + n])
+        except _Unshown:  # an i64 out of range, which the dropped validity axioms rule out, or a value too big to show
+            return None
+        complete = complete and not isinstance(cex[name], dict)
     reproduced = None
     cex = {k: cex[k] for k in g[8]}  # in parameter order
     if g[6] == "impl" and "def" in gen.defs[g[0]] and complete:
         try:
-            args = [[_read(module, x, subset) for x in v] if isinstance(v, list) else _read(module, v, subset)
-                    for v in cex.values()]
+            args = [_read(module, v, subset) for v in cex.values()]
             out = I.run(module, g[0], args, check=True, subset=subset)
             reproduced = not isinstance(out, I.Ok)
         except ValueError:
@@ -202,6 +198,81 @@ def _shown(gen, t, seen=()):
     return False
 
 
+class _Unshown(Exception):
+    """A value model terms don't show: a set, map or multiset, an i64 out of range, or a value
+    nested more than DEEP data values deep or holding a sequence longer than SHOWN."""
+
+
+DEEP = 4  # data values inside one another that a counterexample's terms reach
+
+
+def _shape(gen, t, ty, back, top=False, depth=0):
+    """The model terms that show a value of type ty at SMT term t, and a function from their
+    values to it: a bool, an integer, a list for a sequence, or a B17-1 term. Where a model term
+    can't show the whole value, as with a sequence or a data value with one inside, the terms
+    are its parts: a sequence's len and nth, and a data value's own term for its constructor,
+    then every constructor's fields. At the top, a longer sequence shows its length and prefix."""
+    if _shown(gen, ty):
+        def one(vs):
+            if (v := _model(gen, vs[0], ty, back)) is None:
+                raise _Unshown()
+            return v
+        return [t], one
+    if ty[0] in ("iset", "map", "multiset"):
+        raise _Unshown()
+    srt = gen.tsort(ty)
+    if ty[0] in C.SEQUENCES:
+        terms, spans = _joined([G.fn("len", srt, t)], [_shape(gen, G.fn("nth", srt, t, str(k)), ty[1], back, False, depth)
+                                                       for k in range(SHOWN)])
+
+        def seq(vs):
+            n = _model(gen, vs[0], C.INT, back)
+            if n < 0 or n > SHOWN and not top:
+                raise _Unshown()
+            shown = [build(vs[a:b]) for a, b, build in spans[:n]]
+            return {"len": n, "prefix": shown} if n > SHOWN else shown
+        return terms, seq
+    if ty[0] == "tuple":
+        fields = [("tuple", [(f"get.{srt[1:].split()[0]}.{k}", u) for k, u in enumerate(ty[1:])])]
+    else:
+        fields = list(_fields(gen, ty).items())
+    terms, spans = [t], {}
+    for c, fs in fields:
+        terms, spans[c] = _joined(terms, [_shape(gen, f"({sel} {t})", u, back, False, depth + (ty[0] == "data"))
+                                          for sel, u in (fs if depth < DEEP else ())])
+
+    def value(vs):
+        head = vs[0] if isinstance(vs[0], str) else vs[0][0]
+        c = "tuple" if ty[0] == "tuple" else back[head]
+        if len(spans[c]) < len(dict(fields)[c]):
+            raise _Unshown()
+        return "(" + " ".join([c] + [_text(build(vs[a:b])) for a, b, build in spans[c]]) + ")"
+    return terms, value
+
+
+def _fields(gen, t):
+    """Data type t's constructors, each with its fields as (selector, declared type with t's
+    arguments). gen.data's are its SMT instance's, where an i64 argument is int."""
+    flat = iter(gen.fields(t))
+    return {c: [next(flat) for _ in fs] for c, (_, fs) in gen.data(t)["ctors"].items()}
+
+
+def _joined(terms, parts):
+    """terms, then each part's terms, with each part's span of them and its build."""
+    spans = []
+    for ts, build in parts:
+        spans.append((len(terms), len(terms) + len(ts), build))
+        terms = terms + ts
+    return terms, spans
+
+
+def _text(v):
+    """A shown value as part of a B17-1 term."""
+    if isinstance(v, bool):
+        return str(v).lower()
+    return "(seq-lit" + "".join(" " + _text(x) for x in v) + ")" if isinstance(v, list) else str(v)
+
+
 def _model(gen, v, t, back):
     """Model term v of type t: a bool or an integer, or a tuple or data value as a B17-1 term. None
     where an i64 is out of range, which only the dropped validity axioms rule out."""
@@ -212,9 +283,9 @@ def _model(gen, v, t, back):
         return n if t == C.INT or -2 ** 63 <= n < 2 ** 63 else None
     head, args = (v, []) if isinstance(v, str) else (v[0], v[1:])
     name = "tuple" if head.startswith("mk.T") else back[head]
-    types = t[1:] if t[0] == "tuple" else [f[2] for f in gen.data(t)["ctors"][name][1]]
+    types = t[1:] if t[0] == "tuple" else [u for _, u in _fields(gen, t)[name]]
     parts = [_model(gen, a, u, back) for a, u in zip(args, types)]
-    return None if None in parts else "(" + " ".join([name] + [str(x).lower() if isinstance(x, bool) else str(x) for x in parts]) + ")"
+    return None if None in parts else "(" + " ".join([name] + [_text(x) for x in parts]) + ")"
 
 
 def _smallest(gen, t, top=False):
@@ -266,26 +337,40 @@ def _smallest(gen, t, top=False):
 
 def _read(module, v, subset):
     """A counterexample's value as the interpreter runs it: a term is read as simulate's arguments are."""
+    if isinstance(v, list):
+        return [_read(module, x, subset) for x in v]
     return I.value(module, v, subset) if isinstance(v, str) else v
 
 
-def _trimmed(q):
-    """q with only the prelude axioms whose symbols its own part uses. The full prelude's
-    quantifiers keep Z3 from ever answering sat, so it gives no model. This is only for finding
-    one: the verdict still comes from the full query, and the interpreter checks the model."""
-    prelude = q[:len(G.PRELUDE)]
+def _trimmed(q, background=()):
+    """q with only the background axioms whose symbols its own part uses: the prelude's, and those
+    of the texts in background, B17-1's sequence facts for its own sorts. Their quantifiers keep
+    Z3 from ever answering sat, so it gives no model. This is only for finding one: the verdict
+    still comes from the full query, and the interpreter checks the model."""
+    prelude, body = q[:len(G.PRELUDE)], q[len(G.PRELUDE):]
+    forms, extra = _forms(prelude), [f for b in background for f in _forms(b) if f in body]
+    own = body
+    for f in extra:
+        own = own.replace(f, "")
+    declared = {m[1] for f in forms + extra if (m := G.DEFINES.match(f))}
+    used = set(G.TOKEN.findall(own)) & declared
+    kept = lambda f: not f.startswith("(assert") or set(G.TOKEN.findall(f)) & declared <= used
+    for f in extra:
+        body = body if kept(f) else body.replace(f, "")
+    return "\n".join(filter(kept, forms)) + "\n" + body
+
+
+def _forms(text):
+    """The top-level forms of text."""
     forms, depth, start = [], 0, 0
-    for k, ch in enumerate(prelude):
+    for k, ch in enumerate(text):
         if ch == "(":
             depth, start = depth + 1, start if depth else k
         elif ch == ")":
             depth -= 1
             if not depth:
-                forms.append(prelude[start:k + 1])
-    declared = {m[1] for f in forms if (m := G.DEFINES.match(f))}
-    used = set(G.TOKEN.findall(q[len(G.PRELUDE):])) & declared
-    keep = [f for f in forms if not f.startswith("(assert") or set(G.TOKEN.findall(f)) & declared <= used]
-    return "\n".join(keep) + "\n" + q[len(G.PRELUDE):]
+                forms.append(text[start:k + 1])
+    return forms
 
 
 def _sexp(text):
