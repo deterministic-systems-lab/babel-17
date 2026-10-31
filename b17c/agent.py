@@ -233,9 +233,9 @@ def _shape(gen, t, ty, back, top=False, depth=0):
             return {"len": n, "prefix": shown} if n > SHOWN else shown
         return terms, seq
     if ty[0] == "tuple":
-        fields = [("mk", [(f"get.{srt[1:].split()[0]}.{k}", u) for k, u in enumerate(ty[1:])])]
+        fields = [("tuple", [(f"get.{srt[1:].split()[0]}.{k}", u) for k, u in enumerate(ty[1:])])]
     else:
-        fields = [(c, [(f[1], f[2]) for f in fs]) for c, (_, fs) in gen.data(ty)["ctors"].items()]
+        fields = list(_fields(gen, ty).items())
     terms, spans = [t], {}
     for c, fs in fields:
         terms, spans[c] = _joined(terms, [_shape(gen, f"({sel} {t})", u, back, False, depth + (ty[0] == "data"))
@@ -243,11 +243,18 @@ def _shape(gen, t, ty, back, top=False, depth=0):
 
     def value(vs):
         head = vs[0] if isinstance(vs[0], str) else vs[0][0]
-        c = "mk" if ty[0] == "tuple" else back[head]
+        c = "tuple" if ty[0] == "tuple" else back[head]
         if len(spans[c]) < len(dict(fields)[c]):
             raise _Unshown()
-        return "(" + " ".join(["tuple" if c == "mk" else c] + [_text(build(vs[a:b])) for a, b, build in spans[c]]) + ")"
+        return "(" + " ".join([c] + [_text(build(vs[a:b])) for a, b, build in spans[c]]) + ")"
     return terms, value
+
+
+def _fields(gen, t):
+    """Data type t's constructors, each with its fields as (selector, declared type with t's
+    arguments). gen.data's are its SMT instance's, where an i64 argument is int."""
+    flat = iter(gen.fields(t))
+    return {c: [next(flat) for _ in fs] for c, (_, fs) in gen.data(t)["ctors"].items()}
 
 
 def _joined(terms, parts):
@@ -276,9 +283,9 @@ def _model(gen, v, t, back):
         return n if t == C.INT or -2 ** 63 <= n < 2 ** 63 else None
     head, args = (v, []) if isinstance(v, str) else (v[0], v[1:])
     name = "tuple" if head.startswith("mk.T") else back[head]
-    types = t[1:] if t[0] == "tuple" else [f[2] for f in gen.data(t)["ctors"][name][1]]
+    types = t[1:] if t[0] == "tuple" else [u for _, u in _fields(gen, t)[name]]
     parts = [_model(gen, a, u, back) for a, u in zip(args, types)]
-    return None if None in parts else "(" + " ".join([name] + [str(x).lower() if isinstance(x, bool) else str(x) for x in parts]) + ")"
+    return None if None in parts else "(" + " ".join([name] + [_text(x) for x in parts]) + ")"
 
 
 def _smallest(gen, t, top=False):
