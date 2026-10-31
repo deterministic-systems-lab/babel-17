@@ -27,7 +27,7 @@ def src(name):
 
 
 # canonical() renames generated names in order of first occurrence, and only those.
-q = "(declare-const x!12 Int) (declare-const n!p SI) (assert (= (g!fib x!12) (len.I n!p))) (assert (forall ((i!b3 Int)) (p!fib i!b3)))"
+q = "(declare-const x!12 Int) (declare-const n!P SI) (assert (= (g!fib x!12) (len.I n!P))) (assert (forall ((i!B3 Int)) (p!fib i!B3)))"
 assert v.canonical(q) == "(declare-const k!0 Int) (declare-const k!1 SI) (assert (= (k!2 k!0) (len.I k!1))) (assert (forall ((k!3 Int)) (k!4 k!3)))"
 assert v.canonical(v.canonical(q)) == v.canonical(q)
 
@@ -229,6 +229,11 @@ assert open_(run(H0 + "(ghost-fn n ((k int)) int (requires (>= k 0)) (body (len 
 assert open_(run1(H0 + "(spec mk (params (n i64)) (returns (r (vec (vec i64)))) (requires (and (<= 0 n) (<= n 9))) "
                        "(ensures (== (len r) n) (forall ((i int)) (=> (and (<= 0 i) (< i n)) (and (== (len (idx r i)) n) (== (idx (idx r i) i) 0))))) (effects alloc)) "
                        "(def mk (body (return (seq-build n (fn (a) (seq-build n (fn (b) 0))))))))")) == []
+# A binder or parameter named g or p never shares an SMT name with a ghost-fn: x!B3 and x!P against g!b3 and g!p.
+assert open_(run1(H0 + "(ghost-fn b3 () int (body 7))\n(ghost-fn foo () (seq int) (body (seq-build 2 (fn (g) (b3)))))\n"
+                       "(lemma bad (params) (ensures (== (idx (foo) 0) 0)) (body)))")) == ["POST"]
+assert open_(run1(H0 + "(ghost-fn p () int (body 7))\n(ghost-fn q ((g int)) int (body (p)))\n"
+                       "(lemma bad (params) (ensures (== (q 0) 0)) (body)))")) == ["POST"]
 # The second pass: a recursive call in a ghost-fn's requires gets its TERM goal (D57), and a lifted
 # seq-build may call the recursive ghost-fn whose body it's in.
 assert open_(run(H0 + "(ghost-fn f ((n int)) bool (requires (or (f n) true)) (decreases n) (body true)))")) == ["TERM"]

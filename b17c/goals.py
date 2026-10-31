@@ -163,7 +163,7 @@ def in_i64(t):
 
 
 def _binds(decl):
-    """The (name, sort) pairs of an SMT binder list such as "(x!b1 Int) (s!b2 (Array Int Bool))"."""
+    """The (name, sort) pairs of an SMT binder list such as "(x!B1 Int) (s!B2 (Array Int Bool))"."""
     out, depth, start = [], 0, 0
     for k, ch in enumerate(decl):
         if ch == "(":
@@ -231,7 +231,7 @@ class Gen:
 
     def bound(self, base):
         self.n += 1
-        return f"{base}!b{self.n}"
+        return f"{base}!B{self.n}"  # a capital: no name has one, so no ghost-fn shares it (g!b3)
 
     def name(self, base):
         """A generated SMT name for a sort, function or constructor B17-1 adds."""
@@ -786,7 +786,7 @@ class Gen:
             st = State({}, [])
             ps = []
             for p in f.items[2].items:
-                v = f"{p.items[0].text}!p"
+                v = f"{p.items[0].text}!P"  # a capital, as bound variables have
                 st.env[p.items[0].text] = (v, p.items[1])
                 ps.append(f"({v} {self.sort(p.items[1])})")
             q, self.quiet, self.lifting = self.quiet, True, []

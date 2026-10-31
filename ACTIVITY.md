@@ -2343,10 +2343,21 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
 ## 2026-10-31 · A nested seq-build's multiset fact
 - **Asked by the owner:** to continue with WP10's ports. Writing `edmond_karp` found this.
-- **The bug:** a `seq-build` whose body doesn't use its index gets a multiset fact: the body, n times. Whether the body uses the index was read off the source text. A `seq-build` inside it is lifted to a function of the enclosing index, though, so the encoded body does use the index, and the fact named it outside its binder. Each query carrying the fact was an SMT error, and its goal failed as unknown. An n by n zero matrix, `(seq-build n (fn (a) (seq-build n (fn (b) 0))))`, is enough to hit it, and every goal after it in the item failed.
-- **The fix:** `b17c/goals.py` reads the encoded body instead. The two readings differ only when a `seq-build` is lifted inside another. `_walk`, left with no callers, is removed.
+- **The bug:** a `seq-build` whose body doesn't use its index gets a multiset fact: the body, n times. Whether the body uses the index was read off the source text. A `seq-build` inside it is lifted to a function of the enclosing index, though, so the encoded body does use the index, and the fact named it outside its binder. Each query carrying the fact was an SMT error (`unknown constant`), and its goal failed with that error. An n by n zero matrix, `(seq-build n (fn (a) (seq-build n (fn (b) 0))))`, is enough to hit it, and every goal after it in the item failed.
+- **The fix:** `b17c/goals.py` reads the encoded body instead. The two readings also differ where a field or type shares the index's name, as in `(seq-build n (fn (i) (field b i)))` with a field `i`: the source check counted that as a use, and such a body now gets the fact too. `_walk`, left with no callers, is removed.
 - **Effect on results:** none recorded. No suite program, and no agent program in M3's runs, has a nested `seq-build`.
-- **Tests:** `test_verify.py` proves an n by n zero matrix's lengths and elements. Without the fix, 2 of its 7 goals fail.
+- **Tests:** `test_verify.py` proves an n by n zero matrix's row lengths and its diagonal. Without the fix, 2 of its 7 goals fail with the error.
+- **Codex review** (`gpt-5.6-sol`): four findings. Three are fixed here: this entry first said that the two readings differ only for nested `seq-build`s, that the goals failed as unknown, and that the test proves every element. The fourth was a separate, older bug, in the next entry.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
+
+## 2026-10-31 · Generated names that a binder could share
+- **Found by:** Codex, reviewing the fix above.
+- **The bug:** a bound variable was named `NAME!bN` and a ghost-fn's parameter `NAME!p`, while a ghost-fn is `g!NAME` and its requires `p!NAME`. So a binder `g` numbered 3 had the name of a ghost-fn `b3`, and a parameter `g` the name of a ghost-fn `p`. Inside its quantifier the binder shadows the function, so a definition reads the wrong value and false goals prove. With `(ghost-fn p () int (body 7))` and `(ghost-fn q ((g int)) int (body (p)))`, `(== (q 0) 0)` proved, and so did `(== (idx (foo) 0) 0)` with `(ghost-fn foo () (seq int) (body (seq-build 2 (fn (g) (b3)))))` and `b3` returning 7.
+- **The fix:** the tags are capitals, `!B3` and `!P` (`b17c/goals.py`), and no name has a capital. The other generated names were already apart: a local's or lifted function's number is used once, and a sequence function's number is its sort's. Interface 11's canonical form (D63) renames every generated name, its pattern now with the new tags (`b17c/verify.py`), so a query with no collision is the same canonical query as before.
+- **Effect on results:** none recorded. Every collision needs a ghost-fn named `p` or `b` and digits, and no suite program, core library item or agent program in M3's runs has one.
+- **Tests:** `test_verify.py`: both false lemmas fail. `canonical`'s example uses the new tags.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
 - **Left admitted:** none.
