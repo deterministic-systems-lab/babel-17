@@ -2278,6 +2278,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Mutants:** six changes each left a goal unproved: a scan that settles a farther vertex, relaxing only the first time a vertex is seen, reporting every vertex as reached, a witness missing its last step, no lower bound for the vertex settled, and a bound one weight too tight.
 - **No change to the language,** the encoding or the core library.
 - **Tests:** `test_verify.py` requires `dijkstra` to prove every goal. `test_interp.py` runs it on a graph with an unreachable vertex from two starts, and on `kruskal`'s triangle, and checks that a start out of range and a repeated target fail its `requires`. A negative weight can't be one: `weights_non_negative` ranges over every `int` weight, so the run leaves it unchecked. `test_rust.py` builds it and compares its runs with the interpreter's. The suite counts include it.
+- **Codex review** (`gpt-5.6-sol`): no findings. It confirmed that the port's `get_edge_weight` equals Dafny's wherever the `ensures` is evaluated, that the sums can't overflow, that `cross`'s step is sound, and that `unreached`'s `false` is reached only under a path that would contradict the end state.
+- **Ponytail review:** nothing to cut. The `requires` that `cross`, `walk` and `extract` repeat could be one predicate, as `kruskal`'s could, but folding it would change what the solver unfolds.
 - **Updated:** `suite/README.md`'s table, port notes and differences; the README's and roadmap's lists of the ports done.
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
