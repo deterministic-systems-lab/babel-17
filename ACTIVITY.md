@@ -2237,3 +2237,25 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Ponytail review:** one duplicated formatter, now `_text` for both.
 - **Updated:** the README's WP6 row; the roadmap's critical path and its open question on counterexamples.
 - **Interfaces touched:** interface 3's `counterexample`: sequences inside tuple and data values, and sequences of sequences (D93, D112).
+
+## 2026-10-31 · `prim`, the first of WP10's harder ports
+- **Asked by the owner:** to continue after the counterexamples, with the roadmap's next item: WP10's further ports, which need to be harder, since the first 10 don't separate the languages.
+- **Which tasks are hardest,** from Claude's and Codex's attempts in Dafny's two AlgoVeri runs, 4 per task:
+  - **A failure in Dafny:** besides `kruskal`, only `prim` (Codex 1 of 2), `edmond_karp` (Codex 0 of 2) and `push_relabel` (Codex 1 of 2). `rod_cutting` and `matrix_multiplication` are removed (README).
+  - **The most rounds without one:** `bellman_ford` and `dijkstra`, where Codex took 6 or 7 rounds each time, and over 200k output tokens across the 4.
+  - **The order:** `prim` first, since its spec is `kruskal`'s, then `dijkstra` and `bellman_ford`, which share their shortest-path theory, then `edmond_karp` and `push_relabel`, which share their flow theory. `docs/b17-1.md` §11 already says how those two state a flow (D90).
+- **`prim`'s port:** `suite/b17-1/accept/prim.b17`. Its data item, ghost-fns and spec are `kruskal`'s, AlgoVeri's preambles being identical, with the spec named `prim_mst` and a purpose that names Prim's algorithm, as the Dafny preamble does.
+- **The implementation:** Prim's rule. Each round, it scans every stored entry for the lightest joining a vertex reached to one not, whichever end is listed, adds it and marks its other end reached. The reached set is a `(vec bool)`, with no priority queue, as `kruskal` has no union-find forest.
+- **The proof:** `kruskal`'s exchange argument, with the reached set in place of component labels. 521 goals prove under 10 shuffled seeds.
+  - **Invariants:** the tree joins every reached vertex to vertex 0 (`reached`), every tree edge joins two reached vertices (`inside`), and the tree's length plus the count of vertices not reached (`outside`) is n − 1. `good` and the scan's `lightest` are `kruskal`'s, over entries that join the reached set to the rest.
+  - **One round:** in the spanning tree that `good` gives, the path from the new edge's unreached end to its reached end first enters the reached set by some edge f. The scan saw f, so the new edge is no heavier, and `kruskal`'s swap puts it in f's place.
+  - **Reuse:** of its 24 lemmas, 9 are `kruskal`'s unchanged, 8 adapted and 7 new: four for `outside`, and `reached_step`, `inside_step` and `span_two`.
+  - **Getting there:** the first version left one `assert` unproved, which `inside_step` closed. Under 10 seeds, `swap_ok`'s postcondition proved under only 7, until steps named f's entry in the graph and bounded the new edge's weight by f's. A script then removed each proof step alone: 18 were redundant, all 18 together too, and 3 lemmas went with them.
+- **Mutants:** six changes each left a goal unproved: a scan that keeps the heavier edge, one that takes any edge between two different vertices, marking the reached end instead of the new one, starting with no vertex reached, no `good_step` call, and `swap_ok` without the point where the path enters the reached set.
+- **No change to the language,** the encoding or the core library.
+- **Joining the track:** `--tasks b17-1/` now poses 11 ports. D112 adds WP10's ports to the same track, and `suite/README.md` says that each adds a program to the accept suite and changes no label.
+- **Tests:** `test_verify.py` requires `prim` to prove every goal. `test_interp.py` runs it on `kruskal`'s two graphs and on one vertex, with the same trees as `kruskal`'s, the one-way cycle's included. `test_rust.py` builds it. The suite counts in `test_syntax.py`, `test_check.py` and `gym/test_b17.py` are 11 ports.
+- **Updated:** `suite/README.md`'s table and port notes; the README's B17-1 track and benchmark paragraphs; the roadmap's critical path and its open question on hard tasks.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
