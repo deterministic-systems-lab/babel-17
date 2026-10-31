@@ -786,7 +786,8 @@ class Gen:
             st = State({}, [])
             ps = []
             for p in f.items[2].items:
-                v = f"{p.items[0].text}!P"  # a capital, as bound variables have
+                self.n += 1  # numbered, so two ghost-fns' parameters canonicalize apart (D63)
+                v = f"{p.items[0].text}!P{self.n}"  # a capital, as bound variables have
                 st.env[p.items[0].text] = (v, p.items[1])
                 ps.append(f"({v} {self.sort(p.items[1])})")
             q, self.quiet, self.lifting = self.quiet, True, []

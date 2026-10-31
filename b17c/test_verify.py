@@ -27,7 +27,7 @@ def src(name):
 
 
 # canonical() renames generated names in order of first occurrence, and only those.
-q = "(declare-const x!12 Int) (declare-const n!P SI) (assert (= (g!fib x!12) (len.I n!P))) (assert (forall ((i!B3 Int)) (p!fib i!B3)))"
+q = "(declare-const x!12 Int) (declare-const n!P4 SI) (assert (= (g!fib x!12) (len.I n!P4))) (assert (forall ((i!B3 Int)) (p!fib i!B3)))"
 assert v.canonical(q) == "(declare-const k!0 Int) (declare-const k!1 SI) (assert (= (k!2 k!0) (len.I k!1))) (assert (forall ((k!3 Int)) (k!4 k!3)))"
 assert v.canonical(v.canonical(q)) == v.canonical(q)
 
@@ -234,6 +234,11 @@ assert open_(run1(H0 + "(ghost-fn b3 () int (body 7))\n(ghost-fn foo () (seq int
                        "(lemma bad (params) (ensures (== (idx (foo) 0) 0)) (body)))")) == ["POST"]
 assert open_(run1(H0 + "(ghost-fn p () int (body 7))\n(ghost-fn q ((g int)) int (body (p)))\n"
                        "(lemma bad (params) (ensures (== (q 0) 0)) (body)))")) == ["POST"]
+# Each ghost-fn's parameters are numbered, so renaming one changes no query even when another
+# ghost-fn has a parameter of the same name (D63).
+two = H0 + "(ghost-fn f ((x int)) int (body x))\n(ghost-fn h ((x int)) int (body (f x)))\n(lemma l (params) (ensures (== (h 1) 1)) (body)))"
+assert open_(run1(two)) == []
+assert all(r["cached"] for r in run1(two.replace("((x int)) int (body (f x))", "((y int)) int (body (f y))")))
 # The second pass: a recursive call in a ghost-fn's requires gets its TERM goal (D57), and a lifted
 # seq-build may call the recursive ghost-fn whose body it's in.
 assert open_(run(H0 + "(ghost-fn f ((n int)) bool (requires (or (f n) true)) (decreases n) (body true)))")) == ["TERM"]
