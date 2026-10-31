@@ -385,6 +385,7 @@
     (ensures (tree cm f seen par lvl s) (levels seen lvl (len queue)) (qok queue seen pos)
              (closed cm f seen queue head) (scanned cm f seen u (+ v 1)))
     (body
+      (assert (and (and (<= 0 u) (< u (len seen0))) (idx seen0 u)))
       (call tree_at cm f seen0 par0 lvl0 s u)
       (forall ((x int)) (call push_tree cm f s seen0 par0 lvl0 seen par lvl u v x))))
   (lemma tree_at (params (cm (seq (seq int))) (f (seq (seq int))) (seen (seq bool)) (par (seq int)) (lvl (seq int)) (s int) (x int))
