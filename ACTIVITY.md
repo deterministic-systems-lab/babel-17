@@ -2155,14 +2155,14 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Same agents as Dafny's AlgoVeri runs** (`20261027T043958Z` and `20261027T162910Z`): the same CLIs, CLI versions, models and effort.
 - **Verified:** Claude 30 of 30, 22 of them in round 1, in 1.43 rounds on average. Codex 29 of 30, 12 in round 1, in 2.38 rounds.
   - **The one failure** is Codex's `kruskal` sample 1, which used all 8 rounds. Its last round was rejected for passing `(seq (tuple int int int))` where `(seq int)` is declared.
-- **Reproduced:** REVERIFY.
+- **Reproduced:** `reverify` reproduced all 119 verdicts, each solved anew. The 120th round had no code.
 - **Against Dafny on the same 10 tasks,** one sample each in two runs:
   - **What verifies:** Claude verified 10 of 10 in both, and Codex 9 of 10, failing `kruskal` both times. In B17-1, Codex verified 2 of its 3 `kruskal` samples.
   - **Round 1:** Claude verified 11 of 20 in round 1 in Dafny, against 22 of 30 here. Codex verified 9 of 20, against 12 of 30.
-  - **Claude:** 109.7k tokens per verified task, against 25.5k and 23.4k, about 4.5 times. Its input is 36.9k per call against about 5.2k, mostly the manual and its supplement. Its output, mostly thinking, is 56.8k per verified task against 16.4k and 14.8k, about 3.6 times. Its calls took 6.5 minutes on average, the longest 51, against about 1.4 and 2.1 in Dafny.
+  - **Claude:** 109.7k tokens per verified task, against 25.5k and 23.4k, about 4.5 times. Its input is 36.9k per call against about 5.2k, mostly the manual and its supplement. Its output is 56.8k per verified task against 16.4k and 14.8k, about 3.6 times, and its thinking 48.2k against 10.8k and 10.2k, about 4.6 times. Its calls took 6.5 minutes on average, the longest 51, against about 1.4 and 2.1 in Dafny.
   - **Codex:** 106.2k per verified task, against 63.1k and 58.9k, about 1.7 times. Its input is 32.0k per call against about 15k, and its output 21.2k per verified task against 20.2k and 18.4k.
 - **Unbalanced parentheses are the main cost.** 22 of the 120 rounds failed on them, 17 of them Codex's, against 2 of 175 in B17-0's seed run.
-  - **Not length alone:** Codex's verified programs are shorter than its Dafny ones, 194 lines at the median against 312 and 390. In Dafny's AlgoVeri runs, 6–10% of rounds failed to parse, mostly on a keyword used as a name.
+  - **Not length alone:** Codex's verified programs are shorter than its Dafny ones, 194 lines at the median against 312 and 390. On the same 10 tasks in Dafny, 4 of 84 rounds failed to parse, all Codex's, and one of them on a missing `)`.
   - **The diagnostic doesn't locate a missing `)`.** 14 rounds got "unclosed '('", and 9 of those pointed at the module's first line, in the frozen part the agent didn't write. The other 5 pointed at the start of the last item still open. Agents repeated it: Codex's `kruskal` sample 1 for three rounds in a row, its `lca` sample 1 and `coin_change` sample 2 for two, and Claude's `segmenttree_query` sample 1 four rounds of bracket errors before verifying in round 5.
   - **An extra `)` is located:** "text after the module" and "unmatched ')'" land within two lines of the fix, and 7 of those 8 rounds were followed by a round that parsed.
   - **A measured fix, proposed and not made:** when the input ends with a `(` still open, report the first item that a later line starts at or left of while it's open. On this run it fires in 13 of the 14 unclosed rounds. In 7 of the 8 that one added `)` fixes, the fix lies inside the item it names. It never fires on the 226 balanced programs of this run and M3's first. A finer rule, applied to every open form, finds the line right after the fix in the same 7. But it fires on 16 of Claude's 33 balanced programs here, which hang quantifier bodies as the frozen modules do.
@@ -2171,7 +2171,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **In 42 more,** all in `coin_change` and `lca`, every parameter can be shown, but the solver returned no model the search could use. The other 4 got one.
 - **Other rejections, each fixed in the next round:**
   - **D41's unique binders:** 4 rounds reused a name in one item. The message doesn't say where the first one is.
-  - **Types:** one lemma took `(v int)` and built `(node v l r)`, whose field is an `i64`, giving 48 errors. One helper spec was the task's spec renamed (D45), and one round dropped a def (`no_def`).
+  - **Types:** nine of Codex's lemmas took `(v int)` and built `(node v l r)`, whose field is an `i64`, giving 48 errors. One helper spec was the task's spec renamed (D45), and one round dropped a def (`no_def`).
   - **Statements:** two of Claude's `match` arms held several statements without a `block`, and Codex once changed a `let` local (E-OWN-003).
 - **Two replies broke the prompt's rules:**
   - **Four code blocks:** Claude's `kruskal` sample 1 split its items across four `lisp` blocks. The harness checks the last, as the prompt's "one ```lisp block" implies, so 48 names were undefined. It verified in round 3.
@@ -2181,6 +2181,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **On what verifies, these tasks don't separate the languages.** Both are at the ceiling, as they were for Dafny, and `kruskal` is the hardest in both.
   - **On cost, B17-1 is dearer:** about 4.5 times Dafny's tokens for Claude and 1.7 for Codex, mostly the prompt, and longer thinking for Claude.
   - **Brackets are a cost Dafny doesn't have.** 17 of Codex's 48 failed rounds were unbalanced parentheses.
+- **Codex fact-check** (`gpt-5.6-sol`): it recomputed the counts, ratios, token figures, times and medians from the records, and checked each sample's history and quoted message. The indentation and counterexample figures came from scratch scripts, so it checked only that they're stated consistently. It found three errors, now fixed:
+  - **Dafny's parse failures:** "6–10% of rounds, mostly a keyword as a name" was over all of AlgoVeri. On these 10 tasks it's 4 of 84 rounds, with different errors.
+  - **The `int` parameter:** nine lemmas took one, not one lemma.
+  - **Claude's thinking:** about 4.6 times Dafny's, not 3.6, which is its whole output's ratio.
 - **Not changed:** `b17c`, the harness and the manuals.
 - **Updated:** the README's results table and its note on M3; the roadmap's recent work, its critical path and the open question on counterexamples.
 - **Interfaces touched:** none.

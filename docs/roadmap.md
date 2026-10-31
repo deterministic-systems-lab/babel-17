@@ -64,7 +64,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Against Dafny on the same tasks:** both languages verify all 12. Claude used about 4.6 times Dafny's tokens per verified task, and Codex about 1.2 times. The manual now adds about 14k input tokens to each of Claude's calls and 10k to Codex's.
 - **M3's first B17-1 run** (`20261030T234603Z-claude-codex`): the 10 AlgoVeri ports, 3 samples each. Claude verified 30 of 30 and Codex 29, against 20 of 20 and 18 of 20 on the same tasks in Dafny's two AlgoVeri runs. Every verdict reproduced.
   - **Codex's one failure is `kruskal`,** which it failed in both Dafny runs too.
-  - **Cost:** Claude used about 4.5 times Dafny's tokens per verified task and Codex about 1.7 times, mostly the manual and its supplement in the prompt. Claude also thought about 3.6 times as much.
+  - **Cost:** Claude used about 4.5 times Dafny's tokens per verified task and Codex about 1.7 times, mostly the manual and its supplement in the prompt. Claude also thought about 4.6 times as much.
   - **Unbalanced parentheses** failed 22 of the 120 rounds, against 2 of 175 in B17-0's seed run. A missing `)` is reported at the module's first line, or at the last item still open, so agents repeated it, for up to four rounds.
   - **Counterexamples:** 4 of the 137 failed-goal diagnostics had one. Most failed goals take a data value with a sequence inside, which no model term shows yet.
   - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
