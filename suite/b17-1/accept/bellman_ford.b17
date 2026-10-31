@@ -108,7 +108,7 @@
   (ghost-fn bounded ((dist (seq int)) (seen (seq bool)) (b int)) bool
     (body (forall ((v int)) (=> (and (and (<= 0 v) (< v (len seen))) (and (< v (len dist)) (idx seen v)))
       (and (<= (- 0 b) (idx dist v)) (<= (idx dist v) b))))))
-  (ghost-fn join ((a (seq int)) (b (seq int))) (seq int)
+  (ghost-fn join ((a (seq int)) (b (seq int))) (seq int) (requires (> (len b) 0))
     (body (concat a (drop b 1))))
 
   (lemma entry_w (params (g (seq (seq (tuple int int)))) (a int) (i int))
