@@ -224,6 +224,11 @@ assert open_(run1(H0 + "(lemma bad (params) (ensures false) (body (obtain ((k in
 assert open_(run(H0 + "(ghost-fn n ((k int)) int (requires (>= k 0)) (body (len (seq-build k (fn (i) 0)))))\n"
                       "(spec ok (params) (returns (r i64)) (ensures (== (n 2) 2) (forall ((k int)) (=> (and (<= 0 k) (< k 4)) "
                       "(== (len (seq-build k (fn (i) (* i i)))) k)))) (effects)) (def ok (body (return 0))))")) == []
+# A seq-build inside another, with a body that doesn't use the outer index, states no fact about that
+# index outside its binder: an n by n zero matrix proves.
+assert open_(run1(H0 + "(spec mk (params (n i64)) (returns (r (vec (vec i64)))) (requires (and (<= 0 n) (<= n 9))) "
+                       "(ensures (== (len r) n) (forall ((i int)) (=> (and (<= 0 i) (< i n)) (and (== (len (idx r i)) n) (== (idx (idx r i) i) 0))))) (effects alloc)) "
+                       "(def mk (body (return (seq-build n (fn (a) (seq-build n (fn (b) 0))))))))")) == []
 # The second pass: a recursive call in a ghost-fn's requires gets its TERM goal (D57), and a lifted
 # seq-build may call the recursive ghost-fn whose body it's in.
 assert open_(run(H0 + "(ghost-fn f ((n int)) bool (requires (or (f n) true)) (decreases n) (body true)))")) == ["TERM"]

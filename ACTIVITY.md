@@ -2340,3 +2340,13 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-31 · A nested seq-build's multiset fact
+- **Asked by the owner:** to continue with WP10's ports. Writing `edmond_karp` found this.
+- **The bug:** a `seq-build` whose body doesn't use its index gets a multiset fact: the body, n times. Whether the body uses the index was read off the source text. A `seq-build` inside it is lifted to a function of the enclosing index, though, so the encoded body does use the index, and the fact named it outside its binder. Each query carrying the fact was an SMT error, and its goal failed as unknown. An n by n zero matrix, `(seq-build n (fn (a) (seq-build n (fn (b) 0))))`, is enough to hit it, and every goal after it in the item failed.
+- **The fix:** `b17c/goals.py` reads the encoded body instead. The two readings differ only when a `seq-build` is lifted inside another. `_walk`, left with no callers, is removed.
+- **Effect on results:** none recorded. No suite program, and no agent program in M3's runs, has a nested `seq-build`.
+- **Tests:** `test_verify.py` proves an n by n zero matrix's lengths and elements. Without the fix, 2 of its 7 goals fail.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.

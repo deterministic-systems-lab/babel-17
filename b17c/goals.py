@@ -162,14 +162,6 @@ def in_i64(t):
     return f"(and (<= {MIN} {t}) (< {t} {LIM}))"
 
 
-def _walk(x):
-    """Every node of x, itself included."""
-    yield x
-    if isinstance(x, Form):
-        for c in x.items:
-            yield from _walk(c)
-
-
 def _binds(decl):
     """The (name, sort) pairs of an SMT binder list such as "(x!b1 Int) (s!b2 (Array Int Bool))"."""
     out, depth, start = [], 0, 0
@@ -609,8 +601,9 @@ class Gen:
             body, srt = self.expr(a[1].items[2], inner, ghost, guard + (("all", f"({i} Int)"), ("if", rng)))
             ss = self.seq(srt)
             bound = [b for k, d in guard if k == "all" for b in _binds(d)]
-            # A body that doesn't use its index gives every element: the multiset is it, n times.
-            same = not any(isinstance(y, Sym) and y.text == name for y in _walk(a[1].items[2]))
+            # A body that doesn't use its index gives every element: the multiset is it, n times. Read
+            # off the encoded body, where a seq-build lifted inside this one takes the index as an argument.
+            same = i not in re.findall(r"[^\s()]+", body)
             counted = lambda r: f"(= {fn('ms', ss, r)} (store ((as const (Array {srt} Int)) 0) {body} {n}))"
             if not bound and self.lifting is None:
                 r = self.fresh("seq", ss)
