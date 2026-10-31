@@ -214,7 +214,7 @@ class Gen:
         self.oks = {}            # data type -> its validity predicate, where i64 and int differ
         self.lifting = None      # while a ghost-fn is emitted: the seq-builds its body lifts out
         self.blocks = []         # (layer, names, text): declarations a query takes when it uses a name
-        self.decls, self.goals, self.n = [], [], 0
+        self.decls, self.goals, self.n, self.n_params = [], [], 0, 0
         self.quiet = False
         self.item = None    # (name, measure at entry or None, its params) while checking an item
         self.part = "spec"  # whose goals: the spec part's or the implementation part's (D45)
@@ -786,8 +786,10 @@ class Gen:
             st = State({}, [])
             ps = []
             for p in f.items[2].items:
-                self.n += 1  # numbered, so two ghost-fns' parameters canonicalize apart (D63)
-                v = f"{p.items[0].text}!P{self.n}"  # a capital, as bound variables have
+                # A capital, as bound variables have, and numbered apart from every other name, so
+                # two ghost-fns' parameters canonicalize apart (D63) and no other name's number moves.
+                self.n_params += 1
+                v = f"{p.items[0].text}!P{self.n_params}"
                 st.env[p.items[0].text] = (v, p.items[1])
                 ps.append(f"({v} {self.sort(p.items[1])})")
             q, self.quiet, self.lifting = self.quiet, True, []
