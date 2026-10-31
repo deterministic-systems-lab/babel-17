@@ -2221,7 +2221,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **M3's 187 B17-0 rounds:** replayed through the branch, every verdict and feedback matches `main`'s, except two rounds that changed in PR #53, the `merge_sorted` parse errors that now name an item.
   - **This run's 4 counterexamples** are the same.
 - **The run's failed goals, re-solved under the canonical seed:** 13 of 126 now get a counterexample, against 4.
-  - **The 9 new ones** are all in `bfs` and `kruskal` ghost-fns, mostly a `graph` with an empty or short adjacency, where a ghost-fn indexes it.
+  - **The 9 new ones** are in `bfs` and `kruskal`, in ghost-fns but for one lemma, mostly a `graph` with an empty or short adjacency, where a ghost-fn indexes it.
   - **None replays,** since all 13 are goals in ghost-fns and lemmas, which have no run.
 - **What's still missing:** 105 of the 113 left come back unknown with no model.
   - **The quantifiers in the agents' own ghost-fns and contracts** cause it. A B17-1 ghost-fn is an axiom (D106), and its body often quantifies itself.
