@@ -135,8 +135,14 @@ bad('(purpose "p")', '(purpose"p")', '"p"', "missing whitespace")
 bad("(def f", "; c\n(def f", "; c", "not a name")
 e = error(OK + ")")
 assert (e.line, e.col) == (3, len(OK.split("\n")[2]) + 1) and e.reason == "unmatched ')'", e
+# An unclosed '(' names the item that probably lacks the ')': the first one still open when a later
+# line starts at or left of its column, or else the last one.
 e = error(OK[:-1])
-assert (e.line, e.col) == (1, 1) and e.reason == "unclosed '('", e
+assert (e.line, e.col) == (3, 1) and e.reason.endswith("at its end, or in its last item, at lines 3-3"), e
+e = error(OK.replace("(effects))\n", "(effects)\n"))
+assert (e.line, e.col) == (2, 1) and "still open at line 3" in e.reason and e.reason.endswith("lines 2-2"), e
+assert error(OK.replace("\n", " ")[:-1]).reason.endswith("lines 1-1")
+assert error("(module m").reason == "unclosed '('"
 bad("(module", "(x) (module", "(module", "text after the module")
 assert error("").reason.startswith("empty input")
 assert error(b"(module m \xff)").reason == "input is not valid UTF-8"

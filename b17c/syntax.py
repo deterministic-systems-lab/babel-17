@@ -161,12 +161,19 @@ def _read(text, expr=False):
     result = None
     i, n = 0, len(text)
     separated = True  # D49: adjacent elements of a list need whitespace between them
+    newline = False   # whether a newline came since the last token
+    unclosed = None   # the first item still open when a later line starts at or left of its column
     while i < n:
         c = text[i]
         if c in WHITESPACE:
             i += 1
             separated = True
+            newline = newline or c == "\n"
             continue
+        if newline:
+            newline = False
+            if not expr and not unclosed and len(stack) > 1 and c != ")" and at(i)[1] <= stack[1][0][1]:
+                unclosed = stack[1][0], at(i)[0]
         if c == ")":
             if not stack:
                 raise ParseError(at(i), "unmatched ')'")
@@ -199,6 +206,13 @@ def _read(text, expr=False):
             stack[-1][1].append(node)
         else:
             result = node
+    if stack and unclosed:  # where agents miss a ')', the paren left open is usually the module's (M3)
+        (line, col), later = unclosed
+        raise ParseError((line, col), f"unclosed '(': the item at {line}:{col} is still open at line {later}, which starts "
+                                      f"at or left of its column, so a ')' is probably missing in lines {line}-{later - 1}")
+    if len(stack) == 1 and not expr and stack[0][1] and isinstance(last := stack[0][1][-1], Form):
+        raise ParseError(last.pos, f"unclosed '(': the module is still open at the end, so a ')' is missing at its end, "
+                                   f"or in its last item, at lines {last.pos[0]}-{last.end[0]}")
     if stack:
         raise ParseError(stack[-1][0], "unclosed '('")
     if result is None:
