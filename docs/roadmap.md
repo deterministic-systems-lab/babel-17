@@ -65,7 +65,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **M3's first B17-1 run** (`20261030T234603Z-claude-codex`): the 10 AlgoVeri ports, 3 samples each. Claude verified 30 of 30 and Codex 29, against 20 of 20 and 18 of 20 on the same tasks in Dafny's two AlgoVeri runs. Every verdict reproduced.
   - **Codex's one failure is `kruskal`,** which it failed in both Dafny runs too.
   - **Cost:** Claude used about 4.5 times Dafny's tokens per verified task and Codex about 1.7 times, mostly the manual and its supplement in the prompt. Claude also thought about 4.6 times as much.
-  - **Unbalanced parentheses** failed 22 of the 120 rounds, against 2 of 175 in B17-0's seed run. A missing `)` is reported at the module's first line, or at the last item still open, so agents repeated it, for up to four rounds.
+  - **Unbalanced parentheses** failed 22 of the 120 rounds, against 2 of 175 in B17-0's seed run. A missing `)` was reported at the module's first line, or at the last item still open, so agents repeated it, for up to four rounds. The parser now names the item that probably lacks it.
   - **Counterexamples:** 4 of the 137 failed-goal diagnostics had one. Most failed goals take a data value with a sequence inside, which no model term shows yet.
   - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
@@ -112,7 +112,8 @@ None new. D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 
    - **`docs/manual-1.md` (WP8): done.** The manual's B17-1 supplement, 20 KB: what B17-1 adds, with 27 examples whose outcomes `test_manual.py` checks at subset 1, both of B17-1's new codes among them;
    - **the harness track (WP17): done.** `--tasks b17-1/` runs the 10 ports, each posing its first spec with the data items and ghost-fns it refers to. Every port's solution verifies, and each task alone is `no_def`;
    - **a first run: done** ([above](#recent-and-current-work)). 59 of 60 verified, as in Dafny on the same tasks, at about 1.7–4.5 times Dafny's tokens.
-   - **Next, proposed:** locating a missing `)` (WP2). Report the item still open when a later line starts at or left of its column. On the first run that names the item holding the fix in 7 of the 8 rounds one `)` fixes, and it never fires on a balanced program. Then counterexamples for data values with a sequence inside (WP6), and WP10's further ports, which need to be harder, since these 10 don't separate the languages.
+   - **Locating a missing `)` (WP2): done.** E-PARSE-001 names the first item still open when a later line starts at or left of its column, or else the module's last item. Replayed on M3's recorded rounds, every unclosed one now points into the agent's own lines, and in each that one `)` fixes, the fix lies in the lines named;
+   - **next:** counterexamples for data values with a sequence inside (WP6), and WP10's further ports, which need to be harder, since these 10 don't separate the languages.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.

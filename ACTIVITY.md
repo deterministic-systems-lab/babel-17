@@ -2188,3 +2188,21 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** `b17c`, the harness and the manuals.
 - **Updated:** the README's results table and its note on M3; the roadmap's recent work, its critical path, and its open questions on hard tasks and counterexamples.
 - **Interfaces touched:** none.
+
+## 2026-10-30 · Locating a missing `)`
+- **Asked by the owner:** the fix that M3's first B17-1 run proposed, since unbalanced parentheses failed 22 of its 120 rounds.
+- **The change,** in `b17c/syntax.py`'s reader. When a module ends with a `(` still open, E-PARSE-001 now names the item that probably lacks the `)`:
+  - **The first item still open when a later line starts at or left of its column,** with the lines from its start to that line. A line starting with `)` doesn't count.
+  - **Otherwise, when only the module is left open,** its last item. The harness adds the module's own `)`, so an agent's missing one usually leaves only the module open.
+  - **Otherwise,** the innermost open `(`, as before. That includes `parse_expr`, which reads one expression.
+- **Only this error changes.** Replayed through `main`'s reader and this one, all 306 recorded B17 rounds of M3's three runs give the same parse, success or error, except the 16 unclosed rounds.
+  - **All 16 now point into the agent's own lines:** 13 by the first rule and 3 by the second, B17-0's two `merge_sorted` rounds among them. Before, 11 pointed at the module's first line, in the frozen part.
+  - **In each of the 10 that one added `)` fixes,** the fix lies in the lines the message names.
+  - **The other 6** lack two or more, at different places, so no single fix exists. Each names the first item that's still open.
+- **Not a language change:** `docs/b17-0.md` §2 says only that such text is E-PARSE-001, and neither spec fixes its message.
+- **Tests:** `test_syntax.py` pins each branch, with its position: the first rule, the last item, and the innermost `(`.
+- **Self-checks:** all eleven pass, `test_rust.py` included.
+- **Codex review** (`gpt-5.6-sol`): no logic bug. Its probes of CRLF and tab whitespace, a line starting with `)`, strings, `parse_expr`, deep nesting and an empty module all gave the intended positions and messages. It found the innermost-`(` branch unpinned, so a regression to the module's position would pass. Fixed with a test.
+- **Ponytail review:** one test case repeated another, and it's gone.
+- **Updated:** the README's note on M3's B17-1 run and its list of what the benchmarks changed; the roadmap's account of the run and its critical path.
+- **Interfaces touched:** interface 3's E-PARSE-001 diagnostic for an unclosed `(`, its position and message.
