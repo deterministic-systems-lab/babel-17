@@ -212,19 +212,18 @@ def _shape(gen, t, ty, back, top=False, depth=0):
     can't show the whole value, as with a sequence or a data value with one inside, the terms
     are its parts: a sequence's len and nth, and a data value's own term for its constructor,
     then every constructor's fields. At the top, a longer sequence shows its length and prefix."""
-    def whole(f):  # a build that raises _Unshown where a part is None
-        return lambda vs: v if (v := f(vs)) is not None else _raise(_Unshown())
     if _shown(gen, ty):
-        return [t], whole(lambda vs: _model(gen, vs[0], ty, back))
+        def one(vs):
+            if (v := _model(gen, vs[0], ty, back)) is None:
+                raise _Unshown()
+            return v
+        return [t], one
     if ty[0] in ("iset", "map", "multiset"):
         raise _Unshown()
     srt = gen.tsort(ty)
     if ty[0] in C.SEQUENCES:
-        parts = [_shape(gen, G.fn("nth", srt, t, str(k)), ty[1], back, False, depth) for k in range(SHOWN)]
-        terms, spans = [G.fn("len", srt, t)], []
-        for ts, build in parts:
-            spans.append((len(terms), len(terms) + len(ts), build))
-            terms += ts
+        terms, spans = _joined([G.fn("len", srt, t)], [_shape(gen, G.fn("nth", srt, t, str(k)), ty[1], back, False, depth)
+                                                       for k in range(SHOWN)])
 
         def seq(vs):
             n = _model(gen, vs[0], C.INT, back)
@@ -239,11 +238,8 @@ def _shape(gen, t, ty, back, top=False, depth=0):
         fields = [(c, [(f[1], f[2]) for f in fs]) for c, (_, fs) in gen.data(ty)["ctors"].items()]
     terms, spans = [t], {}
     for c, fs in fields:
-        spans[c] = []
-        for sel, u in fs if depth < DEEP else ():
-            ts, build = _shape(gen, f"({sel} {t})", u, back, False, depth + (ty[0] == "data"))
-            spans[c].append((len(terms), len(terms) + len(ts), build))
-            terms += ts
+        terms, spans[c] = _joined(terms, [_shape(gen, f"({sel} {t})", u, back, False, depth + (ty[0] == "data"))
+                                          for sel, u in (fs if depth < DEEP else ())])
 
     def value(vs):
         head = vs[0] if isinstance(vs[0], str) else vs[0][0]
@@ -254,8 +250,13 @@ def _shape(gen, t, ty, back, top=False, depth=0):
     return terms, value
 
 
-def _raise(e):
-    raise e
+def _joined(terms, parts):
+    """terms, then each part's terms, with each part's span of them and its build."""
+    spans = []
+    for ts, build in parts:
+        spans.append((len(terms), len(terms) + len(ts), build))
+        terms = terms + ts
+    return terms, spans
 
 
 def _text(v):
