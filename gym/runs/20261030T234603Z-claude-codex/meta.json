@@ -1,0 +1,82 @@
+{
+  "run_id": "20261030T234603Z-claude-codex",
+  "started": "2026-10-30T23:46:03.946777+00:00",
+  "git_commit": "97566e97c0d3619298f96b25ca3467c5596db2a8",
+  "git_dirty": false,
+  "samples": 3,
+  "max_iters": 8,
+  "tasks": [
+    "b17-1/bfs",
+    "b17-1/bst_insert",
+    "b17-1/bst_search",
+    "b17-1/coin_change",
+    "b17-1/discrete_logarithm",
+    "b17-1/kruskal",
+    "b17-1/lca",
+    "b17-1/longest_palindrome_substring",
+    "b17-1/segmenttree_query",
+    "b17-1/trie_insert"
+  ],
+  "task_sha": {
+    "b17-1/bfs": "6258c79442fec6a597834daf8d2f867e27143da8ba0e7ec1c47124548e68a232",
+    "b17-1/bst_insert": "4c028e9999a18dfab20be26ef72217b927304cffa5e456d7b80003599ae270d9",
+    "b17-1/bst_search": "10ee3e1b874c0a529dd043b6135a990fdb2a1a51b7deb989cbb3bac6987a7566",
+    "b17-1/coin_change": "b935c6b859af572a04c67dae9889a01e8147b99670d3eb7a5a73ce4de5b50c10",
+    "b17-1/discrete_logarithm": "f6590cbc1359d3c27abba80900962d46d168c010e200d72e5eeda1fc5726c7a6",
+    "b17-1/kruskal": "4356341a04c47f3cabd4cb1a9906ec2c4f2b2f0d805b3b72d0f6b41f297f4e9b",
+    "b17-1/lca": "8edd7cc74a9ae000a00e2a1be204c655ab277d19515e4917343b1eeb1a7d613b",
+    "b17-1/longest_palindrome_substring": "c56ebadddd6fb09d7fa5e9306c91209ecea3d025f8d41483d95c74606abd4502",
+    "b17-1/segmenttree_query": "22d2f7552f34d595e26a29c4ba0b8b91bb774b71d36c56ffd76537033ba68c93",
+    "b17-1/trie_insert": "0926abf5bde1199866089608af17ba294edc867c17a112ba0779d7cf2ae37ce9"
+  },
+  "z3": "Z3 version 5.3.2 - 64 bit",
+  "harness_sha": "6c81607d1da672b6a9ae4a5cf242645d5ea40dc3cf4153b4bdaddd87bbab892a",
+  "b17_prompt_sha": "e01a92e1e50b97b5d2ced032b9eb008f89d96e7c4635590b5435424e886f1a12",
+  "b17c_sha": "75d609626eaa185fbeea7e85cf575350876ffab9887e009b3cdc89eb8d352b61",
+  "b17_1_prompt_sha": "8c3ed0c4c65046e6aa06dc3f8aaf018968342b77c409bc50355e29be805115e5",
+  "clis": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--model",
+        "opus",
+        "--effort",
+        "high",
+        "--tools",
+        "",
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--output-format",
+        "json"
+      ],
+      "version": "2.1.308 (Claude Code)"
+    },
+    "codex": {
+      "cmd": [
+        "codex",
+        "exec",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--ignore-rules",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "-m",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "-s",
+        "read-only",
+        "--skip-git-repo-check",
+        "--json",
+        "-"
+      ],
+      "version": "codex-cli 0.145.0"
+    }
+  }
+}
