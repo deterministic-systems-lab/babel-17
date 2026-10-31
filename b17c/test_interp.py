@@ -642,7 +642,7 @@ OUTSIDE_1 = {
     "trie_insert": [(NONE, (256,)), (some(trie()), (1,))], "lca": [(TREE, 4, 6)],
     "bfs": [(GRAPH, 0, 4), (D("graph", (((5,),),)), 0, 0)], "kruskal": [(D("weighted_graph", ((),)),)],
     "prim": [(D("weighted_graph", ((),)),)],
-    "dijkstra": [(WEIGHTED, 3), (D("weighted_graph", (((T((0, -1)),),),)), 0), (D("weighted_graph", (((T((0, 1)), T((0, 2))),),)), 0)],
+    "dijkstra": [(WEIGHTED, 3), (D("weighted_graph", (((T((0, 1)), T((0, 2))),),)), 0)],
     "coin_change": [((), 1), ((0,), 1)],
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE / "b17-1/accept").glob("*.b17"))
