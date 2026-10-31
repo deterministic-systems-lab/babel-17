@@ -2284,3 +2284,24 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
 - **Left admitted:** none.
+
+## 2026-10-31 · `bellman_ford`, the third of WP10's harder ports
+- **Asked by the owner:** to continue, after `dijkstra` merged (PR #56).
+- **`bellman_ford`'s port:** `suite/b17-1/accept/bellman_ford.b17`. Its preamble is `dijkstra`'s, AlgoVeri's two being the same but for `has_negative_cycle` in place of `weights_non_negative`, so it shares `dijkstra`'s one change: `get_edge_weight` scans for the entry instead of choosing it with `:|`. The result is an `(option (vec (option i64)))`: none when the graph has a negative cycle.
+- **The implementation:** n − 1 rounds, each relaxing every edge from a vertex seen when the round began, with the distances the round began with, then a pass that returns none if any edge would still relax.
+  - **Why rounds read their starting distances:** a round can then extend a distance by one edge at most, so every distance stays within 100000 times the round's number of 0, and the sums fit an `i64`. Relaxing in place could chain many edges within one round.
+  - **A negative cycle the start can't reach** gives distances, not none, as the spec allows, since its `some` case asks only about paths from the start.
+- **The proof:** 682 goals prove under 10 shuffled seeds.
+  - **After round r:** no path from the start with at most r + 1 vertices weighs less than its end's distance, and its end is seen (`upper`, `upper_step`). Every vertex seen has a witness path of its distance's weight.
+  - **When an edge still relaxes:** extending its tail's witness gives a path lighter than its head's distance, which `upper` rules out for paths of at most n vertices. A longer path repeats a vertex (`pigeon`, `few`), and the part between the two copies is either a negative cycle or can be cut out, leaving a shorter path no heavier (`negative`, `split`, `pw_join`, `cut_elems`).
+  - **When none does:** every path from the start ends at a seen vertex, no farther than the start's distance plus the path's weight (`low`). Applied to the start's own witness, that makes the start's distance 0.
+  - **The core library helps:** `law_seq_ext` gives the equalities between joined and cut paths that `dijkstra` proved by its own induction, and `law_take_take` and `law_take_all` its prefixes.
+  - **Getting there:** the first version proved 680 of 681 goals under one seed; `join` needed its second path nonempty. Under 10 seeds, two goals in `negative` proved under only 5 and 9 of them, until `cut_elems` stated the shortened path's elements. The cut script found 7 redundant steps, all 7 together too, and one lemma went with them.
+- **Mutants:** seven changes each left a goal unproved: one round too few, relaxing only the first time a vertex is seen, a check that ignores an edge to a vertex not seen, a witness missing its last step, reporting every vertex as reached, taking a cycle of weight 0 as negative, and a pigeonhole step that doesn't remove the element equal to n − 1.
+- **No change to the language,** the encoding or the core library.
+- **Tests:** `test_verify.py` requires `bellman_ford` to prove every goal. `test_interp.py` runs it on a negative edge with no cycle, a reachable negative cycle, one the start can't reach, and a negative self-loop, and checks that a start out of range and a repeated target fail its `requires`. `test_rust.py` builds it and compares its runs with the interpreter's. The suite counts include it.
+- **Found on the way:** `edmond_karp` and `push_relabel`, the two left, have the same spec, as `kruskal` and `prim` do. None of the 3 verified Dafny solutions of `push_relabel` implements push-relabel; all find augmenting paths, which the spec can't tell apart.
+- **Updated:** `suite/README.md`'s table, port notes, differences and implementations; the README's and roadmap's lists of the ports done.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
