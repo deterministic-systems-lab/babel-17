@@ -599,6 +599,9 @@ GRAPH = D("graph", (((1,), (2,), (), (0,)),))
 CYCLE = D("weighted_graph", (((T((2, 1)),), (T((0, 1)),), (T((1, 1)),)),))  # 0 -> 2 -> 1 -> 0
 WEIGHTED = D("weighted_graph", (((T((1, 4)), T((2, 1))), (T((0, 4)), T((2, 2))), (T((0, 1)), T((1, 2)))),))
 DIJKSTRA = D("weighted_graph", (((T((1, 5)), T((2, 1))), (T((3, 0)),), (T((1, 2)),), (T((0, 7)),), ()),))  # 4 unreachable
+NEG_EDGE = D("weighted_graph", (((T((1, 4)), T((2, 2))), (), (T((1, -3)),)),))  # a negative edge, no cycle
+NEG_CYCLE = D("weighted_graph", (((T((1, 1)),), (T((2, -3)),), (T((1, 1)),)),))  # 1 -> 2 -> 1 weighs -2
+FAR_CYCLE = D("weighted_graph", (((T((1, 2)),), (), (T((3, -1)),), (T((2, -1)),)),))  # a negative cycle 0 can't reach
 # Each accept program on inputs its requires allows: ok, and the same with check=False. The
 # clauses left unchecked are those whose quantifiers range over paths, sequences, every int, or
 # the members a ghost-fn's predicate picks out, which no guard bounds (D58, D102), and a proof's
@@ -632,6 +635,12 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
                                              ((WEIGHTED, 1), ((some(3), some(0), some(2)),))],
                  ["PRE", "PRE", "INV-ENTRY", "PRE", "PRE", "PRE", "POST", "POST", "INV-KEEP", "INV-KEEP", "PRE", "INV-KEEP", "INV-KEEP",
                   "INV-ENTRY", "POST"]),
+    "bellman_ford": ("bellman_ford", [((NEG_EDGE, 0), (some((some(0), some(-1), some(2))),)),
+                                      ((NEG_CYCLE, 0), (NONE,)),
+                                      ((FAR_CYCLE, 0), (some((some(0), some(2), NONE, NONE)),)),
+                                      ((D("weighted_graph", (((T((0, -1)),),),)), 0), (NONE,))],  # a negative self-loop
+                     ["PRE", "INV-ENTRY", "PRE", "POST", "INV-KEEP", "PRE", "INV-KEEP", "PRE", "POST", "INV-KEEP", "INV-KEEP",
+                      "INV-ENTRY", "INV-ENTRY", "PRE", "PRE", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
@@ -643,6 +652,7 @@ OUTSIDE_1 = {
     "bfs": [(GRAPH, 0, 4), (D("graph", (((5,),),)), 0, 0)], "kruskal": [(D("weighted_graph", ((),)),)],
     "prim": [(D("weighted_graph", ((),)),)],
     "dijkstra": [(WEIGHTED, 3), (D("weighted_graph", (((T((0, 1)), T((0, 2))),),)), 0)],
+    "bellman_ford": [(WEIGHTED, 3), (D("weighted_graph", (((T((0, 1)), T((0, -2))),),)), 0)],
     "coin_change": [((), 1), ((0,), 1)],
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE / "b17-1/accept").glob("*.b17"))

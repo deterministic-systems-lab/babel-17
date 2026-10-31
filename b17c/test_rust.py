@@ -615,7 +615,7 @@ def holds_data(t):
 SUITE_1 = SUITE / "b17-1"
 programs_1 = {f"suite1-{p.stem}": parse(p.read_bytes(), 1)
               for p in sorted((SUITE_1 / "accept").glob("*.b17")) + sorted((SUITE_1 / "reject").glob("E-PROOF-*.b17"))}
-assert len(programs_1) == 18, len(programs_1)
+assert len(programs_1) == 19, len(programs_1)
 for name, m in programs_1.items():
     sources[name] = r.emit(m, 1)
 
@@ -652,6 +652,9 @@ TREE = D("node", (1, D("node", (2, D("node", (4, NIL, NIL)), D("node", (5, NIL, 
 GRAPH = D("graph", (((1,), (2,), (), (0,)),))
 WEIGHTED = D("weighted_graph", (((T((1, 4)), T((2, 1))), (T((0, 4)), T((2, 2))), (T((0, 1)), T((1, 2)))),))
 DIJKSTRA = D("weighted_graph", (((T((1, 5)), T((2, 1))), (T((3, 0)),), (T((1, 2)),), (T((0, 7)),), ()),))  # 4 unreachable
+NEG_EDGE = D("weighted_graph", (((T((1, 4)), T((2, 2))), (), (T((1, -3)),)),))  # a negative edge, no cycle
+NEG_CYCLE = D("weighted_graph", (((T((1, 1)),), (T((2, -3)),), (T((1, 1)),)),))  # 1 -> 2 -> 1 weighs -2
+FAR_CYCLE = D("weighted_graph", (((T((1, 2)),), (), (T((3, -1)),), (T((2, -1)),)),))  # a negative cycle 0 can't reach
 ACCEPT_1 = {
     "bst_insert": ("insert", [(LEAF, 5), (BST, 8), (BST, 5), (node(5, node(7)), 1), (LEAF, -1)]),
     "bst_search": ("search", [(LEAF, 5), (BST, 7), (BST, 6), (node(5, LEAF, node(3)), 3)]),
@@ -666,6 +669,7 @@ ACCEPT_1 = {
     "kruskal": ("kruskal_mst", [(WEIGHTED,), (D("weighted_graph", ((),)),)]),
     "prim": ("prim_mst", [(WEIGHTED,), (D("weighted_graph", ((),)),)]),
     "dijkstra": ("dijkstra_shortest_paths", [(DIJKSTRA, 0), (DIJKSTRA, 4), (WEIGHTED, 1), (WEIGHTED, 3)]),
+    "bellman_ford": ("bellman_ford", [(NEG_EDGE, 0), (NEG_CYCLE, 0), (FAR_CYCLE, 0), (WEIGHTED, 3)]),
     "coin_change": ("coin_change", [((1, 2, 5), 11), ((2,), 3), ((3,), 0), ((), 1), ((0,), 1)]),
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE_1 / "accept").glob("*.b17"))
