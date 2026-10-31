@@ -2307,3 +2307,36 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** as above.
 - **Left admitted:** none.
+
+## 2026-10-31 · What B17-1's extra cost is made of
+- **Asked by the owner:** whether B17-1's verbosity and longer thinking will make it the inferior option, or whether its guarantees outweigh them; then to record the measurement behind the answer here and in the roadmap.
+- **The measurement:** the attempts on the 10 ports in M3's first B17-1 run (`20261030T234603Z-claude-codex`, 30 per CLI), against Claude's and Codex's attempts on the same 10 tasks in Dafny's two AlgoVeri runs (`20261027T043958Z-claude-codex-gemini` and `20261027T162910Z-claude-codex-grok`, 20 per CLI). Each cost is summed over all attempts, failed ones included, and divided by the attempts verified, as the success metrics count tokens per verified task. A program's size is its last round's code, averaged over attempts.
+
+  | B17-1 against Dafny | Claude | Codex |
+  |---|---|---|
+  | Verified | 30/30, against 20/20 | 29/30, against 18/20 |
+  | Prompt tokens per verified task | 52,906 against 8,874: 6.0× | 84,918 against 41,658: 2.0× |
+  | Output tokens per verified task | 56,815 against 15,593: 3.6× | 21,238 against 19,328: 1.1× |
+  | Thinking tokens per verified task | 48,163 against 10,493: 4.6× | not reported separately |
+  | Final program, characters | 10,187 against 5,968: 1.7× | 11,211 against 9,967: 1.1× |
+  | Rounds per verified task | 0.8× | 1.0× |
+
+- **What it shows:**
+  - **The prompt is most of the gap.** It's mostly the manual and its supplement, the cost of a language no model has seen. Training on verified B17 (Bet 2) or prompt caching would cut it.
+  - **The language doesn't force much longer programs.** Codex writes about as much B17-1 as Dafny, in programs 1.1 times as long.
+  - **Claude's extra output is mostly thinking,** 4.6 times Dafny's. It looks more like working out an unfamiliar language than a harder proof.
+  - **The totals match the run's analysis:** 4.5 times Dafny's tokens per verified task for Claude, and 1.7 times for Codex.
+  - **Caveats:** the samples are small, 20 to 30 attempts per side. Dafny's runs had one sample per task where B17-1's had three, and Codex's records don't split out its thinking.
+- **Where the reference ports' length comes from,** from writing `prim`, `dijkstra` and `bellman_ford`:
+  - **Helpers unfold only where a proof uses them** (D106), so the quantified invariants are named predicates, and each update to one is a lemma.
+  - **Equal sequences are identified once a proof compares them** (D108), so a proof states the comparison, by an `assert` or the core library's `law_seq_ext`, as Dafny proofs often must. That's a small cost. `dijkstra`'s `pw_eq` proved it by induction instead, which wasn't needed. Its entry above gave as the reason that sequences have no extensionality, which D108 had already changed.
+  - **Proofs must hold under 11 seeds,** and several helper lemmas exist only to make a goal stable.
+  - **No choice operator,** so `get_edge_weight` scans; a `forall` statement applies one lemma, so some lemmas only bundle others; helpers can't be generic, so `upd`, `updb` and `updw` are three copies.
+  - **The syntax:** fully parenthesised, with every index's bounds stated, which lengthens the text without adding proof steps.
+- **The guarantees:** against Dafny, the spec is the same, so a verified program is correct to the same spec. What B17 adds is reliability: verdicts that reproduce across machines and seeds, no `assume`, diagnostics and counterexamples built for agents, and verification levels for code that can't be fully specified. No task so far shows them as a clear difference in pass rate. The one difference, Codex's `kruskal`, verified in 2 of 3 attempts in B17-1 against 0 of 2 in Dafny, is too few attempts to tell.
+- **What would settle it:** cost parity once training and the fixable gaps are addressed, or tasks where B17's feedback or stable verdicts let agents verify what they can't in Dafny. The M3 run on `prim`, `dijkstra` and `bellman_ford` would be a first test of the second.
+- **Codex review** (`gpt-5.6-sol`), recomputing every number from the records: three findings, all fixed. This entry first said that sequences lack extensionality, that every invariant is a named predicate, and that no task shows a higher pass rate in B17-1. The numbers matched.
+- **Updated:** the roadmap's open questions, with a new one on where the cost comes from; the README's paragraph on the run.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** none.
+- **Left admitted:** none.
