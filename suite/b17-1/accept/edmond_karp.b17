@@ -139,8 +139,6 @@
     (body (seq-build (len sc) (fn (u) (seq-build (len sc) (fn (v) (wt (idx sc u) (idx sc v) (get_flow h u v))))))))
   (ghost-fn km ((h (seq (seq int))) (sc (seq bool))) (seq (seq int))
     (body (seq-build (len sc) (fn (u) (seq-build (len sc) (fn (v) (if (idx sc v) (get_flow h u v) 0)))))))
-  (ghost-fn phi ((h (seq (seq int))) (sc (seq bool))) int
-    (body (total (rsum (wm h sc) (len sc) (len sc)))))
   (ghost-fn opart ((h (seq (seq int))) (sc (seq bool))) (seq int)
     (body (seq-build (len sc) (fn (u) (if (idx sc u) (total (frow h u (len sc))) 0)))))
   (ghost-fn epart ((g (seq (seq (tuple int int)))) (h (seq (seq int))) (sc (seq bool))) (seq int)
@@ -267,10 +265,6 @@
           (obtain ((i int)) (and (and (<= 0 i) (< i (len (idx g u)))) (== (get (idx (idx g u) i) 0) v)))
           (assert (has_capacity g u v (get_flow cm u v))))
         (block))))
-  (lemma valid_of (params (g (seq (seq (tuple int int)))) (cm (seq (seq int))) (f (seq (seq int))) (s int) (t int))
-    (requires (capok g cm) (fits f cm (len g)) (is_conserved g f s t))
-    (ensures (is_valid_flow g f s t))
-    (body (call capacity_of g cm f)))
   (lemma capacity_of (params (g (seq (seq (tuple int int)))) (cm (seq (seq int))) (f (seq (seq int))))
     (requires (capok g cm) (fits f cm (len g)))
     (ensures (respects_capacity g f)
@@ -326,7 +320,7 @@
   (lemma cut_id (params (g (seq (seq (tuple int int)))) (cm (seq (seq int))) (h (seq (seq int))) (sc (seq bool)) (s int) (t int))
     (requires (in_range g) (distinct g) (capok g cm) (under h cm (len g)) (== (len sc) (len g))
               (and (<= 0 s) (< s (len g))) (idx sc s) (and (<= 0 t) (< t (len g))) (not (idx sc t)) (is_conserved g h s t))
-    (ensures (== (flow_val g h s) (phi h sc)))
+    (ensures (== (flow_val g h s) (total (rsum (wm h sc) (len sc) (len sc)))))
     (body
       (forall ((u int)) (call row_id h sc u))
       (call t_add (rsum (wm h sc) (len sc) (len sc)) (rsum (km h sc) (len sc) (len sc)) (opart h sc))
@@ -531,7 +525,7 @@
         (if (not (idx seen t))
           (block
             (call cut_of capm fm seen queue pos)
-            (call valid_of (view graph) capm fm s t)
+            (call capacity_of (view graph) capm fm)
             (forall ((o (seq (seq int)))) (call max_one (view graph) capm fm seen s t o))
             (return val))
           (block))

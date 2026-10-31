@@ -2367,18 +2367,19 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
 ## 2026-10-31 · `edmond_karp`, the fourth of WP10's harder ports
 - **Asked by the owner:** to continue, after the cost split merged (PR #58).
-- **The port:** `suite/b17-1/accept/edmond_karp.b17`, from AlgoVeri's `edmond_karp.dfy`. All 772 goals prove under 10 shuffled seeds.
+- **The port:** `suite/b17-1/accept/edmond_karp.b17`, from AlgoVeri's `edmond_karp.dfy`. All 768 goals prove under 10 shuffled seeds.
   - **Spec:** Dafny's `FlowMap`, a `map<(int, int), int>`, is a `(seq (seq int))`, and `get_flow` reads an entry in range, or 0. In a valid flow, a key outside [0, n)² can hold only 0, since `respects_capacity` needs an edge for a positive value and the flow is non-negative. So the two have the same valid flows, with the same values, and the same maximum.
   - **Implementation:** Edmonds-Karp. The capacities are copied into an n by n matrix, and the flow is a second one. Each round searches the residual graph breadth-first, with a queue, parents and levels. It finds the path's bottleneck, and augments along the path from t back to s, cancelling reverse flow before adding forward flow. When a search can't reach t, the flow's value is returned.
-- **The proof,** 38 lemmas and 37 ghost-fns:
+- **The proof,** 37 lemmas and 36 ghost-fns:
   - **The witness:** the flow matrix is the flow the spec's `exists` asks for.
   - **The search:** a reached vertex's parent is reached, one level lower, along a pair with residual capacity. When the queue empties, no pair with residual capacity leaves the reached set.
   - **Augmenting:** `bott` is the least residual capacity along the parent chain. The walk back changes only pairs with an end above its current level, so each step's residual capacity is still the search's. Each step changes the spec's sums by exactly what it moves, so every vertex but the walk's current one stays conserved.
   - **Sums:** one generic `total` over sequences, with lemmas for adding, comparing, one nonzero term, bounds, and swapping a double sum's order. The spec's sum over an adjacency list equals one over every vertex, since targets are distinct.
   - **Optimality:** for any valid flow and any cut with s in and t out, the value is the flow leaving the cut minus the flow entering it, summed over every pair. The final flow saturates every pair leaving the last search's cut and carries nothing back, so it bounds every valid flow's value.
   - **Termination:** a valid flow's value is at most n times 100000, so at most 10^8, and each round adds at least 1.
-- **Getting there:** the first version found an encoder bug, a nested `seq-build`'s multiset fact, in the entries above. With it fixed, 715 of 719 goals proved under one seed. Two bounds needed a lemma at one entry, and `valid_of`'s facts had to be stated with `idx`, as `is_valid_flow` states them, before they applied. Under 10 seeds `push_ok` proved under only some, until `tree_at` and `push_tree` stated `tree` one vertex at a time.
+- **Getting there:** the first version found an encoder bug, a nested `seq-build`'s multiset fact, in the entries above. With it fixed, 715 of 719 goals proved under one seed. Two bounds needed a lemma at one entry, and the capacity facts behind `is_valid_flow` had to be stated with `idx`, as it states them, before they applied. Under 10 seeds `push_ok` proved under only some, until `tree_at` and `push_tree` stated `tree` one vertex at a time.
 - **Checking the proof:** nine mutants each leave a goal unproved: a search that ignores reverse residuals, or follows saturated pairs; levels that don't grow; no bottleneck; cancelling more than the reverse flow; pushing the whole amount forward too; a value one too high; capacities from only each vertex's first edge; and stopping after the first path. Removing proof steps one at a time found 5 redundant. 4 are removed, and 2 lemmas with them; the fifth, an assert in `push_ok`, is needed once the others go.
+- **Ponytail review:** two one-use items inlined, the lemma `valid_of` and the ghost-fn `phi`, and the proof still holds under 10 seeds. The other one-use lemmas each keep a goal stable, as D106's pattern has them.
 - **No change to the language** or the core library. The encoder's two fixes are their own entries above.
 - **Tests:**
   - `test_verify.py` requires every goal of `edmond_karp` to prove.
