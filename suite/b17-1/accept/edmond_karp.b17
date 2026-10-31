@@ -230,7 +230,6 @@
       (if (> k 0)
         (block
           (call reindex_k g h u (- k 1))
-          (forall ((v int)) (call hit_step g u v k))
           (call t_one (spot h u (get (idx (idx g u) (- k 1)) 0) (len g)) (get (idx (idx g u) (- k 1)) 0))
           (call t_add (mrow g h u (- k 1)) (spot h u (get (idx (idx g u) (- k 1)) 0) (len g)) (mrow g h u k)))
         (call t_zero (mrow g h u 0)))))
@@ -259,19 +258,6 @@
     (ensures (== (sum_flow_in_recursive g h1 y k) (+ (sum_flow_in_recursive g h0 y k) (if (and (== y b) (and (<= 0 a) (< a k))) d 0))))
     (decreases k)
     (body (if (> k 0) (call in_chg g h0 h1 a b d y (- k 1)) (block))))
-  (lemma under_one (params (g (seq (seq (tuple int int)))) (cm (seq (seq int))) (h (seq (seq int))) (s int) (t int) (u int) (v int))
-    (requires (capok g cm) (is_valid_flow g h s t) (and (<= 0 u) (< u (len g))) (and (<= 0 v) (< v (len g))))
-    (ensures (and (<= 0 (get_flow h u v)) (<= (get_flow h u v) (get_flow cm u v))))
-    (body
-      (if (> (get_flow h u v) 0)
-        (block
-          (obtain ((c int)) (and (has_capacity g u v c) (<= (get_flow h u v) c)))
-          (obtain ((i int)) (and (and (<= 0 i) (< i (len (idx g u)))) (and (== (get (idx (idx g u) i) 0) v) (== (get (idx (idx g u) i) 1) c)))))
-        (block))))
-  (lemma valid_under (params (g (seq (seq (tuple int int)))) (cm (seq (seq int))) (h (seq (seq int))) (s int) (t int))
-    (requires (capok g cm) (is_valid_flow g h s t))
-    (ensures (under h cm (len g)))
-    (body (forall ((u int) (v int)) (call under_one g cm h s t u v))))
   (lemma cap_one (params (g (seq (seq (tuple int int)))) (cm (seq (seq int))) (f (seq (seq int))) (u int) (v int))
     (requires (capok g cm) (fits f cm (len g)) (and (<= 0 u) (< u (len f))) (and (<= 0 v) (< v (len (idx f u)))))
     (ensures (=> (> (idx (idx f u) v) 0) (exists ((c int)) (and (has_capacity g u v c) (<= (idx (idx f u) v) c)))))
@@ -359,7 +345,6 @@
     (body
       (if (is_valid_flow g o s t)
         (block
-          (call valid_under g cm o s t)
           (call cut_id g cm o sc s t)
           (call cut_id g cm f sc s t)
           (forall ((u int)) (call row_le o f cm sc u))
@@ -400,7 +385,6 @@
     (ensures (tree cm f seen par lvl s) (levels seen lvl (len queue)) (qok queue seen pos)
              (closed cm f seen queue head) (scanned cm f seen u (+ v 1)))
     (body
-      (assert (and (and (<= 0 u) (< u (len seen0))) (idx seen0 u)))
       (call tree_at cm f seen0 par0 lvl0 s u)
       (forall ((x int)) (call push_tree cm f s seen0 par0 lvl0 seen par lvl u v x))))
   (lemma tree_at (params (cm (seq (seq int))) (f (seq (seq int))) (seen (seq bool)) (par (seq int)) (lvl (seq int)) (s int) (x int))
@@ -493,7 +477,6 @@
         (ghost-let sn0 (seq bool) seen)
         (set-idx seen s true)
         (call outside_drop sn0 seen s n)
-        (call outside_range seen n)
         (push queue s)
         (let-mut head i64 0)
         (while (and (< head (len queue)) (not (idx seen t)))
@@ -549,7 +532,6 @@
             (call cut_of capm fm seen queue pos)
             (call valid_of (view graph) capm fm s t)
             (forall ((o (seq (seq int)))) (call max_one (view graph) capm fm seen s t o))
-            (assert (is_max_flow (view graph) fm s t))
             (return val))
           (block))
         (ghost-let f0 (seq (seq int)) fm)
