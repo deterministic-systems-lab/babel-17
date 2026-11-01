@@ -162,16 +162,8 @@ def in_i64(t):
     return f"(and (<= {MIN} {t}) (< {t} {LIM}))"
 
 
-def _walk(x):
-    """Every node of x, itself included."""
-    yield x
-    if isinstance(x, Form):
-        for c in x.items:
-            yield from _walk(c)
-
-
 def _binds(decl):
-    """The (name, sort) pairs of an SMT binder list such as "(x!b1 Int) (s!b2 (Array Int Bool))"."""
+    """The (name, sort) pairs of an SMT binder list such as "(x!B1 Int) (s!B2 (Array Int Bool))"."""
     out, depth, start = [], 0, 0
     for k, ch in enumerate(decl):
         if ch == "(":
@@ -222,7 +214,7 @@ class Gen:
         self.oks = {}            # data type -> its validity predicate, where i64 and int differ
         self.lifting = None      # while a ghost-fn is emitted: the seq-builds its body lifts out
         self.blocks = []         # (layer, names, text): declarations a query takes when it uses a name
-        self.decls, self.goals, self.n = [], [], 0
+        self.decls, self.goals, self.n, self.n_params = [], [], 0, 0
         self.quiet = False
         self.item = None    # (name, measure at entry or None, its params) while checking an item
         self.part = "spec"  # whose goals: the spec part's or the implementation part's (D45)
@@ -239,7 +231,7 @@ class Gen:
 
     def bound(self, base):
         self.n += 1
-        return f"{base}!b{self.n}"
+        return f"{base}!B{self.n}"  # a capital: no name has one, so no ghost-fn shares it (g!b3)
 
     def name(self, base):
         """A generated SMT name for a sort, function or constructor B17-1 adds."""
@@ -609,8 +601,9 @@ class Gen:
             body, srt = self.expr(a[1].items[2], inner, ghost, guard + (("all", f"({i} Int)"), ("if", rng)))
             ss = self.seq(srt)
             bound = [b for k, d in guard if k == "all" for b in _binds(d)]
-            # A body that doesn't use its index gives every element: the multiset is it, n times.
-            same = not any(isinstance(y, Sym) and y.text == name for y in _walk(a[1].items[2]))
+            # A body that doesn't use its index gives every element: the multiset is it, n times. Read
+            # off the encoded body, where a seq-build lifted inside this one takes the index as an argument.
+            same = i not in re.findall(r"[^\s()]+", body)
             counted = lambda r: f"(= {fn('ms', ss, r)} (store ((as const (Array {srt} Int)) 0) {body} {n}))"
             if not bound and self.lifting is None:
                 r = self.fresh("seq", ss)
@@ -793,7 +786,10 @@ class Gen:
             st = State({}, [])
             ps = []
             for p in f.items[2].items:
-                v = f"{p.items[0].text}!p"
+                # A capital, as bound variables have, and numbered apart from every other name, so
+                # two ghost-fns' parameters canonicalize apart (D63) and no other name's number moves.
+                self.n_params += 1
+                v = f"{p.items[0].text}!P{self.n_params}"
                 st.env[p.items[0].text] = (v, p.items[1])
                 ps.append(f"({v} {self.sort(p.items[1])})")
             q, self.quiet, self.lifting = self.quiet, True, []

@@ -2340,3 +2340,27 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Interfaces touched:** none.
 - **Proofs and tests added:** none.
 - **Left admitted:** none.
+
+## 2026-10-31 · A nested seq-build's multiset fact
+- **Asked by the owner:** to continue with WP10's ports. Writing `edmond_karp` found this.
+- **The bug:** a `seq-build` whose body doesn't use its index gets a multiset fact: the body, n times. Whether the body uses the index was read off the source text. A `seq-build` inside it is lifted to a function of the enclosing index, though, so the encoded body does use the index, and the fact named it outside its binder. Each query carrying the fact was an SMT error (`unknown constant`), and its goal failed with that error. An n by n zero matrix, `(seq-build n (fn (a) (seq-build n (fn (b) 0))))`, is enough to hit it, and every goal after it in the item failed.
+- **The fix:** `b17c/goals.py` reads the encoded body instead. The two readings also differ where a field or type shares the index's name, as in `(seq-build n (fn (i) (field b i)))` with a field `i`: the source check counted that as a use, and such a body now gets the fact too. `_walk`, left with no callers, is removed.
+- **Effect on results:** none recorded. No suite program, and no agent program in M3's runs, has a nested `seq-build`.
+- **Tests:** `test_verify.py` proves an n by n zero matrix's row lengths and its diagonal. Without the fix, 2 of its 7 goals fail with the error.
+- **Codex review** (`gpt-5.6-sol`): four findings. Three are fixed here: this entry first said that the two readings differ only for nested `seq-build`s, that the goals failed as unknown, and that the test proves every element. The fourth was a separate, older bug, in the next entry.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
+
+## 2026-10-31 · Generated names that a binder could share
+- **Found by:** Codex, reviewing the fix above.
+- **The bug:** a bound variable was named `NAME!bN` and a ghost-fn's parameter `NAME!p`, while a ghost-fn is `g!NAME` and its requires `p!NAME`. So a binder `g` numbered 3 had the name of a ghost-fn `b3`, and a parameter `g` the name of a ghost-fn `p`. Inside its quantifier the binder shadows the function, so a definition reads the wrong value and false goals prove. With `(ghost-fn p () int (body 7))` and `(ghost-fn q ((g int)) int (body (p)))`, `(== (q 0) 0)` proved, and so did `(== (idx (foo) 0) 0)` with `(ghost-fn foo () (seq int) (body (seq-build 2 (fn (g) (b3)))))` and `b3` returning 7.
+- **The fix:** the tags are capitals, `!B3` and `!P4` (`b17c/goals.py`), and no name has a capital. Parameters are numbered now too: two ghost-fns with a parameter `x` both bound `x!p`, which is safe in SMT but one name to interface 11's canonical form (D63), so renaming one of them changed the query and lost its cached proofs. They have a counter of their own, so no other name's number moves. Each other generated name already had a number used once, or its sort's. The canonical form's pattern takes the new tags (`b17c/verify.py`).
+- **Effect on results:** none recorded. Every collision needs a ghost-fn named `p` or `b` and digits, and no suite program, core library item or agent program in M3's runs has one.
+- **Tests:** `test_verify.py`: both false lemmas fail, and renaming one ghost-fn's parameter keeps its proof in the cache, which it didn't before. `canonical`'s example uses the new tags.
+- **An older weakness this exposed:** numbered on the shared counter, the parameters moved every later name's number, and `test_agent.py`'s counterexample for a recursive ghost-fn came back wrong: a tree whose `total` is 5852 for `(>= (total t) 1)`. A counterexample's query drops the validity predicates' axioms (D103, D105), so Z3's model may put a value outside its type, where a recursive ghost-fn's equation needn't hold, and only a def's counterexample is replayed by the interpreter. Which model Z3 returns then depends on the names, which that query keeps as generated. On a counter of their own, the parameters keep every other name's number, and the test gets `(leaf)` again. The weakness is older and stays.
+- **Codex review** (`gpt-5.6-sol`): one finding, fixed: the unnumbered parameters. Its review of that fix found two more, also fixed: the canonical form's pattern also matched forms no name takes, such as a leading `_` or a non-ASCII digit, and this entry first said that the counterexample query comes back unknown, when it comes back sat. With them unnumbered, it reran the 4,734 queries of every tier-0-valid suite program, and each canonicalized as before the fix. With the old tags, both regression lemmas prove again. It confirmed that no ghost-fn in the suite, the core library or M3's 306 recorded programs is named `p` or `b` and digits.
+- **Updated:** the README's WP5 row and the roadmap's soundness fixes.
+- **Interfaces touched:** none.
+- **Proofs and tests added:** as above.
+- **Left admitted:** none.
