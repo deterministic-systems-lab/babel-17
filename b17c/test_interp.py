@@ -117,7 +117,7 @@ OUTSIDE = {
     "sum": [((MAX, 1),)],
 }
 # dedup_sorted's "same elements" clauses quantify over every int, so they're never evaluated (D58).
-DEDUP_UNCHECKED = {("INV-ENTRY", (2, 3, 4, 1)), ("INV-KEEP", (2, 3, 4, 1)), ("POST", (5, 2))}
+DEDUP_UNCHECKED = {("INV-ENTRY", (2, 3, 5, 1)), ("INV-KEEP", (2, 3, 5, 1)), ("POST", (5, 2))}
 
 
 def accepts(name, out):
@@ -503,9 +503,9 @@ assert i.text_of(i.run(load("reject/E-PROOF-OVERFLOW-unbounded-increment.b17"), 
     "err OVERFLOW at def succ/2.1.1@13:15: (+ 9223372036854775807 1) = 9223372036854775808 leaves i64"
 assert i.text_of(out) == "contract PRE spec half/4.1@9:15 at def caller/2.1.2@21:22: (>= x 0) is false"
 assert i.text_of(i.run(load("accept/dedup_sorted.b17"), "dedup_sorted", ((1, 1),), check=True, subset=0)) == (
-    "unchecked INV-ENTRY def dedup_sorted/2.3.4.1@21:20 at def dedup_sorted/2.3@18:7\n"
-    "unchecked INV-KEEP def dedup_sorted/2.3.4.1@21:20 at def dedup_sorted/2.3@18:7\n"
-    "unchecked POST spec dedup_sorted/5.2@12:34 at def dedup_sorted/2.4@28:7\n"
+    "unchecked INV-ENTRY def dedup_sorted/2.3.5.1@22:20 at def dedup_sorted/2.3@18:7\n"
+    "unchecked INV-KEEP def dedup_sorted/2.3.5.1@22:20 at def dedup_sorted/2.3@18:7\n"
+    "unchecked POST spec dedup_sorted/5.2@12:34 at def dedup_sorted/2.4@29:7\n"
     "ok (seq-lit 1)")
 assert i.text_of(go(hang, 0, fuel=100)).startswith("limit steps at def f/")
 
