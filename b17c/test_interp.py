@@ -653,8 +653,7 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
     "push_relabel": ("max_flow_value", [((FLOW, 0, 3), (5,)), ((BACK, 0, 2), (1,)), ((OPPOSITE, 0, 2), (2,)),
                                         ((FLOW, 3, 0), (0,)),  # nothing leaves 3
                                         ((D("capacity_graph", (((T((1, 0)),), ()),)), 0, 1), (0,))],  # a capacity of 0
-                     ["PRE", "PRE", "PRE", "INV-ENTRY", "INV-KEEP", "PRE", "PRE", "POST", "PRE", "PRE", "PRE", "PRE", "POST",
-                      "ASSERT", "POST"]),
+                     ["PRE", "PRE", "PRE", "INV-ENTRY", "INV-KEEP", "PRE", "POST", "PRE", "PRE", "PRE", "PRE", "POST", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
