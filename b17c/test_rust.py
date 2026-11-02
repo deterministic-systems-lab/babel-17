@@ -615,7 +615,7 @@ def holds_data(t):
 SUITE_1 = SUITE / "b17-1"
 programs_1 = {f"suite1-{p.stem}": parse(p.read_bytes(), 1)
               for p in sorted((SUITE_1 / "accept").glob("*.b17")) + sorted((SUITE_1 / "reject").glob("E-PROOF-*.b17"))}
-assert len(programs_1) == 20, len(programs_1)
+assert len(programs_1) == 21, len(programs_1)
 for name, m in programs_1.items():
     sources[name] = r.emit(m, 1)
 
@@ -659,6 +659,7 @@ FLOW = D("capacity_graph", (((T((1, 3)), T((2, 2))), (T((2, 1)), T((3, 2))), (T(
 UNDO = D("capacity_graph", (((T((1, 1)), T((6, 1))), (T((2, 1)), T((4, 1))), (T((3, 1)),), (), (T((5, 1)),), (T((3, 1)),),
                             (T((7, 1)),), (T((2, 1)),)),))  # 0 to 3: the second path undoes the first's 1 -> 2
 OPPOSITE = D("capacity_graph", (((T((1, 4)), T((0, 2))), (T((0, 3)), T((2, 2))), ()),))  # edges both ways, a self-loop
+BACK = D("capacity_graph", (((T((1, 5)),), (T((2, 1)),), ()),))  # 0 to 2: 1, and 1 returns the other 4 to 0
 ACCEPT_1 = {
     "bst_insert": ("insert", [(LEAF, 5), (BST, 8), (BST, 5), (node(5, node(7)), 1), (LEAF, -1)]),
     "bst_search": ("search", [(LEAF, 5), (BST, 7), (BST, 6), (node(5, LEAF, node(3)), 3)]),
@@ -675,6 +676,8 @@ ACCEPT_1 = {
     "dijkstra": ("dijkstra_shortest_paths", [(DIJKSTRA, 0), (DIJKSTRA, 4), (WEIGHTED, 1), (WEIGHTED, 3)]),
     "bellman_ford": ("bellman_ford", [(NEG_EDGE, 0), (NEG_CYCLE, 0), (FAR_CYCLE, 0), (WEIGHTED, 3)]),
     "edmond_karp": ("max_flow_value", [(FLOW, 0, 3), (UNDO, 0, 3), (OPPOSITE, 0, 2), (FLOW, 3, 0), (FLOW, 0, 4)]),
+    "push_relabel": ("max_flow_value", [(FLOW, 0, 3), (BACK, 0, 2), (OPPOSITE, 0, 2), (FLOW, 3, 0),
+                                        (FLOW, 4, 0)]),  # not UNDO, which takes more than FUEL steps
     "coin_change": ("coin_change", [((1, 2, 5), 11), ((2,), 3), ((3,), 0), ((), 1), ((0,), 1)]),
 }
 assert sorted(ACCEPT_1) == sorted(p.stem for p in (SUITE_1 / "accept").glob("*.b17"))
