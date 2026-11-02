@@ -6,7 +6,7 @@ WP1a's labelled programs (`docs/b17-0.md` §12). WP3's checker must agree with e
 
 ## Layout
 
-- `accept/*.b17`: programs that pass every tier 0 check and discharge every proof goal. These are the 20 seed tasks of `gym/tasks/`, ported to B17-0. `merge_sorted.b17` is the worked example of §1, unchanged; it doubles as the `merge_sorted` seed.
+- `accept/*.b17`: programs that pass every tier 0 check and discharge every proof goal. These are the 20 seed tasks of `gym/tasks/`, ported to B17-0. `merge_sorted.b17` is the worked example of §1, unchanged; it doubles as the `merge_sorted` seed. D114 (version 1.2) gave `push` a goal on its vector's length, so it, `dedup_sorted` and `prefix_sums` now bound their output's length.
 - `reject/<CODE>-<what>.b17`: programs with exactly one error, whose code starts the filename. The code is either a tier 0 code from §9's table or a proof goal family (`E-PROOF-*`). Several files may share a code.
 
 Files use the pretty layout, not canonical bytes (§2). WP2's round-trip tests own canonicalization.
@@ -28,7 +28,8 @@ Seed tasks over Dafny's unbounded `int` gained ranges under D42 and §10's rule,
 | `abs` | `x > i64::MIN`, so `-x` fits |
 | `fib` | every `fib (i - 1) + fib i` for `1 <= i < n` fits |
 | `power` | every `pow b i * b` for `i < e` fits |
-| `sum`, `prefix_sums` | every prefix sum plus the next element fits |
+| `sum` | every prefix sum plus the next element fits |
+| `prefix_sums` | the same, and the input has fewer than 2^63 − 1 elements, so the output's extra one fits (D114) |
 | `isqrt` | none: every `r` with `r * r <= n` already fits |
 
 `gcd`, `count` and the index-returning tasks need none. The Dafny versions in `gym/tasks/` take the same preconditions when the M3 task set is built.

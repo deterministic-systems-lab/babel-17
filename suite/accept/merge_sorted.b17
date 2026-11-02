@@ -16,6 +16,7 @@
       (let-mut j i64 0)
       (while (or (< i (len a)) (< j (len b)))
         (invariant (and (and (<= 0 i) (<= i (len a))) (and (<= 0 j) (<= j (len b)))))
+        (invariant (== (len out) (+ i j)))
         (invariant (sorted out))
         (invariant (== (multiset out) (msum (multiset (take a i)) (multiset (take b j)))))
         (invariant (=> (and (> (len out) 0) (< i (len a))) (<= (last out) (idx a i))))

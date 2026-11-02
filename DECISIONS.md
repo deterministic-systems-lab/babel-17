@@ -269,7 +269,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** The done-when tests of WP5, WP6, WP7 and WP11 depend on this work, and no package owns it.
 - **Touches:** Work packages.
 
-## D29 · The worked example is corrected and specialized to integers · Accepted (capacity clause superseded by D35)
+## D29 · The worked example is corrected and specialized to integers · Accepted (capacity clause superseded by D35; amended by D114)
 - **Date:** 2026-10-26
 - **Decision:** For B17-0, `merge_sorted` takes `&[int]` and returns `Vec<int>`. The generic version returns when generics do, and it requires `T: Copy` and an `Ord` with stated laws (total and transitive) and a pure, terminating comparison. Both versions also make these changes:
   - require that `len(a) + len(b)` fits in the index type;
@@ -1586,3 +1586,24 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Codex's review of the frozen text, the one its quota had cut short, found these four (ACTIVITY, 2026-10-30). Each is a statement the tools contradict, and the tools follow the accepted decisions.
 - **Alternatives:** for the first, let a vector or slice destination type a sequence literal's elements. That would make `(== v (seq-lit 9223372036854775808))` `E-TYPE-001`. The same program passes B17-0's frozen rules, and D101 keeps B17-0's outcomes as they are.
 - **Touches:** D57; D70; D101; D109; `docs/b17-1.md` status, §4, §8, §9 and §14; the README's and roadmap's version references.
+
+## D114 · A goal for `push`'s length · Accepted (amends D29)
+- **Date:** 2026-11-02
+- **Decision:** `(push v e)` has an `E-PROOF-OVERFLOW` goal, ⟦len v < 2^63 − 1⟧, in B17-0 and, through any place, in B17-1. A vector's length reaching 2^63 becomes a runtime error the verifier rules out, as an `i64` overflow is, and no longer an allocation failure.
+  - **The interpreter** is `err OVERFLOW` on such a push (`b17-0.md` §8), though no run gets near it.
+  - **Real allocation failure stays outside the semantics** (D29). A vector fails to allocate long before 2^63 elements, and that still aborts.
+  - **The suite:**
+    - `merge_sorted`, the worked example, keeps `(== (len out) (+ i j))` as an invariant;
+    - `dedup_sorted` keeps `(<= (len r) i)`;
+    - `prefix_sums` requires `(< (len a) 9223372036854775807)`, since its output is one longer than its input. Dafny's `prefix_sums` doesn't take it, as it takes none of B17-0's ranges: its integers and sequences are unbounded.
+  - **Versions:** B17-0 becomes version 1.2, and B17-1, which takes `push`'s rule from B17-0, version 1.2 too.
+- **Why:** M3's run of WP10's five harder ports found that a vector pushed past 2^63 − 1 elements made every later goal provable (ACTIVITY, 2026-11-02).
+  - **How:** `push` had no goal, since `b17-0.md` §9 called that push an allocation failure. The encoding then stated both that the vector's length was 2^63 and that every vector's is below it.
+  - **Who used it:** all 8 of Codex's passes in that run were this, and 2 in M3's first B17-1 run. A 16-line B17-0 module whose spec ensures y = 1 and y = 2 verified.
+  - **Why one goal suffices:** `push` is the only runtime statement that grows a vector, and `seq-build`'s length is an `i64`.
+  - **`prefix_sums`** verified only through the same gap: with 2^63 − 1 elements in, its `ensures` asks for a vector no program can return.
+- **Alternatives:**
+  - **Keep D29's reading and catch the trick in the harness,** for instance by running each verified program. The verifier would still prove false things, and an abort on some inputs only would still pass.
+  - **No length range for a pushed vector.** Then a runtime `(len v)` could leave `i64`, and `law_vec_len_range` would be false.
+- **Cost:** of the agents' 34 verified programs that push in M3's three B17 runs, 17 fail the new goal and would need their vector's length bounded, as the three suite programs above did. B17-1's 4 suite programs that push verify unchanged. Old runs can't be reverified against the new `b17c`, as after any change to it.
+- **Touches:** D29; D107; D113; `docs/b17-0.md` status, opening, §1's worked example, §6, §7, §8 and §9; `docs/b17-1.md` status and §7; `docs/manual.md` §6 and `docs/manual-1.md`; WP5: `b17c/goals.py`; WP15: `b17c/interp.py`; `suite/accept/merge_sorted.b17`, `dedup_sorted.b17` and `prefix_sums.b17`; `b17c/test_verify.py`.

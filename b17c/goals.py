@@ -879,6 +879,7 @@ class Gen:
             srt = self.sort(typ)
             if h == "push":  # §9: after (push v e), v is (concat v (seq-lit e))
                 v, _ = self.expr(a[1], st, ghost)
+                self.goal(st, (), "OVERFLOW", x, f"(< (+ {fn('len', srt, old)} 1) {LIM})")  # D114: room for one more
                 new = self.var(st, a[0].text, typ)
                 st.facts.append(f"(= {new} {fn('cat', srt, old, fn('unit', srt, v))})")
                 return st
@@ -936,6 +937,7 @@ class Gen:
                 self.goal(st, (), "BOUNDS", x, f"(and (<= 0 {i}) (< {i} {fn('len', srt, old)}))")
                 v = self.stored(st, old, srt, i, v)
             elif h == "push":
+                self.goal(st, (), "OVERFLOW", x, f"(< (+ {fn('len', srt, old)} 1) {LIM})")  # D114
                 v = fn("cat", srt, old, fn("unit", srt, v))
             else:  # (let y T (replace p e)): y is p's old value, and p is e
                 st.facts.append(f"(= {self.var(st, a[0].text, a[1])} {old})")

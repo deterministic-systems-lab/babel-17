@@ -2,14 +2,14 @@
   (header
     (purpose "Return the running totals of a sequence, starting from 0.")
     (invariants "Entry i of the output is the sum of the first i elements.")
-    (failures "None. The precondition keeps every running total in i64. Allocation failure aborts."))
+    (failures "None. The precondition keeps every running total in i64, and leaves room for the extra element. Allocation failure aborts."))
   (ghost-fn sum_of ((s (seq int))) int
     (decreases (len s))
     (body (if (== (len s) 0) 0 (+ (sum_of (take s (- (len s) 1))) (last s)))))
   (spec prefix_sums
     (params (a (ref (slice i64))))
     (returns (p (vec i64)))
-    (requires (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (in_i64 (+ (sum_of (take a i)) (idx a i))))))
+    (requires (< (len a) 9223372036854775807) (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (in_i64 (+ (sum_of (take a i)) (idx a i))))))
     (ensures
       (== (len p) (+ (len a) 1))
       (forall ((i int)) (=> (and (<= 0 i) (<= i (len a))) (== (idx p i) (sum_of (take a i))))))
