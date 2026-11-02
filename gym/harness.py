@@ -50,7 +50,7 @@ DAFNY = ["dafny", "verify", "--cores", "1", "--resource-limit", str(RESOURCE_LIM
 CLIS = {
     "claude": ["claude", "-p", "--model", "opus", "--effort", "high", "--tools", "",
                "--setting-sources", "project", "--strict-mcp-config", "--disable-slash-commands",
-               "--no-session-persistence", "--output-format", "json"],
+               "--no-session-persistence", "--output-format", "stream-json", "--verbose"],
     "codex": ["codex", "exec", "--ignore-user-config", "--ephemeral", "--ignore-rules",
               "--disable", "shell_tool", "--disable", "unified_exec", "-m", "gpt-5.6-sol",
               "-c", "model_reasoning_effort=high", "-s", "read-only", "--skip-git-repo-check",
@@ -347,6 +347,17 @@ def extract_code(text, lang="dafny"):
     return None
 
 
+def join_parts(parts):
+    """A reply's parts, in order, as one text. A part that reopens a code block the text so far left
+    open continues it, as Claude Code's resumption after the output limit often does."""
+    text = ""
+    for p in parts:
+        if len(re.findall(r"^\s*```", text, re.M)) % 2:  # fence lines, not backticks in code
+            p = re.sub(r"\A\s*```\w*\n", "\n", p)
+        text += p
+    return text
+
+
 def model_of(cli):
     cmd = CLIS[cli]
     return next(cmd[i + 1] for i, a in enumerate(cmd) if a in ("-m", "--model"))
@@ -362,16 +373,19 @@ def parse_reply(cli, stdout):
         # output_tokens already includes thinking_tokens (total_tokens = input + output).
         return dict(text=d["response"], model=model_of(cli), tokens_in=u["input_tokens"],
                     tokens_out=u["output_tokens"], tool_items=d.get("num_turns", 1) - 1, usage=u)
+    events = [json.loads(line) for line in stdout.splitlines() if line.startswith("{")]
     if cli == "claude":
-        d = json.loads(stdout)
-        if d.get("is_error"):
-            raise RuntimeError(d.get("result") or "claude reported an error")
+        d = next((e for e in events if e.get("type") == "result"), {})
+        if d.get("is_error") or not d:
+            raise RuntimeError(d.get("result") or f"claude reported an error: {stdout[-300:]}")
         u = d["usage"]
-        return dict(text=d["result"], model=",".join(d.get("modelUsage", {})),
+        # A reply cut at the output limit resumes in another message, and `result` holds only the last.
+        parts = ["".join(b["text"] for b in e["message"]["content"] if b["type"] == "text")
+                 for e in events if e.get("type") == "assistant"]
+        return dict(text=join_parts(parts), model=",".join(d.get("modelUsage", {})),
                     tokens_in=u["input_tokens"] + u.get("cache_creation_input_tokens", 0)
                     + u.get("cache_read_input_tokens", 0),
                     tokens_out=u["output_tokens"], tool_items=0, usage=u)
-    events = [json.loads(line) for line in stdout.splitlines() if line.startswith("{")]
     if cli == "grok":
         end = next((e for e in events if e.get("type") == "end"), None)
         if end is None:

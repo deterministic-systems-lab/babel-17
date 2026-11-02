@@ -36,14 +36,21 @@ p = h.render(ABS, None)
 assert h.MANUAL.read_text() in p and f"line {ABS['frozen'].count(chr(10)) + 2}" in p and "```lisp" in p
 assert '"code": "E-PROOF-POST"' in h.render(ABS, None, "(def abs (body (return x)))", '[{"code": "E-PROOF-POST"}]')
 assert h.extract_code("a\n```lisp\nX\n```\n```dafny\nY\n```", "b17") == "X"
+# A reply Claude Code resumed after the output limit is read whole, not just its last part, whether
+# a part continues mid-line or reopens the block.
+says = lambda *ts: [{"type": "assistant", "message": {"content": [{"type": "thinking"}, {"type": "text", "text": t}]}} for t in ts]
+out = "\n".join(json.dumps(e) for e in says("```lisp\n(a 1)\n(b", " 2)\n") + says("```lisp\n(c 3)\n```")
+                + [{"type": "result", "result": "```lisp\n(c 3)\n```", "usage": {"input_tokens": 1, "output_tokens": 1}}])
+assert h.extract_code(h.parse_reply("claude", out)["text"], "b17") == "(a 1)\n(b 2)\n\n(c 3)"
+assert h.join_parts(['```lisp\n(a "```")\n', "```lisp\n(b)\n```"]) == '```lisp\n(a "```")\n\n(b)\n```'  # only fence lines count
 
 # One attempt end to end: a wrong first reply, then a right one after the diagnostics.
 fake = Path(tempfile.mkdtemp()) / "fake.py"
 fake.write_text(f"""import json, sys
 prompt = sys.stdin.read()
 code = {GOOD!r} if "Your previous items" in prompt else "(def abs (body (return x)))"
-print(json.dumps({{"result": "```lisp\\n" + code + "\\n```", "usage": {{"input_tokens": 1, "output_tokens": 1}},
-                  "modelUsage": {{"fake": {{}}}}}}))
+print(json.dumps({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": "```lisp\\n" + code + "\\n```"}}]}}}}))
+print(json.dumps({{"type": "result", "result": "", "usage": {{"input_tokens": 1, "output_tokens": 1}}, "modelUsage": {{"fake": {{}}}}}}))
 """)
 h.CLIS["claude"] = [sys.executable, str(fake)]
 recs = []

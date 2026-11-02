@@ -225,6 +225,13 @@ assert open_(run1(H0 + "(lemma bad (params) (ensures false) (body (obtain ((k in
 assert open_(run(H0 + "(ghost-fn n ((k int)) int (requires (>= k 0)) (body (len (seq-build k (fn (i) 0)))))\n"
                       "(spec ok (params) (returns (r i64)) (ensures (== (n 2) 2) (forall ((k int)) (=> (and (<= 0 k) (< k 4)) "
                       "(== (len (seq-build k (fn (i) (* i i)))) k)))) (effects)) (def ok (body (return 0))))")) == []
+# A push needs room for one more element (D114). With no goal, a push onto 2^63 - 1 elements left
+# a vector of length 2^63, which no vector has, so every later goal proved: M3 found Codex doing it.
+GROW = "(spec lie (params) (returns (r i64)) (ensures (== r 1) (== r 2)) (effects alloc)) (def lie (body {} (return 0))))"
+FULL = "(let-mut v (vec i64) (seq-build 9223372036854775807 (fn (k) 0))) (push v 0)"
+assert open_(run(H0 + GROW.format(FULL))) == ["OVERFLOW"] and open_(run1(H0 + GROW.format(FULL))) == ["OVERFLOW"]
+assert open_(run1(H0 + GROW.format("(let-mut m (vec (vec i64)) (seq-build 1 (fn (a) (seq-build 9223372036854775807 "
+                                  "(fn (b) 0))))) (push (idx m 0) 0)"))) == ["OVERFLOW"]  # through a place
 # A seq-build inside another, with a body that doesn't use the outer index, states no fact about that
 # index outside its binder: an n by n zero matrix proves.
 assert open_(run1(H0 + "(spec mk (params (n i64)) (returns (r (vec (vec i64)))) (requires (and (<= 0 n) (<= n 9))) "

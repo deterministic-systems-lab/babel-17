@@ -193,7 +193,7 @@ A data value can't be borrowed, so a recursive read of a tree consumes it. A fun
 ```
 
 - **Updating:** `(set-idx p i e)` and `(push p e)` change a vector inside a place. Their root must be a `let-mut` local, or it's `E-OWN-003`.
-- **Goals:** a `set-idx`, `push` or `replace` through a place carries a `BOUNDS` goal for each `idx` the place passes through, and a `FIELD` goal for each `field`. The root must still be live once the statement's values are evaluated, so `(push (field x kids) x)` is `E-OWN-001`.
+- **Goals:** a `set-idx`, `push` or `replace` through a place carries a `BOUNDS` goal for each `idx` the place passes through, and a `FIELD` goal for each `field`. A `push` also has B17-0's `OVERFLOW` goal on the vector's length (D114). The root must still be live once the statement's values are evaluated, so `(push (field x kids) x)` is `E-OWN-001`.
 
 **Building moving values** (`E-OWN-006`). A constructor call, `tuple`, `(vec-new)` or `seq-build` of a moving type may only be:
 - the whole value of a `let`, `let-mut`, `set`, `return`, `set-idx`, `push` or `replace`;

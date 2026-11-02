@@ -18,11 +18,11 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite, and D113 corrected four of its statements, making it v1.1 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0 and B17-1.
+Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite, D113 corrected four of its statements, making it v1.1, and D114 gave `push` a goal on its vector's length, making it v1.2 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0 and B17-1.
 
 | WP | What | State |
 |---|---|---|
-| WP1a | B17-0 core semantics and the accept/reject suite | Done: frozen at v1.0 on 2026-10-28 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)), once WP3's checker agreed with every tier 0 label (D44). D107 amended it to v1.1 on 2026-10-29, loosening only its subtyping. |
+| WP1a | B17-0 core semantics and the accept/reject suite | Done: frozen at v1.0 on 2026-10-28 ([docs/b17-0.md](docs/b17-0.md), [suite/](suite/)), once WP3's checker agreed with every tier 0 label (D44). D107 amended it to v1.1 on 2026-10-29, loosening only its subtyping, and D114 to v1.2 on 2026-11-02, giving `push` a goal on its vector's length. |
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits, and the manifest and lockfile schemas, remain (interfaces 2, 4 and 7). |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. It checks B17-1 too, by default, and agrees with every tier 0 label of `suite/b17-1/`. B17-1's freeze review settled seven more readings (D109). |
 | WP4a | The spec language | Done (D62, D79): B17-0's spec language is WP1a's, and B17-1 adds no data-type invariants or refinement links. |
@@ -73,11 +73,11 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 
 | Path | What |
 |---|---|
-| [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.1 Frozen |
+| [`docs/b17-0.md`](docs/b17-0.md) | B17-0's semantics: interface 6 (core terms) and the B17-0 part of interface 1 (the grammar), v1.2 Frozen |
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/manual-1.md`](docs/manual-1.md) | The manual's B17-1 supplement, for M3's B17-1 track: what B17-1 adds, every example checked (D112) |
 | [`docs/roadmap.md`](docs/roadmap.md) | The phases and their gates, what's done, and what comes next |
-| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.1 Frozen |
+| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.2 Frozen |
 | [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 69, 15 to accept and 54 to reject, which the checker and verifier agree with too |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar by default, and B17-0's with `--subset 0` (D101) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46); B17-1's data types and binders (D92) |
@@ -188,6 +188,8 @@ The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-a
 - **Spec functions are ghost.** Solutions that ran the spec itself to brute-force the answer pass only when they can't call it.
 - **Ported tasks state integer ranges** (D42), in the terms the proof already uses (`docs/b17-0.md` §10).
 - **M3's first run changed the manual and the verifier.** The manual now lists the core library and says that a `set-idx` swap keeps a vector's multiset. Ghost multisets are covariant (D107), and equal sequences are the same sequence (D108).
+- **`push` has a goal on its vector's length** (D114). In M3's run of the harder ports, all 8 of Codex's passes pushed onto a vector of 2^63 − 1 elements, after which every goal proved. A push now needs room for one more element.
+- **Claude's long replies are read whole.** The same run lost 5 of Claude's 35 replies: past the output limit, Claude Code resumes a reply in a new message, and the harness read only the last.
 - **A missing `)` is located.** In M3's first B17-1 run, 22 of 120 rounds failed on unbalanced parentheses, and the parser put a missing `)` at the module's first line, in the part the agent didn't write. It now names the item that probably lacks it.
 - **An open question:** a functional spec can't tell Aho-Corasick from naive search, so the named algorithm is never enforced. That's the cost question D29 deferred.
 
@@ -201,7 +203,7 @@ So the next ports are the AlgoVeri tasks that were hardest in Dafny. Besides `kr
 
 In M3's run of the five, Claude verified all 15 attempts and Codex none. In Dafny's two runs, Codex verified 6 of these 10. So these are the first tasks that separate the two languages, though only for Codex. Codex wrote an attempt at the algorithm in only 5 of its 15 samples, and otherwise tried to get around the proof. Claude used about 3.3 times Dafny's tokens per verified task, and wrote programs of 917 lines at the median, against 548 in Dafny.
 
-The run also found a hole in the verifier. A vector pushed past 2^63 − 1 elements makes every later goal provable. The language counts that push as an allocation failure, which aborts and is outside the semantics, so `push` has no proof goal, and the encoding then states both that the vector's length is 2^63 and that no vector's is. All 8 of Codex's passes in the run were this trick, and so were 2 in the first B17-1 run, all left out above. No Claude program used it. The proposed fix is a proof goal at every `push`, so that a vector can't outgrow 2^63 − 1 elements, as an `i64` can't overflow. Tried on the agents' 34 verified programs that push, it fails 17, which would need the vector's length bounded.
+The run also found a hole in the verifier. A vector pushed past 2^63 − 1 elements made every later goal provable. The language counted that push as an allocation failure, which aborts and is outside the semantics, so `push` had no proof goal, and the encoding then stated both that the vector's length was 2^63 and that no vector's was. All 8 of Codex's passes in the run were this trick, and so were 2 in the first B17-1 run, all left out above. No Claude program used it. Now `push` has a proof goal that its vector has room for one more element, as an `i64` operation has one that it doesn't overflow (D114). Of the agents' 34 verified programs that push, 17 fail it, and would need their vector's length bounded, as three of the suite's programs now do.
 
 ## How work is recorded
 

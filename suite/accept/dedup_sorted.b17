@@ -17,6 +17,7 @@
       (let-mut i i64 0)
       (while (< i (len a))
         (invariant (and (<= 0 i) (<= i (len a))))
+        (invariant (<= (len r) i))
         (invariant (strictly_sorted r))
         (invariant (forall ((x int)) (== (contains (take a i) x) (contains r x))))
         (invariant (=> (> (len r) 0) (and (> i 0) (== (last r) (idx a (- i 1))))))

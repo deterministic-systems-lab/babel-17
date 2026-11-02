@@ -166,7 +166,7 @@ Every `def` implements a spec of the same name (D39).
 |---|---|
 | `(let x T e)`, `(let-mut x T e)` | Declares a local, mutable with `let-mut` |
 | `(set x e)` | Assigns a `let-mut` runtime local |
-| `(set-idx v i e)`, `(push v e)` | Changes a `let-mut` vector in place, with a `BOUNDS` goal for `set-idx`; `push` has effect `alloc` |
+| `(set-idx v i e)`, `(push v e)` | Changes a `let-mut` vector in place, with a `BOUNDS` goal for `set-idx`; `push` has effect `alloc`, and an `OVERFLOW` goal that v has fewer than 2^63 − 1 elements (D114) |
 | `(if c s1 s2)`, `(block s*)` | Branch and sequence; `(block)` does nothing |
 | `(while c (invariant e)* (decreases d) s*)` | A loop: invariants, then its measure, then its body |
 | `(call f e*)`, `(let ((x T) ...) (call f e*))` | Calls a def or lemma, binding one name per result; bare when it has none |
@@ -176,6 +176,7 @@ Every `def` implements a spec of the same name (D39).
 
 - **Mutation** (D75): `set`, `set-idx` and `push` change `let-mut` runtime locals, and `ghost-set` changes `ghost-let-mut` locals. Changing a parameter or an immutable local is `E-OWN-003`, and changing a binding of the other kind is `E-GHOST-001`.
 - **Loops:** every loop needs a `decreases`, an integer that is at least 0 whenever the condition holds and drops across each pass that continues normally. A pass that returns or panics needn't decrease it.
+- **A loop that pushes** keeps the vector's length in an invariant, as `ones` below does with `(== (len v) i)`, so that `push`'s `OVERFLOW` goal follows from the loop's bound.
 
 <!-- expect: ok -->
 ```lisp

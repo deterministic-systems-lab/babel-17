@@ -599,7 +599,12 @@ class _Run:
         elif h == "push":
             root, steps = self.place(it[1], env)
             v = self.eval(it[2], env, False)
-            env[root] = self.put(env[root], steps, lambda old: old + (v,))
+
+            def grow(old):  # D114
+                if len(old) >= MAX:
+                    self.fail("OVERFLOW", s, f"(push {_print(it[1])} ...) on a vector of length {len(old)}", False)
+                return old + (v,)
+            env[root] = self.put(env[root], steps, grow)
         elif h == "if":
             return self.stmt(it[2] if self.eval(it[1], env, False) else it[3], env)
         elif h == "match":
