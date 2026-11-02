@@ -352,7 +352,7 @@ def join_parts(parts):
     open continues it, as Claude Code's resumption after the output limit often does."""
     text = ""
     for p in parts:
-        if text.count("```") % 2:
+        if len(re.findall(r"^\s*```", text, re.M)) % 2:  # fence lines, not backticks in code
             p = re.sub(r"\A\s*```\w*\n", "\n", p)
         text += p
     return text

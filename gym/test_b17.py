@@ -42,6 +42,7 @@ says = lambda *ts: [{"type": "assistant", "message": {"content": [{"type": "thin
 out = "\n".join(json.dumps(e) for e in says("```lisp\n(a 1)\n(b", " 2)\n") + says("```lisp\n(c 3)\n```")
                 + [{"type": "result", "result": "```lisp\n(c 3)\n```", "usage": {"input_tokens": 1, "output_tokens": 1}}])
 assert h.extract_code(h.parse_reply("claude", out)["text"], "b17") == "(a 1)\n(b 2)\n\n(c 3)"
+assert h.join_parts(['```lisp\n(a "```")\n', "```lisp\n(b)\n```"]) == '```lisp\n(a "```")\n\n(b)\n```'  # only fence lines count
 
 # One attempt end to end: a wrong first reply, then a right one after the diagnostics.
 fake = Path(tempfile.mkdtemp()) / "fake.py"

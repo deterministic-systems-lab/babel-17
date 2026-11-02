@@ -32,7 +32,7 @@ Seed tasks over Dafny's unbounded `int` gained ranges under D42 and §10's rule,
 | `prefix_sums` | the same, and the input has fewer than 2^63 − 1 elements, so the output's extra one fits (D114) |
 | `isqrt` | none: every `r` with `r * r <= n` already fits |
 
-`gcd`, `count` and the index-returning tasks need none. The Dafny versions in `gym/tasks/` take the same preconditions when the M3 task set is built.
+`gcd`, `count` and the index-returning tasks need none. The Dafny versions in `gym/tasks/` take the same preconditions when the M3 task set is built, except `prefix_sums`'s length bound, which Dafny's unbounded sequences don't need (D114).
 
 ## How labels are checked
 
@@ -40,7 +40,7 @@ The labels were first checked by review: by the author, and by an independent mo
 
 ## B17-1's programs
 
-`b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. Its suite froze with B17-1 on 2026-10-30, at version 1.0, once WP3's checker agreed with every tier 0 label (D44). D113's version 1.1 left it unchanged.
+`b17-1/accept/` and `b17-1/reject/` hold B17-1's labelled programs (`docs/b17-1.md` §13), in the same layout and under the same assumptions. Its suite froze with B17-1 on 2026-10-30, at version 1.0, once WP3's checker agreed with every tier 0 label (D44). D113's version 1.1 and D114's 1.2 left it unchanged.
 
 **Accept:** a port of the smallest AlgoVeri task for each feature, from `gym/tasks/algoveri/`. WP10's further ports, chosen as the tasks hardest in Dafny, join them for M3's B17-1 track (D112). Each adds a program, and changes no label.
 

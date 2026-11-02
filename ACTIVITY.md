@@ -2450,3 +2450,38 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** `b17c`, the harness, the manuals and the tasks.
 - **Updated:** the README's results table and its notes on M3, with the first B17-1 run's Codex count corrected; the roadmap's recent work, its critical path, the decisions waiting for the owner, its M3 section, and its open questions on hard tasks and on B17-1's cost.
 - **Interfaces touched:** none.
+
+## 2026-11-02 · D114, a goal for `push`'s length, and Claude's whole replies
+- **Asked by the owner:** both fixes that M3's run of the five harder ports proposed (the entry above), accepted the same day. This branch builds on PR #62's.
+- **D114:** `(push v e)` has an `E-PROOF-OVERFLOW` goal, ⟦len v + 1 < 2^63⟧. A vector's length reaching 2^63 is now a runtime error the verifier rules out, as an `i64` overflow is, rather than an allocation failure.
+  - **The verifier:** `b17c/goals.py` emits the goal in both of `push`'s paths, for a variable in B17-0's statements and through a place in B17-1's.
+  - **The interpreter:** such a push is `err OVERFLOW` (`b17-0.md` §8), though no run gets near it.
+  - **Versions:** B17-0 and B17-1 become version 1.2.
+  - **The hole is closed:** the run's 16-line module fails the new goal, at subset 0 and 1, and so does a push through a place onto a vector of 2^63 − 1 elements. `test_verify.py` checks all three.
+- **The suite:** three of B17-0's accept programs failed the goal, as the run's measurement found. Each now proves every goal under 10 seeds:
+  - `merge_sorted`, the worked example, keeps `(== (len out) (+ i j))`, in `b17-0.md` §1 too;
+  - `dedup_sorted` keeps `(<= (len r) i)`;
+  - `prefix_sums` requires `(< (len a) 9223372036854775807)`, since its output is one longer than its input. Its header says so.
+  - **B17-1's 4 suite programs that push** verify unchanged.
+  - **Golden hashes:** `b17c/hashes.txt` changes for those three programs only, and only `prefix_sums`'s spec hash, since only its spec changed. `test_interp.py`'s expected text for `dedup_sorted` moves one line down.
+- **The texts:** `b17-0.md`'s status, opening, worked example, §6, §7, §8 and §9's table and ranges; `b17-1.md`'s status and §7; both manuals say `push` has the goal, and `manual.md` that a loop that pushes keeps its vector's length in an invariant, as its `ones` example does. `suite/README.md`'s range table has `prefix_sums`'s new precondition. D29's header notes the amendment.
+- **Claude's whole replies:** the harness reads Claude Code's `stream-json` output instead of `json`, and joins the text of every assistant message in the reply. When a part reopens a code block that the text so far left open, the reopening fence is dropped.
+  - **How a reply is cut, from a real one:** Haiku, with `CLAUDE_CODE_MAX_OUTPUT_TOKENS=400`. Past the limit, Claude Code adds a user message, "Output token limit hit. Resume directly…", and the model resumes in a new message. `result` holds only the last. Haiku reopened the code block in each part, as Claude's cut `edmond_karp` reply had. After three resumptions Claude Code stops with an error, which the harness already counts as an infrastructure error.
+  - **Checked on that reply:** the joined text holds all 264 lines written, in order.
+  - **Tested:** `test_b17.py` checks a reply in three parts, one continuing mid-line and one reopening the block. Its fake CLI now writes `stream-json`.
+  - **Not measurable on the run's records,** which kept only the last part of each lost reply.
+- **Reverifying old runs:** `reverify` refuses any run made with an earlier `b17c`, as after every change to it, so M3's earlier B17 verdicts stand as recorded.
+- **Checks:** all eleven self-checks pass. `test_verify.py` proves every suite program under 10 seeds with the new goal, and `test_rust.py`'s 12,926 differential runs still match the interpreter.
+- **Reviews:**
+  - **Codex** (`gpt-5.6-sol`), of both commits: it found the goal, its SMT term, both of `push`'s paths and the interpreter's check sound, and eight problems, all fixed:
+    - **two failing self-checks,** fixed while it ran: the golden hashes, and `test_interp.py`'s clause paths;
+    - **fences:** `join_parts` counted every ```` ``` ```` as a fence, so a string holding three backticks threw the count off. It now counts only lines that start with one. `extract_code`, which predates this change, still ends a block at any ```` ``` ````. Changing it would change what code every earlier round would have been checked as, so it stays;
+    - **§8's list of `err`s** left out the new push;
+    - **`suite/README.md`** still said the Dafny tasks take every B17-0 precondition, and gave the B17-1 suite's history only to version 1.1;
+    - **the README and roadmap** described the hole in the present tense after its fix;
+    - **the test's message from Claude Code itself** came without `is_error`, which never happens. Ponytail's finding had already removed it.
+  - **Ponytail:** one finding, taken: the harness left out messages from Claude Code itself, but those come only with `is_error`, which already raises. Not taken: dropping the interpreter's check, which no run can reach. §8 needs that push to be `err` for D114's goal to rule out a runtime error, as the opening promises.
+- **Interfaces touched:** interface 6 (core terms), in `b17-0.md` and `b17-1.md` version 1.2: `E-PROOF-OVERFLOW` now also covers `push`.
+- **Proofs and tests added:** the three checks in `test_verify.py` and the split reply in `test_b17.py`.
+- **Left admitted:** none.
+- **Next:** a rerun of the five harder ports, which the owner starts: `uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`.
