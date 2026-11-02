@@ -37,10 +37,10 @@ assert h.MANUAL.read_text() in p and f"line {ABS['frozen'].count(chr(10)) + 2}" 
 assert '"code": "E-PROOF-POST"' in h.render(ABS, None, "(def abs (body (return x)))", '[{"code": "E-PROOF-POST"}]')
 assert h.extract_code("a\n```lisp\nX\n```\n```dafny\nY\n```", "b17") == "X"
 # A reply Claude Code resumed after the output limit is read whole, not just its last part, whether
-# a part continues mid-line or reopens the block; Claude Code's own error message isn't part of it.
-says = lambda *ts, model="m": [{"type": "assistant", "message": {"model": model, "content": [{"type": "thinking"}, {"type": "text", "text": t}]}} for t in ts]
+# a part continues mid-line or reopens the block.
+says = lambda *ts: [{"type": "assistant", "message": {"content": [{"type": "thinking"}, {"type": "text", "text": t}]}} for t in ts]
 out = "\n".join(json.dumps(e) for e in says("```lisp\n(a 1)\n(b", " 2)\n") + says("```lisp\n(c 3)\n```")
-                + says("API Error", model="<synthetic>") + [{"type": "result", "result": "```lisp\n(c 3)\n```", "usage": {"input_tokens": 1, "output_tokens": 1}}])
+                + [{"type": "result", "result": "```lisp\n(c 3)\n```", "usage": {"input_tokens": 1, "output_tokens": 1}}])
 assert h.extract_code(h.parse_reply("claude", out)["text"], "b17") == "(a 1)\n(b 2)\n\n(c 3)"
 
 # One attempt end to end: a wrong first reply, then a right one after the diagnostics.

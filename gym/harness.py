@@ -381,7 +381,7 @@ def parse_reply(cli, stdout):
         u = d["usage"]
         # A reply cut at the output limit resumes in another message, and `result` holds only the last.
         parts = ["".join(b["text"] for b in e["message"]["content"] if b["type"] == "text")
-                 for e in events if e.get("type") == "assistant" and e["message"].get("model") != "<synthetic>"]
+                 for e in events if e.get("type") == "assistant"]
         return dict(text=join_parts(parts), model=",".join(d.get("modelUsage", {})),
                     tokens_in=u["input_tokens"] + u.get("cache_creation_input_tokens", 0)
                     + u.get("cache_read_input_tokens", 0),
