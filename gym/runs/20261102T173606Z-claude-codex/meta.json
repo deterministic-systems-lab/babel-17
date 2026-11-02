@@ -1,0 +1,72 @@
+{
+  "run_id": "20261102T173606Z-claude-codex",
+  "started": "2026-11-02T17:36:11.297622+00:00",
+  "git_commit": "c0a8dfe33678efaf6833a64c3fa64345841ed6bd",
+  "git_dirty": false,
+  "samples": 3,
+  "max_iters": 8,
+  "tasks": [
+    "b17-1/bellman_ford",
+    "b17-1/dijkstra",
+    "b17-1/edmond_karp",
+    "b17-1/prim",
+    "b17-1/push_relabel"
+  ],
+  "task_sha": {
+    "b17-1/bellman_ford": "5077a9b860791677f14688504fdb2639f1f79c198bec8923a2dbef82d0986693",
+    "b17-1/dijkstra": "0428676cf0a4503f91d76932cc7a5ce71b0c9f2e889062a22e452b48c05f72a2",
+    "b17-1/edmond_karp": "0bf9a2c4df24e8fed02e574cfe5610afbd0111c14c7dbe8612d58ad5bb11c879",
+    "b17-1/prim": "8140180278d56c1da82890c201ab69dff217e06305ce0818d7ad40068cde020a",
+    "b17-1/push_relabel": "2aef1dc52a6e06d60d3042d8ef6d7fd595dd3692646f175572aa23f6dc923147"
+  },
+  "z3": "Z3 version 5.3.2 - 64 bit",
+  "harness_sha": "6c81607d1da672b6a9ae4a5cf242645d5ea40dc3cf4153b4bdaddd87bbab892a",
+  "b17_prompt_sha": "e01a92e1e50b97b5d2ced032b9eb008f89d96e7c4635590b5435424e886f1a12",
+  "b17c_sha": "14e2d552d6f9a6dd2216884412accd6a631f04e93f8e5851b598c7d5e078d318",
+  "b17_1_prompt_sha": "8c3ed0c4c65046e6aa06dc3f8aaf018968342b77c409bc50355e29be805115e5",
+  "clis": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--model",
+        "opus",
+        "--effort",
+        "high",
+        "--tools",
+        "",
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--output-format",
+        "json"
+      ],
+      "version": "2.1.308 (Claude Code)"
+    },
+    "codex": {
+      "cmd": [
+        "codex",
+        "exec",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--ignore-rules",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "-m",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "-s",
+        "read-only",
+        "--skip-git-repo-check",
+        "--json",
+        "-"
+      ],
+      "version": "codex-cli 0.145.0"
+    }
+  }
+}
