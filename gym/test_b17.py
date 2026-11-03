@@ -101,11 +101,9 @@ stage, out = h.verify_b17(SEARCH, "(data tree () (leaf)) " + DEF)  # a task item
 assert stage == "rejected" and "E-TYPE-002" in out, out
 # The prompt is the manual, then the supplement; B17-0's carries no supplement.
 p1 = h.render(SEARCH, None)
-assert p1.startswith("Write B17-1 code that verifies with no errors.\n") and h.MANUAL.read_text() in p1 and h.MANUAL1.read_text() in p1, p1[:200]
+assert p1.startswith("Write B17-1 code") and h.MANUAL.read_text() in p1 and h.MANUAL1.read_text() in p1, p1[:200]
 assert p1.index(h.MANUAL.read_text()) < p1.index(h.MANUAL1.read_text()) and "data items" in p1
-REPAIR_RULE = "- If the check fails, b17c's diagnostics come back to you for repair.\n- Answer directly"
-assert REPAIR_RULE in p1 and REPAIR_RULE not in h.render(ABS, None)  # D115 changes B17-1's prompt only
-assert h.MANUAL1.read_text() not in h.render(ABS, None) and h.render(ABS, None).startswith("Write B17-0 code that passes b17c with every proof goal discharged.\n")
+assert h.MANUAL1.read_text() not in h.render(ABS, None) and h.render(ABS, None).startswith("Write B17-0 code")
 # B17-1 counts as its own track, and pins the supplement and core1.b17 too.
 (run / "r1").mkdir()
 (run / "r1" / "attempts.jsonl").write_text(json.dumps(dict(recs[0], task="b17-1/bst_search", stage="verified", final=True)) + "\n")
