@@ -1542,7 +1542,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
   - `suite/b17-1/reject/`.
 
-## D112 · M3's B17-1 track · Accepted (extends D98; prompt amended by D115, and by D116 for one run)
+## D112 · M3's B17-1 track · Accepted (extends D98; prompt amended by D115, by D116 for one run, and by D117)
 - **Date:** 2026-10-30
 - **Decision:** `gym/harness.py` gains a B17-1 track, built as D98's B17-0 track is, so M3 can add B17-1's tasks now that B17-1 is frozen (D65).
   - **Tasks:** first the 10 AlgoVeri ports in `suite/b17-1/accept/`, then each port WP10 adds. Each poses:
@@ -1650,5 +1650,21 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **More rounds.** That helps attempts already under way, such as `dijkstra`'s, but not samples that return 0.
   - **The example in the manual now.** Every run would pay for it before anyone knows it helps.
 - **Cost:** the prompt grows by about a third, from about 57 KB to 76 KB. It's help Dafny's prompt doesn't get, so a pass here isn't comparable with Dafny's. `bfs`'s shortest-path lemmas may help `edmond_karp` directly, so a loop in `push_relabel` says more than one there.
-- **Outcome, 2026-11-03:** 1 of the 6 maximum-flow samples has a loop, below the 3 the rule asks for, and that one is an exhaustive search over flow matrices, not push-relabel. So by the rule, Codex still doesn't attempt maximum flow, and the example has come out (ACTIVITY, 2026-11-03). The rule's words "that isn't the cause either" go further than the run supports, though. Elsewhere the example changed a lot: 3 of 15 verified, all on `dijkstra`, against none of 45, and 8 of 15 first rounds over 7,000 characters, against 1 of 15. A worked long proof in the manual is therefore proposed anyway, on that evidence and not on the rule's.
+- **Outcome, 2026-11-03:** 1 of the 6 maximum-flow samples has a loop, below the 3 the rule asks for, and that one is an exhaustive search over flow matrices, not push-relabel. So by the rule, Codex still doesn't attempt maximum flow, and the example has come out (ACTIVITY, 2026-11-03). The rule's words "that isn't the cause either" go further than the run supports, though. Elsewhere the example changed a lot: 3 of 15 verified, all on `dijkstra`, against none of 45, and 8 of 15 first rounds over 7,000 characters, against 1 of 15. A worked long proof in the manual was therefore proposed anyway, on that evidence and not on the rule's, and the owner accepted it as D117.
 - **Touches:** D8; D14; D112; D115; WP8; WP17: `gym/harness.py`, `gym/test_b17.py`.
+
+## D117 · A worked long proof in B17-1's supplement · Accepted (amends D112)
+- **Date:** 2026-11-03
+- **Decision:** `docs/manual-1.md` gains a §11, the suite's `bfs.b17` in full, as "a worked example of a long proof", worded as D116's example was.
+  - **`b17-1/bfs` stops being an M3 task,** since the prompt holds its solution, so M3's B17-1 track has 14 tasks. It stays in the suite as an accept program, and `test_manual.py` holds the supplement's copy to the suite's file.
+  - **The prompt:** B17-1's grows by about 6,400 tokens per call. B17-0's doesn't change, since `docs/manual.md` doesn't.
+  - **The next run,** which the owner starts, is Claude and Codex on WP10's five harder ports. It measures what the supplement does with E-PARSE-001's new note: for Claude, tokens per verified task, against 250k in the rerun, and for Codex, what it attempts and verifies, against 3 of 15 with D116's example. No rule is fixed for it. Whether the example stays is the owner's call, on the results.
+- **Why:** a complete `bfs` in the prompt took Codex from none of 45 to 3 of 15, and its first rounds past 7,000 characters from 1 of 15 to 8 of 15 (D116). No other change tried has moved what Codex attempts.
+  - **It's fair to the comparison, as D116's wasn't.** The manual is how B17 makes up for what models already know of Dafny (D8), and with `bfs` out of the task set, the example gives nothing away.
+  - **Whether Claude gains is open.** Its costs are the question for B17-1 (2.4 times Dafny's tokens per verified task), and it may need fewer rounds or less thinking with a long proof to read. It also pays the extra input on every call.
+- **Alternatives:**
+  - **A new module written for the manual,** which would keep `bfs` as a task. That's a new long proof to write and keep verified, and it isn't what D116 tested.
+  - **A shorter example.** It would cost less per call, but nothing shows a shorter one has the same effect.
+  - **The example in the harness's prompt, as in D116.** The manual is what an agent reads outside the harness too, and in the harness it needed a refusal to run `bfs`.
+- **Cost:** about 6,400 more input tokens on every B17-1 call. `bfs` leaves M3's B17-1 totals from here on, and earlier runs' results for it stand. B17-1 runs from here aren't under the prompt of earlier ones, and the change to `b17c` that comes with this means earlier runs can't be reverified.
+- **Touches:** D8; D14; D112; D116; WP8: `docs/manual-1.md`, `b17c/test_manual.py`; WP10; WP17: `gym/harness.py`, `gym/test_b17.py`.
