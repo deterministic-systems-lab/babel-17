@@ -43,6 +43,7 @@ KEYWORDS_1 = KEYWORDS | {
     "iset-of", "map", "map-lit", "union", "diff", "inter", "update", "lookup", "obtain",
 }
 EFFECTS = ["alloc", "panic", "io"]  # D52: listed in this order, each at most once
+_STRINGS = re.compile(r'"(?:\\.|[^"\\])*"?')
 MAX_DEPTH = 128  # D55: the same on every machine, and well inside Python's recursion limit
 sys.set_int_max_str_digits(0)  # D53: integer literals have no size limit
 
@@ -91,8 +92,12 @@ class ParseError(Exception):
 def parse(text, subset=SUBSET):
     """Parse a module of the subset from str or UTF-8 bytes into a tree of Form, Sym, Int and Str."""
     _use(subset)
-    tree = _read(_decode(text))
-    _module(tree)
+    text = _decode(text)
+    try:
+        tree = _read(text)
+        _module(tree)
+    except ParseError as e:
+        raise ParseError((e.line, e.col), e.reason + _unbalanced(text)) from None
     return tree
 
 
@@ -150,6 +155,25 @@ class _Lines:
     def at(self, i):
         line = bisect.bisect_right(self.starts, i)
         return line, i - self.starts[line - 1] + 1
+
+
+def _unbalanced(text):
+    """A note for a parse error, naming every item whose parentheses don't balance, so that an agent
+    can fix them all in one round (M3). It goes by layout: an item starts on a line that starts with
+    '(' at or left of the current item's column."""
+    items, col = [], None  # [first line, last line, opens minus closes]
+    for k, raw in enumerate(text.split("\n"), 1):
+        line, indent = _STRINGS.sub("", raw), len(raw) - len(raw.lstrip())
+        if k > 1 and raw.lstrip().startswith("(") and (col is None or indent <= col):
+            items.append([k, k, 0])
+            col = indent
+        if items and line.strip():
+            items[-1][1] = k
+            items[-1][2] += line.count("(") - line.count(")")
+    if items:
+        items[-1][2] += 1  # the module's own ')' ends the last item
+    bad = [f"lines {a}-{b} ({abs(d)} ')' {'missing' if d > 0 else 'too many'})" for a, b, d in items if d]
+    return f". Items whose parentheses don't balance: {', '.join(bad)}" if bad else ""
 
 
 def _read(text, expr=False):

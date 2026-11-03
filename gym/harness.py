@@ -267,7 +267,7 @@ def load_b17_task(path, subset=0):
 
 def load_tasks(only=None):
     tasks = [load_task(p) for p in sorted(TASKS.rglob("*.dfy"))] + [load_b17_task(p) for p in sorted(SUITE.glob("*.b17"))] \
-        + [load_b17_task(p, 1) for p in sorted(SUITE1.glob("*.b17"))]
+        + [load_b17_task(p, 1) for p in sorted(SUITE1.glob("*.b17")) if p.stem != "bfs"]  # the supplement's worked proof (D117)
     # An entry ending in "/" selects a whole task set, e.g. "algoveri/".
     return [t for t in tasks if not only
             or any(t["id"] == o or (o.endswith("/") and t["id"].startswith(o)) for o in only)]

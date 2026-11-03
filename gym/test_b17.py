@@ -85,7 +85,7 @@ assert h.allows_panic(dict(ABS, frozen=ABS["frozen"].replace("(effects))", "(eff
 # B17-1's track (D112): the AlgoVeri ports, each posing its first spec with the data items and
 # ghost-fns it refers to; helper specs, defs and proof-only items stay hidden.
 ones = {t["id"]: t for t in h.load_tasks(["b17-1/"])}
-assert len(ones) == 15 and all(t["subset"] == 1 for t in ones.values()), sorted(ones)
+assert len(ones) == 14 and "b17-1/bfs" not in ones and all(t["subset"] == 1 for t in ones.values()), sorted(ones)
 assert all("subset" not in t for t in tasks.values())  # B17-0's tasks, and so their task_sha, are as before
 for t in ones.values():
     assert "(def " not in t["frozen"] and "(lemma " not in t["frozen"] and t["frozen"].count("(spec ") == 1, t["id"]
@@ -103,6 +103,7 @@ assert stage == "rejected" and "E-TYPE-002" in out, out
 p1 = h.render(SEARCH, None)
 assert p1.startswith("Write B17-1 code that verifies with no errors.\n") and h.MANUAL.read_text() in p1 and h.MANUAL1.read_text() in p1, p1[:200]
 assert p1.index(h.MANUAL.read_text()) < p1.index(h.MANUAL1.read_text()) and "data items" in p1
+assert (h.SUITE1 / "bfs.b17").read_text() in p1 and (h.SUITE1 / "bfs.b17").read_text() not in h.render(ABS, None)  # D117
 REPAIR_RULE = "- If the check fails, b17c's diagnostics come back to you for repair.\n- Answer directly"
 assert REPAIR_RULE in p1 and REPAIR_RULE not in h.render(ABS, None)  # D115 changes B17-1's prompt only
 assert h.MANUAL1.read_text() not in h.render(ABS, None) and h.render(ABS, None).startswith("Write B17-0 code that passes b17c with every proof goal discharged.\n")
