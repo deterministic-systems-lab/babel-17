@@ -2546,7 +2546,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Started by the owner** after PR #65's merge: `20261103T171929Z-codex`, `prim`, `dijkstra`, `bellman_ford`, `edmond_karp` and `push_relabel` × Codex × 3 samples, up to 8 rounds. It made 120 calls in about 70 minutes, with no errors. The CLI, its version, the model, the effort, the tasks and `b17c` are those of the rerun.
   - **The recorded commit** is `b6f01e6`, PR #65's branch, as the checkout hadn't moved to `main`. The tree was clean, and is the same as that of `main`'s merge, `679acdc`.
 - **Verified:** none of 15, ending `proof_failed` 7 times, `rejected` 7 and `no_def` 1. With the two earlier runs, it's none of 45.
-- **D115's reading: it still doesn't attempt them, so the wording isn't the cause.** Two of the three measures fixed before the run didn't move, and the third moved without bringing attempts:
+- **D115's reading: it still doesn't attempt them, so the wording isn't the cause.** Of the three measures fixed before the run, first-round size and loops didn't improve, and rounds with no code fell without bringing attempts:
 
   | Measure | This run | The rerun | Dafny, same tasks |
   |---|---|---|---|
@@ -2574,7 +2574,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   | No code | 1 | 9 |
   | Other | 1 | 2 |
 
-  - **All 6 samples did this,** against 3 in the rerun. Its longest round is 1,328 characters, against 3,062, and none pushes, sets an element or recurses, against 3 rounds.
+  - **All 6 samples did this,** against 3 in the rerun. Its longest round is 1,328 characters, against 3,062, and none pushes or sets an element, against 2. Three rounds have mutually recursive items, which aren't an algorithm either: two got `E-TERM-002`.
   - **An extra parameter:** 17 of the 27 rounds' helpers take one the task doesn't, such as `certificate` or `token`. 8 rounds hit the check that a spec can't be identical to another up to names (D45), and in the two samples read closely, `edmond_karp` 1 and `push_relabel` 2, the next round added a parameter.
   - **All 27 were caught:** 10 `rejected`, 9 `no_def` and 8 `proof_failed`. The rule that every spec needs a def (D112) and D45 did the work here, along with the proof goals. Nothing verified, so there's nothing to audit, and no `seq-build` has a literal the size of the old trick's.
 - **Where it did write long programs:** 3 samples have a round over 7,000 characters, `dijkstra` 2 and 3 and `prim` 2, against 4, and 19 rounds do, against 27.
@@ -2586,8 +2586,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proposed, not made:**
   - **A worked long proof in the prompt:** one Codex-only run of the five with a complete port added to the prompt, such as `bfs`, at about 19 KB. It would show whether not knowing what a long B17-1 proof looks like is what stops Codex. If so, that's for the manual (D8) and for training (Bet 2), not the language. It comes before any change to `b17c`, so the comparison stays clean.
   - **Still waiting:** every unbalanced item at once, a standing audit, and `push`'s diagnostic.
-- **Codex fact-check** (`gpt-5.6-sol`): CODEX
-- **Ponytail:** PONYTAIL
+- **Codex fact-check** (`gpt-5.6-sol`) recomputed the tables, the classification of the maximum-flow rounds and the other figures from the records, and compared the restored files with `514eed8`. It found three errors, all fixed: this entry said two measures didn't move, when first-round size moved slightly the wrong way, and that no round recursed, when three have mutually recursive items. D115 still said that any later run gets the new prompt.
+- **Ponytail:** nothing to cut, since the code change only restores what was there.
 - **Changed back:** `gym/harness.py` and `gym/test_b17.py`, to what they were before PR #65. `b17_1_prompt_sha` and `harness_sha` are again the rerun's. **Not changed:** `b17c`, the manuals and the tasks.
 - **Updated:** DECISIONS (D115's outcome and header, and D112's header); the README's results table and its note on Codex; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
 - **Interfaces touched:** none.

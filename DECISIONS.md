@@ -1613,7 +1613,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** B17-1's prompt changes in two places, so a Codex-only run of WP10's five harder ports can show whether the prompt or the language holds Codex back.
   - **The first line** says "Write B17-1 code that verifies with no errors.", as Dafny's does, and no longer "passes b17c with every proof goal discharged".
   - **A new rule** says "If the check fails, b17c's diagnostics come back to you for repair." That's already how the harness works, and neither prompt said so.
-  - **Nothing else changes:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`. Any later B17-1 run gets the new prompt, Claude's included, and `b17_1_prompt_sha` records which one a run had.
+  - **Nothing else changes:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`. While it's in place, any B17-1 run gets the new prompt, Claude's included, and `b17_1_prompt_sha` records which one a run had.
   - **How the run is read, fixed before it starts.** The main measure is whether Codex attempts the proofs, against the rerun's figures: first rounds the size of its Dafny ones (9 of 10 there are over 7,000 characters, and 12 of 15 in the rerun under 4,000), a loop in each of the 6 maximum-flow samples, and rounds with no code (16 of 120).
     - **If it attempts them,** the wording was holding it back, and the new prompt stays. Its new rule then goes into Dafny's prompt too, and Codex's Dafny track of the five is rerun before pass rates are compared, since its 6 of 10 came without that rule.
     - **If it doesn't,** the wording isn't the cause, and the prompt goes back, so later runs stay comparable with the earlier ones. A smaller prompt is the next thing to test.
