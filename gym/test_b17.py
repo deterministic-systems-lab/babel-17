@@ -6,6 +6,7 @@ subscription is spent.
 import json
 import sys
 import tempfile
+import types
 from pathlib import Path
 
 import harness as h
@@ -103,6 +104,14 @@ assert stage == "rejected" and "E-TYPE-002" in out, out
 p1 = h.render(SEARCH, None)
 assert p1.startswith("Write B17-1 code that verifies with no errors.\n") and h.MANUAL.read_text() in p1 and h.MANUAL1.read_text() in p1, p1[:200]
 assert p1.index(h.MANUAL.read_text()) < p1.index(h.MANUAL1.read_text()) and "data items" in p1
+# D116's worked proof comes after the supplement, in B17-1's prompt only, and bfs can't run with its solution in the prompt.
+assert p1.index(h.MANUAL1.read_text()) < p1.index(h.EXAMPLE.read_text()) < p1.index("The task module:")
+assert h.EXAMPLE.read_text() not in h.render(ABS, None)
+try:
+    h.cmd_run(types.SimpleNamespace(tasks=["b17-1/bfs"], clis="codex"))
+    raise AssertionError("bfs ran with its solution in the prompt")
+except SystemExit as e:
+    assert "D116" in str(e), e
 REPAIR_RULE = "- If the check fails, b17c's diagnostics come back to you for repair.\n- Answer directly"
 assert REPAIR_RULE in p1 and REPAIR_RULE not in h.render(ABS, None)  # D115 changes B17-1's prompt only
 assert h.MANUAL1.read_text() not in h.render(ABS, None) and h.render(ABS, None).startswith("Write B17-0 code that passes b17c with every proof goal discharged.\n")

@@ -179,6 +179,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 | AlgoVeri ports in B17-1 (M3), 3 samples | 10 of the AlgoVeri tasks | 30/30 | 27/30 | — | — |
 | WP10's harder ports in B17-1 (M3), 3 samples | 5 of the AlgoVeri tasks | 15/15 | 0/15 | — | — |
 | The same ports, rerun with the hole closed (M3), 3 samples | the same 5 tasks | 15/15 | 0/15 | — | — |
+| The same ports, Codex only, with the prompt worded as Dafny's (M3), 3 samples | the same 5 tasks | — | 0/15 | — | — |
 | AlgoVeri, 1 sample | 66 algorithm specs | 64/66 | 60/66 | 28/28 before its quota ran out | — |
 | AlgoVeri and vericoding, 1 sample | 93 tasks | 92/93 | 90/93 | — | 49/49 before its balance ran out |
 
@@ -208,7 +209,7 @@ The run also found a hole in the verifier. A vector pushed past 2^63 − 1 eleme
 
 M3 then reran the five with the hole closed and Claude's replies read whole. Claude again verified all 15, in 1.73 rounds on average against 2.33, at about 2.4 times Dafny's tokens per verified task, with no reply lost. Run on 25 random valid graphs each, all 15 of its programs gave the right answer every time. The new goal on `push` failed in none of the 130 rounds with code.
 
-Codex again verified none, against 6 of 10 in Dafny. It no longer tried the trick, but it rarely tried the proof either. Its median round was 637 characters, against 24,383 on these tasks in Dafny, and it wrote no loop at all for either maximum-flow task. In 16 rounds it declined, saying it couldn't guarantee a pass without running the checker. Its longest attempts, on `dijkstra`, failed to parse in 15 of 24 rounds. Why it attempts so little is open: it writes programs about as long as Dafny's on the first 10 ports, and long attempts at these same tasks in Dafny, with no tools in either case. The next run tests one explanation, the prompt: B17-1's first line now matches Dafny's, and its rules now say that diagnostics come back for repair (D115).
+Codex again verified none, against 6 of 10 in Dafny. It no longer tried the trick, but it rarely tried the proof either. Its median round was 637 characters, against 24,383 on these tasks in Dafny, and it wrote no loop at all for either maximum-flow task. In 16 rounds it declined, saying it couldn't guarantee a pass without running the checker. Its longest attempts, on `dijkstra`, failed to parse in 15 of 24 rounds. Why it attempts so little is open: it writes programs about as long as Dafny's on the first 10 ports, and long attempts at these same tasks in Dafny, with no tools in either case. A further run tested one explanation, the prompt (D115). With B17-1's first line worded as Dafny's, and a rule saying that diagnostics come back for repair, Codex again verified none of 15. It declined in only 2 rounds, but 13 of its 15 first rounds stayed under 4,000 characters, and it still wrote no loop for either maximum-flow task. There, most rounds put the task's guarantee on a helper spec instead, which the checker, the harness or the verifier caught every time. So the wording isn't the cause, though the new wording stays. The next run tests another explanation, by adding a complete worked proof to the prompt (D116).
 
 ## How work is recorded
 
