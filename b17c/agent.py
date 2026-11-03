@@ -67,7 +67,7 @@ def goal_text(gen, g):
         if h == "seq-build":
             return f"(>= {p(a[0])} 0)"
     if family == "OVERFLOW":
-        return f"(in_i64 {p(x)})"
+        return f"(in_i64 (+ (len {p(a[0])}) 1))" if h == "push" else f"(in_i64 {p(x)})"  # D114: room for one more
     if family == "DIV":
         nonzero = f"(!= {p(a[1])} 0)"
         return nonzero if id(x) in gen.ghost else f"(and {nonzero} (not (and (== {p(a[0])} {MIN}) (== {p(a[1])} -1))))"

@@ -177,5 +177,15 @@ if shutil.which("z3"):
       (def inc (body (return (+ (idx (field b xs) 0) 1)))))""", 1)
     [d] = A.diagnostics(bag, 1, CACHE)
     assert d["code"] == "E-PROOF-OVERFLOW" and "9223372036854775808" not in str(d), d
+    # A push's goal is its vector's room for one more (D114), by a plain name and through a place.
+    grow = f"""{HEAD} (data box () (box (xs (vec i64))))
+      (spec grow (params (v (vec i64))) (returns (r (vec i64))) (effects alloc))
+      (def grow (body (let-mut w (vec i64) v) (push w 0) (return w))))"""
+    [d] = A.diagnostics(parse(grow, 1), 1, CACHE, subset=1)
+    assert d["code"] == "E-PROOF-OVERFLOW" and d["goal"] == "(in_i64 (+ (len w) 1))", d
+    place = grow.replace("(params (v (vec i64)))", "(params (v box))").replace("(returns (r (vec i64)))", "(returns (r box))")
+    place = place.replace("(let-mut w (vec i64) v) (push w 0)", "(let-mut w box v) (push (field w xs) 0)")
+    [d] = A.diagnostics(parse(place, 1), 1, CACHE, subset=1)
+    assert d["code"] == "E-PROOF-OVERFLOW" and d["goal"] == "(in_i64 (+ (len (field w xs)) 1))", d
 
 print("agent protocol self-check passed" + ("" if shutil.which("z3") else " (without z3: explain, tier 0 and simulate only)"))

@@ -89,6 +89,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Not on maximum flow:** 1 of 6 samples has a loop, below D116's 3, and that one is an exhaustive search over flow matrices, not push-relabel. `edmond_karp` stayed under 1,600 characters.
   - **Parentheses are now the largest cause of rejection:** 22 of its 117 rounds have unbalanced items, and 9 of those have two to four, reported one per round.
   - **The example has come out,** as D116 provides. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
+- **E-PARSE-001 names every unbalanced item, and `bfs` is the supplement's worked proof (D117).** Replayed on all 769 recorded B17 rounds, no parse outcome or error position changes. Of the 98 that fail to parse, 79 get the new note, 26 of them naming two to four items, and making the fixes it names lets the reader finish in 78. None of the 18 that are grammar errors gets a false one.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -125,17 +126,15 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **A worked long proof in the manual (WP8).** A complete `bfs` in the prompt took Codex from none of 45 to 3 of 15, and to long attempts on three of the five tasks. The proposal is one long verified module in the manual, for a task outside M3's set, so it gives nothing away, followed by a run of Claude and Codex on the five. That would also show whether it lowers Claude's cost. One the size of `bfs` adds about 6,400 tokens to every call's input.
-- **Every unbalanced item at once (WP2).** E-PARSE-001 names one place per round. The proposal is to list every item, by its column-0 start, whose parentheses don't balance.
 - **A run-time audit of verified programs (WP17).** The proposal is to make this rerun's check standing: each verified program runs on random valid inputs against an independent reference. It needs a reference for each task, and would have caught the trick at once.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, and D115 and D116 on 2026-11-03. D2–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, and D115, D116 and D117 on 2026-11-03. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
    - **`agent.py` at subset 1 (WP6): done.** B17-1's codes and goals, and counterexamples that show tuple and data values as terms the interpreter replays. Sets, maps and multisets have none yet;
-   - **`docs/manual-1.md` (WP8): done.** The manual's B17-1 supplement, 20 KB: what B17-1 adds, with 27 examples whose outcomes `test_manual.py` checks at subset 1, both of B17-1's new codes among them;
-   - **the harness track (WP17): done.** `--tasks b17-1/` runs every port, each posing its first spec with the data items and ghost-fns it refers to. Every port's solution verifies, and each task alone is `no_def`;
+   - **`docs/manual-1.md` (WP8): done.** The manual's B17-1 supplement, 39 KB: what B17-1 adds, with 28 examples whose outcomes `test_manual.py` checks at subset 1, both of B17-1's new codes among them;
+   - **the harness track (WP17): done.** `--tasks b17-1/` runs every port but `bfs`, which D117 made the supplement's worked proof, each posing its first spec with the data items and ghost-fns it refers to. Every port's solution verifies, and each task alone is `no_def`;
    - **a first run: done** ([above](#recent-and-current-work)). 57 of 60 verified, as in Dafny on the same tasks, at about 1.9–4.5 times Dafny's tokens.
    - **Locating a missing `)` (WP2): done.** E-PARSE-001 names the first item still open when a later line starts at or left of its column, or else the module's last item. Replayed on M3's recorded rounds, every unclosed one now points into the agent's own lines, and in each that one `)` fixes, the fix lies in the lines named;
    - **Counterexamples for data values with a sequence inside (WP6): done.** On the run's failed goals, re-solved, 13 of 126 now get one, against 4. Most of the rest come back unknown under the quantifiers of the agents' own ghost-fns and contracts;
@@ -146,7 +145,9 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **a rerun of the five: done** ([above](#recent-and-current-work)). Claude verified 15 of 15 and Codex none, with D114's goal never failing and no reply lost;
    - **a Codex-only run with B17-1's prompt worded as Dafny's (WP17), D115: done.** Codex verified none of 15 again, and still didn't attempt the proofs, so the wording isn't the cause. The owner kept the new wording;
    - **a Codex-only run with a worked long proof in B17-1's prompt (WP17), D116: done, and the example has come out.** Codex verified 3 of 15, all of `dijkstra`, and wrote far longer programs on three of the five tasks, but verified neither maximum-flow task;
-   - **next:** the proposals [above](#decisions-waiting-for-the-owner). Unbalanced parentheses now cost Codex the most rounds of any rejection, so E-PARSE-001 comes first among the changes to `b17c`.
+   - **every unbalanced item at once (WP2), and `push`'s diagnostic (WP6): done.** A parse error also names every item whose parentheses don't balance, with its lines and how many are off. A failed `push` goal now reads `(in_i64 (+ (len v) 1))`;
+   - **a worked long proof in the supplement (WP8), D117: done.** `docs/manual-1.md` §11 is `bfs` in full, and `bfs` is no longer an M3 task;
+   - **next:** a run of Claude and Codex on the five, which the owner starts. It would show whether the example lowers Claude's cost, and what Codex attempts with it there. Then the standing audit [above](#decisions-waiting-for-the-owner).
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.

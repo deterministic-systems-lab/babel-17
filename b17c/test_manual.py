@@ -73,6 +73,10 @@ def examples(name, subset, doc):
 examples("manual.md", 0, "b17-0.md")
 examples("manual-1.md", 1, "b17-1.md")
 
+# The supplement's worked long proof is the suite's bfs, as it is (D117).
+if f"```lisp\n{(ROOT / 'suite' / 'b17-1' / 'accept' / 'bfs.b17').read_text()}```" not in (ROOT / "docs" / "manual-1.md").read_text():
+    failures.append("manual-1.md: its worked proof isn't suite/b17-1/accept/bfs.b17")
+
 # §12 lists every core item on its canonical line, without a law's empty body.
 core = canonical(parse((ROOT / "b17c" / "core.b17").read_bytes()))[:-1].decode().splitlines()[1:]
 core = [l.removesuffix(" (body))") + ")" if l.startswith("(lemma ") else l for l in core]

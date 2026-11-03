@@ -134,16 +134,31 @@ bad("(return x)", "(return(+ x 1))", "(+ x", "missing whitespace")
 bad('(purpose "p")', '(purpose"p")', '"p"', "missing whitespace")
 bad("(def f", "; c\n(def f", "; c", "not a name")
 e = error(OK + ")")
-assert (e.line, e.col) == (3, len(OK.split("\n")[2]) + 1) and e.reason == "unmatched ')'", e
+assert (e.line, e.col) == (3, len(OK.split("\n")[2]) + 1) and e.reason.startswith("unmatched ')'"), e
+assert e.reason.endswith("balance: lines 3-3 (1 ')' too many)"), e
 # An unclosed '(' names the item that probably lacks the ')': the first one still open when a later
 # line starts at or left of its column, or else the last one.
 e = error(OK[:-1])
-assert (e.line, e.col) == (3, 1) and e.reason.endswith("at its end, or in its last item, at lines 3-3"), e
+assert (e.line, e.col) == (3, 1) and "at its end, or in its last item, at lines 3-3." in e.reason, e
 e = error(OK.replace("(effects))\n", "(effects)\n"))
-assert (e.line, e.col) == (2, 1) and "still open at line 3" in e.reason and e.reason.endswith("lines 2-2"), e
+assert (e.line, e.col) == (2, 1) and "still open at line 3" in e.reason and "lines 2-2." in e.reason, e
 e = error("(module m\n  (x")
-assert (e.line, e.col) == (2, 3) and e.reason == "unclosed '('", e
+assert (e.line, e.col) == (2, 3) and e.reason.startswith("unclosed '('"), e
 assert error("(module m").reason == "unclosed '('"
+# The error also names every item that doesn't balance, each with its lines and how many are off;
+# a ')' in a string doesn't count, and a module whose items balance gets no note.
+ITEM = '(ghost-fn g{} ((x int)) int\n  (body (+ x 1)))\n'
+MOD = '(module m\n  (header (purpose "a ) b") (invariants "i") (failures "f"))\n{}\n{}\n{}\n{})'
+items = [ITEM.format(k) for k in range(4)]
+assert parse(MOD.format(*items))
+e = error(MOD.format(items[0].replace("1)))", "1))"), items[1], items[2].replace("1)))", "1)"), items[3]))
+assert e.reason.endswith("balance: lines 3-4 (1 ')' missing), lines 9-10 (2 ')' missing)"), e
+e = error(MOD.format(items[0].replace("1)))", "1))))"), *items[1:]))
+assert e.reason.endswith("balance: lines 3-4 (1 ')' too many)"), e
+e = error(MOD.format(items[0].replace("1)))", "1))"), items[1].replace("1)))", "1))))"), *items[2:]))  # they cancel out
+assert e.reason.endswith("balance: lines 3-4 (1 ')' missing), lines 6-7 (1 ')' too many)"), e
+e = error(MOD.format(items[0].replace("(+ x 1)", "(+ x 1 2)"), *items[1:]))  # not a parenthesis problem
+assert "balance" not in e.reason, e
 bad("(module", "(x) (module", "(module", "text after the module")
 assert error("").reason.startswith("empty input")
 assert error(b"(module m \xff)").reason == "input is not valid UTF-8"
