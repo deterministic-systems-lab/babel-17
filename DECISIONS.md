@@ -1631,7 +1631,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Outcome, 2026-11-03:** Codex still didn't attempt the proofs (ACTIVITY, 2026-11-03), so the rule above sends the prompt back. The owner kept it instead, so this run is the baseline for the next test. Its rounds with no code fell from 16 to 2, but on maximum flow they gave way to helper specs restating the task's guarantee, not to attempts. The smaller prompt named above now looks a weak test, since nearly the same prompt gave programs as long as Dafny's on the first 10 ports. D116 replaces it.
 - **Touches:** D14; D98; D112; D114; WP17: `gym/harness.py`, `gym/test_b17.py`.
 
-## D116 · A worked long proof in B17-1's prompt, as a test · Accepted (amends D112 for one run)
+## D116 · A worked long proof in B17-1's prompt, as a test · Accepted (amended D112 for one run; the example has come out)
 - **Date:** 2026-11-03
 - **Decision:** for one Codex-only run of WP10's five harder ports, B17-1's prompt gains a complete port, `suite/b17-1/accept/bfs.b17`, after the supplement, as "a worked example of a long proof".
   - **Nothing else changes:** D115's wording stays, so `20261103T171929Z-codex` is the baseline, and only the example differs. B17-0's and Dafny's prompts, the manuals, the tasks and `b17c` don't change.
@@ -1650,4 +1650,5 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **More rounds.** That helps attempts already under way, such as `dijkstra`'s, but not samples that return 0.
   - **The example in the manual now.** Every run would pay for it before anyone knows it helps.
 - **Cost:** the prompt grows by about a third, from about 57 KB to 76 KB. It's help Dafny's prompt doesn't get, so a pass here isn't comparable with Dafny's. `bfs`'s shortest-path lemmas may help `edmond_karp` directly, so a loop in `push_relabel` says more than one there.
+- **Outcome, 2026-11-03:** 1 of the 6 maximum-flow samples has a loop, below the 3 the rule asks for, and that one is an exhaustive search over flow matrices, not push-relabel. So by the rule, Codex still doesn't attempt maximum flow, and the example has come out (ACTIVITY, 2026-11-03). The rule's words "that isn't the cause either" go further than the run supports, though. Elsewhere the example changed a lot: 3 of 15 verified, all on `dijkstra`, against none of 45, and 8 of 15 first rounds over 7,000 characters, against 1 of 15. A worked long proof in the manual is therefore proposed anyway, on that evidence and not on the rule's.
 - **Touches:** D8; D14; D112; D115; WP8; WP17: `gym/harness.py`, `gym/test_b17.py`.

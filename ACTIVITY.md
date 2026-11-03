@@ -2608,3 +2608,63 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`.
 - **Updated:** DECISIONS (D116, and D112's header); the README's note on Codex; the roadmap's decisions waiting for the owner and its critical path.
 - **Interfaces touched:** none.
+
+## 2026-11-03 · M3: Codex with a worked proof in the prompt: 3 of 15 verified, though neither maximum-flow task
+- **Started by the owner** after PR #66's merge: `20261103T191348Z-codex`, `prim`, `dijkstra`, `bellman_ford`, `edmond_karp` and `push_relabel` × Codex × 3 samples, up to 8 rounds, from a clean tree at `78ca7d1`. It made 117 calls in about 80 minutes, with no errors. Only the example differs from `20261103T171929Z-codex`, the baseline.
+- **Verified:** 3 of 15, all of `dijkstra`'s, in rounds 8, 7 and 6. The others end `rejected` 6 times, `proof_failed` 5 and `no_def` 1. These are Codex's first honest passes on these five tasks in B17-1, after none of 45.
+- **The audit of the three programs:**
+  - **By running them:** each ran in the interpreter on 25 random valid graphs, against a reference written separately in Python. All 75 runs ended normally with a right answer.
+  - **By reading them:** each has 3 loops and 24 to 30 lemmas, every `(assert false)` is in a lemma, and no `seq-build` in the run has a literal the size of the old trick's.
+  - **They aren't copies of `bfs`:** they share 0, 0 and 4 item names with it, and 6, 24 and 11 of their roughly 550 long lines.
+- **D116's reading: 1 of 6 maximum-flow samples has a loop, below the 3 it asks for, so by its rule Codex still doesn't attempt maximum flow.** The rule's words, that a worked proof "isn't the cause either", go further than this run supports, since nearly everything else moved:
+
+  | Measure | This run | The baseline | Dafny, same tasks |
+  |---|---|---|---|
+  | Verified | 3 of 15 | 0 of 15 | 6 of 10 |
+  | Maximum-flow samples with a loop | 1 of 6 | 0 of 6 | |
+  | First rounds over 7,000 characters | 8 of 15 | 1 of 15 | 9 of 10 |
+  | First rounds under 4,000 characters | 6 of 15 | 13 of 15 | |
+  | Rounds with no code | 8 of 117 | 2 of 120 | 1 of 72 |
+  | Maximum-flow rounds with a helper spec stating `is_max_flow`, and no loop | 13 of 48 | 27 of 48 | |
+  | Median round, characters | 13,412 | 2,006 | 24,383 |
+  | Mean round, characters | 14,724 | 5,904 | |
+  | Visible tokens per call | 4,591 | 1,601 | 6,656 |
+  | Reasoning tokens per call | 5,850 | 6,708 | 3,427 |
+  | Input tokens per call | 40,688 | 31,818 | |
+
+  Treated as separate attempts, which they aren't quite, the two-sided Fisher p is about 0.014 for first rounds over 7,000 characters, and about 0.013 for 3 of 15 against none of 45. Against Dafny's 6 of 10, 3 of 15 has a one-sided p of about 0.053.
+- **By task:**
+
+  | Task | Verified | Rounds over 7,000 characters, against the baseline's | Rounds failing to parse, against the baseline's |
+  |---|---|---|---|
+  | `dijkstra` | 3 of 3 | 20 of 21, against 14 of 24 | 3, against 5 |
+  | `bellman_ford` | 0 of 3 | 22 of 24, against 0 | 12, against 1 |
+  | `prim` | 0 of 3 | 22 of 24, against 5 | 8, against 3 |
+  | `push_relabel` | 0 of 3 | 9 of 24, against 0 | 4, against 1 |
+  | `edmond_karp` | 0 of 3 | 0 of 24, against 0 | 0, against 0 |
+
+- **`dijkstra`, against Dafny:** it took 8, 7 and 6 rounds, against 6 and 7. Verified programs have 31,202 to 35,719 characters, against 26,434 and 29,945. Per verified task, tokens are 399k against 182k, about 2.2 times: input 310k against 125k, output 89k against 57k, and reasoning 28k against 14k. The example itself adds about 6,400 tokens to every call's input, about 21% on a first call. The rest of the rise in the table is longer replies and feedback in repair rounds.
+- **Maximum flow stayed out of reach:**
+  - **`edmond_karp` didn't move.** No round passed 1,596 characters, though Edmonds-Karp is built on the BFS the example shows. So closeness to the example doesn't simply explain which tasks moved.
+  - **`push_relabel` 2 is the one with a loop, and it's a brute-force search, not push-relabel.** Its `explore_flows` recurses over every cell of a flow matrix, trying up to 100,001 values in each, and `evaluate_candidate` checks each candidate and keeps the best flow value. Its 4 loops find a capacity and check conservation. It reached 41,900 characters and 44 lemmas, with 6 failed goals in round 7, before a parse failure in round 8.
+  - **`push_relabel` 3's last round** does the same at 21,833 characters, with a helper called `exhaustive_search_runtime` and no loop, and it failed to parse. Recursive helpers, which D116 reports apart, appear only in these two samples: in all 8 rounds of the first, and in this one round of the second.
+  - **That's a strategy the spec allows.** It would compute the right answer, impractically, and a functional spec can't tell it from push-relabel (D29, D30). Had one verified, only running it would have shown how slow it is, which is another reason for a standing audit.
+  - **Declining came back,** in 8 rounds against 2, 6 of them on maximum flow. 5 now say that it needs the full algorithm proved, and 1 that it can't run the checker.
+- **Parse failures now lead the rejections,** in 27 of 117 rounds against 10 of 120, as programs got longer, and they're the last round of 4 samples against 1.
+  - **22 have unbalanced parentheses:** counting items by their column-0 starts, 13 have one such item, and 9 have two to four. E-PARSE-001 names one place per round.
+  - **5 are arity errors,** such as "(requires e) takes 1 expression, got 5" and "(and e e) takes 2 arguments, got 4". Listing unbalanced items wouldn't help those.
+  - **Who pays:** `bellman_ford` lost 12 of its 24 rounds, and all 3 of its samples ended `rejected`, 2 of them on parentheses.
+- **What this does and doesn't show:**
+  - **What Codex attempts depends, in part, on having seen a long proof.** Only the example changed, and it moved first-round size and output more than anything else tried.
+  - **The limits:** 15 samples, one example, and all 3 passes on the one task where Codex already came closest. `dijkstra` had long attempts in earlier runs, failing mostly to parse or on a few goals.
+  - **Against Dafny:** Dafny's prompt got no such help, and this example gives away a task, so 3 of 15 isn't a fair count against 6 of 10. A long example in the manual, for a task outside the set, would be fair, since the manual is how B17 makes up for what models already know of Dafny (D8).
+- **The example has come out,** as D116 provides. `gym/harness.py` and `gym/test_b17.py` are as they were with D115's wording alone, so `b17_1_prompt_sha` and `harness_sha` are again the baseline's, and `b17-1/bfs` can run.
+- **Reproduced:** `reverify` gave the same verdict on all 109 rounds with code.
+- **Proposed, not made:**
+  - **A worked long proof in the manual:** one long verified module, for a task outside M3's set, followed by a run of Claude and Codex on the five. That would also show whether it lowers Claude's cost. One the size of `bfs` adds about 6,400 tokens to every call's input.
+  - **Still waiting:** every unbalanced item at once, since unbalanced parentheses are now the largest cause of rejection; a standing audit; and `push`'s diagnostic.
+- **Codex fact-check** (`gpt-5.6-sol`) recomputed the tables and other figures from the records, read the three verified programs and the `push_relabel` attempts, and compared the restored files with `2b2e65c`. It found no exploit in the three programs, which it read as ordinary Dijkstra implementations with substantive proofs. It found three errors in this write-up, all fixed: it gave the mean rise in input, 28%, as the example's cost; it said an exhaustive search isn't a maximum-flow algorithm, when it is one, if impractical; and it called parentheses the main obstacle, when `proof_failed` rounds outnumber them 57 to 22.
+- **Ponytail:** nothing to cut, since the code change only takes the example out.
+- **Not changed:** `b17c`, the manuals and the tasks.
+- **Updated:** DECISIONS (D116's outcome and header); the README's results table and its note on Codex; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
+- **Interfaces touched:** none.
