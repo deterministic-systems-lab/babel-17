@@ -1542,7 +1542,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
   - `suite/b17-1/reject/`.
 
-## D112 · M3's B17-1 track · Accepted (extends D98)
+## D112 · M3's B17-1 track · Accepted (extends D98; prompt amended by D115)
 - **Date:** 2026-10-30
 - **Decision:** `gym/harness.py` gains a B17-1 track, built as D98's B17-0 track is, so M3 can add B17-1's tasks now that B17-1 is frozen (D65).
   - **Tasks:** first the 10 AlgoVeri ports in `suite/b17-1/accept/`, then each port WP10 adds. Each poses:
@@ -1607,3 +1607,25 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **No length range for a pushed vector.** Then a runtime `(len v)` could leave `i64`, and `law_vec_len_range` would be false.
 - **Cost:** of the agents' 34 verified programs that push in M3's three B17 runs, 17 fail the new goal and would need their vector's length bounded, as the three suite programs above did. B17-1's 4 suite programs that push verify unchanged. Old runs can't be reverified against the new `b17c`, as after any change to it.
 - **Touches:** D29; D107; D113; `docs/b17-0.md` status, opening, §1's worked example, §6, §7, §8 and §9; `docs/b17-1.md` status and §7; `docs/manual.md` §6 and `docs/manual-1.md`; WP5: `b17c/goals.py`; WP15: `b17c/interp.py`; `suite/accept/merge_sorted.b17`, `dedup_sorted.b17` and `prefix_sums.b17`; `b17c/test_verify.py`.
+
+## D115 · B17-1's prompt worded as Dafny's, as a test · Accepted (amends D112)
+- **Date:** 2026-11-03
+- **Decision:** B17-1's prompt changes in two places, so a Codex-only run of WP10's five harder ports can show whether the prompt or the language holds Codex back.
+  - **The first line** says "Write B17-1 code that verifies with no errors.", as Dafny's does, and no longer "passes b17c with every proof goal discharged".
+  - **A new rule** says "If the check fails, b17c's diagnostics come back to you for repair." That's already how the harness works, and neither prompt said so.
+  - **Nothing else changes:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`. Any later B17-1 run gets the new prompt, Claude's included, and `b17_1_prompt_sha` records which one a run had.
+  - **How the run is read, fixed before it starts.** The main measure is whether Codex attempts the proofs, against the rerun's figures: first rounds the size of its Dafny ones (9 of 10 there are over 7,000 characters, and 12 of 15 in the rerun under 4,000), a loop in each of the 6 maximum-flow samples, and rounds with no code (16 of 120).
+    - **If it attempts them,** the wording was holding it back, and the new prompt stays. Its new rule then goes into Dafny's prompt too, and Codex's Dafny track of the five is rerun before pass rates are compared, since its 6 of 10 came without that rule.
+    - **If it doesn't,** the wording isn't the cause, and the prompt goes back, so later runs stay comparable with the earlier ones. A smaller prompt is the next thing to test.
+- **Why:** in the rerun with D114's hole closed, Codex verified none of 15, against 6 of 10 in Dafny, and mostly didn't attempt the proofs (ACTIVITY, 2026-11-02).
+  - **What it did:** its median round was 637 characters against 24,383 in Dafny. None of its 6 maximum-flow samples wrote a loop, and 16 of its 120 rounds gave no code, against 1 of 72.
+  - **The prompt is a difference to test.** Its replies echo the first line, in words such as "I can't provide code that I can honestly claim discharges every proof goal without running `b17c`". It has no tools in either language.
+  - **The language and the tasks don't explain it alone.** On the first 10 ports its programs are about as long as Dafny's, and in Dafny it attempts these five.
+  - **It's the cheapest explanation to test.** Without a change to `b17c` or the tasks, the rerun stays the baseline, and `reverify` still accepts it.
+- **Alternatives:**
+  - **One change per run.** That takes two runs to learn whether the prompt matters at all. If this one helps, the two changes can be separated then.
+  - **The same wording for B17-0.** Its template is shared, but the seed tasks don't show the problem, and D112 keeps that track's prompt as it is.
+  - **The rule in Dafny's prompt now.** Dafny's results would then need a rerun before anyone knows the rule matters.
+  - **A smaller prompt first.** That's a bigger change, and what to cut from the manuals is a design question of its own.
+- **Cost:** a run under this prompt isn't under the prompt of the earlier B17-1 runs, and if it helps, it bundles two changes.
+- **Touches:** D14; D98; D112; D114; WP17: `gym/harness.py`, `gym/test_b17.py`.

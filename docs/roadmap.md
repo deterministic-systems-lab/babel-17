@@ -116,11 +116,10 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **Why Codex attempts so little in B17-1 (WP17).** Its replies echo the prompt's first line, "passes b17c with every proof goal discharged", where Dafny's says "verifies with no errors". Neither prompt says that diagnostics come back for repair. The proposal is one Codex-only run of the five, with B17-1's first line worded as Dafny's and a sentence saying that diagnostics come back. It would show whether the prompt or the language holds it back.
 - **Every unbalanced item at once (WP2).** E-PARSE-001 names one place per round. The proposal is to list every item, by its column-0 start, whose parentheses don't balance.
 - **A run-time audit of verified programs (WP17).** The proposal is to make this rerun's check standing: each verified program runs on random valid inputs against an independent reference. It needs a reference for each task, and would have caught the trick at once.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, and D114 on 2026-11-02. D2–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, and D115 on 2026-11-03. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
@@ -135,7 +134,8 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **closing the length hole (WP5), D114: done.** `push` has an `E-PROOF-OVERFLOW` goal, ⟦len v < 2^63 − 1⟧, so a vector reaching 2^63 elements is a runtime error the verifier rules out rather than an allocation failure. Three of B17-0's accept programs now bound their output's length, `prefix_sums` with a new precondition, and B17-0 and B17-1 are version 1.2. Of the agents' 34 verified programs that push, 17 fail the goal;
    - **Claude's whole reply (WP17): done.** The harness reads Claude Code's `stream-json` output and joins the text of every message in the reply, dropping a code fence a resumed part reopens. On a real reply forced past a 400-token limit three times, it gives back all 264 lines written, in order;
    - **a rerun of the five: done** ([above](#recent-and-current-work)). Claude verified 15 of 15 and Codex none, with D114's goal never failing and no reply lost;
-   - **next:** the proposals [above](#decisions-waiting-for-the-owner), starting with whether the prompt holds Codex back.
+   - **B17-1's prompt worded as Dafny's (WP17), D115: done.** Its first line says "verifies with no errors", and a new rule says that diagnostics come back for repair. B17-0's and Dafny's prompts don't change;
+   - **next:** a Codex-only run of the five, which the owner starts, to show whether the prompt or the language holds it back. D115 fixes beforehand how it's read. The proposals [above](#decisions-waiting-for-the-owner) follow, since changing `b17c` first would blur the comparison.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.

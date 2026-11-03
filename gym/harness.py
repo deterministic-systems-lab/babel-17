@@ -130,12 +130,15 @@ Rules:
 - Answer directly without using tools. Reply with your items, and only your items, in one ```lisp block.
 """
 # B17-1's prompt (D112): the manual, then its supplement, which changes it where it says so.
-B17_1_TASK_PROMPT = (B17_TASK_PROMPT.replace("Write B17-0 code", "Write B17-1 code")
+# Its first line and its repair rule are D115's test of why Codex attempts so little.
+B17_1_TASK_PROMPT = (B17_TASK_PROMPT.replace("Write B17-0 code that passes b17c with every proof goal discharged.",
+                                             "Write B17-1 code that verifies with no errors.")
                      .replace("This is B17-0's reference manual:\n\n{manual}",
                               "This is B17-0's reference manual, and after it B17-1's supplement, which changes it where "
                               "it says so:\n\n{manual}\n\n{supplement}")
-                     .replace("You may add lemmas, ghost-fns, and spec", "You may add lemmas, ghost-fns, data items, and spec"))
-assert B17_1_TASK_PROMPT.count("B17-1") == 2 and "data items" in B17_1_TASK_PROMPT
+                     .replace("You may add lemmas, ghost-fns, and spec", "You may add lemmas, ghost-fns, data items, and spec")
+                     .replace("- Answer directly", "- If the check fails, b17c's diagnostics come back to you for repair.\n- Answer directly"))
+assert B17_1_TASK_PROMPT.count("B17-1") == 2 and "data items" in B17_1_TASK_PROMPT and "for repair" in B17_1_TASK_PROMPT
 B17_REPAIR_PROMPT = """
 Your previous items:
 
