@@ -178,10 +178,11 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 | M3 rerun with the manual's fixes, 3 samples | `insertion_sort` and `partition` | 6/6 | 6/6 | — | — |
 | AlgoVeri ports in B17-1 (M3), 3 samples | 10 of the AlgoVeri tasks | 30/30 | 27/30 | — | — |
 | WP10's harder ports in B17-1 (M3), 3 samples | 5 of the AlgoVeri tasks | 15/15 | 0/15 | — | — |
+| The same ports, rerun with the hole closed (M3), 3 samples | the same 5 tasks | 15/15 | 0/15 | — | — |
 | AlgoVeri, 1 sample | 66 algorithm specs | 64/66 | 60/66 | 28/28 before its quota ran out | — |
 | AlgoVeri and vericoding, 1 sample | 93 tasks | 92/93 | 90/93 | — | 49/49 before its balance ran out |
 
-The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-argon-high` and Grok `grok-4.7`, all at high effort. [ACTIVITY.md](ACTIVITY.md) has rounds, token costs and failure analyses for each run. The two B17-1 rows leave out 10 of Codex's attempts that passed through a hole in the verifier, described below.
+The models are Claude `claude-opus-5-5`, Codex `gpt-5.6-sol`, Gemini `gemini-4-argon-high` and Grok `grok-4.7`, all at high effort. [ACTIVITY.md](ACTIVITY.md) has rounds, token costs and failure analyses for each run. The first two B17-1 rows leave out 10 of Codex's attempts that passed through a hole in the verifier, described below.
 
 **What the benchmarks have changed so far.** Benchmarks steer the design, but they don't gate the language (D14).
 - **`seq-build` bounds its index** (D38). In 6 of 6 first attempts, Codex's `reverse` failed because Dafny couldn't see the comprehension index's bound. In B17-0, the index is in range by construction.
@@ -204,6 +205,10 @@ So the next ports are the AlgoVeri tasks that were hardest in Dafny. Besides `kr
 In M3's run of the five, Claude verified all 15 attempts and Codex none. In Dafny's two runs, Codex verified 6 of these 10. So these are the first tasks that separate the two languages, though only for Codex. Codex wrote an attempt at the algorithm in only 5 of its 15 samples, and otherwise tried to get around the proof. Claude used about 3.3 times Dafny's tokens per verified task, and wrote programs of 917 lines at the median, against 548 in Dafny.
 
 The run also found a hole in the verifier. A vector pushed past 2^63 − 1 elements made every later goal provable. The language counted that push as an allocation failure, which aborts and is outside the semantics, so `push` had no proof goal, and the encoding then stated both that the vector's length was 2^63 and that no vector's was. All 8 of Codex's passes in the run were this trick, and so were 2 in the first B17-1 run, all left out above. No Claude program used it. Now `push` has a proof goal that its vector has room for one more element, as an `i64` operation has one that it doesn't overflow (D114). Of the agents' 34 verified programs that push, 17 fail it, and would need their vector's length bounded, as three of the suite's programs now do.
+
+M3 then reran the five with the hole closed and Claude's replies read whole. Claude again verified all 15, in 1.73 rounds on average against 2.33, at about 2.4 times Dafny's tokens per verified task, with no reply lost. Run on 25 random valid graphs each, all 15 of its programs gave the right answer every time. The new goal on `push` failed in none of the 130 rounds with code.
+
+Codex again verified none, against 6 of 10 in Dafny. It no longer tried the trick, but it rarely tried the proof either. Its median round was 637 characters, against 24,383 on these tasks in Dafny, and it wrote no loop at all for either maximum-flow task. In 16 rounds it declined, saying it couldn't guarantee a pass without running the checker. Its longest attempts, on `dijkstra`, failed to parse in 15 of 24 rounds. Why it attempts so little is open: it writes programs about as long as Dafny's on the first 10 ports, and long attempts at these same tasks in Dafny, with no tools in either case.
 
 ## How work is recorded
 
