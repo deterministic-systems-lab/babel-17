@@ -2603,8 +2603,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **How the run is read** is fixed in D116 before it starts: Codex counts as attempting the proofs if at least 3 of the 6 maximum-flow samples have a loop. It wrote none in any of three runs.
 - **Next:** the run, which the owner starts from a clean tree on `main`: `uv run --no-project gym/harness.py run --clis codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`.
 - **Reviews:**
-  - **Codex** (`gpt-5.6-sol`): CODEX
-  - **Ponytail:** PONYTAIL
+  - **Codex** (`gpt-5.6-sol`) read the code and checked the figures against the records and files. It found two errors, both fixed: the largest example D116 cited was the core library's inventory, not a checked example, which is 630 characters at most, and D116 didn't say what counts as a loop.
+  - **Ponytail:** nothing to cut.
 - **Not changed:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`.
 - **Updated:** DECISIONS (D116, and D112's header); the README's note on Codex; the roadmap's decisions waiting for the owner and its critical path.
 - **Interfaces touched:** none.
