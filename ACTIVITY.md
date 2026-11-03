@@ -2541,3 +2541,53 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Ponytail:** nothing to cut.
 - **Updated:** DECISIONS (D115, and D112's header); the README's note on Codex; the roadmap's decisions waiting for the owner and its critical path.
 - **Interfaces touched:** none.
+
+## 2026-11-03 · M3: Codex under D115's prompt: the wording isn't why it doesn't attempt the proofs
+- **Started by the owner** after PR #65's merge: `20261103T171929Z-codex`, `prim`, `dijkstra`, `bellman_ford`, `edmond_karp` and `push_relabel` × Codex × 3 samples, up to 8 rounds. It made 120 calls in about 70 minutes, with no errors. The CLI, its version, the model, the effort, the tasks and `b17c` are those of the rerun.
+  - **The recorded commit** is `b6f01e6`, PR #65's branch, as the checkout hadn't moved to `main`. The tree was clean, and is the same as that of `main`'s merge, `679acdc`.
+- **Verified:** none of 15, ending `proof_failed` 7 times, `rejected` 7 and `no_def` 1. With the two earlier runs, it's none of 45.
+- **D115's reading: it still doesn't attempt them, so the wording isn't the cause.** Two of the three measures fixed before the run didn't move, and the third moved without bringing attempts:
+
+  | Measure | This run | The rerun | Dafny, same tasks |
+  |---|---|---|---|
+  | First rounds under 4,000 characters | 13 of 15 | 12 of 15 | |
+  | First rounds over 7,000 characters | 1 of 15 | 3 of 15 | 9 of 10 |
+  | Maximum-flow samples with a loop | 0 of 6 | 0 of 6 | |
+  | Rounds with no code | 2 of 120 | 16 of 120 | 1 of 72 |
+  | Median round, characters | 2,006 | 637 | 24,383 |
+  | Mean round, characters | 5,904 | 6,200 | |
+  | Reasoning tokens per call | 6,708 | 8,359 | 3,427 |
+  | Visible tokens per call | 1,601 | 1,769 | 6,656 |
+
+  The median rose because rounds with no code and bare stubs gave way to small programs. The mean, and what Codex writes per call, barely changed.
+- **The prompt goes back,** as D115 provides, so later runs stay comparable with the earlier ones.
+- **What the wording did change: Codex nearly stopped declining.** 2 samples had a round with no code, against 10, with a two-sided Fisher p of about 0.008. "Without running" is in none of its replies, against 7, "honest" in 1, against 7, and "guarantee" in none, against 6.
+- **On maximum flow, the declining gave way to helper specs, not algorithms:**
+
+  | Maximum-flow rounds, of 48 | This run | The rerun |
+  |---|---|---|
+  | A helper spec stating `is_max_flow`, with no def | 15 | 4 |
+  | The same, with a def that returns 0 | 9 | 0 |
+  | The same, otherwise | 3 | 1 |
+  | A bare `(return 0)` | 11 | 22 |
+  | A lemma, with no helper spec | 8 | 10 |
+  | No code | 1 | 9 |
+  | Other | 1 | 2 |
+
+  - **All 6 samples did this,** against 3 in the rerun. Its longest round is 1,328 characters, against 3,062, and none pushes, sets an element or recurses, against 3 rounds.
+  - **An extra parameter:** 17 of the 27 rounds' helpers take one the task doesn't, such as `certificate` or `token`. 8 rounds hit the check that a spec can't be identical to another up to names (D45), and in the two samples read closely, `edmond_karp` 1 and `push_relabel` 2, the next round added a parameter.
+  - **All 27 were caught:** 10 `rejected`, 9 `no_def` and 8 `proof_failed`. The rule that every spec needs a def (D112) and D45 did the work here, along with the proof goals. Nothing verified, so there's nothing to audit, and no `seq-build` has a literal the size of the old trick's.
+- **Where it did write long programs:** 3 samples have a round over 7,000 characters, `dijkstra` 2 and 3 and `prim` 2, against 4, and 19 rounds do, against 27.
+  - **The closest:** `dijkstra` 2 grew from 2,945 characters in round 2 to 52,664 in round 8, Codex's longest round on these tasks in any run, with 18, 8, 12 and finally 6 failed goals in the long rounds that reached the verifier. `dijkstra` 3 ended on 10 at 30,604. Whether more rounds would finish them is open. A low count alone doesn't mean close: `prim` 3 stayed on 3 failed asserts for its last three rounds.
+  - **`dijkstra`'s first rounds were shorter,** 2,747, 3,167 and 14,274 characters against 29,182, 25,078 and 9,732, and it failed to parse in 5 of 24 rounds against 15. With 3 samples, that may be chance.
+- **Why rounds were rejected:** `E-TYPE-002` now leads, in 19 rounds against 9: 9 reused a name in an item (D41), 9 hit D45's check, and 1 had a def with no spec. `E-PARSE-001` is in 10 against 16.
+- **A smaller prompt, D115's next test, now looks weak.** On the first 10 ports, nearly the same prompt gave final programs 1.1 times as long as Dafny's, and Codex verified 27 of 30, so its size doesn't stop Codex writing long programs. What's left is the meeting of hard tasks and an unfamiliar language, and in Dafny Codex may draw on what it already knows. That's a guess, not a finding.
+- **Reproduced:** `reverify` gave the same verdict on all 118 rounds with code.
+- **Proposed, not made:**
+  - **A worked long proof in the prompt:** one Codex-only run of the five with a complete port added to the prompt, such as `bfs`, at about 19 KB. It would show whether not knowing what a long B17-1 proof looks like is what stops Codex. If so, that's for the manual (D8) and for training (Bet 2), not the language. It comes before any change to `b17c`, so the comparison stays clean.
+  - **Still waiting:** every unbalanced item at once, a standing audit, and `push`'s diagnostic.
+- **Codex fact-check** (`gpt-5.6-sol`): CODEX
+- **Ponytail:** PONYTAIL
+- **Changed back:** `gym/harness.py` and `gym/test_b17.py`, to what they were before PR #65. `b17_1_prompt_sha` and `harness_sha` are again the rerun's. **Not changed:** `b17c`, the manuals and the tasks.
+- **Updated:** DECISIONS (D115's outcome and header, and D112's header); the README's results table and its note on Codex; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
+- **Interfaces touched:** none.
