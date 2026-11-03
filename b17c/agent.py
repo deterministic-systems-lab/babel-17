@@ -26,7 +26,7 @@ import verify as V
 from syntax import SUBSET, Form, ParseError, Sym, _head, _print, parse
 
 ROOT = Path(__file__).resolve().parent.parent
-MIN, MAX = "-9223372036854775808", "9223372036854775807"
+MIN = "-9223372036854775808"
 SHOWN = 8  # sequence elements a counterexample shows; a longer one shows its length and a prefix
 
 
@@ -67,7 +67,7 @@ def goal_text(gen, g):
         if h == "seq-build":
             return f"(>= {p(a[0])} 0)"
     if family == "OVERFLOW":
-        return f"(< (len {p(a[0])}) {MAX})" if h == "push" else f"(in_i64 {p(x)})"  # D114: room for one more
+        return f"(in_i64 (+ (len {p(a[0])}) 1))" if h == "push" else f"(in_i64 {p(x)})"  # D114: room for one more
     if family == "DIV":
         nonzero = f"(!= {p(a[1])} 0)"
         return nonzero if id(x) in gen.ghost else f"(and {nonzero} (not (and (== {p(a[0])} {MIN}) (== {p(a[1])} -1))))"

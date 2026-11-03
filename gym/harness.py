@@ -8,8 +8,8 @@
 B17-0 tasks (M3's track, D98) are b17/NAME, one per seed program in suite/accept/. Each
 poses the program's header, its one spec and the ghost-fns that spec refers to; the agent
 adds a def and any helpers, with docs/manual.md in its prompt, and is verified by b17c.
-B17-1 tasks (D112) are b17-1/NAME, one per AlgoVeri port in suite/b17-1/accept/, posing its
-first spec with the data items and ghost-fns it refers to, and docs/manual-1.md after the manual.
+B17-1 tasks (D112) are b17-1/NAME, one per AlgoVeri port in suite/b17-1/accept/ but bfs, the
+supplement's worked proof (D117), posing its first spec with the data items and ghost-fns it refers to, and docs/manual-1.md after the manual.
 
 Each file in gym/tasks/ has three sections: a preamble of frozen definitions, the method
 signature with its contracts, and a hidden reference solution. An agent's code is checked

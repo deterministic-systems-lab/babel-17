@@ -182,10 +182,10 @@ if shutil.which("z3"):
       (spec grow (params (v (vec i64))) (returns (r (vec i64))) (effects alloc))
       (def grow (body (let-mut w (vec i64) v) (push w 0) (return w))))"""
     [d] = A.diagnostics(parse(grow, 1), 1, CACHE, subset=1)
-    assert d["code"] == "E-PROOF-OVERFLOW" and d["goal"] == "(< (len w) 9223372036854775807)", d
+    assert d["code"] == "E-PROOF-OVERFLOW" and d["goal"] == "(in_i64 (+ (len w) 1))", d
     place = grow.replace("(params (v (vec i64)))", "(params (v box))").replace("(returns (r (vec i64)))", "(returns (r box))")
     place = place.replace("(let-mut w (vec i64) v) (push w 0)", "(let-mut w box v) (push (field w xs) 0)")
     [d] = A.diagnostics(parse(place, 1), 1, CACHE, subset=1)
-    assert d["code"] == "E-PROOF-OVERFLOW" and d["goal"] == "(< (len (field w xs)) 9223372036854775807)", d
+    assert d["code"] == "E-PROOF-OVERFLOW" and d["goal"] == "(in_i64 (+ (len (field w xs)) 1))", d
 
 print("agent protocol self-check passed" + ("" if shutil.which("z3") else " (without z3: explain, tier 0 and simulate only)"))

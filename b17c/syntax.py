@@ -161,10 +161,10 @@ def _unbalanced(text):
     """A note for a parse error, naming every item whose parentheses don't balance, so that an agent
     can fix them all in one round (M3). It goes by layout: an item starts on a line that starts with
     '(' at or left of the current item's column."""
-    items, col = [], None  # [first line, last line, opens minus closes]
+    items, col = [], len(text)  # [first line, last line, opens minus closes]
     for k, raw in enumerate(text.split("\n"), 1):
         line, indent = _STRINGS.sub("", raw), len(raw) - len(raw.lstrip())
-        if k > 1 and raw.lstrip().startswith("(") and (col is None or indent <= col):
+        if k > 1 and raw.lstrip().startswith("(") and indent <= col:
             items.append([k, k, 0])
             col = indent
         if items and line.strip():
@@ -173,7 +173,7 @@ def _unbalanced(text):
     if items:
         items[-1][2] += 1  # the module's own ')' ends the last item
     bad = [f"lines {a}-{b} ({abs(d)} ')' {'missing' if d > 0 else 'too many'})" for a, b, d in items if d]
-    return f". Items whose parentheses don't balance: {', '.join(bad)}" if bad else ""
+    return f". By layout, items whose parentheses don't balance: {', '.join(bad)}" if bad else ""
 
 
 def _read(text, expr=False):

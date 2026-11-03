@@ -2671,22 +2671,25 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 
 ## 2026-11-03 · E-PARSE-001 names every unbalanced item, `push`'s diagnostic, and a worked proof in the supplement, D117
 - **Asked by the owner,** from the proposals of the worked-proof run.
-- **E-PARSE-001, in `b17c/syntax.py`:** when a module fails to parse, the message adds every item whose parentheses don't balance, with its lines and how many are off, as in "Items whose parentheses don't balance: lines 3-4 (1 ')' missing), lines 9-10 (2 ')' too many)".
+- **E-PARSE-001, in `b17c/syntax.py`:** when a module fails to parse, the message adds every item whose parentheses don't balance, with its lines and how many are off, as in "By layout, items whose parentheses don't balance: lines 3-4 (1 ')' missing), lines 9-10 (2 ')' too many)".
   - **It's one diagnostic still,** at the same position, with the old message first, so the agent protocol and the harness don't change.
   - **It goes by layout,** as locating a missing `)` does: an item starts on a line that starts with `(` at or left of the current item's column. It's only a hint, so it runs only after a parse has failed, and a successful parse can't change.
   - **It also helps where two slips cancel out,** which the reader passes and the grammar then rejects in some other words.
 - **Replayed** through `main`'s parser and this one, on all 769 recorded B17 rounds that have code:
   - **Nothing else changed:** every parse has the same outcome and position, and every failure keeps its old message as its start.
-  - **Of the 98 that fail to parse,** 79 get the note: 53 name one item, 19 two, 5 three and 2 four. The other 19 aren't parenthesis problems. They're grammar errors, such as "(requires e) takes 1 expression, got 2".
+  - **Of the 98 that fail to parse,** 79 get the note: 53 name one item, 19 two, 5 three and 2 four. The other 19 aren't parenthesis problems: 18 pass the reader and are grammar errors, such as "(requires e) takes 1 expression, got 2", and 1 has a stray `;`.
+  - **It was never wrong on these rounds:** none of the 18 grammar errors gets a false note, and in all 79 the note's counts agree with the text's overall count of parentheses.
   - **The note is right about the parentheses, as far as a replay can say:** adding or removing what it names, at the end of each named item, lets the reader finish in 78 of the 79. That doesn't show the program then means what the agent meant.
-- **`push`'s diagnostic, in `b17c/agent.py`:** a failed goal read `(in_i64 (push v 0))`, and now reads `(< (len v) 9223372036854775807)`, by a plain name and through a place.
+- **`push`'s diagnostic, in `b17c/agent.py`:** a failed goal read `(in_i64 (push v 0))`, and now reads `(in_i64 (+ (len v) 1))`, by a plain name and through a place.
 - **D117, the worked long proof:** `docs/manual-1.md` gains §11, `bfs` in full, worded as D116's example was. The supplement goes from 20 KB to 39 KB, and has 28 examples. `test_manual.py` verifies it and holds it to the suite's file, as an `ok` example.
 - **`bfs` stops being an M3 task:** `load_tasks` leaves it out, so `--tasks b17-1/` is 14 tasks. It stays in the suite.
 - **Checked:** all eight of CI's self-checks, `b17c/test_verify.py` and `gym/test_b17.py` pass, with new cases for the note, for `push`'s goal text, for `bfs` not being a task and for the example being in B17-1's prompt and not in B17-0's. B17-0's prompt is unchanged.
 - **A cost:** `b17c`'s hash changes, so earlier runs can't be reverified from here on, as after any change to it.
 - **Next:** the run, which the owner starts from a clean tree on `main`: `uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`. A standing audit is still waiting for the owner, and its script is still only in the session's scratchpad.
 - **Reviews:**
-  - **Codex** (`gpt-5.6-sol`): CODEX
-  - **Ponytail:** PONYTAIL
+  - **Codex** (`gpt-5.6-sol`) tried to break the note, traced `push`'s goal on both paths, followed what uses `load_tasks`, and checked the records. It found four things:
+    - **Fixed:** the harness's docstring and the roadmap still said every port is a task.
+    - **Left as they are,** since the note is a hint that says "by layout", and none of them occurs in the 769 recorded rounds: a module whose items balance but whose own `)` is missing reports its last item, which is where the fix goes all the same; an invalid string running across lines can show a false item; and a one-line module gets no note, while a nested clause outdented to its item's column reads as a new item.
+  - **Ponytail** found two things to shorten, both done: `push`'s goal takes the `in_i64` form of every other `OVERFLOW` goal, with no new constant, and the note's column starts at the text's length, with no `None` check.
 - **Updated:** DECISIONS (D117, and D112's and D116's text); the README's B17-1 track, its files table and its note on Codex; the roadmap's recent work, decisions waiting for the owner and critical path.
 - **Interfaces touched:** E-PARSE-001's message, and `push`'s `goal` text in interface 3's diagnostics. Their fields don't change.
