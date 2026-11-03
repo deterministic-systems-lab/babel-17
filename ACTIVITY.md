@@ -2523,3 +2523,21 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** `b17c`, the harness, the manuals and the tasks.
 - **Updated:** the README's results table and its notes on M3; the roadmap's recent work, the decisions waiting for the owner, its critical path, its M3 section, and its open questions on hard tasks and on B17-1's cost.
 - **Interfaces touched:** none.
+
+## 2026-11-03 · B17-1's prompt worded as Dafny's, D115
+- **The owner chose** the first of the rerun's proposals: testing whether the prompt holds Codex back.
+- **The change, to B17-1's prompt only:**
+  - **First line:** "Write B17-1 code that verifies with no errors.", as Dafny's says, in place of "passes b17c with every proof goal discharged".
+  - **A new rule:** "If the check fails, b17c's diagnostics come back to you for repair."
+- **Checked:**
+  - **`gym/test_b17.py`** holds the new first line and rule to B17-1's prompt, and the old first line and no rule to B17-0's. It and `gym/test_harness.py` pass.
+  - **Against the rerun's `meta.json`:** `b17c_sha`, `task_sha` and `z3` are unchanged, and only the prompt's and harness's hashes differ, which `reverify` ignores. So the rerun can still be reverified.
+  - **The other templates:** B17-0's and Dafny's are byte for byte those on `main`.
+- **How the run is read** is fixed in D115 before it starts. The main measure is whether Codex attempts the proofs, not how many verify.
+- **Next:** the run, which the owner starts from a clean tree on `main`: `uv run --no-project gym/harness.py run --clis codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`. `b17c` stays as it is until then, so the rerun remains the baseline.
+- **Not changed:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`.
+- **Reviews:**
+  - **Codex** (`gpt-5.6-sol`) read the diff, traced what uses the prompts through `settings`, `--resume` and `reverify`, and recomputed D115's figures and quote from the records. It found no errors.
+  - **Ponytail:** nothing to cut.
+- **Updated:** DECISIONS (D115, and D112's header); the README's note on Codex; the roadmap's decisions waiting for the owner and its critical path.
+- **Interfaces touched:** none.
