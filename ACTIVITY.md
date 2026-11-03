@@ -2560,7 +2560,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   | Visible tokens per call | 1,601 | 1,769 | 6,656 |
 
   The median rose because rounds with no code and bare stubs gave way to small programs. The mean, and what Codex writes per call, barely changed.
-- **The prompt goes back,** as D115 provides, so later runs stay comparable with the earlier ones.
+- **D115's rule sends the prompt back. The owner kept it instead,** so later B17-1 runs differ from the earlier ones in those two places, and this run is the baseline for the next.
 - **What the wording did change: Codex nearly stopped declining.** 2 samples had a round with no code, against 10, with a two-sided Fisher p of about 0.008. "Without running" is in none of its replies, against 7, "honest" in 1, against 7, and "guarantee" in none, against 6.
 - **On maximum flow, the declining gave way to helper specs, not algorithms:**
 
@@ -2583,11 +2583,10 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Why rounds were rejected:** `E-TYPE-002` now leads, in 19 rounds against 9: 9 reused a name in an item (D41), 9 hit D45's check, and 1 had a def with no spec. `E-PARSE-001` is in 10 against 16.
 - **A smaller prompt, D115's next test, now looks weak.** On the first 10 ports, nearly the same prompt gave final programs 1.1 times as long as Dafny's, and Codex verified 27 of 30, so its size doesn't stop Codex writing long programs. What's left is the meeting of hard tasks and an unfamiliar language, and in Dafny Codex may draw on what it already knows. That's a guess, not a finding.
 - **Reproduced:** `reverify` gave the same verdict on all 118 rounds with code.
-- **Proposed, not made:**
-  - **A worked long proof in the prompt:** one Codex-only run of the five with a complete port added to the prompt, such as `bfs`, at about 19 KB. It would show whether not knowing what a long B17-1 proof looks like is what stops Codex. If so, that's for the manual (D8) and for training (Bet 2), not the language. It comes before any change to `b17c`, so the comparison stays clean.
-  - **Still waiting:** every unbalanced item at once, a standing audit, and `push`'s diagnostic.
-- **Codex fact-check** (`gpt-5.6-sol`) recomputed the tables, the classification of the maximum-flow rounds and the other figures from the records, and compared the restored files with `514eed8`. It found three errors, all fixed: this entry said two measures didn't move, when first-round size moved slightly the wrong way, and that no round recursed, when three have mutually recursive items. D115 still said that any later run gets the new prompt.
-- **Ponytail:** nothing to cut, since the code change only restores what was there.
-- **Changed back:** `gym/harness.py` and `gym/test_b17.py`, to what they were before PR #65. `b17_1_prompt_sha` and `harness_sha` are again the rerun's. **Not changed:** `b17c`, the manuals and the tasks.
+- **The owner chose** a worked long proof as the next test, in place of the smaller prompt: D116, in the next entry.
+- **Still waiting for the owner:** every unbalanced item at once, a standing audit, and `push`'s diagnostic.
+- **Codex fact-check** (`gpt-5.6-sol`) recomputed the tables, the classification of the maximum-flow rounds and the other figures from the records. It found three errors, all fixed: this entry said two measures didn't move, when first-round size moved slightly the wrong way, and that no round recursed, when three have mutually recursive items. D115 also said that every later run gets the new prompt, with no qualification.
+- **Ponytail:** not run on this entry, since it changes only records.
+- **Not changed:** the harness, `b17c`, the manuals and the tasks.
 - **Updated:** DECISIONS (D115's outcome and header, and D112's header); the README's results table and its note on Codex; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
 - **Interfaces touched:** none.

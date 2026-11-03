@@ -81,7 +81,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Parentheses** stopped its longest attempts: 15 of its 24 `dijkstra` rounds failed to parse. 6 of the run's 15 rounds with unbalanced parentheses had two or three such items, reported one per round.
   - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **M3's run of Codex under D115's prompt** (`20261103T171929Z-codex`): B17-1's first line worded as Dafny's, and a rule saying that diagnostics come back for repair. It verified none of 15 again. Every verdict reproduced.
-  - **It still doesn't attempt the proofs.** 13 of its 15 first rounds are under 4,000 characters, and none of its 6 maximum-flow samples wrote a loop. So the wording isn't the cause, and the prompt went back, as D115 provides.
+  - **It still doesn't attempt the proofs.** 13 of its 15 first rounds are under 4,000 characters, and none of its 6 maximum-flow samples wrote a loop. So the wording isn't the cause. D115's rule sends the prompt back, but the owner kept it.
   - **It nearly stopped declining,** in 2 rounds against 16. On maximum flow, 27 of its 48 rounds put the task's guarantee on a helper spec instead, against 5. All 27 were caught.
   - [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
@@ -139,7 +139,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **closing the length hole (WP5), D114: done.** `push` has an `E-PROOF-OVERFLOW` goal, ⟦len v < 2^63 − 1⟧, so a vector reaching 2^63 elements is a runtime error the verifier rules out rather than an allocation failure. Three of B17-0's accept programs now bound their output's length, `prefix_sums` with a new precondition, and B17-0 and B17-1 are version 1.2. Of the agents' 34 verified programs that push, 17 fail the goal;
    - **Claude's whole reply (WP17): done.** The harness reads Claude Code's `stream-json` output and joins the text of every message in the reply, dropping a code fence a resumed part reopens. On a real reply forced past a 400-token limit three times, it gives back all 264 lines written, in order;
    - **a rerun of the five: done** ([above](#recent-and-current-work)). Claude verified 15 of 15 and Codex none, with D114's goal never failing and no reply lost;
-   - **a Codex-only run with B17-1's prompt worded as Dafny's (WP17), D115: done, and the prompt has gone back.** Codex verified none of 15 again, and still didn't attempt the proofs, so the wording isn't the cause;
+   - **a Codex-only run with B17-1's prompt worded as Dafny's (WP17), D115: done.** Codex verified none of 15 again, and still didn't attempt the proofs, so the wording isn't the cause. The owner kept the new wording;
    - **next:** the proposals [above](#decisions-waiting-for-the-owner).
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
