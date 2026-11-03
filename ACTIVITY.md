@@ -2485,3 +2485,41 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Proofs and tests added:** the three checks in `test_verify.py` and the split reply in `test_b17.py`.
 - **Left admitted:** none.
 - **Next:** a rerun of the five harder ports, which the owner starts: `uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`.
+
+## 2026-11-02 · M3's rerun of the five harder ports, with the hole closed
+- **Started by the owner** after PR #63's merge: `20261102T233256Z-claude-codex`, `prim`, `dijkstra`, `bellman_ford`, `edmond_karp` and `push_relabel` × Claude and Codex × 3 samples, up to 8 rounds, from a clean tree at `aba177d`. The CLIs, their versions, the models and the effort are those of the first run of the five. No call needed a retry.
+- **A cancelled run before it:** `20261102T221027Z-codex-gemini-grok`, stopped by the owner after 48 minutes, and not committed.
+  - **Gemini:** `agy` reported "Individual quota reached… Resets in 6h14m", though the owner's portal showed the quota reset.
+  - **Grok:** none of its calls returned, and the harness writes a record only when one does, so why isn't known. A tiny call afterwards took 4 seconds. A slow reply is likely: Dafny's prompts are about 5 KB against 57 KB here, and in the Dafny run 17 of its 116 finished rounds ran past the harness's 30-minute limit on a call, recovering on a retry. Its 44 infra errors there were 41 exhausted balances and 3 timeouts.
+  - **The owner left both out** of these tests.
+- **Verified:** Claude 15 of 15, 6 in round 1, in 1.73 rounds on average, over 26 calls. Codex none of 15, over 120 calls, ending `proof_failed` 8 times, `rejected` 3, `no_code` 3 and `no_def` 1.
+- **The audit of Claude's 15 programs,** since the first run's verdicts couldn't be taken as read:
+  - **By running them:** each ran in the interpreter on 25 random valid graphs, against references written separately in Python: Bellman-Ford for shortest paths, Kruskal for an MST's weight, and Edmonds-Karp for maximum flow. All 375 runs ended normally with a right answer. The script was a scratch one, not committed.
+  - **By reading them:** the three `(assert false)` lines are all in lemmas, and the one 2^63-sized literal in a verified program is an ordinary range assert. In the whole run, no `seq-build` has a literal that size.
+- **Claude, against the first run of the five:** 250k tokens per verified task against 345k, and 26 calls against 35. No round lost its reply, against 5.
+  - **Long replies:** 3 ran past 128k output tokens. 2 verified in round 1, and the third had one extra `)`, the only line changed in its next round. The records keep only the joined text, so they don't show how many replies came in parts.
+- **Claude, against Dafny on the same 5 tasks:** 250k tokens per verified task against 105k, about 2.4 times. Input is 98k against 22k, about 4.4 times, and output 152k against 83k, about 1.8 times, with thinking 110k against 61k, also about 1.8 times. Calls took 12.5 minutes on average against 6.1. Verified programs have 991 lines at the median against 548.
+- **D114's goal failed in none of the 130 rounds with code,** and 9 of Claude's 15 verified programs push. Measured on the agents' earlier programs, 17 of 34 failed it. Those were written before the goal existed, and these under a manual that states it.
+- **Codex, against Dafny:** none of 15 against 6 of 10, all of `bellman_ford` and `dijkstra`, and `prim` and `push_relabel` once each. With the first run it's none of 30. As separate attempts, which they aren't quite, 0 of 15 against 6 of 10 has a one-sided Fisher p of about 0.001.
+- **Codex rarely attempts these proofs in B17-1:**
+  - **It writes far less:** the median round is 637 characters against 24,383 in Dafny. 12 of its 15 first rounds are under 4,000 characters, and 9 of its 10 Dafny first rounds are over 7,000.
+  - **It thinks more:** per call, 8,359 reasoning tokens against 3,427, about 2.4 times, and 1,769 visible tokens against 6,656, about a quarter.
+  - **Maximum flow:** none of its 6 samples wrote a loop, in this run or the first. 22 rounds were `(def max_flow_value (body (return 0)))`. In Dafny, its programs for those two tasks ran up to 35,811 and 27,329 characters.
+  - **It declines:** 16 rounds gave no code, in words such as "I can't provide code that I can honestly claim discharges every proof goal without running `b17c`", against 1 of 72 calls in Dafny. It has no tools in either language.
+  - **What it did try** failed: 9 of its 15 samples, those on the three other tasks, wrote a loop, and none verified. It no longer tried the trick.
+  - **Why is open.** It isn't simply the language, since on the first 10 ports its final programs are 1.1 times as long as Dafny's. Nor simply the tasks, since in Dafny it attempts these. One difference to test is the prompt: its replies echo the first line, "passes b17c with every proof goal discharged", where Dafny's says "verifies with no errors".
+- **Parentheses stopped its longest attempts.** 16 of Codex's 120 rounds failed to parse, 15 of them on `dijkstra`'s 24 rounds, against 1 of Claude's 26.
+  - **All three of its `rejected` endings are parse errors,** on three of its four longest samples.
+  - **One error per round:** of the run's 15 rounds with unbalanced parentheses, counting items by their column-0 starts, 9 had one such item, 4 had two and 2 had three. E-PARSE-001 names one place per round, so a long program with several slips spends several of its 8 rounds on them.
+- **A defect in D114's diagnostic,** found while checking it: a failed `push` goal reads `(in_i64 (push v 0))`, since `agent.py` writes every `OVERFLOW` goal that way. No round in this run saw it.
+- **A correction:** this log's entry of 2026-10-31, and the roadmap, said Codex's records don't report its thinking. They do, as `reasoning_output_tokens`, in all 77 of the first B17-1 run's calls and all 50 of Dafny's on those tasks. Its thinking per verified task there is 12,249 against 11,416, about 1.1 times.
+- **Reproduced:** `reverify` reproduced all 130 verdicts of the rounds with code, each solved anew. The other 16 rounds had no code.
+- **Proposed, not made:**
+  - **Whether the prompt holds Codex back:** one Codex-only run of the five, with B17-1's first line worded as Dafny's and a sentence saying that diagnostics come back for repair.
+  - **Every unbalanced item at once:** E-PARSE-001 lists every item, by its column-0 start, whose parentheses don't balance.
+  - **A standing audit:** each verified program runs on random valid inputs against an independent reference. It needs a reference for each task.
+  - **`push`'s diagnostic** shows the length, not `in_i64`. It's a small fix to `agent.py`, and changes `b17c`, so `reverify` then refuses this run.
+- **Codex fact-check** (`gpt-5.6-sol`): it recomputed the counts, tokens, times, sizes and the parenthesis counts from the records, read the audit's script against each task's spec, and checked the quotes and the two prompts. It found no errors. Two claims about Grok were corrected before it ran, when a recheck of the records showed them wrong: that its Dafny infra errors were mostly timeouts, and that Dafny's prompts are about a quarter of B17-1's size. They're about a tenth.
+- **Not changed:** `b17c`, the harness, the manuals and the tasks.
+- **Updated:** the README's results table and its notes on M3; the roadmap's recent work, the decisions waiting for the owner, its critical path, its M3 section, and its open questions on hard tasks and on B17-1's cost.
+- **Interfaces touched:** none.
