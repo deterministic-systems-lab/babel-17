@@ -2536,5 +2536,8 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **How the run is read** is fixed in D115 before it starts. The main measure is whether Codex attempts the proofs, not how many verify.
 - **Next:** the run, which the owner starts from a clean tree on `main`: `uv run --no-project gym/harness.py run --clis codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`. `b17c` stays as it is until then, so the rerun remains the baseline.
 - **Not changed:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`.
+- **Reviews:**
+  - **Codex** (`gpt-5.6-sol`) read the diff, traced what uses the prompts through `settings`, `--resume` and `reverify`, and recomputed D115's figures and quote from the records. It found no errors.
+  - **Ponytail:** nothing to cut.
 - **Updated:** DECISIONS (D115, and D112's header); the README's note on Codex; the roadmap's decisions waiting for the owner and its critical path.
 - **Interfaces touched:** none.
