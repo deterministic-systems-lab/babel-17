@@ -2590,3 +2590,21 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** the harness, `b17c`, the manuals and the tasks.
 - **Updated:** DECISIONS (D115's outcome and header, and D112's header); the README's results table and its note on Codex; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
 - **Interfaces touched:** none.
+
+## 2026-11-03 · A worked long proof in B17-1's prompt, D116
+- **The owner chose** this as the next test of why Codex doesn't attempt the proofs, and kept D115's wording, so `20261103T171929Z-codex` is the baseline.
+- **The change, for one run:**
+  - **B17-1's prompt** has `suite/b17-1/accept/bfs.b17` in full, after the supplement, introduced as "a complete module for another task, which verifies with no errors, as a worked example of a long proof". It grows from about 57 KB to 76 KB.
+  - **`run` refuses `b17-1/bfs`** while its solution is in the prompt.
+  - **`b17_1_prompt_sha`** covers the example.
+- **Checked:**
+  - **`gym/test_b17.py`** holds the example to its place in B17-1's prompt, keeps it out of B17-0's, and holds `run` to refusing `bfs`. It and `gym/test_harness.py` pass.
+  - **Against the baseline's `meta.json`:** `b17c_sha`, `task_sha` and `z3` are unchanged, and only the prompt's and harness's hashes differ, so the baseline can still be reverified.
+- **How the run is read** is fixed in D116 before it starts: Codex counts as attempting the proofs if at least 3 of the 6 maximum-flow samples have a loop. It wrote none in any of three runs.
+- **Next:** the run, which the owner starts from a clean tree on `main`: `uv run --no-project gym/harness.py run --clis codex --samples 3 --tasks b17-1/prim,b17-1/dijkstra,b17-1/bellman_ford,b17-1/edmond_karp,b17-1/push_relabel`.
+- **Reviews:**
+  - **Codex** (`gpt-5.6-sol`): CODEX
+  - **Ponytail:** PONYTAIL
+- **Not changed:** B17-0's and Dafny's prompts, the manuals, the tasks and `b17c`.
+- **Updated:** DECISIONS (D116, and D112's header); the README's note on Codex; the roadmap's decisions waiting for the owner and its critical path.
+- **Interfaces touched:** none.

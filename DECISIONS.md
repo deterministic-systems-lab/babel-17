@@ -1542,7 +1542,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - WP3: `b17c/check.py`'s `declare`, `data_item` and `E-OWN-006` messages;
   - `suite/b17-1/reject/`.
 
-## D112 · M3's B17-1 track · Accepted (extends D98; prompt amended by D115 for one run)
+## D112 · M3's B17-1 track · Accepted (extends D98; prompt amended by D115, and by D116 for one run)
 - **Date:** 2026-10-30
 - **Decision:** `gym/harness.py` gains a B17-1 track, built as D98's B17-0 track is, so M3 can add B17-1's tasks now that B17-1 is frozen (D65).
   - **Tasks:** first the 10 AlgoVeri ports in `suite/b17-1/accept/`, then each port WP10 adds. Each poses:
@@ -1630,3 +1630,24 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Cost:** a run under this prompt isn't under the prompt of the earlier B17-1 runs, and if it helps, it bundles two changes.
 - **Outcome, 2026-11-03:** Codex still didn't attempt the proofs (ACTIVITY, 2026-11-03), so the rule above sends the prompt back. The owner kept it instead, so this run is the baseline for the next test. Its rounds with no code fell from 16 to 2, but on maximum flow they gave way to helper specs restating the task's guarantee, not to attempts. The smaller prompt named above now looks a weak test, since nearly the same prompt gave programs as long as Dafny's on the first 10 ports. D116 replaces it.
 - **Touches:** D14; D98; D112; D114; WP17: `gym/harness.py`, `gym/test_b17.py`.
+
+## D116 · A worked long proof in B17-1's prompt, as a test · Accepted (amends D112 for one run)
+- **Date:** 2026-11-03
+- **Decision:** for one Codex-only run of WP10's five harder ports, B17-1's prompt gains a complete port, `suite/b17-1/accept/bfs.b17`, after the supplement, as "a worked example of a long proof".
+  - **Nothing else changes:** D115's wording stays, so `20261103T171929Z-codex` is the baseline, and only the example differs. B17-0's and Dafny's prompts, the manuals, the tasks and `b17c` don't change.
+  - **`b17-1/bfs` can't run** with its solution in the prompt, so the harness refuses it.
+  - **How the run is read, fixed before it starts.** The main measure is whether Codex writes a loop on the maximum-flow tasks, `edmond_karp` and `push_relabel`, since it wrote none in any of three runs. It counts as attempting them if at least 3 of the 6 samples have a loop. First rounds over 7,000 characters (1 of 15), rounds with no code (2 of 120), helper specs stating `is_max_flow` (27 of 48 maximum-flow rounds) and verified attempts are reported as well, and any verified program is audited on random valid inputs.
+    - **If it attempts them,** not knowing what a long B17-1 proof looks like was holding it back. A worked long proof in the manual becomes a proposal, to weigh against what it adds to every prompt, and it counts as evidence for training (Bet 2).
+    - **If it doesn't,** that isn't the cause either, and why Codex doesn't attempt these proofs stays open.
+    - **Either way,** the example comes out after the run, since it gives away `bfs` and adds to every call. The work then moves on to the changes waiting on `b17c`, which this run holds back to keep its comparison clean.
+- **Why:** three runs have ruled out the wording but not what's behind it.
+  - **The same manual isn't the obstacle on easier tasks.** On the first 10 ports, nearly the same prompt gave final programs 1.1 times as long as Dafny's, and Codex verified 27 of 30. On these five, in Dafny, it writes programs up to 35,811 characters for maximum flow, and in B17-1 it has written no loop.
+  - **What's left is a guess:** on hard tasks, Codex may lean on the proofs it already knows, which it has for Dafny and not for B17-1. The largest example in the manuals is 4,567 characters, against 19,112 for `bfs`. A complete long proof is the most direct way to test that.
+- **Alternatives:**
+  - **A smaller prompt,** which D115 named as the next test. Size doesn't stop it writing long programs on the first 10 ports, and what to cut is a design question of its own.
+  - **`kruskal` as the example,** at 31 KB. It would give away most of `prim`.
+  - **A port with no graph, such as `coin_change`,** at 12 KB. It would leak less, but a negative result would say less. `bfs` has 19 lemmas and 2 loops over a graph, so it's the strongest hint available that isn't one of the five, and a negative result then says the most.
+  - **More rounds.** That helps attempts already under way, such as `dijkstra`'s, but not samples that return 0.
+  - **The example in the manual now.** Every run would pay for it before anyone knows it helps.
+- **Cost:** the prompt grows by about a third, from about 57 KB to 76 KB. It's help Dafny's prompt doesn't get, so a pass here isn't comparable with Dafny's. `bfs`'s shortest-path lemmas may help `edmond_karp` directly, so a loop in `push_relabel` says more than one there.
+- **Touches:** D8; D14; D112; D115; WP8; WP17: `gym/harness.py`, `gym/test_b17.py`.

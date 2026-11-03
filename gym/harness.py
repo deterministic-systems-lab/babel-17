@@ -40,6 +40,7 @@ GYM = Path(__file__).resolve().parent
 TASKS, RUNS = GYM / "tasks", GYM / "runs"
 B17C, SUITE, MANUAL = GYM.parent / "b17c", GYM.parent / "suite" / "accept", GYM.parent / "docs" / "manual.md"
 SUITE1, MANUAL1 = GYM.parent / "suite" / "b17-1" / "accept", GYM.parent / "docs" / "manual-1.md"  # B17-1 (D112)
+EXAMPLE = SUITE1 / "bfs.b17"  # D116's worked proof, which comes out after its run
 
 # Z3 rlimit units, same as Dafny's CSV ResourceCount. The heaviest reference proof
 # (merge_sorted) uses 14M; the rest stay under 0.5M.
@@ -135,7 +136,8 @@ B17_1_TASK_PROMPT = (B17_TASK_PROMPT.replace("Write B17-0 code that passes b17c 
                                              "Write B17-1 code that verifies with no errors.")
                      .replace("This is B17-0's reference manual:\n\n{manual}",
                               "This is B17-0's reference manual, and after it B17-1's supplement, which changes it where "
-                              "it says so:\n\n{manual}\n\n{supplement}")
+                              "it says so:\n\n{manual}\n\n{supplement}\n\nThis is a complete module for another task, which "
+                              "verifies with no errors, as a worked example of a long proof:\n\n```lisp\n{example}\n```")
                      .replace("You may add lemmas, ghost-fns, and spec", "You may add lemmas, ghost-fns, data items, and spec")
                      .replace("- Answer directly", "- If the check fails, b17c's diagnostics come back to you for repair.\n- Answer directly"))
 assert B17_1_TASK_PROMPT.count("B17-1") == 2 and "data items" in B17_1_TASK_PROMPT and "for repair" in B17_1_TASK_PROMPT
@@ -439,7 +441,7 @@ def render(task, dafny_version, code=None, feedback=None):
     if task.get("lang") == "b17":
         one = task.get("subset", 0)
         prompt = (B17_1_TASK_PROMPT if one else B17_TASK_PROMPT).format(
-            manual=MANUAL.read_text(), supplement=MANUAL1.read_text() if one else "", frozen=task["frozen"],
+            manual=MANUAL.read_text(), supplement=MANUAL1.read_text() if one else "", example=EXAMPLE.read_text(), frozen=task["frozen"],
             name=task["name"], first_line=task["frozen"].count("\n") + 2)
         if feedback is not None:
             prompt += B17_REPAIR_PROMPT.format(code=code or "(none)", feedback=feedback[:FEEDBACK_CHARS])
@@ -507,7 +509,7 @@ def settings(tasks, dafny_version):
         s |= dict(b17_prompt_sha=sha(B17_TASK_PROMPT + B17_REPAIR_PROMPT + MANUAL.read_text()),
                   b17c_sha=sha("".join(f.name + f.read_text() for f in sources if not f.name.startswith("test_"))))
     if ones:  # and B17-1's on its supplement too (D112)
-        s |= dict(b17_1_prompt_sha=sha(B17_1_TASK_PROMPT + B17_REPAIR_PROMPT + MANUAL.read_text() + MANUAL1.read_text()))
+        s |= dict(b17_1_prompt_sha=sha(B17_1_TASK_PROMPT + B17_REPAIR_PROMPT + MANUAL.read_text() + MANUAL1.read_text() + EXAMPLE.read_text()))
     return s
 
 
@@ -556,6 +558,8 @@ def cmd_check_tasks(args):
 
 def cmd_run(args):
     tasks, clis = load_tasks(args.tasks), args.clis.split(",")
+    if any(t["id"] == "b17-1/bfs" for t in tasks):
+        sys.exit("b17-1/bfs can't run while its solution is in B17-1's prompt (D116)")
     run_id = args.resume or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + "-".join(clis)
     run_dir = RUNS / run_id
     run_dir.mkdir(parents=True, exist_ok=bool(args.resume))
