@@ -2769,7 +2769,7 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **E-PARSE-001's note, in its first run:** all 8 of Codex's rounds with unbalanced parentheses got it. In none of the 7 that had a next round were the parentheses unbalanced again, against 16 of 36 in the three earlier Codex runs (8 of 18 with D116's example, 1 of 6 in the baseline and 7 of 12 in the rerun), a two-sided Fisher p of about 0.03 as separate attempts. So few rounds, on different programs, show it helps, but not by how much. The other 10 parse failures aren't about parentheses, and correctly get no note, nor does Claude's one, the reserved name `msum`.
 - **`push`'s goal and diagnostic:** D114's goal failed in none of the 138 rounds with code, and 9 of Claude's 15 verified programs push, so no round saw the new diagnostic.
 - **What holds Codex back now:** of its 39 `rejected` rounds, 18 are parse errors and 15 type errors. Its `proof_failed` rounds have 477 failed goals, 450 unknown and 27 brittle. On those of at least 7,000 characters, the median is 7.5 failed goals.
-- **Reproduced:** REVERIFY
+- **Reproduced:** `reverify` gave the same verdict on all 138 rounds with code.
 - **Proposed, not made:**
   - **Keep the example.** D117 leaves this to the owner. Claude's rounds and cost didn't get worse, its programs do use the example, and it's the only change that has moved what Codex attempts. It costs every B17-1 call 6,400 to 9,100 input tokens.
   - **The standing audit, with a step limit.** It now has a second job: an exhaustive search can verify without being usable, and it would show. It needs committing, with a reference for each task. The script is still only in the session's scratchpad.
