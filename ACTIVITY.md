@@ -2693,3 +2693,90 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
   - **Ponytail** found two things to shorten, both done: `push`'s goal takes the `in_i64` form of every other `OVERFLOW` goal, with no new constant, and the note's column starts at the text's length, with no `None` check.
 - **Updated:** DECISIONS (D117, and D112's and D116's text); the README's B17-1 track, its files table and its note on Codex; the roadmap's recent work, decisions waiting for the owner and critical path.
 - **Interfaces touched:** E-PARSE-001's message, and `push`'s `goal` text in interface 3's diagnostics. Their fields don't change.
+
+## 2026-11-04 · M3: the worked proof in the supplement: Claude at about 2.0 times Dafny's tokens, and Codex verifies none
+- **Started by the owner** after PR #68's merge: `20261103T220624Z-claude-codex`, `prim`, `dijkstra`, `bellman_ford`, `edmond_karp` and `push_relabel` × Claude and Codex × 3 samples, up to 8 rounds. It made 144 calls in about 7.5 hours. It started from a clean tree at `1e9aca0`, the merged branch's last commit, whose tree is the same as main's merge commit `1bef697`. Claude Code went from 2.1.308 to 2.1.309 since the rerun, and the models and Codex's CLI are the same.
+- **Codex's calls were slow that night,** so this entry compares no times for it. Its median call took 215 seconds, against 112 to 143 in the three runs before. 3 calls hit the harness's 30-minute limit, 8 times in all, and each recovered on a retry, one after about 3 hours. No call ended in an infra error.
+- **Verified:** Claude 15 of 15, 7 in round 1, in 1.60 rounds on average, over 24 calls. Codex none of 15, over 120 calls, ending `rejected` 9 times, `proof_failed` 4, `no_code` 1 and `no_def` 1.
+- **The audit of Claude's 15 programs:**
+  - **By running them:** each ran in the interpreter on 25 random valid graphs, against the rerun's separate references in Python. All 375 runs ended normally with a right answer.
+  - **By reading them:** the one `(assert false)` is the end of a proof by contradiction in a lemma (`push_relabel` 2). `dijkstra` 1's one `(ensures false)` is a lemma that no path reaches a vertex the program left unreached, from premises its caller must prove. The only literal of 15 or more digits is `bellman_ford` 1's value for an unreached vertex, 10^15. No `seq-build` in the run has a literal the size of the old trick's.
+- **Claude's programs borrow from the example, without copying it.** At the median, they share 4 item names and 21 of about 500 lines over 30 characters with `bfs`, and at most 18 and 70. In the rerun, those are 1 and 1, and at most 2 and 5. The shared items are general lemmas such as `count_member`, `count_nonneg` and `appended`. Codex doesn't borrow this way: its rounds over 7,000 characters share a median of none, and at most 1 item and 3 lines.
+- **Claude, against the rerun and Dafny on the same 5 tasks:**
+
+  | Measure | This run | The rerun | Dafny |
+  |---|---|---|---|
+  | Verified | 15 of 15 | 15 of 15 | 10 of 10 |
+  | Rounds on average | 1.60 | 1.73 | 2.1 |
+  | Tokens per verified task | 212k | 250k | 105k |
+  | Input | 89k | 98k | 22k |
+  | Output | 123k | 152k | 83k |
+  | Thinking | 88k | 110k | 61k |
+  | Verified program, median lines | 830 | 991 | 548 |
+  | Minutes per call | 12.2 | 12.5 | 6.1 |
+  | Calls past 128k output tokens | 1 | 3 | |
+
+  So tokens per verified task are about 2.0 times Dafny's, against 2.4. Input is about 4.0 times, against 4.4, and output about 1.5 times, against 1.8.
+- **That fall isn't shown to be the example's:**
+
+  | Task | This run | The rerun | Dafny |
+  |---|---|---|---|
+  | `bellman_ford` | 157k | 296k | 109k |
+  | `dijkstra` | 117k | 141k | 67k |
+  | `edmond_karp` | 220k | 343k | 157k |
+  | `prim` | 204k | 204k | 110k |
+  | `push_relabel` | 362k | 268k | 85k |
+
+  A permutation test of the 15 samples' tokens, within each task, gives a two-sided p of about 0.25. So the borrowing is a plausible cause, but the figures don't settle it. Every call also pays for the example, so the saving has to come from shorter replies. Much of `bellman_ford`'s comes from two rerun samples past the output limit, whose first calls took about 184k input tokens each.
+- **Which maximum-flow algorithms Claude wrote:** all 3 `edmond_karp` programs use BFS and augmenting paths. Of the 3 `push_relabel` programs, 1 is push-relabel (sample 2, with `push_op` and `relabel_op`). It's the run's costliest at 478k tokens and its longest at 1,305 lines, and it has the run's one call past the output limit. The other 2 find augmenting paths, as all 3 did in the rerun. The spec can't tell these apart (D29, D30), but this does account for some of the rise on that task.
+- **A correction:** D117 and this log's last two entries say the example adds about 6,400 input tokens per call. That's Codex's count. Claude's first calls went from 27,765–28,193 tokens to 36,856–37,280, about 9,100 more on each task.
+- **Codex, with the example in the supplement:**
+
+  | Measure | This run | With D116's example | D115's baseline | Dafny |
+  |---|---|---|---|---|
+  | Verified | 0 of 15 | 3 of 15 | 0 of 15 | 6 of 10 |
+  | Maximum-flow samples with a loop | 4 of 6 | 1 of 6 | 0 of 6 | |
+  | First rounds over 7,000 characters | 7 of 15 | 8 of 15 | 1 of 15 | 9 of 10 |
+  | First rounds under 4,000 characters | 7 of 15 | 6 of 15 | 13 of 15 | |
+  | Rounds with no code | 6 of 120 | 8 of 117 | 2 of 120 | 1 of 72 |
+  | Rounds failing to parse | 18 of 120 | 27 of 117 | 10 of 120 | |
+  | Median round, characters | 15,306 | 13,412 | 2,006 | 24,383 |
+  | Visible tokens per call | 4,644 | 4,591 | 1,601 | 6,656 |
+  | Reasoning tokens per call | 6,428 | 5,850 | 6,708 | 3,427 |
+  | Input tokens per call | 41,175 | 40,688 | 31,818 | |
+  | Tokens in all | 6.27M | 5.98M | 4.82M | |
+
+- **The example keeps changing what Codex attempts, and not yet what it verifies.** Across the two runs with an example, first rounds over 7,000 characters are 15 of 30, against 4 of 30 in the rerun and the baseline, a two-sided Fisher p of about 0.005 as separate attempts, which they aren't quite. Passes are 3 of 30 against none of 45, about 0.06.
+- **`dijkstra`'s three passes didn't repeat.** All 24 of its rounds are over 7,000 characters, but it verified none of 3, against 3 of 3 with D116's example, a two-sided p of about 0.10. D116's passes came in rounds 6 to 8, close to the limit. Here, sample 3 reached one failed goal in round 7, and in round 8 it called `count_member`, a lemma of `bfs`'s, without defining it. Samples 1 and 2 ended with 7 and 8 failed goals.
+- **By task:**
+
+  | Task | Rounds over 7,000 characters | With D116's example | D115's baseline |
+  |---|---|---|---|
+  | `dijkstra` | 24 of 24 | 20 of 21 | 14 of 24 |
+  | `bellman_ford` | 18 of 24 | 22 of 24 | 0 of 24 |
+  | `prim` | 14 of 24 | 22 of 24 | 5 of 24 |
+  | `push_relabel` | 11 of 24 | 9 of 24 | 0 of 24 |
+  | `edmond_karp` | 6 of 24 | 0 of 24 | 0 of 24 |
+
+- **Maximum flow: Codex's loops are all exhaustive searches.** 4 of 6 samples have a loop, which is past the 3 D116 asked for, though that rule was for D116's run and D117 sets none.
+  - **What they are:** all 17 rounds with a loop search over flow matrices, with items such as `enumerate_flows`, `enumerate_matrices` and `exhaustive_score`. None mentions BFS, augmenting paths, residual capacity, or relabeling. All 8 in D116's run are the same.
+  - **The rest:** `edmond_karp` 2 and 3 never wrote a loop. 12 of the 48 rounds are still `(return 0)`, and 4 of the 6 first rounds are.
+  - **The nearest:** `push_relabel` 1 reached 50,525 characters with 5 failed goals. `edmond_karp` 1 reached 37,297 characters, and its last round was rejected for calling the spec's `is_valid_flow`, a ghost-fn, at run time.
+- **Dafny's maximum-flow programs include the same search,** which earlier entries didn't say:
+  - **Codex:** its one pass there, `push_relabel`, is `SearchMaximum`, which fills a vector of n² values up to 100,000 and keeps the best. Its failed attempts are the same: `EnumerateFlows` and `EnumeratedFlows` in `edmond_karp`, of 22,808 and 35,811 characters, and a 16,988-character `push_relabel` that loops over a set of every such assignment. So all 4 of its final maximum-flow programs in Dafny are exhaustive searches, including the 27,329 and 35,811 characters earlier entries give for what it attempts there.
+  - **Claude:** one of its 2 `push_relabel` passes there, the 12,632-character one at 39k tokens, is a compiled `enumerate` over every capacity's values. Its other 3 use residual reachability and augmenting paths. Leaving that one out, Dafny's mean is 113k, so this run is about 1.9 times Dafny's, against 2.2 for the rerun.
+  - **What it means:** such a program can verify and never finish on a real graph, and a verdict alone doesn't say so. Claude's B17-1 programs all use real maximum-flow algorithms.
+- **E-PARSE-001's note, in its first run:** all 8 of Codex's rounds with unbalanced parentheses got it. In none of the 7 that had a next round were the parentheses unbalanced again, against 16 of 36 in the three earlier Codex runs (8 of 18 with D116's example, 1 of 6 in the baseline and 7 of 12 in the rerun), a two-sided Fisher p of about 0.03 as separate attempts. So few rounds, on different programs, show it helps, but not by how much. The other 10 parse failures aren't about parentheses, and correctly get no note, nor does Claude's one, the reserved name `msum`.
+- **`push`'s goal and diagnostic:** D114's goal failed in none of the 138 rounds with code, and 9 of Claude's 15 verified programs push, so no round saw the new diagnostic.
+- **What holds Codex back now:** of its 39 `rejected` rounds, 18 are parse errors and 15 type errors. Its `proof_failed` rounds have 477 failed goals, 450 unknown and 27 brittle. On those of at least 7,000 characters, the median is 7.5 failed goals.
+- **Reproduced:** `reverify` gave the same verdict on all 138 rounds with code.
+- **Proposed, not made:**
+  - **Keep the example.** D117 leaves this to the owner. Claude's rounds and cost didn't get worse, its programs do use the example, and it's the only change that has moved what Codex attempts. It costs every B17-1 call 6,400 to 9,100 input tokens.
+  - **The standing audit, with a step limit.** It now has a second job: an exhaustive search can verify without being usable, and it would show. It needs committing, with a reference for each task. The script is still only in the session's scratchpad.
+  - **Optional, all 14 ports under this prompt.** The first 10 ran before D115 and D117, so M3's B17-1 numbers come from different prompts. These 5 tasks alone took about 3.2M of Claude's tokens and 6.3M of Codex's.
+  - **Optional, more rounds for Codex** on `dijkstra`, `bellman_ford` and `prim`, since its passes and near passes are at the limit of 8. Dafny's prompt had the same limit, so that wouldn't be a fair count against Dafny.
+- **Codex fact-check** (`gpt-5.6-sol`) recomputed the tables and other figures from the records, read all 17 of Codex's rounds with a loop, Dafny's maximum-flow programs and Claude's 6, and looked through Claude's 15 for exploits. It found no exploit, and agreed with how each program is described here. It found four errors in this write-up, all fixed: the median lines mixed physical and nonblank lines, the first-call ranges left out `prim`, the list of Codex's exhaustive attempts in Dafny left out one, and the permutation test's p of 0.245 was rounded down. It also noted that the 375 audit runs and the count of shared lines can't be recomputed from the records alone, since the audit's script isn't committed.
+- **Ponytail:** not run, since only records change.
+- **Not changed:** `b17c`, the harness, the manuals and the tasks.
+- **Updated:** DECISIONS (D117's outcome); the README's results table and its notes on M3; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
+- **Interfaces touched:** none.
