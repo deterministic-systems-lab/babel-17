@@ -1,6 +1,6 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-10-30.
+Where the project stands, and what comes next. This is the state as of 2026-11-04.
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
@@ -64,6 +64,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Against Dafny on the same tasks:** both languages verify all 12. Claude used about 4.6 times Dafny's tokens per verified task, and Codex about 1.2 times. The manual now adds about 14k input tokens to each of Claude's calls and 10k to Codex's.
 - **M3's first B17-1 run** (`20261030T234603Z-claude-codex`): the 10 AlgoVeri ports, 3 samples each. Claude verified 30 of 30 and Codex 27, against 20 of 20 and 18 of 20 on the same tasks in Dafny's two AlgoVeri runs. Every verdict reproduced.
   - **Codex failed all 3 `kruskal` samples,** as it failed both Dafny runs. Two of them passed through the verifier's length hole, found in the next run, and aren't counted.
+  - **One of Claude's `kruskal` passes is an exhaustive search,** found by D118's audit on 2026-11-04. Its proof is real, but it tries every sequence of n − 1 edges, so it can't finish on 10 vertices.
   - **Cost:** Claude used about 4.5 times Dafny's tokens per verified task and Codex about 1.9 times, mostly the manual and its supplement in the prompt. Claude also thought about 4.6 times as much.
   - **Unbalanced parentheses** failed 22 of the 120 rounds, against 2 of 175 in B17-0's seed run. A missing `)` was reported at the module's first line, or at the last item still open, so agents repeated it, for up to four rounds. The parser now names the item that probably lacks it.
   - **Counterexamples:** 4 of the 137 failed-goal diagnostics had one. Most failed goals take a data value with a sequence inside, which no model term shows yet.
@@ -95,6 +96,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Codex's attempts stayed long, but `dijkstra`'s 3 passes didn't repeat.** Its median round was 15,306 characters, against 2,006 without the example.
   - **Maximum flow:** 4 of Codex's 6 samples wrote loops, and all 17 such rounds are exhaustive searches over flow matrices. All 4 of its final maximum-flow programs in Dafny, including its one pass, and one of Claude's passes there, are the same kind. Only 1 of Claude's 3 `push_relabel` programs in B17-1 is push-relabel, and the others find augmenting paths.
   - **E-PARSE-001's note:** in none of the 7 rounds after it were the parentheses unbalanced again, against 16 of 36 before. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
+- **A standing run-time audit of verified programs (D118).** `gym/audit.py` runs a run's verified B17 programs on 25 random valid inputs, with a limit of 500M steps each, against a reference written separately for each of the 34 tasks.
+  - **All eight B17 runs:** of the 235 audited, 224 are right, and none gives a wrong answer. The 6 for `bfs`, no longer a task, aren't audited. The other 11 run out of steps: Codex's 10 passes through the length hole, all on the first input, and one of Claude's `kruskal` programs, an exhaustive search.
+  - **Slow isn't flagged:** two other `kruskal` programs of Claude's need about 400M steps, since they scan every edge at each of 200,001 weights, and they're right. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -131,11 +135,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **Whether the worked proof stays in the supplement (D117).** The proposal is to keep it. Claude's rounds and cost didn't get worse, its programs do use the example, and it's the only change that has moved what Codex attempts, though not yet what it verifies. It costs every B17-1 call 6,400 to 9,100 input tokens.
-- **A run-time audit of verified programs (WP17).** The proposal is to make this rerun's check standing: each verified program runs, with a step limit, on random valid inputs against an independent reference. It needs a reference for each task. It would have caught the trick at once, and would show an exhaustive search that verifies but never finishes.
 - **Two optional runs:** all 14 ports under this prompt, since the first 10 ran before D115 and D117, and more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, and D115, D116 and D117 on 2026-11-03. D2–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, and D118 on 2026-11-04. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
@@ -153,9 +155,10 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **a Codex-only run with B17-1's prompt worded as Dafny's (WP17), D115: done.** Codex verified none of 15 again, and still didn't attempt the proofs, so the wording isn't the cause. The owner kept the new wording;
    - **a Codex-only run with a worked long proof in B17-1's prompt (WP17), D116: done, and the example has come out.** Codex verified 3 of 15, all of `dijkstra`, and wrote far longer programs on three of the five tasks, but verified neither maximum-flow task;
    - **every unbalanced item at once (WP2), and `push`'s diagnostic (WP6): done.** A parse error also names every item whose parentheses don't balance, with its lines and how many are off. A failed `push` goal now reads `(in_i64 (+ (len v) 1))`;
-   - **a worked long proof in the supplement (WP8), D117: done.** `docs/manual-1.md` §11 is `bfs` in full, and `bfs` is no longer an M3 task;
+   - **a worked long proof in the supplement (WP8), D117: done.** `docs/manual-1.md` §11 is `bfs` in full, and `bfs` is no longer an M3 task. The owner kept it after the run below;
    - **a run of Claude and Codex on the five, with that proof: done** ([above](#recent-and-current-work)). Claude verified 15 of 15, at about 2.0 times Dafny's tokens, against 2.4, and Codex none;
-   - **next:** the owner's decisions on the worked proof and the standing audit [above](#decisions-waiting-for-the-owner).
+   - **a standing run-time audit (WP17), D118: done.** Verified B17 programs run on random valid inputs against a separate reference, so a write-up no longer rests on verdicts and reading alone;
+   - **next:** either of the two optional runs, if the owner wants them [above](#decisions-waiting-for-the-owner).
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.

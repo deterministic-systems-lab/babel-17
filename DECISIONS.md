@@ -1669,4 +1669,24 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Cost:** about 6,400 more input tokens on every B17-1 call. `bfs` leaves M3's B17-1 totals from here on, and earlier runs' results for it stand. B17-1 runs from here aren't under the prompt of earlier ones, and the change to `b17c` that comes with this means earlier runs can't be reverified.
 - **Outcome, 2026-11-04:** the run is `20261103T220624Z-claude-codex` (ACTIVITY, 2026-11-04). Claude verified 15 of 15 at 212k tokens per verified task, against 250k, which is about 2.0 times Dafny's, against 2.4. Its programs do borrow from the example, sharing a median of 4 item names with it against 1, but that fall isn't shown to be the example's: the tasks moved different ways, and a permutation test within tasks gives a p of about 0.25. Codex verified none of 15, against 3 of 15 with D116's example, though its attempts stayed long. 4 of its 6 maximum-flow samples have a loop, and all 17 such rounds are exhaustive searches over flow matrices. Whether the example stays is still the owner's call.
   - **A correction:** the 6,400 tokens above are Codex's count. Claude's first calls grew by about 9,100.
+  - **The owner's call, 2026-11-04:** the example stays.
 - **Touches:** D8; D14; D112; D116; WP8: `docs/manual-1.md`, `b17c/test_manual.py`; WP10; WP17: `gym/harness.py`, `gym/test_b17.py`.
+
+## D118 · A standing run-time audit of verified programs · Accepted
+- **Date:** 2026-11-04
+- **Decision:** `gym/audit.py RUN_ID` runs the verified B17 programs of an M3 run in the interpreter, on 25 random valid inputs, against a reference written separately in Python. Each program comes out `right`, or else `wrong`, `stuck` or `failed` on the first input that shows it.
+  - **M3's write-ups run it,** and read every program it doesn't call `right`, before saying what a pass is worth.
+  - **Each input has a limit of 500M steps.** One input in five is large, such as 10 to 12 vertices on the graph tasks and 8 on maximum flow, so that a program trying every answer runs out.
+  - **All 34 tasks have a reference:** B17's 20 seed tasks and B17-1's 14 ports. `gym/test_audit.py` holds every suite solution to `right`, and has the audit fail a wrong answer, the length trick and an exhaustive search.
+  - **`stuck` means read the program.** The limit can't name the cause. It's set just above the slowest real algorithm recorded, so a slower real one would come out `stuck` too.
+  - **Not run:** Dafny's programs, so this doesn't reach what the comparison's other side verified, and the 6 recorded programs of `bfs`, which is no longer a task (D117).
+- **Why:** a verdict says a program meets its spec, if the proof isn't vacuous. The length trick got past a write-up (D114). And the ported specs state no cost, with asymptotic proofs deferred (D30), so an exhaustive search verifies as well as a real algorithm does.
+- **The evidence:** the eight B17 runs have 241 verified programs, 6 of them `bfs`'s. Of the 235 audited, 224 are `right` and the other 11 `stuck`, with none `wrong` or `failed`.
+  - **Codex's 10 passes through the length hole,** all `stuck` on input 0.
+  - **One of Claude's `kruskal` programs** from the first B17-1 run, which tries every sequence of n − 1 edges. Its proof is real. It's the first exhaustive search found among B17's verified programs.
+- **Alternatives:**
+  - **A limit of 20M steps,** which 222 of the 224 fit, and which stops a `stuck` program in seconds rather than a minute. But Claude's two other `kruskal` programs need about 400M steps, since they scan every edge at each of 200,001 possible weights. They're right, so that audit would have called them `stuck` in every rerun of that run.
+  - **Reading the programs instead.** Reading found the trick, but the exhaustive `kruskal` went unnoticed from 2026-10-30 until this audit.
+  - **Stating a cost in the specs.** D30 allows exact operation counts with ghost counters, but that changes the tasks, and so the comparison with Dafny.
+- **Cost:** at the limit, the length trick takes about a minute and up to 2.3 GB, and an exhaustive search about two minutes. Each of the two slow `kruskal` programs takes about 13 minutes.
+- **Touches:** D14; D30; D114; D117; WP17: `gym/audit.py`, `gym/test_audit.py`.

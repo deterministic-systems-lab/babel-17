@@ -2780,3 +2780,44 @@ Decisions themselves live in [DECISIONS.md](DECISIONS.md).
 - **Not changed:** `b17c`, the harness, the manuals and the tasks.
 - **Updated:** DECISIONS (D117's outcome); the README's results table and its notes on M3; the roadmap's recent work, decisions waiting for the owner, critical path, M3 section and open questions.
 - **Interfaces touched:** none.
+
+## 2026-11-04 · A standing run-time audit, D118, and one of Claude's `kruskal` passes is an exhaustive search
+
+WP17. The owner accepted both proposals from the last entry: the worked proof stays in the supplement (D117), and the audit becomes standing (D118). Run on all eight B17 runs, the audit found something reading had missed.
+
+- **What's new:** `gym/audit.py RUN_ID` runs the verified B17 programs of a run in the interpreter, on 25 random valid inputs, with a limit of 500M steps per input, against a reference written separately in Python. One input in five is large. All 34 tasks have a reference, and `gym/test_audit.py` checks them against the suite's solutions.
+- **All eight runs:** of 241 verified programs, 235 were audited, 224 are `right` and 11 `stuck`. None is `wrong` or `failed`. The 6 not audited are `bfs`, which is no longer a task (D117). The table counts what the records call verified, so it includes the 10 passes through the length hole, which M3's counts leave out.
+
+  | Run | Verified | `right` | `stuck` | Not audited |
+  |---|---|---|---|---|
+  | `20261029T232328Z-claude-codex` | 114 | 114 | 0 | 0 |
+  | `20261030T154025Z-claude-codex` | 12 | 12 | 0 | 0 |
+  | `20261030T234603Z-claude-codex` | 59 | 50 | 3 | 6 |
+  | `20261102T173606Z-claude-codex` | 23 | 15 | 8 | 0 |
+  | `20261102T233256Z-claude-codex` | 15 | 15 | 0 | 0 |
+  | `20261103T171929Z-codex` | 0 | 0 | 0 | 0 |
+  | `20261103T191348Z-codex` | 3 | 3 | 0 | 0 |
+  | `20261103T220624Z-claude-codex` | 15 | 15 | 0 | 0 |
+
+- **The 11 `stuck`:**
+  - **Codex's 10 passes through the length hole,** all on input 0: the 8 of `20261102T173606Z-claude-codex`, and `kruskal` 2 and 3 of `20261030T234603Z-claude-codex`. So the audit would have caught the trick at once, without anyone reading the programs. D114 has since closed it.
+  - **Claude's `kruskal` 1 in `20261030T234603Z-claude-codex`,** of 49,296 characters. Its `search` fills each of n − 1 positions with every entry of the edge list, in turn and with no pruning, and `span_check` tests each full sequence. The large inputs have 10 vertices and 54 to 64 entries, so that's at least 54^9 sequences, about 4 × 10^15.
+- **A correction:** that run's entry says the verdicts are earned, on the grounds that nothing in the proofs is assumed. That holds for this program's proof, but the program is no use on a real graph. It stays one of Claude's 30 verified, and in that run's cost figures. That entry looked at the proofs, not at which algorithm each program is, and didn't run them. The task is named `kruskal`, but its spec doesn't ask for that algorithm.
+- **Claude's three `kruskal` programs, measured past the limit** at 3 billion steps:
+
+  | Sample | Round | Characters | Inputs right | Most steps |
+  |---|---|---|---|---|
+  | 1 | 3 | 49,296 | 20 of 25, and the 5 large ones ran out | over 3 billion |
+  | 2 | 2 | 36,441 | 25 of 25 | 401,604,574 |
+  | 3 | 3 | 29,476 | 25 of 25 | 388,604,690 |
+
+  - **Samples 2 and 3 are slow, not wrong.** Each loops over every weight from -100000 to 100000, the range the spec's well-formedness allows, and scans every edge at each weight. That's Kruskal's order with a large constant.
+- **How the limit was set:** a first version had 20M steps, which every program fits but those 3 and the 10 tricks. At 500M, samples 2 and 3 come out `right`, and the other 11 stay `stuck`. Raising it can't change a program that finished within 20M, so the other 222 are as they were, and only the two runs with a `stuck` program were rerun. So the limit moves no verdict except those two, and it sits only about 25% above them, so a slower real algorithm would come out `stuck` and need reading.
+- **Cost of the audit:** at the limit, the length trick takes about a minute, and 1.7 to 2.3 GB on the two programs measured. An exhaustive search takes about two minutes, at the 3.6M steps a second seen here. Sharing the machine, `20261102T173606Z-claude-codex` took about 7 minutes and `20261030T234603Z-claude-codex` about 31, most of that the two slow `kruskal` programs.
+- **The owner's decisions:** the worked proof stays, and the audit is standing, as above. The two optional runs, all 14 ports under this prompt and more rounds for Codex, are still open.
+- **Self-check:** `gym/test_audit.py` passed. It holds all 34 suite solutions to `right`, and has the audit fail a wrong answer, the length trick (`prim` 1) and an exhaustive search (Codex's `push_relabel` 2). With contracts checked on three inputs per task, no input breaks a spec's requires, as far as the interpreter can evaluate them (D58). On many B17-1 specs it can't evaluate them all, so that half of the check is weaker there.
+- **Codex review** (`gpt-5.6-sol`) compared the references with the frozen specs and the interpreter, recomputed the counts from the records, and read the programs this entry describes. Its sandbox blocked it from running the audit. It found no wrong reference and no error in the `kruskal` claims. It found four other problems, all fixed: `--inputs 0` would have passed every program without running any, a run that doesn't exist exited 0, the count of runs left out `20261103T171929Z-codex`, and 235 was called all the verified programs, though `bfs`'s 6 aren't audited.
+- **Ponytail:** cut two unused imports, the `--inputs` option and `argparse`.
+- **Not changed:** `b17c`, the harness, the manuals, the tasks and the recorded runs.
+- **Updated:** DECISIONS (D118, and the owner's call on D117); the README's files, self-checks, commands and notes on M3; the roadmap's date, recent work, decisions waiting for the owner, and critical path.
+- **Interfaces touched:** none. `gym/audit.py` and `gym/test_audit.py` are new.
