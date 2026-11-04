@@ -96,8 +96,8 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Codex's attempts stayed long, but `dijkstra`'s 3 passes didn't repeat.** Its median round was 15,306 characters, against 2,006 without the example.
   - **Maximum flow:** 4 of Codex's 6 samples wrote loops, and all 17 such rounds are exhaustive searches over flow matrices. All 4 of its final maximum-flow programs in Dafny, including its one pass, and one of Claude's passes there, are the same kind. Only 1 of Claude's 3 `push_relabel` programs in B17-1 is push-relabel, and the others find augmenting paths.
   - **E-PARSE-001's note:** in none of the 7 rounds after it were the parentheses unbalanced again, against 16 of 36 before. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
-- **A standing run-time audit of verified programs (D118).** `gym/audit.py` runs every verified B17 program on 25 random valid inputs, with a limit of 500M steps each, against a reference written separately for each of the 34 tasks.
-  - **All seven B17 runs:** 224 of 235 are right, and none gives a wrong answer. The other 11 run out of steps: Codex's 10 passes through the length hole, all on the first input, and one of Claude's `kruskal` programs, an exhaustive search.
+- **A standing run-time audit of verified programs (D118).** `gym/audit.py` runs a run's verified B17 programs on 25 random valid inputs, with a limit of 500M steps each, against a reference written separately for each of the 34 tasks.
+  - **All eight B17 runs:** of the 235 audited, 224 are right, and none gives a wrong answer. The 6 for `bfs`, no longer a task, aren't audited. The other 11 run out of steps: Codex's 10 passes through the length hole, all on the first input, and one of Claude's `kruskal` programs, an exhaustive search.
   - **Slow isn't flagged:** two other `kruskal` programs of Claude's need about 400M steps, since they scan every edge at each of 200,001 weights, and they're right. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
@@ -157,7 +157,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **every unbalanced item at once (WP2), and `push`'s diagnostic (WP6): done.** A parse error also names every item whose parentheses don't balance, with its lines and how many are off. A failed `push` goal now reads `(in_i64 (+ (len v) 1))`;
    - **a worked long proof in the supplement (WP8), D117: done.** `docs/manual-1.md` §11 is `bfs` in full, and `bfs` is no longer an M3 task. The owner kept it after the run below;
    - **a run of Claude and Codex on the five, with that proof: done** ([above](#recent-and-current-work)). Claude verified 15 of 15, at about 2.0 times Dafny's tokens, against 2.4, and Codex none;
-   - **a standing run-time audit (WP17), D118: done.** Every verified B17 program runs on random valid inputs against a separate reference, so a write-up no longer rests on verdicts and reading alone;
+   - **a standing run-time audit (WP17), D118: done.** Verified B17 programs run on random valid inputs against a separate reference, so a write-up no longer rests on verdicts and reading alone;
    - **next:** either of the two optional runs, if the owner wants them [above](#decisions-waiting-for-the-owner).
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.

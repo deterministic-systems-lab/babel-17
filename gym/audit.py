@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The run-time audit of verified programs (D118): uv run --no-project gym/audit.py RUN_ID
 
-Runs every verified B17 program of an M3 run in the interpreter, on random valid inputs and with a
+Runs the verified B17 programs of an M3 run in the interpreter, on random valid inputs and with a
 step limit, against a reference written separately in Python. A verdict can't show a trick that makes
 the proof vacuous, or a search that verifies but never finishes. One in five inputs is large enough
 that a program searching every answer runs out of steps, where a real algorithm doesn't.
@@ -9,16 +9,14 @@ that a program searching every answer runs out of steps, where a real algorithm 
 The limit is just above the slowest real algorithm recorded, a `kruskal` that scans every possible
 weight, at about 400M steps. So stuck means read the program: it needn't be a trick or a search.
 
-Exits 1 if a program isn't right on all its inputs. Dafny's programs aren't run.
+Exits 1 if a program isn't right on all its inputs. Dafny's programs aren't run, nor are those of
+`bfs`, which is no longer a task (D117).
 """
-import argparse
-import json
 import math
 import random
 import sys
 from collections import Counter
 from itertools import accumulate
-from pathlib import Path
 
 import harness as h
 
@@ -394,11 +392,11 @@ CASES = {f"b17/{name}": case for name, case in {
     "segmenttree_query": segment_tree, "trie_insert": trie_insert}.items()}
 
 
-def audit(task, module, inputs=INPUTS):
+def audit(task, module):
     """How a parsed module's def does on the task's inputs: (verdict, inputs passed, detail).
     The verdict is right, or the first input's wrong, stuck or failed."""
     r = random.Random(f"{task['id']}/audit")
-    for k in range(inputs):
+    for k in range(INPUTS):
         args, ok = CASES[task["id"]](r, k % 5 == 4)
         out = i.run(module, task["name"], args, fuel=STEPS, depth=DEPTH, subset=task.get("subset", 0))
         if isinstance(out, i.Limit):
@@ -411,15 +409,14 @@ def audit(task, module, inputs=INPUTS):
             good = False
         if not good:
             return "wrong", k, f"input {k}: {py(args)} gave {py(out.results)}"[:400]
-    return "right", inputs, ""
+    return "right", INPUTS, ""
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("run_id")
-    ap.add_argument("--inputs", type=int, default=INPUTS)
-    args = ap.parse_args()
-    recs = [r for r in h.read_records(h.RUNS / args.run_id) if r["stage"] == "verified"]
+    run = h.RUNS / sys.argv[1]
+    if not (run / "attempts.jsonl").exists():
+        sys.exit(f"no run at {run}")
+    recs = [r for r in h.read_records(run) if r["stage"] == "verified"]
     tasks = {t["id"]: t for t in h.load_tasks(sorted({r["task"] for r in recs if r["task"] in CASES}))}
     tally = Counter()
     for rec in sorted(recs, key=lambda r: (r["task"], r["cli"], r["sample"])):
@@ -427,9 +424,9 @@ def main():
             tally["not audited"] += 1
             continue
         t = tasks[rec["task"]]
-        verdict, passed, detail = audit(t, syntax.parse((t["frozen"][:-1] + "\n" + rec["code"] + ")").encode(), t.get("subset", 0)), args.inputs)
+        verdict, passed, detail = audit(t, syntax.parse((t["frozen"][:-1] + "\n" + rec["code"] + ")").encode(), t.get("subset", 0)))
         tally[verdict] += 1
-        print(rec["task"], rec["cli"], f"sample {rec['sample']} round {rec['iter']}: {verdict}, {passed} of {args.inputs}", detail, flush=True)
+        print(rec["task"], rec["cli"], f"sample {rec['sample']} round {rec['iter']}: {verdict}, {passed} of {INPUTS}", detail, flush=True)
     print(", ".join(f"{n} {v}" for v, n in sorted(tally.items())) or "no verified programs")
     return 1 if set(tally) - {"right", "not audited"} else 0
 

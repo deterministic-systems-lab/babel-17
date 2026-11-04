@@ -1674,14 +1674,14 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 
 ## D118 · A standing run-time audit of verified programs · Accepted
 - **Date:** 2026-11-04
-- **Decision:** `gym/audit.py RUN_ID` runs every verified B17 program of an M3 run in the interpreter, on 25 random valid inputs, against a reference written separately in Python. Each program comes out `right`, or else `wrong`, `stuck` or `failed` on the first input that shows it.
+- **Decision:** `gym/audit.py RUN_ID` runs the verified B17 programs of an M3 run in the interpreter, on 25 random valid inputs, against a reference written separately in Python. Each program comes out `right`, or else `wrong`, `stuck` or `failed` on the first input that shows it.
   - **M3's write-ups run it,** and read every program it doesn't call `right`, before saying what a pass is worth.
   - **Each input has a limit of 500M steps.** One input in five is large, such as 10 to 12 vertices on the graph tasks and 8 on maximum flow, so that a program trying every answer runs out.
   - **All 34 tasks have a reference:** B17's 20 seed tasks and B17-1's 14 ports. `gym/test_audit.py` holds every suite solution to `right`, and has the audit fail a wrong answer, the length trick and an exhaustive search.
   - **`stuck` means read the program.** The limit can't name the cause. It's set just above the slowest real algorithm recorded, so a slower real one would come out `stuck` too.
-  - **Dafny's programs aren't run,** so this doesn't reach what the comparison's other side verified.
+  - **Not run:** Dafny's programs, so this doesn't reach what the comparison's other side verified, and the 6 recorded programs of `bfs`, which is no longer a task (D117).
 - **Why:** a verdict says a program meets its spec, if the proof isn't vacuous. The length trick got past a write-up (D114). And the ported specs state no cost, with asymptotic proofs deferred (D30), so an exhaustive search verifies as well as a real algorithm does.
-- **The evidence:** across all seven B17 runs, 224 of 235 verified programs are `right` and the other 11 `stuck`, with none `wrong` or `failed`.
+- **The evidence:** the eight B17 runs have 241 verified programs, 6 of them `bfs`'s. Of the 235 audited, 224 are `right` and the other 11 `stuck`, with none `wrong` or `failed`.
   - **Codex's 10 passes through the length hole,** all `stuck` on input 0.
   - **One of Claude's `kruskal` programs** from the first B17-1 run, which tries every sequence of n − 1 edges. Its proof is real. It's the first exhaustive search found among B17's verified programs.
 - **Alternatives:**

@@ -4,7 +4,7 @@ Every B17 task has a case, and its suite solution passes, so the references and 
 programs known to verify. With contracts checked, no case's input breaks the spec's requires, as far
 as the interpreter can evaluate them (D58). It also fails what it's for: a wrong answer, the length
 trick and an exhaustive search, the last two from real runs. Those two use up the limit, so this
-takes minutes.
+takes about 10 minutes.
 """
 import json
 import random
