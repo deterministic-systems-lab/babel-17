@@ -91,6 +91,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63); B17-1's by default, and B17-0's with `--subset 0` |
 | [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8); B17-1's by default, and B17-0's with `--subset 0` |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 and B17-1 for M3 (D98, D112) |
+| [`gym/audit.py`](gym/audit.py) | The run-time audit: every verified B17 program of a run, on random valid inputs, against a separate reference (D118) |
 | [`gym/tasks/`](gym/tasks/) | Dafny tasks: 20 seed tasks, 64 from AlgoVeri, 28 from vericoding |
 | [`gym/runs/`](gym/runs/) | One directory per run: `meta.json` holds the configuration and fingerprints, and `attempts.jsonl` every round of every attempt |
 | [`DECISIONS.md`](DECISIONS.md) | Every design decision, with its status |
@@ -117,6 +118,7 @@ uv run --no-project b17c/test_manual.py    # agent manual and its B17-1 suppleme
 uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report, B17-1's encoding (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 uv run --no-project gym/test_b17.py        # the harness's B17-0 and B17-1 tracks: tasks, verdicts, one attempt against a fake CLI (needs Z3)
+uv run --no-project gym/test_audit.py      # run-time audit: each task's reference against the suite; it catches a wrong answer, the length trick, a search
 ```
 
 **The toolchain:**
@@ -150,6 +152,7 @@ uv run --no-project gym/harness.py run --clis claude,codex,grok --samples 1 --jo
 uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17/   # M3: the seed tasks in B17-0 (D98)
 uv run --no-project gym/harness.py run --clis claude,codex --samples 3 --tasks b17-1/   # M3: the AlgoVeri ports in B17-1 (D112)
 uv run --no-project gym/harness.py reverify RUN_ID                   # re-check every recorded verdict
+uv run --no-project gym/audit.py RUN_ID                              # run every verified B17 program on random valid inputs (D118)
 uv run --no-project gym/harness.py summary RUN_ID [RUN_ID ...]
 ```
 
@@ -217,6 +220,8 @@ Codex again verified none, against 6 of 10 in Dafny. It no longer tried the tric
 A last run added one complete port to the prompt, `bfs`, as a worked example of a long proof (D116). That changed a lot. Codex verified 3 of 15, all three of its `dijkstra` samples, in 6 to 8 rounds, against 6 and 7 in Dafny, at about 2.2 times Dafny's tokens per verified task. All three gave the right answer on 25 random valid graphs each. 8 of its 15 first rounds ran past 7,000 characters, against 1 of 15. Maximum flow stayed out of reach, though: `edmond_karp` stayed under 1,600 characters, and the longest `push_relabel` attempts, up to 41,900 characters, were exhaustive searches over flow matrices, which the spec can't tell from push-relabel. Long programs also fail to parse more often, in 27 of 117 rounds. That example gave away a task, so it came out after the run. The manual's supplement now has `bfs` in full, and `bfs` is no longer a task (D117).
 
 The next run tested that with both agents. Claude again verified all 15, at about 2.0 times Dafny's tokens per verified task, down from 2.4, and all 15 programs gave the right answer on 25 random valid graphs each. Its programs borrow lemmas from the example, but that fall isn't shown to be the example's, since `bellman_ford` nearly halved, `prim` didn't move and `push_relabel` rose. Codex verified none of 15, and its `dijkstra` passes didn't repeat, though one sample came within a single failed goal. Its median round stayed long, at 15,306 characters against 2,006 without the example. 4 of its 6 maximum-flow samples now wrote loops, but every one is an exhaustive search over flow matrices. So is its one maximum-flow pass in Dafny, and one of Claude's there, so a verified program on these tasks isn't always a usable one. E-PARSE-001's new note reached 8 rounds, and in none of the 7 that had a next round were the parentheses unbalanced again, against 16 of 36 in the three earlier Codex runs.
+
+Since a verdict can't show any of that, M3's write-ups now run every verified B17 program, on 25 random valid inputs against a reference written separately (D118). Across all seven B17 runs, 224 of 235 programs gave the right answer every time, and the other 11 ran out of steps. None gave a wrong answer. 10 of the 11 are Codex's passes through the length hole. The other is one of Claude's `kruskal` programs from the first B17-1 run, and its proof is real, but it tries every sequence of n − 1 edges, so it can't finish on 10 vertices. These specs state no cost, so a verdict alone doesn't say whether a program is usable.
 
 ## How work is recorded
 

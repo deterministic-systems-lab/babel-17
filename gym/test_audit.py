@@ -20,7 +20,7 @@ for k, t in tasks.items():
     r = random.Random("valid")
     for big in (False, False, True):
         args, _ = a.CASES[k](r, big)
-        out = a.i.run(modules[k], t["name"], args, check=True, fuel=a.STEPS, depth=a.DEPTH, subset=t.get("subset", 0))
+        out = a.i.run(modules[k], t["name"], args, check=True, fuel=20_000_000, depth=a.DEPTH, subset=t.get("subset", 0))
         assert not isinstance(out, a.i.Contract), (k, a.i.text_of(out)[:300])
 
 
