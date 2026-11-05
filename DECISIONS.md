@@ -1775,7 +1775,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Signing,** as the owner chose: `sign FILE NAME REVIEWER` records the spec's hash (D46), the reviewer and the date in `FILE.signatures.json`, written atomically, by one signer at a time.
     - **What voids a signature:** a spec's hash covers the hashes of the items it refers to (D45), so editing it or a ghost-fn it uses voids its signature. Renaming it, its binders or a ghost-fn doesn't, since a hash ignores names.
     - **The report:** `unsigned FILE` lists the unsigned specs, and the trusted base report gains `unsigned_specs`.
-  - **Errors** are JSON too, as `{"error": ...}`.
+  - **Errors** are JSON too, as `{"error": ...}`, but for a usage error, which prints the usage.
   - **Interface 9, version 0.1, Draft:**
     - **Spec signatures:** that file's JSON list of `{name, spec, by, date}`.
     - **Spec challenges:** `{kind, spec, spec_hash, query_sha256, verdict, input}`, where kind is `requires-unsatisfiable` or `no-output`, the query is the canonical one the solver proved, and only `no-output` has an input.

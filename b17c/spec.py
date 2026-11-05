@@ -7,7 +7,8 @@
     uv run --no-project b17c/spec.py [--subset 0|1] sign FILE NAME REVIEWER
     uv run --no-project b17c/spec.py [--subset 0|1] unsigned FILE
 
-Each prints JSON, and exits 1 when it finds a problem.
+Each prints JSON, and exits 1 when it finds a problem or fails, with {"error": ...}. A usage error
+prints the usage and exits 2.
 - vacuity: each spec's and lemma's requires can hold, and no spec's ensures clause follows from them alone.
 - witness: D88's first inputs for spec NAME, each with the output its def gives and nearby outputs
   the spec forbids, or, with no def, whether any output meets the ensures.
@@ -365,6 +366,26 @@ def sign(path, module, name, reviewer, subset=SUBSET):
     return entry
 
 
+def run(cmd, path, module, rest, subset, seeds):
+    """A command's result, and whether it found a problem."""
+    if cmd == "vacuity":
+        out = vacuity(module, subset)
+        return out, any(e["requires"]["verdict"] == "vacuous" or any(c["trivial"] for c in e["ensures"]) for e in out)
+    if cmd == "witness":
+        out = witness(module, rest[0], subset)
+        return out, any("challenge" in e or "outcome" in e or e.get("breaks") or e.get("also_allowed") for e in out)
+    if cmd == "mutants":
+        out = mutants(module, rest[0], subset, seeds)
+        return out, any(e["killed"] is None and e["differs_at"] for e in out)  # the spec allows a change in behaviour
+    if cmd == "english":
+        out = english(module)
+        return out, out["error"] is not None or bool(out["disagreements"])
+    if cmd == "sign":
+        return sign(path, module, rest[0], rest[1], subset), False
+    out = V.unsigned(path, module, subset)
+    return out, bool(out)
+
+
 def main(argv):
     subset, seeds = SUBSET, V.SEEDS
     while argv[:1] in (["--subset"], ["--seeds"]) and argv[1:2] and argv[1].isdecimal():
@@ -388,26 +409,10 @@ def main(argv):
     kind = "def" if cmd == "mutants" else "spec"
     if rest and rest[0] not in {it.items[1].text for it in _items(module, (kind,))}:
         return fail(f"{path}: no {kind} named {rest[0]}", 2)
-    if cmd == "vacuity":
-        out = vacuity(module, subset)
-        bad = any(e["requires"]["verdict"] == "vacuous" or any(c["trivial"] for c in e["ensures"]) for e in out)
-    elif cmd == "witness":
-        out = witness(module, rest[0], subset)
-        bad = any("challenge" in e or "outcome" in e or e.get("breaks") or e.get("also_allowed") for e in out)
-    elif cmd == "mutants":
-        try:
-            out = mutants(module, rest[0], subset, seeds)
-        except ValueError as e:
-            return fail(str(e))
-        bad = any(e["killed"] is None and e["differs_at"] for e in out)  # the spec allows a change in behaviour
-    elif cmd == "english":
-        out = english(module)
-        bad = out["error"] is not None or bool(out["disagreements"])
-    elif cmd == "sign":
-        out, bad = sign(path, module, rest[0], rest[1], subset), False
-    else:
-        out = V.unsigned(path, module, subset)
-        bad = bool(out)
+    try:
+        out, bad = run(cmd, path, module, rest, subset, seeds)
+    except (OSError, ValueError) as e:  # no z3, an unreadable signature file, a def with no baseline
+        return fail(f"{type(e).__name__}: {e}")
     print(json.dumps(out, indent=1))
     return 1 if bad else 0
 

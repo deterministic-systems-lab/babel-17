@@ -2969,8 +2969,8 @@ WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10's furthe
     Both are true. The second is outside B17's semantics (D29), so no spec could state it.
   - **Signing:** signing `merge_sorted` empties `unsigned`, and adding a clause to its spec makes it unsigned again.
 - **On the suite's 35 accept programs,** vacuity, in 12.5 minutes:
-  - **The 40 specs:** none has a vacuous `requires`. 33 are shown satisfiable by a generated input, none by a model from the solver. For the other 7, 6 of them graph tasks, it stays unknown, since none of 10,000 random inputs meets them.
-  - **Their 75 `ensures` clauses:** none is proved trivial. 50 are shown not to be, by an input and an output that make them false. 25 stay unknown: 10 in the 7 specs with no input, and 15 that neither the solver nor 1,000 drawn outputs settles.
+  - **The 40 specs:** none is shown vacuous. 33 are shown satisfiable by a generated input, none by a model from the solver. For the other 7, 6 of them graph tasks, it stays unknown, since the solver finds no model and none of 10,000 random inputs meets them.
+  - **Their 75 `ensures` clauses:** none is proved trivial. 50 are shown not to be, by an input and an output that make them false. 25 stay unknown: 10 in the 7 specs with no input, and 15 that neither the solver nor up to 999 drawn outputs, 333 for each of up to 3 inputs, settles.
   - **The 230 lemmas:** whether each `requires` can hold stays unknown. Their parameters are ghost types D88 doesn't draw, and the solver finds no model.
 - **Found while building it:**
   - **A lemma's claim always follows from its `requires`.** A first version called some lemma claims trivial, so lemmas' claims aren't judged.
@@ -2982,7 +2982,7 @@ WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10's furthe
   - **An output called allowed** where an `ensures` clause couldn't be evaluated (D58). Now one is allowed only where every clause holds.
   - **Vacuity's verdicts:** a solver's model could be a point where the `requires` weren't defined, and `trivial: false` meant only "not proved". Now the `requires`' own goals are facts, a clause is non-trivial only on a model or a concrete input and output, and otherwise unknown. The suite's counts above are the corrected ones.
   - **Not the tests' own inputs:** inputs that the tests drop at a limit were kept. Now `test_def` returns its kept inputs.
-  - **Exit codes:** an output a step away that the spec also allows exited 0, and errors weren't JSON.
+  - **Exit codes:** an output a step away that the spec also allows exited 0, and errors weren't JSON. Its re-check found that failures while a command ran, such as a missing Z3, still weren't, and those are JSON now too.
   - **Back-translation:** a reply with no text for a spec counted as one.
   - **Signatures:** written in place, so a crash could leave half a file. Now atomically. Renaming a spec keeps its signature, since a hash ignores names, as D121 now says.
   - **A statement in an `if`'s branch** was never left out. Now each is replaced by an empty block, wherever it is.
