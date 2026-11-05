@@ -49,7 +49,8 @@ assert h.cut_diagnostics(one) == one
 assert json.loads(h.cut_diagnostics("[" + " " * 7000 + "1]")) == [1]  # long only in its whitespace: still ends
 assert h.cut_diagnostics("x" * 7000) == "x" * h.FEEDBACK_CHARS  # not diagnostics: as before
 DAFNY_TASK = dict(signature="method f()", preamble="", name="f")
-assert "not shown" not in h.render(DAFNY_TASK, "4", "c", json.dumps(diags, indent=1))
+long = json.dumps(diags, indent=1)
+assert h.render(DAFNY_TASK, "4", "c", long).endswith(h.REPAIR_PROMPT.format(code="c", feedback=long[:h.FEEDBACK_CHARS]))
 assert h.extract_code("a\n```lisp\nX\n```\n```dafny\nY\n```", "b17") == "X"
 # A reply Claude Code resumed after the output limit is read whole, not just its last part, whether
 # a part continues mid-line or reopens the block.

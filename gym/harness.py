@@ -445,7 +445,7 @@ def cut_diagnostics(feedback):
         n += 1
     more = len(diags) - n
     return json.dumps(diags[:n], indent=1) + (
-        f"\n\nDiagnostics not shown: {more}. Fix these, and the next check reports what's left." if more else "")
+        f"\n\nDiagnostics not shown: {more}. Fix the ones above, and the next check will report on your new items." if more else "")
 
 
 def render(task, dafny_version, code=None, feedback=None):

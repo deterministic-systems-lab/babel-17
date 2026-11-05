@@ -1693,15 +1693,15 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 
 ## D119 · B17's feedback ends at a whole diagnostic and says how many more · Proposed (amends D98)
 - **Date:** 2026-11-05
-- **Decision:** the limit stays at 6,000 characters. A B17 repair prompt holds the diagnostics that fit whole, in order, then one line: "Diagnostics not shown: N. Fix these, and the next check reports what's left."
+- **Decision:** the limit stays at 6,000 characters. A B17 repair prompt holds the diagnostics that fit whole, in order, then one line: "Diagnostics not shown: N. Fix the ones above, and the next check will report on your new items."
   - **The first is always kept,** so there's one to act on. None recorded is longer than 1,591 characters.
   - **Dafny's track still gets a plain cut,** so its baselines stay comparable.
   - **Records still hold the feedback in full.**
-- **Why:** a B17 diagnostic is JSON, a median of 436 characters per entry, so the same limit cuts B17 far more often: 21 of Codex's 161 repair prompts in the run of all 14 ports, against 2 of its 89 in Dafny. The cut fell mid-entry with nothing to say so, and the two times Codex noticed, it lost a round.
+- **Why:** a B17 diagnostic is JSON, a median of 436 characters per entry across all runs, so the same limit cuts B17 far more often: 21 of Codex's 161 repair prompts in the run of all 14 ports, against 2 of its 89 in Dafny. The cut fell mid-entry with nothing to say so, and the two times Codex noticed, it lost a round.
 - **Alternatives:**
   - **Raising B17's limit.** It would show more, at more input per call, on top of a fixed prompt that's already the largest part of B17's cost.
-  - **Compact JSON.** At the same limit, it would show 123 of the 536 diagnostics this cut leaves out, across all runs. But it changes the format of every diagnostic for that, including the 744 of 813 prompts that aren't cut.
+  - **Compact JSON.** At the same limit, it would show 123 of the 536 diagnostics this cut leaves out, across all runs. It could apply to prompts over the limit alone, but agents would then see two formats, and about three-quarters of the 536 would still be left out.
 - **Cost:**
-  - **It shows no more diagnostics.** Those that fit whole are the same as before, and each cut prompt loses the part of the entry the old cut left in. What it adds is the count, and that the rest come back.
+  - **It shows no more diagnostics.** Those that fit whole are the same as before, and each cut prompt loses the part of the entry the old cut left in. What it adds is the count, and that a new check follows.
   - **Later runs differ from earlier ones.** A run's settings pin the harness's hash, so `--resume` won't mix the two. The effect isn't measured, and a rerun of Codex on the five harder ports would be a weak test, since its passes there have gone 3, 0 and 2 of 15 with an example.
 - **Touches:** D98; WP17: `gym/harness.py`, `gym/test_b17.py`.
