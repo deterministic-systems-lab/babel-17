@@ -2923,7 +2923,7 @@ WP5. With M3's B17-1 track measured, the next item on the critical path was `doc
 - **What's new:**
   - **`verify.py --level L0|L1|L2|L3`** fails unless the module reaches that level. **`--report`** writes the level and the fields that say why. Without either, `verify.py` does what it did.
   - **L1's tests:** `interp.test_def` runs a def with checking on, on D88's inputs. Those are a SplitMix64 stream seeded from the spec hash, kept until 100 satisfy the `requires`, from at most 10,000 draws. The interpreter records each goal it evaluates, keyed as `goals.py`'s goals are, and whether it held.
-  - **L2's closure:** each fact `goals.py` makes records what it rests on: earlier goals, a call's `PRE` goals and callee's `POST` goals, a lemma's goals, a loop invariant's goals, and a joined branch's facts. `verify.closure` solves each proved goal again without what rests on goals that don't count, and without the equations of ghost-fns that don't (D91), until no more drop out.
+  - **L2's closure:** a fact `goals.py` makes records what it rests on: earlier goals, a call's `PRE` goals and callee's `POST` goals, a lemma's goals, a loop invariant's goals, and a joined branch's facts. A value's type facts don't, as D120 says. `verify.closure` solves each proved goal again without what rests on goals that don't count, and without the equations of ghost-fns that don't (D91), until no more drop out.
   - **The report's fields:** `level`, `tested`, `untested`, `refuted`, `uncounted` and `may_abort`, as D120 lists them.
 - **Checked:**
   - **Queries:** all 5,824 of the suite's and the core library's are byte-identical, and so are those of the 110 verified M3 programs that use `seq-build`, where the one change in encoding could reach.
@@ -2940,12 +2940,13 @@ WP5. With M3's B17-1 track measured, the next item on the critical path was `doc
   - **Random inputs rarely meet a graph task's `requires`.** At 400 draws, 7 of B17-1's 15 ports kept no input.
   - **Unchecked runs** are 3% to 5% slower on a loop of arithmetic.
 - **Codex review** (`gpt-5.6-sol`) found four problems, all fixed:
-  - **An overgrade through `seq-build`:** its length fact, with every length at least 0, gave back its `BOUNDS` goal once that goal didn't count, so a module reached L2-S instead of L1. The fact now rests on the goal, and is guarded by it where no goal is generated, so no query's text changes.
+  - **An overgrade through `seq-build`:** its length fact, with every length at least 0, gave back its `BOUNDS` goal once that goal didn't count, so a module reached L2-S instead of L1. Outside binders and ghost-fn bodies, where it was already guarded, the fact now rests on the goal, and is guarded by it where no goal is generated, so no query's text changes.
   - **An overgrade through loops:** a node checked on entry and on a later pass had one count, so a loop that never passed had its later goal tested. Each now has its own count.
   - **A wrong claim:** that cache keys don't move. They include `b17c`'s own hash.
   - **The command line:** a `--subset` other than 0 or 1 was read as `--report`. It's an error now, as is a `--seeds` that isn't a number.
 
   It found the closure terminates, recursive `POST` and `INV-KEEP` goals may rest on themselves, `opaque` drops exactly D91's equations, and `_Draws` matches §10's stream, its tie rule included. Its sandbox couldn't run `b17c/test_verify.py`.
+  Its re-check of those fixes found three smaller things, all fixed: `--seeds ²` still raised, and this entry and D120 misdescribed which `seq-build` facts were already guarded and which facts record what they rest on.
 - **Ponytail:** merged one nested `try`.
 - **Self-checks:** all eight in CI, `b17c/test_verify.py`, and `gym/test_b17.py`, `gym/test_harness.py` and `gym/test_audit.py` pass.
 - **Not changed:** M3's prompts, harness, manuals and tasks, the recorded runs, and every query the suite sends.

@@ -277,7 +277,7 @@ def main(argv):
         if flag == "--subset":
             subset, bad = (int(val), bad) if val in ("0", "1") else (subset, True)
         elif flag == "--seeds":
-            seeds, bad = (int(val), bad) if val.isdigit() else (seeds, True)
+            seeds, bad = (int(val), bad) if val.isdecimal() else (seeds, True)
         elif flag == "--cache":
             cache = Path(val)
         elif flag == "--level":

@@ -403,7 +403,7 @@ quiet = lambda *a: v.main(["--subset", "0", "--seeds", "1", "--cache", str(CACHE
 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
     assert quiet("--level", "L3", abs_file) == 0 and quiet("--level", "L1", bad_file) == 1
     assert quiet("--level", "L0", "--report", str(out), bad_file) == 0 and quiet("--level", "L4", abs_file) == 2
-    assert v.main(["--subset", "2", abs_file]) == 2 and v.main(["--seeds", "x", abs_file]) == 2
+    assert v.main(["--subset", "2", abs_file]) == 2 and v.main(["--seeds", "x", abs_file]) == v.main(["--seeds", "²", abs_file]) == 2
 assert json.loads(out.read_text())["level"] == "L0"
 
 print("verifier self-check passed")
