@@ -873,4 +873,127 @@ assert cli("--subset", "1", str(SUITE / "b17-1/accept/discrete_logarithm.b17"), 
     == (0, "ok (some 3)\n", "")
 assert cli("--subset", "0", str(SUITE / "accept/abs.b17"), "abs", "-5") == (0, "ok 5\n", "")
 
+# L1's property tests (D80, D88, docs/b17-1.md §10). The generator is SplitMix64, whose known
+# outputs from seed 1234567 these are.
+d = i._Draws(None, 1234567)
+assert [d.next() for _ in range(5)] == [6457827717110365317, 3203168211198807973, 9817491932198370423,
+                                        4593380528125082431, 16408922859458223821]
+# Draws consume the stream in §10's order: an i64's k, then its value; a vector's length, then its elements.
+d, e = i._Draws(None, 7), i._Draws(None, 7)
+v = d.value(("vec", ("i64",)))
+n = e.below(9)
+assert len(v) == n
+
+
+def i64(e):
+    k = e.below(4)
+    if k < 2:
+        return e.below(21) - 10
+    if k == 2:
+        return (i.MIN, i.MIN + 1, -1, 0, 1, i.MAX - 1, i.MAX)[e.below(7)]
+    u = e.next()
+    return u - 2**64 if u > i.MAX else u
+
+
+assert v == tuple(i64(e) for _ in range(n)), v
+# Every draw is a value of its type, data stops at depth 4 with its smallest value, and the
+# smallest value has the fewest constructors, the first constructor winning a tie.
+HEAD = '(module t (header (purpose "p") (invariants "i") (failures "f"))\n'
+LV = parse(HEAD + """  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (data box (t) (mk (v t)))
+  (data pick () (one (x bool)) (two (y bool)))
+  (data chain () (link (next (option chain))))
+  (spec f (params (t tree) (b (box (box i64))) (c chain) (s (ref (slice (tuple bool i64))))) (returns (r i64)) (effects))
+  (def f (body (return 0))))""", 1)
+p1 = i._Program(LV, 1)
+d = i._Draws(p1, 99)
+assert d.smallest(("tree",))[1] == i.Data("leaf", ()) and d.smallest(("pick",))[1] == i.Data("one", (False,))
+assert d.smallest(("box", ("box", ("i64",)))) == (2, i.Data("mk", (i.Data("mk", (0,)),)))
+assert d.smallest(("chain",)) == (2, i.Data("link", (i.Data("none", ()),)))
+fn, seen = p1.fns["f"], set()
+for _ in range(300):
+    args = [d.value(i._ground(t, {})) for t in fn.types]
+    assert all(p1.fits(a, t, {}) for a, t in zip(args, fn.types)), args
+    assert i._rank(args[0]) <= 4 if args[0].ctor == "node" else True
+    seen |= {len(args[3])} | {x.items[1] for x in args[3]}
+assert set(range(9)) <= seen and {i.MIN, i.MAX, -10, 10} <= seen
+# Each goal a run evaluates is keyed as verify.py keys goals.py's: in this module every goal
+# outside a lemma's body, of every family, is evaluated by some input, and none is refuted.
+import goals as G
+import hashing as H
+EVERY = parse("""(module every
+  (header (purpose "p") (invariants "i") (failures "f"))
+  (data box () (full (v i64)) (none_box))
+  (data bag () (some_bag (items (vec i64))) (no_bag))
+  (ghost-fn twice ((x int)) int (requires (>= x 0)) (body (* x 2)))
+  (ghost-fn down ((n int)) int (requires (>= n 0)) (decreases n) (body (if (== n 0) 0 (down (- n 1)))))
+  (ghost-fn look ((m (map int int))) int (requires (contains m 2)) (body (lookup m 2)))
+  (lemma pos (params (x int)) (requires (>= x 0)) (ensures (>= (twice x) 0)) (body))
+  (spec helper (params (x i64)) (returns (r i64)) (requires (>= x 0)) (ensures (== r x)) (effects))
+  (def helper (body (return x)))
+  (spec count (params (n i64)) (returns (r i64)) (requires (>= n 0) (<= n 3)) (ensures (>= r 0)) (effects))
+  (def count (decreases n)
+    (body
+      (if (== n 0)
+        (return 0)
+        (block
+          (let ((r i64)) (call count (- n 1)))
+          (return (+ r 1))))))
+  (spec main (params (a (ref (slice i64))) (n i64) (f box)) (returns (r i64))
+    (requires (>= (len a) 1) (>= n 1) (<= n 3) (is full f) (< (field f v) 1000) (> (field f v) -1000) (< (idx a 0) 1000))
+    (effects alloc))
+  (def main
+    (body
+      (call pos n)
+      (assert (== (twice n) (* n 2)))
+      (assert (== (down n) 0))
+      (assert (== (look (map-lit (2 n))) n))
+      (assert (== (last (seq-lit 1 2)) 2))
+      (assert (== (len (take (seq-lit 1 2 3) 1)) 1))
+      (assert (== (len (drop (seq-lit 1 2 3) 1)) 2))
+      (assert (== (len (seq-build n (fn (i) i))) n))
+      (let-mut v (vec i64) (vec-new))
+      (push v (idx a 0))
+      (set-idx v 0 (+ (* n 2) (- 1 n)))
+      (let k i64 (neg n))
+      (let d i64 (/ 10 n))
+      (let e i64 (% 10 n))
+      (let w i64 (field f v))
+      (let-mut g bag (some_bag v))
+      (push (field g items) w)
+      (let y i64 (replace (idx (field g items) 0) 7))
+      (let ((h i64)) (call helper n))
+      (let ((c i64)) (call count n))
+      (let-mut i i64 0)
+      (while (< i n)
+        (invariant (and (<= 0 i) (<= i n)))
+        (decreases (- n i))
+        (set i (+ i 1)))
+      (return (+ (+ (+ k d) (+ e y)) (+ h (+ c i)))))))
+""", 1)
+gen = G.Gen(EVERY, 1)
+counts = {}
+for name in ("helper", "count", "main"):
+    kept, seen, bad = i.test_def(EVERY, name, int(H.hashes(EVERY, 1)[name][1][6:22], 16), 1)
+    assert kept == 100 and bad == {}, (name, kept, bad)
+    counts.update(seen)
+missed = [(g[0], g[1], g[2]) for g in gen.check(EVERY) if not (g[6] == "impl" and "lemma" in gen.defs[g[0]])
+          and (g[1], id(g[5]), None if g[7] is None else id(g[7])) not in counts]
+assert missed == [], missed
+# An input is dropped when its requires fail, or its run ends in a limit; a refuted goal comes
+# with its input and outcome.
+DROP = parse(HEAD + """  (spec f (params (n i64)) (returns (r i64)) (requires (>= n 0)) (ensures (< r 5)) (effects))
+  (def f (body (let-mut i i64 0)
+    (while (< i n) (invariant (<= 0 i)) (decreases (- n i)) (set i (+ i 1)))
+    (return i))))""")
+kept, seen, bad = i.test_def(DROP, "f", 3, 0, fuel=1000)
+assert kept == 100 and [k[0] for k in bad] == ["POST"], (kept, bad)
+(given, outcome), = bad.values()
+assert int(given) >= 5 and outcome.startswith("contract POST"), bad
+assert i.test_def(DROP, "f", 3, 0, fuel=1000, draws=50)[0] < 50  # negative and huge n were dropped
+NODEF = parse(HEAD + """  (spec g (params) (returns (r i64)) (effects))
+  (spec f (params (n i64)) (returns (r i64)) (effects))
+  (def f (body (let ((r i64)) (call g)) (return r))))""")
+assert i.test_def(NODEF, "f", 3, 0, draws=20)[0] == 0  # g has no def to run
+
 print("interpreter conformance tests passed")

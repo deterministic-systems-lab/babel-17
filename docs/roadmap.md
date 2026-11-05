@@ -105,6 +105,12 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **A repeat of the 5:** Claude's total came out at 215k against 212k, with single tasks moving by up to about 1.7 times.
   - **Long diagnostics are cut:** the harness's limit of 6,000 characters cut 21 of Codex's 161 repair prompts, against 2 of 89 in Dafny, and hid 178 of those prompts' 450 diagnostics. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **B17's feedback ends at a whole diagnostic (D119).** A repair prompt holds the diagnostics that fit in 6,000 characters whole, and says how many more there are. On all 813 recorded rounds an agent read, the 744 under the limit are byte-identical. It shows no more diagnostics than before, and no run has used it yet. Dafny's track doesn't change.
+- **B17-1's verification levels (WP5), with D120 proposed.** `verify.py --level L0|L1|L2|L3` fails unless a module reaches that level, and `--report` gives the level and why, as `docs/b17-1.md` §10 says.
+  - **L1's property tests:** the interpreter runs each def, checking on, on D88's inputs, and records each goal it evaluates. Tests run only when some goal isn't proved.
+  - **L2's closure:** each proved goal is solved again without what rests on goals that don't count: earlier goals, callees' `ensures`, lemmas' claims, loop invariants and ghost-fns' equations (D91).
+  - **Checked on the suite:** a program reaching every goal family has all 58 of its goals evaluated. No accept program has a goal refuted. In 10 of the 15 proof rejects a test refutes the labelled goal, and in 4 no test reaches it. The last, `E-PROOF-DIV-min-rem-minus-one`, reaches L1, since only i64's least value over −1 fails it, and it's listed as a goal that may abort.
+  - **Every query is unchanged:** all 5,824 of the suite's and the core library's queries are byte-identical, so M3's verdicts and cache keys don't move.
+  - **Limits:** random inputs meet few graph tasks' `requires`, and some runs are slow, as D120 records.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -141,6 +147,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
+- **D120, the readings that building the verification levels settled (WP5).** None changes `docs/b17-1.md` §10's text. The two that change what a level means are that a call's `ensures` also rest on its `PRE` goals, and that L2's closure lets a recursive proof rest on itself.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
 D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D119 on 2026-11-05. D2–D10, carried over from the design spec, are still Proposed.
@@ -166,14 +173,14 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **a standing run-time audit (WP17), D118: done.** Verified B17 programs run on random valid inputs against a separate reference, so a write-up no longer rests on verdicts and reading alone;
    - **all 14 ports under one prompt: done** ([above](#recent-and-current-work)). Claude verified 42 of 42 at about 2.5 times Dafny's tokens, and Codex 25 of 42 at about 2.8;
    - **whole diagnostics in B17's feedback (WP17), D119: done.** A cut ends at a whole diagnostic and says how many more there are, so later runs differ from earlier ones;
-   - **next:** this track is measured, so item 3 below is next.
+   - **next:** this track is measured, and item 3 below is done.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.
    - **The checker (WP3), D107:** ghost multisets are covariant, so `(multiset i64)` compares with `(multiset int)`. A `(seq int)` given where a `(seq i64)` is declared is still rejected, by design, and the manual's §3 says to state ghost helpers over `int`.
    - **The encoding (WP5), D108:** `==` on sequences makes them the same sequence, so every function agrees on them. A query gets its axioms only where it compares sequences.
    - **Optional:** the 18 other seed tasks ran under the old manual. Rerunning them would show whether its 2–3k more input tokens per call cost anything there.
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
-3. **B17-1's verification levels (WP5):** `docs/b17-1.md` §10 fixes `verify --level`, the report's level fields and D88's property tests, but `verify.py` only names the level a module reaches. They froze before being built, as B17-0's proof goals did before WP5, so a fix to §10 now takes a decision. M3 doesn't need them: it counts a task verified only when every goal is proved.
+3. **B17-1's verification levels (WP5): done, with D120 proposed** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
 4. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
