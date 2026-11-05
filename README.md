@@ -185,6 +185,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 | The same ports, Codex only, with the prompt worded as Dafny's (M3), 3 samples | the same 5 tasks | — | 0/15 | — | — |
 | The same, with a complete worked proof added to the prompt (M3), 3 samples | the same 5 tasks | — | 3/15 | — | — |
 | The same, with that proof in the manual's supplement instead (M3), 3 samples | the same 5 tasks | 15/15 | 0/15 | — | — |
+| All 14 ports in B17-1, under one prompt (M3), 3 samples | 14 of the AlgoVeri tasks | 42/42 | 25/42 | — | — |
 | AlgoVeri, 1 sample | 66 algorithm specs | 64/66 | 60/66 | 28/28 before its quota ran out | — |
 | AlgoVeri and vericoding, 1 sample | 93 tasks | 92/93 | 90/93 | — | 49/49 before its balance ran out |
 
@@ -222,6 +223,12 @@ A last run added one complete port to the prompt, `bfs`, as a worked example of 
 The next run tested that with both agents. Claude again verified all 15, at about 2.0 times Dafny's tokens per verified task, down from 2.4, and all 15 programs gave the right answer on 25 random valid graphs each. Its programs borrow lemmas from the example, but that fall isn't shown to be the example's, since `bellman_ford` nearly halved, `prim` didn't move and `push_relabel` rose. Codex verified none of 15, and its `dijkstra` passes didn't repeat, though one sample came within a single failed goal. Its median round stayed long, at 15,306 characters against 2,006 without the example. 4 of its 6 maximum-flow samples now wrote loops, but every one is an exhaustive search over flow matrices. So is its one maximum-flow pass in Dafny, and one of Claude's there, so a verified program on these tasks isn't always a usable one. E-PARSE-001's new note reached 8 rounds, and in none of the 7 that had a next round were the parentheses unbalanced again, against 16 of 36 in the three earlier Codex runs.
 
 Since a verdict can't show any of that, M3's write-ups now run the verified B17 programs, on 25 random valid inputs against a reference written separately (D118). Across all eight B17 runs, 224 of the 235 audited gave the right answer every time, and the other 11 ran out of steps. None gave a wrong answer. The 6 for `bfs`, no longer a task, weren't audited. 10 of the 11 are Codex's passes through the length hole. The other is one of Claude's `kruskal` programs from the first B17-1 run, and its proof is real, but it tries every sequence of n − 1 edges, so it can't finish on 10 vertices. These specs state no cost, so a verdict alone doesn't say whether a program is usable.
+
+The most recent run put all 14 ports under one prompt, so it's the one to read for where B17-1 stands. Against Dafny on the same tasks, Claude verified 42 of 42 against 28 of 28, at about 2.5 times the tokens per verified task, and Codex 25 of 42 against 22 of 28, at about 2.8 times. All 67 programs gave the right answer on 25 random valid inputs each, and none came near the step limit.
+
+- **What verifies:** the two languages differ only for Codex, and mostly on the 5 harder ports, where it verified 2 of 15 against 6 of 10. On the other 9, it verified 23 of 27 against 16 of 18.
+- **Cost:** Claude's ratio falls as tasks get harder, from 3.8 times on the 9 to 2.0 on the 5, since about a third of its tokens are the fixed prompt, about 36k per call against about 4k in Dafny. So cost parity isn't shown, and that's what B17-1's case over Dafny still needs. A repeat of the 5 harder ports under the same setup gave nearly the same total for Claude, though single tasks moved by up to about 1.7 times.
+- **Something to fix in the harness:** feedback is cut at the same 6,000 characters in both languages, but B17's diagnostics are much wordier. So 26 of Codex's 178 feedback rounds were cut, against 2 of 95 in Dafny, and about a third of the diagnostics in those rounds never reached it. Whether that accounts for any of the gap isn't measured.
 
 ## How work is recorded
 
