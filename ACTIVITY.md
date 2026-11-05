@@ -2894,7 +2894,7 @@ WP17. The owner accepted both proposals from the last entry: the worked proof st
 
 ## 2026-11-05 · B17's feedback ends at a whole diagnostic and says how many more, D119
 
-WP17. The last entry found that the harness's cut hid B17's long diagnostics mid-entry, with nothing to say so. D119 is proposed, for the owner to accept.
+WP17. The last entry found that the harness's cut hid B17's long diagnostics mid-entry, with nothing to say so. The owner accepted D119 on 2026-11-05, keeping the limit at 6,000 characters.
 
 - **What's new:** `cut_diagnostics` in `gym/harness.py`. A B17 repair prompt holds the diagnostics that fit in 6,000 characters whole, then says how many aren't shown and that the next check will report on the agent's new items. Dafny's track and the recorded feedback don't change.
 - **Replayed on every recorded B17 round an agent read,** 813 of them:

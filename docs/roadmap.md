@@ -104,7 +104,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Codex:** 23 of 27 on the 9, against 16 of 18, and 2 of 15 on the 5, against 6 of 10, both in round 8. On maximum flow, one round used BFS, the first in B17, and the next went back to a search.
   - **A repeat of the 5:** Claude's total came out at 215k against 212k, with single tasks moving by up to about 1.7 times.
   - **Long diagnostics are cut:** the harness's limit of 6,000 characters cut 21 of Codex's 161 repair prompts, against 2 of 89 in Dafny, and hid 178 of those prompts' 450 diagnostics. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
-- **B17's feedback ends at a whole diagnostic (D119, proposed).** A repair prompt holds the diagnostics that fit in 6,000 characters whole, and says how many more there are. On all 813 recorded rounds an agent read, the 744 under the limit are byte-identical. It shows no more diagnostics than before, and no run has used it yet. Dafny's track doesn't change.
+- **B17's feedback ends at a whole diagnostic (D119).** A repair prompt holds the diagnostics that fit in 6,000 characters whole, and says how many more there are. On all 813 recorded rounds an agent read, the 744 under the limit are byte-identical. It shows no more diagnostics than before, and no run has used it yet. Dafny's track doesn't change.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -141,10 +141,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **D119, long diagnostics in B17's feedback (WP17).** A cut now ends at a whole diagnostic and says how many more there are. It changes what agents see, so later runs would differ from earlier ones. Raising B17's limit is the alternative, which would show more at more input per call.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, and D118 on 2026-11-04. D2–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D119 on 2026-11-05. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
@@ -166,7 +165,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **a run of Claude and Codex on the five, with that proof: done** ([above](#recent-and-current-work)). Claude verified 15 of 15, at about 2.0 times Dafny's tokens, against 2.4, and Codex none;
    - **a standing run-time audit (WP17), D118: done.** Verified B17 programs run on random valid inputs against a separate reference, so a write-up no longer rests on verdicts and reading alone;
    - **all 14 ports under one prompt: done** ([above](#recent-and-current-work)). Claude verified 42 of 42 at about 2.5 times Dafny's tokens, and Codex 25 of 42 at about 2.8;
-   - **whole diagnostics in B17's feedback (WP17), D119: done, proposed** ([above](#decisions-waiting-for-the-owner)). A cut ends at a whole diagnostic and says how many more there are;
+   - **whole diagnostics in B17's feedback (WP17), D119: done.** A cut ends at a whole diagnostic and says how many more there are, so later runs differ from earlier ones;
    - **next:** this track is measured, so item 3 below is next.
 2. **M3 on the seed tasks** has had its rerun ([above](#recent-and-current-work)). The first run's gap, all on `insertion_sort` and `partition`, led to three fixes, and with them a rerun of the two tasks verified 12 of 12 in round 1.
    - **The manual (WP8)** lists all 36 of `core.b17`'s items, since the prompt doesn't include the file, and states `set-idx`'s multiset effect, with a checked swap that needs no lemma. This fix alone accounts for the rerun.

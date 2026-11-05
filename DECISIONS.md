@@ -1233,7 +1233,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Pinning:** D23 pins the solver for the same reason. A newer rustc can add lints or change code generation, and the report must name the toolchain a binary came from (D25).
 - **Touches:** D18; D23; D25; D59; WP7; `.github/workflows/check.yml`.
 
-## D98 · M3's B17-0 track in the harness · Accepted (extended by D112; its feedback cut amended by D119, once accepted)
+## D98 · M3's B17-0 track in the harness · Accepted (extended by D112; its feedback cut amended by D119)
 - **Date:** 2026-10-28
 - **Decision:** `gym/harness.py` gains a B17-0 track. It runs the same CLIs, isolation, samples and round limit as the Dafny track (WP17), so only the language differs.
   - **Tasks:** the 20 seed tasks, from `suite/accept/`. Each poses:
@@ -1691,7 +1691,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Cost:** at the limit, the length trick takes about a minute and up to 2.3 GB, and an exhaustive search about two minutes. Each of the two slow `kruskal` programs takes about 13 minutes.
 - **Touches:** D14; D30; D114; D117; WP17: `gym/audit.py`, `gym/test_audit.py`.
 
-## D119 · B17's feedback ends at a whole diagnostic and says how many more · Proposed (amends D98)
+## D119 · B17's feedback ends at a whole diagnostic and says how many more · Accepted (amends D98)
 - **Date:** 2026-11-05
 - **Decision:** the limit stays at 6,000 characters. A B17 repair prompt holds the diagnostics that fit whole, in order, then one line: "Diagnostics not shown: N. Fix the ones above, and the next check will report on your new items."
   - **The first is always kept,** so there's one to act on. None recorded is longer than 1,591 characters.
