@@ -105,7 +105,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **A repeat of the 5:** Claude's total came out at 215k against 212k, with single tasks moving by up to about 1.7 times.
   - **Long diagnostics are cut:** the harness's limit of 6,000 characters cut 21 of Codex's 161 repair prompts, against 2 of 89 in Dafny, and hid 178 of those prompts' 450 diagnostics. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **B17's feedback ends at a whole diagnostic (D119).** A repair prompt holds the diagnostics that fit in 6,000 characters whole, and says how many more there are. On all 813 recorded rounds an agent read, the 744 under the limit are byte-identical. It shows no more diagnostics than before, and no run has used it yet. Dafny's track doesn't change.
-- **B17-1's verification levels (WP5), with D120 proposed.** `verify.py --level L0|L1|L2|L3` fails unless a module reaches that level, and `--report` gives the level and why, as `docs/b17-1.md` §10 says.
+- **B17-1's verification levels (WP5), D120.** `verify.py --level L0|L1|L2|L3` fails unless a module reaches that level, and `--report` gives the level and why, as `docs/b17-1.md` §10 says.
   - **L1's property tests:** the interpreter runs each def, checking on, on D88's inputs, and records each goal it evaluates. Tests run only when some goal isn't proved.
   - **L2's closure:** each proved goal is solved again without what rests on goals that don't count: earlier goals, callees' `ensures`, lemmas' claims, loop invariants and ghost-fns' equations (D91).
   - **Checked on the suite:** a program reaching every goal family has all 58 of its goals evaluated. No accept program has a goal refuted. In 10 of the 15 proof rejects a test refutes the labelled goal, and in 4 no test reaches it. The last, `E-PROOF-DIV-min-rem-minus-one`, reaches L1, since only i64's least value over −1 fails it, and it's listed as a goal that may abort.
@@ -147,10 +147,9 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **D120, the readings that building the verification levels settled (WP5).** None changes `docs/b17-1.md` §10's text. The two that change what a level means are that a call's `ensures` also rest on its `PRE` goals, and that L2's closure lets a recursive proof rest on itself.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D119 on 2026-11-05. D2–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D119 and D120 on 2026-11-05. D2–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of AlgoVeri's 64 tasks need B17-1's tuples or data types (D79). In order:
@@ -180,7 +179,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **The encoding (WP5), D108:** `==` on sequences makes them the same sequence, so every function agrees on them. A query gets its axioms only where it compares sequences.
    - **Optional:** the 18 other seed tasks ran under the old manual. Rerunning them would show whether its 2–3k more input tokens per call cost anything there.
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
-3. **B17-1's verification levels (WP5): done, with D120 proposed** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
+3. **B17-1's verification levels (WP5): done, with D120** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
 4. **WP16** grows the core library as B17-1 and the ports need it.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
@@ -198,12 +197,12 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | WP1a, WP2 | It agrees with every tier 0 label in the suite. Done (PR #15). |
 | WP4a | The spec language | WP3 | Done, since WP1a is frozen and B17-0 already has a spec language (D62). B17-1 adds no data-type invariants or refinement links, since every surveyed task states its invariants in its contracts, so it stays done (D79). |
 | WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP1a, WP15 | Every entry has witness examples that the interpreter confirms (D28). In progress: met for its 33 laws and 3 ghost-fns. |
-| WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. Done for B17-0. |
+| WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. Done for B17-0, and B17-1's verification levels are built (D120). |
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8). Done for B17-0 (D93, D94), except repairs, which wait for WP2's typed edits. |
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`) and B17-1 (`docs/manual-1.md`, D112). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113 and 1.2 by D114. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels. |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113 and 1.2 by D114. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels and works out its verification levels (D120). |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end |
 
 **The head-to-head experiment** is called M3 in the activity log.

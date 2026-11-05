@@ -2916,9 +2916,9 @@ WP17. The last entry found that the harness's cut hid B17's long diagnostics mid
 - **Updated:** DECISIONS (D119, and D98's status); the README's note on M3; the roadmap's date, recent work, decisions waiting for the owner and critical path.
 - **Interfaces touched:** none.
 
-## 2026-11-05 · B17-1's verification levels, with D120 proposed
+## 2026-11-05 · B17-1's verification levels, and D120
 
-WP5. With M3's B17-1 track measured, the next item on the critical path was `docs/b17-1.md` §10, the verification levels. They froze on 2026-10-30, before they were built.
+WP5. With M3's B17-1 track measured, the next item on the critical path was `docs/b17-1.md` §10, the verification levels. They froze on 2026-10-30, before they were built. The owner accepted D120, the readings that building them settled, on 2026-11-05.
 
 - **What's new:**
   - **`verify.py --level L0|L1|L2|L3`** fails unless the module reaches that level. **`--report`** writes the level and the fields that say why. Without either, `verify.py` does what it did.
@@ -2950,5 +2950,5 @@ WP5. With M3's B17-1 track measured, the next item on the critical path was `doc
 - **Ponytail:** merged one nested `try`.
 - **Self-checks:** all eight in CI, `b17c/test_verify.py`, and `gym/test_b17.py`, `gym/test_harness.py` and `gym/test_audit.py` pass.
 - **Not changed:** M3's prompts, harness, manuals and tasks, the recorded runs, and every query the suite sends.
-- **Updated:** DECISIONS (D120); the README's WP5 row, self-checks, commands and interface 5; the roadmap's recent work, decisions waiting for the owner and critical path.
+- **Updated:** DECISIONS (D120, and the statuses of D80, D88 and D91); `docs/b17-1.md` §10 and §14, which point to D120 without changing a statement, so it stays version 1.2; the README's goal, WP5 row, self-checks, commands and interface 5; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path and Phase 1's table.
 - **Interfaces touched:** 5, the trusted base report, gains the level fields (D80, D120).

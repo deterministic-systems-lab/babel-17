@@ -907,7 +907,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **`rank`** keeps measures integers, so §7's termination goal doesn't change.
 - **Touches:** D20; D36; D42; D58; D62; D65; D68; D69; D71; WP3; WP4a; WP5; WP7; WP10; WP15; WP16; interfaces 1, 6, 10 and 11; `docs/b17-0.md` §8 and §11; `docs/roadmap.md`; `README.md`.
 
-## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63; refined by D91)
+## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63; refined by D91 and D120)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Levels are cumulative:**
@@ -1046,7 +1046,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Every data value:** an LLRB tree recurses on `(option node)`, which isn't itself recursive, so `rank` must reach it too.
 - **Touches:** D57; D79; `docs/b17-1.md` §7, §8, §9.
 
-## D88 · The property-test generator · Accepted
+## D88 · The property-test generator · Accepted (refined by D120)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Generator:** SplitMix64. Its state starts at the first 16 hex digits after `spec0:` in the def's spec hash (D46), read as an unsigned 64-bit integer. `docs/b17-1.md` §10 gives the exact stream: the order of draws, how each value consumes it, and each type's smallest value.
@@ -1092,7 +1092,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Evidence:** the surveyed specs quantify over sequences in 28 tasks, counting the tries' comprehensions over keys, and over flows in 2 and a matching in 1, which rewrite to sequences. `max_matching` also binds tuple edges, which are exact as `(tuple int int)`.
 - **Touches:** D61; D68; D79; D89; WP10; `docs/b17-1.md` §7, §11, §12.
 
-## D91 · L2's closure covers the ghost-fns a proof unfolds · Accepted (refines D80)
+## D91 · L2's closure covers the ghost-fns a proof unfolds · Accepted (refines D80; refined by D120)
 - **Date:** 2026-10-28
 - **Decision:** a goal's canonical query includes the defining equations of the ghost-fns it uses (D63), and a proof may rest on any of them. It counts for L2 only once every goal of each such ghost-fn counts too: the well-definedness of its `requires`, its measure and its body, and its termination, and likewise, transitively, for the ghost-fns those goals' queries include. WP5 solves a goal again without an equation that doesn't count. This adds a fourth item to D80's list of what a proof may assume, after earlier goals on the path, callees' `ensures` and lemmas' claims.
 - **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
@@ -1706,7 +1706,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Later runs differ from earlier ones.** A run's settings pin the harness's hash, so `--resume` won't mix the two. The effect isn't measured, and a rerun of Codex on the five harder ports would be a weak test, since its passes there have gone 3, 0 and 2 of 15 with an example.
 - **Touches:** D98; WP17: `gym/harness.py`, `gym/test_b17.py`.
 
-## D120 · What WP5's verification levels settle where D80, D88, D91 and §10 are silent · Proposed (refines D80, D88 and D91)
+## D120 · What WP5's verification levels settle where D80, D88, D91 and §10 are silent · Accepted (refines D80, D88 and D91)
 - **Date:** 2026-11-05
 - **Decision:** building `docs/b17-1.md` §10 settled these readings. None changes what §10 says.
   - **What a proof rests on, for L2 (D80, D91):**
