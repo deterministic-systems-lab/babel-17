@@ -2877,6 +2877,7 @@ WP17. The owner accepted both proposals from the last entry: the worked proof st
   - **How often:** 21 of the 161 repair prompts Codex got here were cut, 19 of them on the 5 harder ports, against 2 of its 89 on these tasks in Dafny. None of Claude's 13 was. These counts leave out feedback on a last round, which no agent reads.
   - **What's lost:** in those 21 prompts, 178 of the 450 diagnostics start after the cut, and in one prompt 43 of 56 do. The cut falls mid-entry, with nothing to say so.
   - **What it costs:** Codex noticed in 2 rounds, and each used up a round. In `dijkstra` 2's round 5, it wrote no code and asked for the rest. `push_relabel` 3's round 3 is a code block holding only a comment that the list is truncated, and that sample's rounds stay short from there, after 26,836 characters in round 2. Whether the cut matters beyond that isn't measured, since a fixed goal lets later ones show in the next round, but those rounds have a limit of 8.
+- **Reproduced:** `reverify` gave the same verdict on all 249 rounds with code.
 - **What it says:**
   - **On what verifies, only the harder ports separate the languages, and only for Codex.** Claude verifies everything Dafny does. On the 9, Codex's one loss outside `kruskal` is 1 sample of 24.
   - **On cost, B17-1 isn't at parity,** at about 2.5 and 2.8 times Dafny's tokens per verified task. Claude is closest on the hardest tasks, at 2.0. The fixed prompt is the largest single part, which training (Bet 2) or prompt caching would cut, and nothing here tests either.
@@ -2885,3 +2886,8 @@ WP17. The owner accepted both proposals from the last entry: the worked proof st
   - **Cut feedback at a whole diagnostic, and say how many more there are.** An agent can't fix what it can't see, and two of Codex's rounds went to saying so. It's a small change to the harness, but it changes what agents see, so later runs would differ from this one. Raising B17's limit is the alternative, at more input per call. A rerun of Codex on the 5 would measure it.
   - **WP5's verification levels next,** if no further runs are wanted, since this track's main measurement is now in.
   - **Optional, more rounds for Codex** on `dijkstra`, `bellman_ford` and `prim`. Dafny's prompt had the same limit of 8, so that wouldn't be a fair count against Dafny.
+- **Codex fact-check** (`gpt-5.6-sol`) recomputed both tables, every ratio and the p values from the records, read the programs this entry describes and all 17 of Codex's maximum-flow rounds with a loop, and ran the audit, which gave 67 `right` and the same step counts. It found no trick or exhaustive search among the verified programs, and no earlier BFS attempt by Codex. It found two errors, both fixed: loops were in 5 of 6 maximum-flow samples, not 4, and the first count of cut feedback included 5 last rounds that no agent read. It didn't review those fixes, which were recomputed separately. It couldn't confirm the 4.3 hours, which come from the run's start time and the log's last write.
+- **Ponytail:** not run, since only records change.
+- **Not changed:** `b17c`, the harness, the manuals and the tasks.
+- **Updated:** the README's results table and notes on M3; the roadmap's recent work, decisions waiting for the owner, critical path and open questions.
+- **Interfaces touched:** none.
