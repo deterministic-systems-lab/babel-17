@@ -2891,3 +2891,20 @@ WP17. The owner accepted both proposals from the last entry: the worked proof st
 - **Not changed:** `b17c`, the harness, the manuals and the tasks.
 - **Updated:** the README's results table and notes on M3; the roadmap's recent work, decisions waiting for the owner, critical path and open questions.
 - **Interfaces touched:** none.
+
+## 2026-11-05 · B17's feedback ends at a whole diagnostic and says how many more, D119
+
+WP17. The last entry found that the harness's cut hid B17's long diagnostics mid-entry, with nothing to say so. D119 is proposed, for the owner to accept.
+
+- **What's new:** `cut_diagnostics` in `gym/harness.py`. A B17 repair prompt holds the diagnostics that fit in 6,000 characters whole, then says how many aren't shown and that the next check reports what's left. Dafny's track and the recorded feedback don't change.
+- **Replayed on every recorded B17 round an agent read,** 813 of them:
+  - **Under the limit:** 744 come out byte-identical.
+  - **Over it:** in all 69, the result parses, its entries are the feedback's first ones in order, and the count is right. The longest prompt section is 6,077 characters.
+  - **In the run of all 14 ports:** of the 450 diagnostics in its 21 cut prompts, 199 aren't shown. That's the last entry's 178 that started after the cut, and the 21 it cut mid-entry.
+- **It shows no more diagnostics:** across the 69, 536 of 1,407 weren't whole before, and the same 536 aren't shown now. What changes is that the agent knows they exist and that they come back.
+- **Measured for comparison:** compact JSON at the same limit would leave out 413 rather than 536. Not taken, since it changes every diagnostic's format, including those in prompts that aren't cut.
+- **Not measured:** whether this changes what agents verify. No run has used it, and Codex's passes on the five harder ports have gone 3, 0 and 2 of 15 with an example, so one rerun would be a weak test.
+- **Self-check:** `gym/test_b17.py` and `gym/test_harness.py` passed.
+- **Not changed:** `b17c`, the manuals, the tasks, Dafny's track and the recorded runs.
+- **Updated:** DECISIONS (D119, and D98's status); the README's note on M3; the roadmap's date, recent work, decisions waiting for the owner and critical path.
+- **Interfaces touched:** none.

@@ -435,6 +435,19 @@ def call_cli(cli, prompt):
         time.sleep(wait)
 
 
+def cut_diagnostics(feedback):
+    """B17's feedback up to FEEDBACK_CHARS, ending at a whole diagnostic and saying how many more
+    there are (D119). The first is kept whatever its length, so there's always one to act on."""
+    if len(feedback) <= FEEDBACK_CHARS or not feedback.startswith("["):
+        return feedback[:FEEDBACK_CHARS]
+    diags, n = json.loads(feedback), 1
+    while n < len(diags) and len(json.dumps(diags[:n + 1], indent=1)) <= FEEDBACK_CHARS:
+        n += 1
+    more = len(diags) - n
+    return json.dumps(diags[:n], indent=1) + (
+        f"\n\nDiagnostics not shown: {more}. Fix these, and the next check reports what's left." if more else "")
+
+
 def render(task, dafny_version, code=None, feedback=None):
     if task.get("lang") == "b17":
         one = task.get("subset", 0)
@@ -442,7 +455,7 @@ def render(task, dafny_version, code=None, feedback=None):
             manual=MANUAL.read_text(), supplement=MANUAL1.read_text() if one else "", frozen=task["frozen"],
             name=task["name"], first_line=task["frozen"].count("\n") + 2)
         if feedback is not None:
-            prompt += B17_REPAIR_PROMPT.format(code=code or "(none)", feedback=feedback[:FEEDBACK_CHARS])
+            prompt += B17_REPAIR_PROMPT.format(code=code or "(none)", feedback=cut_diagnostics(feedback))
         return prompt
     preamble = PREAMBLE_BLOCK.format(preamble=task["preamble"]) if task["preamble"] else ""
     prompt = TASK_PROMPT.format(dafny_version=dafny_version, signature=task["signature"],

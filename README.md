@@ -228,7 +228,7 @@ The most recent run put all 14 ports under one prompt, so it's the one to read f
 
 - **What verifies:** the two languages differ only for Codex, and mostly on the 5 harder ports, where it verified 2 of 15 against 6 of 10. On the other 9, it verified 23 of 27 against 16 of 18.
 - **Cost:** Claude's ratio falls as tasks get harder, from 3.8 times on the 9 to 2.0 on the 5, since about a third of its tokens are the fixed prompt, about 36k per call against about 4k in Dafny. So cost parity isn't shown, and that's what B17-1's case over Dafny still needs. A repeat of the 5 harder ports under the same setup gave nearly the same total for Claude, though single tasks moved by up to about 1.7 times.
-- **Something to fix in the harness:** feedback is cut at the same 6,000 characters in both languages, but B17's diagnostics are much wordier. So 21 of the 161 repair prompts Codex got were cut, against 2 of 89 in Dafny, and about 40% of the diagnostics in those prompts never reached it. Whether that accounts for any of the gap isn't measured.
+- **A limit in the harness:** feedback is cut at the same 6,000 characters in both languages, but B17's diagnostics are much wordier. So 21 of the 161 repair prompts Codex got were cut, against 2 of 89 in Dafny, and about 40% of the diagnostics in those prompts never reached it. Whether that accounts for any of the gap isn't measured. B17's cut now ends at a whole diagnostic and says how many more there are (D119), though it shows no more of them, and no run has used it yet.
 
 ## How work is recorded
 
