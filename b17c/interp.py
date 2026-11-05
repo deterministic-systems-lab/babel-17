@@ -1385,17 +1385,16 @@ class _Draws:
 
 
 def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAWS):
-    """Run the def name, checking on, on inputs from a stream starting at seed: how many inputs
-    were kept, how many of them evaluated each goal, and for each goal one refuted, its input and
-    outcome. An input is dropped if its requires fail or are unknown, or its run ends in a limit,
+    """Run the def name, checking on, on inputs from a stream starting at seed: the inputs kept,
+    how many of them evaluated each goal, and for each goal one refuted, its input and outcome. An input is dropped if its requires fail or are unknown, or its run ends in a limit,
     so it tests nothing, or if the run reaches a spec with no def."""
     p = _Program(module, subset)
     fn, gen = p.fns[name], _Draws(p, seed)
     types, top = [_ground(t, {}) for t in fn.types], p.node(fn.item)
-    n, counts, refuted = 0, Counter(), {}
+    inputs, counts, refuted = [], Counter(), {}
     with _deep(DEPTH):
         for _ in range(draws):
-            if n == kept:
+            if len(inputs) == kept:
                 break
             args = tuple([gen.value(t) for t in types])
             r = _Run(p, True, fuel, DEPTH)
@@ -1409,12 +1408,12 @@ def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAW
             if (isinstance(out, Limit) or (isinstance(out, Contract) and out.kind == "PRE" and out.node == top)
                     or any(u.kind == "PRE" and u.node == top for u in r.unchecked)):
                 continue
-            n += 1
+            inputs.append(args)
             for k, held in r.seen.items():
                 counts[k] += 1
                 if not held:
                     refuted.setdefault(k, (" ".join(map(_term, args)), text_of(out)))
-    return n, counts, refuted
+    return inputs, counts, refuted
 
 
 # WP4b's witnesses (D121): a spec's clauses at concrete values, whether or not it has a def.

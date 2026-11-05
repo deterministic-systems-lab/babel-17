@@ -2959,7 +2959,7 @@ WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10's furthe
 
 - **What's new:** `b17c/spec.py`, with six commands, each printing JSON and exiting 1 on a finding. `interp.holds` and `interp.spec_inputs` evaluate a spec's clauses at concrete values and draw D88's inputs, whether or not the spec has a def. The trusted base report gains `unsigned_specs`. D121 has the design.
 - **On the worked example:**
-  - **Vacuity:** its `requires` can hold, shown by a generated input, since the solver finds no model under the sequence axioms. Neither `ensures` clause is trivial. 8 s.
+  - **Vacuity:** its `requires` can hold, shown by a generated input, since the solver finds no model under the sequence axioms. Neither `ensures` clause is trivial: a drawn output makes each false.
   - **Witnesses:** for `[-9, 6]` and `[-8, -1]` the def gives `[-9, -8, -1, 6]`. The spec forbids `[-9, -8, -1]` and `[-9, -8, -1, 6, 6]` by the multiset clause, and `[-8, -9, -1, 6]` by `sorted`. No output a step away is also allowed.
   - **Mutants:** 23 pass tier 0 and 22 are killed by tests: 11 through `INV-KEEP`, 6 `BOUNDS`, 4 `INV-ENTRY` and 1 `POST`. The survivor takes `b`'s element first on a tie, which verifies at 10 seeds and gives the same result on every test input, so it's equivalent. 5 s.
   - **Back-translation,** Codex `gpt-5.6-sol` through codex-cli 0.145.0, in 14 s: "The caller must provide two sequences whose elements are in nondecreasing order and whose combined length is at most 9,223,372,036,854,775,807. The function allocates and returns a nondecreasing sequence containing every occurrence from both inputs exactly once, including all duplicates, with no additional elements." It found two disagreements with the header:
@@ -2968,14 +2968,27 @@ WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10's furthe
 
     Both are true. The second is outside B17's semantics (D29), so no spec could state it.
   - **Signing:** signing `merge_sorted` empties `unsigned`, and adding a clause to its spec makes it unsigned again.
-- **On the suite's 35 accept programs,** vacuity, in 17.5 minutes:
-  - **No spec** has a vacuous `requires` or a trivial `ensures` clause.
-  - **Unknown `requires`:** for 7 of B17-1's specs, 6 of them graph tasks, whether the `requires` can hold stays unknown. The solver finds no model, and none of 10,000 random inputs meets them. The same holds for nearly every lemma, whose parameters are ghost types D88 doesn't draw.
+- **On the suite's 35 accept programs,** vacuity, in 12.5 minutes:
+  - **The 40 specs:** none has a vacuous `requires`. 33 are shown satisfiable by a generated input, none by a model from the solver. For the other 7, 6 of them graph tasks, it stays unknown, since none of 10,000 random inputs meets them.
+  - **Their 75 `ensures` clauses:** none is proved trivial. 50 are shown not to be, by an input and an output that make them false. 25 stay unknown: 10 in the 7 specs with no input, and 15 that neither the solver nor 1,000 drawn outputs settles.
+  - **The 230 lemmas:** whether each `requires` can hold stays unknown. Their parameters are ghost types D88 doesn't draw, and the solver finds no model.
 - **Found while building it:**
   - **A lemma's claim always follows from its `requires`.** A first version called some lemma claims trivial, so lemmas' claims aren't judged.
   - **A vacuous `requires` makes every clause trivial,** so under one, none is judged.
   - **The solver rarely shows an output exists,** so with no def, D88 draws outputs to find one.
   - **Witnesses from D88's first inputs were unreadable,** with integers near 2^63, so the most readable distinct ones are shown.
+- **Codex review** (`gpt-5.6-sol`) found eight problems, all fixed:
+  - **No baseline for mutants:** a def that already failed had every mutant killed by its own failure. Now the def must verify and pass its tests first.
+  - **An output called allowed** where an `ensures` clause couldn't be evaluated (D58). Now one is allowed only where every clause holds.
+  - **Vacuity's verdicts:** a solver's model could be a point where the `requires` weren't defined, and `trivial: false` meant only "not proved". Now the `requires`' own goals are facts, a clause is non-trivial only on a model or a concrete input and output, and otherwise unknown. The suite's counts above are the corrected ones.
+  - **Not the tests' own inputs:** inputs that the tests drop at a limit were kept. Now `test_def` returns its kept inputs.
+  - **Exit codes:** an output a step away that the spec also allows exited 0, and errors weren't JSON.
+  - **Back-translation:** a reply with no text for a spec counted as one.
+  - **Signatures:** written in place, so a crash could leave half a file. Now atomically. Renaming a spec keeps its signature, since a hash ignores names, as D121 now says.
+  - **A statement in an `if`'s branch** was never left out. Now each is replaced by an empty block, wherever it is.
+
+  It found no way for the no-output check to prove "none" where an output exists, and that `_smt` encodes values as the verifier does. Its sandbox couldn't run `b17c/test_spec.py`.
+- **Ponytail:** cut a helper with one caller and a closure with three modes.
 - **What mutants can't show:** a mutant keeps the def's invariants, and 15 of the 22 kills came through them alone. So a spec with only `(sorted out)` would still have those mutants killed. Only a survivor shows a spec is weak, as the self-check's `x + 2` above `x` does.
 - **Self-checks:** `b17c/test_spec.py` is new and needs Z3, and `b17c/test_interp.py` checks the two new helpers in CI.
 - **Not changed:** the language, the verifier's queries, M3's prompts, harness and tasks, and the recorded runs.

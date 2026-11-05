@@ -117,7 +117,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
     - each witness forbids an output that loses an element and one out of order;
     - of 23 mutants, 22 are killed and the survivor computes the same results;
     - Codex's English matches the spec, and it found two places where the header says what the spec doesn't.
-  - **On the suite:** no spec has a vacuous `requires` or a trivial `ensures` clause. For 7 of B17-1's specs, 6 of them graph tasks, whether the `requires` can hold stays unknown: the solver finds no model, and random inputs don't meet them.
+  - **On the suite:** no spec's `requires` is vacuous, and no `ensures` clause is proved trivial. 50 of the 75 clauses are shown not to be, by an input and output that make them false, and 25 stay unknown. For 7 of B17-1's specs, 6 of them graph tasks, whether the `requires` can hold stays unknown: the solver finds no model, and random inputs don't meet them.
   - **A limit:** 15 of the 22 mutants were killed only through the def's own invariants, so a weak spec can hide behind a strong proof.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.

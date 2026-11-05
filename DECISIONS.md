@@ -1754,21 +1754,28 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Date:** 2026-11-05
 - **Decision:** `b17c/spec.py` is the design spec's `mfl spec`. Each of its commands prints JSON, and exits 1 when it finds a problem.
   - **Vacuity checks:**
-    - **The `requires` can hold:** for each spec and lemma, shown by a model from the solver or by one of D88's inputs. It's vacuous when the solver proves no input meets it, and that's a spec challenge.
-    - **No spec's `ensures` clause is trivial:** a clause is trivially true when the solver proves it from the `requires` and the results' types alone. Under a vacuous `requires` every clause would be, so none is judged. A lemma's claim always follows from its `requires`, so proving one alone only shows the lemma isn't needed, and lemmas' claims aren't judged.
+    - **The `requires` can hold:** for each spec and lemma, shown by a model from the solver or by one of D88's inputs. Each clause's own goals, that it's defined, are assumed, so a model is a point where they're defined. It's vacuous when the solver proves no input meets it, and that's a spec challenge.
+    - **No spec's `ensures` clause is trivial:** a clause is trivially true when the solver proves it from the `requires` and the results' types alone. It isn't when the solver finds a model where it's false, or an input and an output D88 draws make it false. Otherwise it's unknown. Under a vacuous `requires` every clause would be trivial, so none is judged.
+    - **A lemma's claim isn't judged:** it always follows from the lemma's `requires`, so proving one alone shows only that the lemma isn't needed.
+    - **Definedness:** an `ensures` clause is read as the verifier encodes it, where an undefined term still has a value. So whether it's defined is left to the verifier's spec goals.
   - **Witness examples:**
-    - **The inputs:** the three most readable distinct ones among D88's first 100 that meet the `requires`, which are the property tests' own (D80). Small integers come first, then more elements.
-    - **With a def:** its output, from a checked run, then each output a step away that the spec forbids, with the first clause it breaks, and each that it also allows. A step drops, repeats or changes an element, swaps two, moves an integer by one, negates a boolean or picks another constructor.
+    - **The inputs:** the three most readable distinct ones among the property tests' own (D80): the 100 they keep with a def, or D88's first 100 that meet the `requires` without one. Small integers come first, then more elements.
+    - **With a def:** its output, from a checked run, is allowed only if every `ensures` clause evaluates to true there. Otherwise it's shown with the clause it breaks, or those that can't be evaluated (D58).
+    - **Outputs a step away:** each the spec forbids, with the first clause it breaks, and each it also allows, which is a finding. A step drops, repeats or changes an element, swaps two, moves an integer by one, negates a boolean or picks another constructor.
     - **With no def:** if the solver proves that no output meets the `ensures`, that's a spec challenge. Otherwise D88 draws up to 1,000 outputs, and the first that meets them is shown. The solver rarely finds a model under the sequence axioms, so it can't show one exists by itself.
   - **Mutant rejection,** as the owner chose:
-    - **The mutants:** in the def's runtime code, each comparison, `+`, `-`, `and` and `or` changed to its neighbour, each integer literal moved by one, each `if`'s branches swapped, and each `set`, `set-idx`, `push` and `print` left out. Ghost code isn't changed, since it doesn't change what runs. A mutant that fails tier 0 is dropped.
+    - **A baseline:** the def must verify and pass its tests, or a mutant's failure needn't be its own.
+    - **The mutants:** in the def's runtime code, each comparison, `+`, `-`, `and` and `or` changed to its neighbour, each integer literal moved by one, each `if`'s branches swapped, and each `set`, `set-idx`, `push` and `print` replaced by an empty block. Ghost code isn't changed, since it doesn't change what runs. A mutant that fails tier 0 is dropped.
     - **Killed** by a property test that refutes a goal, which names the goal's family, or else by the verifier, with a goal it doesn't prove.
     - **Survivors:** a mutant that verifies survives. It's compared with the def on the tests' inputs, and if any output differs, the spec allows that bug.
   - **Back-translation,** as the owner chose: Codex (`gpt-5.6-sol`), with the harness's flags and no tools.
     - **What it's shown:** the header, data types, ghost-fns, specs, lemmas without their proofs, the core library's ghost-fns and a short guide to the notation. Defs are left out.
-    - **What it returns:** JSON with a plain-English paragraph per spec, and each way the specs and the header disagree.
+    - **What it returns:** JSON with a plain-English paragraph for each spec, every spec named, and each way the specs and the header disagree. A reply of any other shape is an error.
     - **The record:** the reply isn't deterministic, so it's kept with the CLI, its version, the model and the prompt's hash.
-  - **Signing,** as the owner chose: `sign FILE NAME REVIEWER` records the spec's hash (D46), the reviewer and the date in `FILE.signatures.json`. A spec's hash covers the hashes of the items it refers to (D45), so editing it or a ghost-fn it uses voids its signature. `unsigned FILE` lists the unsigned specs, and the trusted base report gains `unsigned_specs`.
+  - **Signing,** as the owner chose: `sign FILE NAME REVIEWER` records the spec's hash (D46), the reviewer and the date in `FILE.signatures.json`, written atomically, by one signer at a time.
+    - **What voids a signature:** a spec's hash covers the hashes of the items it refers to (D45), so editing it or a ghost-fn it uses voids its signature. Renaming it, its binders or a ghost-fn doesn't, since a hash ignores names.
+    - **The report:** `unsigned FILE` lists the unsigned specs, and the trusted base report gains `unsigned_specs`.
+  - **Errors** are JSON too, as `{"error": ...}`.
   - **Interface 9, version 0.1, Draft:**
     - **Spec signatures:** that file's JSON list of `{name, spec, by, date}`.
     - **Spec challenges:** `{kind, spec, spec_hash, query_sha256, verdict, input}`, where kind is `requires-unsatisfiable` or `no-output`, the query is the canonical one the solver proved, and only `no-output` has an input.

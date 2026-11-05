@@ -976,7 +976,7 @@ gen = G.Gen(EVERY, 1)
 counts = {}
 for name in ("helper", "count", "main"):
     kept, seen, bad = i.test_def(EVERY, name, int(H.hashes(EVERY, 1)[name][1][6:22], 16), 1)
-    assert kept == 100 and bad == {}, (name, kept, bad)
+    assert len(kept) == 100 and bad == {}, (name, len(kept), bad)
     counts.update(seen)
 missed, nth = [], {}
 for g in gen.check(EVERY):  # keyed as verify.py keys them, a loop's second check of a node as #2
@@ -1001,14 +1001,14 @@ DROP = parse(HEAD + """  (spec f (params (n i64)) (returns (r i64)) (requires (>
     (while (< i n) (invariant (<= 0 i)) (decreases (- n i)) (set i (+ i 1)))
     (return i))))""")
 kept, seen, bad = i.test_def(DROP, "f", 3, 0, fuel=1000)
-assert kept == 100 and [k[0] for k in bad] == ["POST"], (kept, bad)
+assert len(kept) == 100 and [k[0] for k in bad] == ["POST"], (len(kept), bad)
 (given, outcome), = bad.values()
 assert int(given) >= 5 and outcome.startswith("contract POST"), bad
-assert i.test_def(DROP, "f", 3, 0, fuel=1000, draws=50)[0] < 50  # negative and huge n were dropped
+assert len(i.test_def(DROP, "f", 3, 0, fuel=1000, draws=50)[0]) < 50  # negative and huge n were dropped
 NODEF = parse(HEAD + """  (spec g (params) (returns (r i64)) (effects))
   (spec f (params (n i64)) (returns (r i64)) (effects))
   (def f (body (let ((r i64)) (call g)) (return r))))""")
-assert i.test_def(NODEF, "f", 3, 0, draws=20)[0] == 0  # g has no def to run
+assert i.test_def(NODEF, "f", 3, 0, draws=20)[0] == []  # g has no def to run
 
 # WP4b's witnesses (D121): a spec's clauses at concrete values, and inputs whose requires hold,
 # whether or not the spec has a def.

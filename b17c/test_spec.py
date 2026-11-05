@@ -37,6 +37,7 @@ assert c["spec_hash"].startswith("spec0:") and len(c["query_sha256"]) == 64 and 
 (m,) = S.vacuity(module("""(spec f (params (a (ref (slice i64)))) (returns (r (vec i64))) (requires (> (len a) 0))
     (ensures (>= (len r) 0) (== (len r) (len a))) (effects))"""), 0)
 assert m["requires"]["verdict"] == "satisfiable" and [c["trivial"] for c in m["ensures"]] == [True, False], m
+assert "false_at" in m["ensures"][1] and "false_at" not in m["ensures"][0], m  # shown by an input and an output
 
 # A lemma's claim always follows from its requires, so only its requires are judged.
 lemma = next(e for e in S.vacuity(syntax.parse((SUITE / "accept/isqrt.b17").read_bytes(), 0), 0) if e["item"] == "lemma square_bound")
@@ -51,6 +52,11 @@ for w in ws:
     assert w["allowed"] == [f"(seq-lit {' '.join(map(str, sorted(a + b)))})".replace("seq-lit )", "seq-lit)")], w
     assert {f["breaks"] for f in w["forbidden"]} >= {"(sorted out)", "(== (multiset out) (msum (multiset a) (multiset b)))"}, w
     assert w["also_allowed"] == [], w
+# An output is allowed only where every ensures clause holds: an unbounded quantifier can't be evaluated (D58).
+(w, *_) = S.witness(module("""(spec f (params (x i64)) (returns (r i64)) (requires (>= x 0) (< x 100))
+    (ensures (forall ((k int)) (=> (> k r) (> k x)))) (effects))
+  (def f (body (return x)))"""), "f", 0)
+assert "allowed" not in w and w["output"] == [w["input"][0]] and w["breaks"] is None and len(w["unchecked"]) == 1, w
 # A weak spec allows nearby outputs too.
 (w, *_) = S.witness(module("""(spec f (params (x i64)) (returns (r i64)) (requires (>= x 0) (< x 100)) (ensures (> r x)) (effects))
   (def f (body (return (+ x 1))))"""), "f", 0)
@@ -67,6 +73,17 @@ ms = S.mutants(MERGE, "merge_sorted", 0, seeds=1, cache=TMP / "cache")
 assert len(ms) > 15 and [m for m in ms if m["killed"] is None] == [
     {"change": "(<= (idx a i) (idx b j)) -> (< (idx a i) (idx b j))", "path": "2.4.9.1.2.2", "killed": None, "differs_at": None}], ms
 assert {m["goal"] for m in ms if m["killed"] == "test"} >= {"POST", "INV-KEEP"}, ms
+# A def that doesn't verify has no baseline, so its mutants say nothing.
+try:
+    S.mutants(module("""(spec f (params (x i64)) (returns (r i64)) (requires (>= x 0) (< x 100)) (ensures (> r x)) (effects))
+  (def f (body (return x)))"""), "f", 0, seeds=1, cache=TMP / "cache")
+    raise AssertionError("no baseline")
+except ValueError as e:
+    assert "doesn't verify" in str(e)
+# A statement is left out wherever it is, an if's branch included.
+BRANCH = module("""(spec f (params (x i64)) (returns (r i64)) (requires (>= x 0) (< x 100)) (ensures (>= r 0)) (effects))
+  (def f (body (let-mut y i64 0) (if (> x 5) (set y x) (set y 1)) (return y)))""")
+assert {m["change"] for m in S.mutants(BRANCH, "f", 0, seeds=1, cache=TMP / "cache")} >= {"(set y x) -> (block)", "(set y 1) -> (block)"}
 # A weak spec lets a mutant through that computes something else: x + 2 is also above x.
 WEAK = module("""(spec f (params (x i64)) (returns (r i64)) (requires (>= x 0) (< x 100)) (ensures (> r x)) (effects))
   (def f (body (return (+ x 1))))""")
@@ -87,6 +104,11 @@ assert r["specs"] == {"merge_sorted": "merges"} and r["disagreements"] == [] and
 assert len(r["prompt_sha256"]) == 64 and r["version"].startswith("Python"), r  # the def isn't shown
 r = S.english(module("(spec f (params) (returns (r i64)) (effects))"), [sys.executable, str(fake), "-o", "{reply}", "-"])
 assert r["specs"] is None and r["error"] == "the reply isn't the JSON asked for", r
+# A reply that leaves out a spec, or gives one no text, isn't one either.
+for reply in ('{"specs": null, "disagreements": []}', '{"specs": {}, "disagreements": []}', '{"specs": {"merge_sorted": ""}, "disagreements": []}'):
+    (TMP / "reply.py").write_text(f"import sys; open(sys.argv[sys.argv.index('-o') + 1], 'w').write({reply!r})")
+    r = S.english(MERGE, [sys.executable, str(TMP / "reply.py"), "-o", "{reply}", "-"])
+    assert r["specs"] is None and r["error"] == "the reply isn't the JSON asked for", (reply, r)
 
 # Signing: a signature records the spec's hash, so editing the spec makes it unsigned again, and
 # the trusted base report lists the specs no one has signed.
@@ -101,6 +123,10 @@ with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.St
     assert V.main(["--subset", "0", "--seeds", "1", "--cache", str(TMP / "cache"), "--report", str(TMP / "r.json"), str(f)]) == 0
     assert S.main(["--subset", "0", "nonsense", str(f)]) == 2 and S.main(["--subset", "0", "witness", str(f), "nope"]) == 2
     assert S.main(["--subset", "0", "unsigned", str(f)]) == 0 and S.main(["--subset", "0", "--seeds", "1", "mutants", str(f), "merge_sorted"]) == 0
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        assert S.main(["--subset", "0", "vacuity", str(TMP / "missing.b17")]) == 1
+    assert "error" in json.loads(printed.getvalue())  # errors are JSON too
 assert json.loads((TMP / "r.json").read_text())["unsigned_specs"] == []
 
 print("spec workbench self-check passed")
