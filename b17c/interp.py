@@ -12,6 +12,8 @@ run() assumes the program passes tier 0 (WP3). With check=False it is §8: ghost
 erased. With check=True it also evaluates contracts, invariants, measures, asserts,
 ghost locals and ghost-fn calls, and stops at the first clause the run refutes (D57).
 A quantifier whose range can't be read off its guard is never assumed (D58).
+
+test_def() runs a def on D88's generated inputs with checking on, for L1 (D80, docs/b17-1.md §10).
 """
 import operator
 import sys
@@ -26,6 +28,7 @@ CORE = parse((Path(__file__).parent / "core.b17").read_bytes(), 0)
 CORE1 = parse((Path(__file__).parent / "core1.b17").read_bytes(), 1)  # B17-1's option (docs/b17-1.md §9)
 MIN, MAX = -2**63, 2**63 - 1
 FUEL, DEPTH = 1_000_000, 1_000  # D59: steps per run, and nested def and ghost-fn calls
+KEPT, DRAWS = 100, 10_000       # D88: inputs that satisfy the requires, from at most this many draws
 
 
 class _Unknown:
@@ -435,6 +438,7 @@ class _Program:
 
     def __init__(self, module, subset=SUBSET):
         self.fns, self.ids, specs, defs = {}, {}, {}, {}
+        self.later = {}  # a loop -> the nodes it checks again after each pass
         self.sub, self.datas, self.ctors = subset, {}, {}  # data name -> item; constructor -> (item, field names)
         for m in (CORE, CORE1, module) if subset else (CORE, module):
             for item in m.items[3:]:
@@ -476,6 +480,18 @@ class _Program:
     def node(self, x):
         item, path = self.ids.get(id(x), ("argument", ()))
         return Node(item, path, x.pos)
+
+    def again(self, s):
+        """The ids of the nodes that loop s checks again after each pass: its condition's and its
+        invariants'. goals.py checks them twice too, so a goal there is #2 the second time (D63)."""
+        if id(s) not in self.later:
+            out, todo = set(), [s.items[1], *(c.items[1] for c in s.items[2:] if _head(c) == "invariant")]
+            while todo:
+                x = todo.pop()
+                out.add(id(x))
+                todo += x.items if isinstance(x, Form) else []
+            self.later[id(s)] = out
+        return self.later[id(s)]
 
     def fits(self, v, t, params):
         """Whether v is a value of the type t, a spec's parameter type, whose type parameters
@@ -531,6 +547,8 @@ class _Run:
         self.memo = {}       # (ghost-fn name, args) -> value; ghost-fns are pure
         self.active = set()  # (ghost-fn name, args) of the ghost-fn calls in progress
         self.clause = None   # the clause being evaluated, to which a failure inside it belongs
+        self.seen = None     # for L1's tests: goal key -> whether it held, each time one is evaluated (D80)
+        self.again = None    # while a loop checks its condition or invariants after a pass, the nodes they hold
         self.exprs = _EXPRS | _EXPRS_1 if program.sub else _EXPRS  # B17-0 may name a ghost-fn union (D101)
 
     def tick(self, x):
@@ -538,7 +556,15 @@ class _Run:
         if self.fuel < 0:
             raise _Stop(Limit("steps", self.p.node(x)))
 
+    def saw(self, family, x, clause=None, held=True):
+        """The goal (family, x, clause) was evaluated, keyed as verify.py keys goals.py's goals: the
+        second of its name when a loop checks it after a pass. A loop's INV goals are one each."""
+        if self.seen is not None:
+            again = self.again is not None and id(x) in self.again and not family.startswith("INV-")
+            self.seen[family, id(x), None if clause is None else id(clause), 2 if again else 1] = held
+
     def fail(self, reason, x, detail, g):
+        self.saw(reason, x, held=False)
         node = self.p.node(x)
         if g:
             clause = self.p.node(self.clause) if self.clause is not None else node
@@ -594,6 +620,7 @@ class _Run:
             def store(old):
                 if not 0 <= i < len(old):
                     self.fail("BOUNDS", s, f"(set-idx {_print(it[1])} {i} ...) on a vector of length {len(old)}", False)
+                self.saw("BOUNDS", s)
                 return old[:i] + (v,) + old[i + 1:]
             env[root] = self.put(env[root], steps, store)
         elif h == "push":
@@ -603,6 +630,7 @@ class _Run:
             def grow(old):  # D114
                 if len(old) >= MAX:
                     self.fail("OVERFLOW", s, f"(push {_print(it[1])} ...) on a vector of length {len(old)}", False)
+                self.saw("OVERFLOW", s)
                 return old + (v,)
             env[root] = self.put(env[root], steps, grow)
         elif h == "if":
@@ -661,6 +689,7 @@ class _Run:
         if h == "idx":
             if not 0 <= i < len(v):
                 self.fail("BOUNDS", f, f"(idx {_print(f.items[1])} {i}) on a vector of length {len(v)}", False)
+            self.saw("BOUNDS", f)
             return v[:i] + (self.put(v[i], rest, change),) + v[i + 1:]
         if h == "get":
             k = f.items[2].value
@@ -673,6 +702,7 @@ class _Run:
         names, f = self.p.ctors[v.ctor][1], x.items[2].text
         if f not in names:
             self.fail("FIELD", x, f"a {v.ctor} value has no field {f}", g)
+        self.saw("FIELD", x)
         return names.index(f)
 
     def arm(self, x, v, env):
@@ -694,21 +724,33 @@ class _Run:
         if self.check:
             for e in invs:
                 self.holds("INV-ENTRY", e, env, s)
-        while self.eval(it[1], env, False):
+        again = None
+        while True:
+            self.again = again  # no statement runs inside a condition, so nothing resets it early
+            c = self.eval(it[1], env, False)
+            self.again = None
+            if not c:
+                break
             d0 = self.measure(dec, env, s) if self.check else None
             r = self.block(body, env)
             if r is not None:
                 return r
+            again = self.p.again(s) if self.seen is not None else None
             if self.check:
+                self.again = again
                 for e in invs:
                     self.holds("INV-KEEP", e, env, s)
+                self.again = None
                 if d0 is not None:
                     d = self.ghost(dec, env)
                     if d is UNKNOWN:
                         self.note("TERM", dec, s)
                     elif not d < d0:
+                        self.saw("TERM", dec, s, held=False)
                         raise _Stop(Contract("TERM", self.p.node(dec), self.p.node(s),
                                              f"the measure went from {d0} to {d}"))
+                    else:
+                        self.saw("TERM", dec, s)
         return None
 
     def measure(self, dec, env, s):
@@ -717,8 +759,10 @@ class _Run:
             self.note("TERM", dec, s)
             return None
         if d < 0:
+            self.saw("TERM", dec, held=False)
             raise _Stop(Contract("TERM", self.p.node(dec), self.p.node(s),
                                  f"the measure is {d} while the loop condition holds"))
+        self.saw("TERM", dec)
         return d
 
     def call(self, c, env):
@@ -732,17 +776,21 @@ class _Run:
                 for e in fn.requires:
                     self.holds("PRE", e, lenv, c)
                 for e in fn.ensures:
-                    self.holds("POST", e, lenv, c)
+                    self.holds("POST", e, lenv, c, (fn.item, e))  # the lemma's own goal
             return ()
         return self.invoke(fn, [self.eval(a, env, False) for a in c.items[2:]], c)
 
-    def holds(self, kind, e, env, site):
+    def holds(self, kind, e, env, site, goal=None):
         """Check clause e at site: false ends the run (D57); unknown is recorded, not assumed (D58)."""
+        x, clause = goal or ((e, None) if kind.startswith("INV") else (site, None) if kind == "ASSERT" else (site, e))
         v = self.ghost(e, env)
         if v is UNKNOWN:
             self.note(kind, e, site)
         elif not v:
+            self.saw(kind, x, clause, held=False)
             raise _Stop(Contract(kind, self.p.node(e), self.p.node(site), f"{_print(e)} is false"))
+        else:
+            self.saw(kind, x, clause)
 
     def ghost(self, e, env):
         """e's value in ghost context, with any failure inside it charged to e."""
@@ -753,13 +801,17 @@ class _Run:
             self.clause = saved
 
     def quiet(self, e, env):
-        """e's value in ghost context, or None where it's undefined or unknown, without failing."""
+        """e's value in ghost context, or None where it's undefined or unknown, without failing.
+        This evaluates no goal: it may run where a goal's guard doesn't hold."""
+        seen, self.seen = self.seen, None
         try:
             v = self.ghost(e, env)
         except _Stop as stop:
             if isinstance(stop.outcome, Limit):
                 raise
             return None
+        finally:
+            self.seen = seen
         return None if v is UNKNOWN else v
 
     def enter(self, fn, env, site):
@@ -780,7 +832,12 @@ class _Run:
                 if fn.kind == "ghost-fn":
                     return False
             elif not v:
+                self.saw("PRE", site, e if fn.kind == "def" else None, held=False)
                 raise _Stop(Contract("PRE", self.p.node(e), self.p.node(site), f"{_print(e)} is false"))
+            elif fn.kind == "def":
+                self.saw("PRE", site, e)
+        if fn.kind != "def":  # a ghost-fn's requires are one goal, p!NAME
+            self.saw("PRE", site)
         if fn.decreases is not None:
             if frame[1] is None or frame[1] is _PENDING:  # unneeded, or undefined, before the requires held
                 m = self.ghost(fn.decreases, env)
@@ -805,10 +862,13 @@ class _Run:
             return  # recorded as unchecked already
         if m < 0 or (old is not None and m >= old):
             source = "" if old is None else f" from measure {old}"
+            self.saw("TERM", site, held=False)
             raise _Stop(Contract("TERM", self.p.node(fn.decreases), self.p.node(site),
                                  f"the measure is {m} at a recursive call{source}"))
         if old is None:
             self.note("TERM", fn.decreases, site)
+        else:
+            self.saw("TERM", site)
 
     # Expressions.
 
@@ -873,11 +933,13 @@ class _Run:
                 self.fail("DIV", x, f"({h} {a} 0) divides by zero", g)
             if not g and a == MIN and b == -1:
                 self.fail("DIV", x, f"({h} {a} -1) leaves i64", g)
+            self.saw("DIV", x)
             q = abs(a) // abs(b) if (a < 0) == (b < 0) else -(abs(a) // abs(b))  # toward zero (D37)
             return q if h == "/" else a - b * q  # so % takes the dividend's sign
         r = a + b if h == "+" else a - b if h == "-" else a * b
         if not g and not MIN <= r <= MAX:
             self.fail("OVERFLOW", x, f"({h} {a} {b}) = {r} leaves i64", g)
+        self.saw("OVERFLOW", x)
         return r
 
     def e_not(self, x, env, g):
@@ -890,6 +952,7 @@ class _Run:
             return UNKNOWN
         if not g and a == MIN:
             self.fail("OVERFLOW", x, f"(neg {a}) leaves i64", g)
+        self.saw("OVERFLOW", x)
         return -a
 
     def e_if(self, x, env, g):
@@ -909,6 +972,7 @@ class _Run:
         s, i = v
         if not 0 <= i < len(s):
             self.fail("BOUNDS", x, f"(idx s {i}) on a sequence of length {len(s)}", g)
+        self.saw("BOUNDS", x)
         return s[i]
 
     def e_borrow(self, x, env, g):
@@ -923,6 +987,7 @@ class _Run:
             return UNKNOWN
         if n < 0:
             self.fail("BOUNDS", x, f"(seq-build {n} ...) has a negative length", g)
+        self.saw("BOUNDS", x)
         fn = x.items[2]
         i, body, inner, out = fn.items[1].items[0].text, fn.items[2], dict(env), []
         for k in range(n):  # exactly 0 <= i < n (D38)
@@ -944,6 +1009,7 @@ class _Run:
         s, k = v
         if not 0 <= k <= len(s):
             self.fail("BOUNDS", x, f"({x.items[0].text} s {k}) on a sequence of length {len(s)}", g)
+        self.saw("BOUNDS", x)
         return s[:k] if x.items[0].text == "take" else s[k:]
 
     def e_concat(self, x, env, g):
@@ -956,6 +1022,7 @@ class _Run:
             return UNKNOWN
         if not s:
             self.fail("BOUNDS", x, "(last s) of an empty sequence", g)
+        self.saw("BOUNDS", x)
         return s[-1]
 
     def e_contains(self, x, env, g):
@@ -1171,6 +1238,7 @@ class _Run:
         m, k = v
         if k not in m:
             self.fail("BOUNDS", x, f"(lookup m {_term(k)}) of a map without that key", g)
+        self.saw("BOUNDS", x)
         return m[k]
 
     def apply(self, x, env, g=True):
@@ -1193,9 +1261,11 @@ class _Run:
             if m is not None:
                 self.term(fn, m, m, x)  # fails, since m < m doesn't hold
             clause = fn.decreases if fn.decreases is not None else fn.item
+            self.saw("TERM", x, held=False)
             raise _Stop(Contract("TERM", self.p.node(clause), self.p.node(x),
                                  "a recursive call with its caller's own arguments"))
         if key in self.memo:  # its requires held before; a recursive call still checks its measure
+            self.saw("PRE", x)
             if self.check and fn.decreases is not None and caller is not None and caller[0] is fn:
                 m = self.ghost(fn.decreases, fenv)
                 if m is UNKNOWN:
@@ -1234,6 +1304,117 @@ _EXPRS_1 = {
 _FLIP = {"<": ">", "<=": ">=", ">": "<", ">=": "<=", "==": "==", "!=": "!="}
 _COMPARE = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge, "==": operator.eq,
             "!=": operator.ne}
+
+
+# L1's property tests (D80, D88, docs/b17-1.md §10).
+
+_U64 = 2**64 - 1
+_BOUNDARY = (MIN, MIN + 1, -1, 0, 1, MAX - 1, MAX)
+
+
+def _ground(t, env):
+    """Type form t with env's type parameters replaced, as nested tuples: ("vec", ("i64",))."""
+    if isinstance(t, Sym):
+        return env.get(t.text, (t.text,))
+    if t.items[0].text == "ref":  # (ref (slice T)), a spec's parameter
+        return _ground(t.items[1], env)
+    return (t.items[0].text, *[_ground(a, env) for a in t.items[1:]])
+
+
+class _Draws:
+    """D88's inputs: one SplitMix64 stream, consumed in §10's order. A def's parameters are
+    runtime types (§3), so these are the only types a value is drawn for."""
+
+    def __init__(self, program, seed):
+        self.p, self.state = program, seed
+
+    def next(self):
+        self.state = (self.state + 0x9E3779B97F4A7C15) & _U64
+        z = ((self.state ^ (self.state >> 30)) * 0xBF58476D1CE4E5B9) & _U64
+        z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & _U64
+        return z ^ (z >> 31)
+
+    def below(self, n):
+        return self.next() % n
+
+    def ctors(self, t):
+        """Data type t's constructors, each as (name, its field types)."""
+        item = self.p.datas[t[0]]
+        env = {a.text: u for a, u in zip(item.items[2].items, t[1:])}
+        return [(c.items[0].text, [_ground(f.items[1], env) for f in c.items[1:]]) for c in item.items[3:]]
+
+    def value(self, t, depth=0):
+        h = t[0]
+        if h == "bool":
+            return self.below(2) == 1
+        if h == "i64":
+            k = self.below(4)
+            if k < 2:
+                return self.below(21) - 10
+            if k == 2:
+                return _BOUNDARY[self.below(7)]
+            v = self.next()
+            return v - 2**64 if v > MAX else v
+        if h in ("vec", "slice"):
+            return tuple([self.value(t[1], depth) for _ in range(self.below(9))])
+        if h == "tuple":
+            return Tup(tuple([self.value(u, depth) for u in t[1:]]))
+        if depth == 4:
+            return self.smallest(t)[1]
+        ctors = self.ctors(t)
+        name, fields = ctors[self.below(len(ctors))]
+        return Data(name, tuple([self.value(f, depth + 1) for f in fields]))
+
+    def smallest(self, t, seen=()):
+        """How many constructors t's smallest value is built with, and the value, or None for a
+        data type already being built: a smallest value never holds its own type."""
+        h = t[0]
+        if h in ("bool", "i64", "vec", "slice"):
+            return 0, {"bool": False, "i64": 0}.get(h, ())
+        if h == "tuple":
+            parts = [self.smallest(u, seen) for u in t[1:]]
+            return None if None in parts else (sum(p[0] for p in parts), Tup(tuple(p[1] for p in parts)))
+        if t in seen:
+            return None
+        best = None
+        for name, fields in self.ctors(t):  # the first in declaration order among ties
+            parts = [self.smallest(f, seen + (t,)) for f in fields]
+            if None not in parts and (best is None or 1 + sum(p[0] for p in parts) < best[0]):
+                best = 1 + sum(p[0] for p in parts), Data(name, tuple(p[1] for p in parts))
+        return best
+
+
+def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAWS):
+    """Run the def name, checking on, on inputs from a stream starting at seed: how many inputs
+    were kept, how many of them evaluated each goal, and for each goal one refuted, its input and
+    outcome. An input is dropped if its requires fail or are unknown, or its run ends in a limit,
+    so it tests nothing, or if the run reaches a spec with no def."""
+    p = _Program(module, subset)
+    fn, gen = p.fns[name], _Draws(p, seed)
+    types, top = [_ground(t, {}) for t in fn.types], p.node(fn.item)
+    n, counts, refuted = 0, Counter(), {}
+    with _deep(DEPTH):
+        for _ in range(draws):
+            if n == kept:
+                break
+            args = tuple([gen.value(t) for t in types])
+            r = _Run(p, True, fuel, DEPTH)
+            r.seen = {}
+            try:
+                out = Ok(r.invoke(fn, args, fn.item))
+            except _Stop as e:
+                out = e.outcome
+            except _Unbound:
+                continue
+            if (isinstance(out, Limit) or (isinstance(out, Contract) and out.kind == "PRE" and out.node == top)
+                    or any(u.kind == "PRE" and u.node == top for u in r.unchecked)):
+                continue
+            n += 1
+            for k, held in r.seen.items():
+                counts[k] += 1
+                if not held:
+                    refuted.setdefault(k, (" ".join(map(_term, args)), text_of(out)))
+    return n, counts, refuted
 
 
 def _conjuncts(x):

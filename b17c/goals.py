@@ -188,6 +188,29 @@ def clauses(item, head):
     return [c.items[1:] for c in item.items if _head(c) == head]
 
 
+class Fact(str):
+    """A fact's SMT text, and what L2's closure needs to know of it (D80, D91): on, the goals and
+    items it rests on, and for one that joins a branch, the branch's guard and facts."""
+
+    def __new__(cls, text, on=(), guard=None, parts=None):
+        f = super().__new__(cls, text)
+        f.on, f.guard, f.parts = frozenset(on), guard, parts
+        return f
+
+
+def without(facts, dead):
+    """facts less each one that rests on something in dead, which a joined branch's others outlive."""
+    out = []
+    for f in facts:
+        if isinstance(f, Fact):
+            if f.on & dead:
+                continue
+            if f.parts is not None:
+                f = f"(=> {f.guard} (and true {' '.join(without(f.parts, dead))}))"
+        out.append(f)
+    return out
+
+
 class State:
     def __init__(self, env, facts):
         self.env, self.facts = env, facts  # env: name -> (term, type)
@@ -220,6 +243,7 @@ class Gen:
         self.part = "spec"  # whose goals: the spec part's or the implementation part's (D45)
         self.inputs = {}    # the current item's parameters: name -> (term, type), for counterexamples
         self.ghost = set()  # ids of the nodes generated in ghost context
+        self.opaque = {}    # ghost-fn -> its entries in funs, as they read once its equation doesn't count (D91)
         self.funs = self.ghost_fns()
 
     # Names.
@@ -475,13 +499,14 @@ class Gen:
     def goal(self, st, guard, family, x, g, clause=None):
         if self.quiet:
             return
-        g = wrap(guard, g)
+        g, k = wrap(guard, g), len(self.goals)
         self.goals.append((self.item[0], family, x.pos, list(st.facts), g, x, self.part, clause, self.inputs))
-        st.facts.append(g)  # every goal is assumed once generated (§9)
+        st.facts.append(Fact(g, {k}))  # every goal is assumed once generated (§9)
+        return k
 
-    def fact(self, st, guard, f):
+    def fact(self, st, guard, f, on=()):
         if st is not None and not any(k == "all" for k, _ in guard):
-            st.facts.append(wrap(guard, f))
+            st.facts.append(Fact(wrap(guard, f), on))
 
     # Expressions: (SMT term, SMT sort).
     def expr(self, x, st, ghost, guard=(), want="SI"):
@@ -592,7 +617,7 @@ class Gen:
             return f"({h} ({decl}) {body})", "Bool"
         if h == "seq-build":
             n, _ = e(a[0])
-            self.goal(st, guard, "BOUNDS", x, f"(>= {n} 0)")
+            k = self.goal(st, guard, "BOUNDS", x, f"(>= {n} 0)")
             name = a[1].items[1].items[0].text
             i = self.bound(name)
             inner = State(dict(st.env), st.facts)
@@ -605,18 +630,21 @@ class Gen:
             # off the encoded body, where a seq-build lifted inside this one takes the index as an argument.
             same = i not in re.findall(r"[^\s()]+", body)
             counted = lambda r: f"(= {fn('ms', ss, r)} (store ((as const (Array {srt} Int)) 0) {body} {n}))"
+            under = guard + (("if", f"(>= {n} 0)"),)
             if not bound and self.lifting is None:
+                # Its length is n only where its BOUNDS goal holds: so these facts rest on that goal, or
+                # where none is generated, as in a callee's ensures, are guarded by it (D120).
                 r = self.fresh("seq", ss)
-                self.fact(st, guard, f"(= {fn('len', ss, r)} {n})")
+                where, on = (guard, {k}) if k is not None else (under, ())
+                self.fact(st, where, f"(= {fn('len', ss, r)} {n})", on)
                 self.fact(st, guard, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")
                 if same:
-                    self.fact(st, guard, counted(r))
+                    self.fact(st, where, counted(r), on)
                 return r, ss
             # Under binders, a function of them, with its facts at every point where the length
             # is defined; in a ghost-fn's body, an axiom beside its definition.
             f = self.name("seq")
             r = app(f, [v for v, _ in bound])
-            under = guard + (("if", f"(>= {n} 0)"),)
             facts = [wrap(under, f"(= {fn('len', ss, r)} {n})"),
                      wrap(under, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")]
             facts += [wrap(under, counted(r))] if same else []
@@ -799,32 +827,35 @@ class Gen:
             self.quiet = q
             lifted, self.lifting = self.lifting, None
             ret, pre = self.sort(f.items[3]), f"(and true {' '.join(pre)})"
+            sorts = " ".join(p.split(" ", 1)[1][:-1] for p in ps)
+            requires = f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"
+            opaque = self.opaque[name] = {requires: f"(declare-fun p!{name} ({sorts}) Bool)"}
             if name not in self.calls(f) and not (self.sub and ps):
                 out.extend(lifted)
                 out.append((None, f"(define-fun g!{name} ({' '.join(ps)}) {ret} {body})"))
-                out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
+                opaque[out[-1][1]] = f"(declare-fun g!{name} ({sorts}) {ret})"
+                out.append((None, requires))
                 return
             if name not in self.calls(f):
                 # B17-1 (D106): a function with a definition triggered by its applications, not a
                 # macro, so it unfolds only where a proof applies it. Inlined into a quantified
                 # invariant, a body with its own quantifiers multiplies the instantiations of
                 # every query that carries the invariant.
-                sorts = " ".join(p.split(" ", 1)[1][:-1] for p in ps)
                 args = [p[1:].split(" ", 1)[0] for p in ps]
                 out.extend(lifted)
                 out.append((None, f"(declare-fun g!{name} ({sorts}) {ret})\n"
                                   f"(assert (forall ({' '.join(ps)}) (! (= {app('g!' + name, args)} {body}) "
                                   f":pattern ({app('g!' + name, args)}))))"))
-                out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
+                opaque[out[-1][1]] = f"(declare-fun g!{name} ({sorts}) {ret})"
+                out.append((None, requires))
                 return
             # Recursive: its equation holds only under its requires, and the ghost-fn's own goals
             # are checked without it (see query). A definition that doesn't terminate could
             # otherwise be contradictory, and prove everything, its own TERM goal included.
-            sorts = " ".join(p.split(" ", 1)[1][:-1] for p in ps)
             args = [p[1:].split(" ", 1)[0] for p in ps]
             out.append((None, f"(declare-fun g!{name} ({sorts}) {ret})"))
             out.extend(lifted)  # after the declaration, since a lifted seq-build may call it
-            out.append((None, f"(define-fun p!{name} ({' '.join(ps)}) Bool {pre})"))
+            out.append((None, requires))
             # Its measure is proved only for values of its parameter types, so its equation holds
             # only for those: an SMT value may have an i64 field out of range, where recursion
             # needn't descend.
@@ -833,6 +864,7 @@ class Gen:
             eq = f"(=> {pre_} (= {app('g!' + name, args)} {body}))"
             out.append((name, f"(assert (forall ({' '.join(ps)}) (! {eq} :pattern ({app('g!' + name, args)}))))"
                         if ps else f"(assert {eq})"))
+            opaque[out[-1][1]] = ""
 
         for name, d in self.defs.items():
             if "ghost-fn" in d:
@@ -961,11 +993,11 @@ class Gen:
         decl, inner = self.binders(a[0].items, st)
         if h == "obtain":  # D100: e's goals at every point, then ∃x. e; then x names a witness
             t, _ = self.expr(a[1], inner, True, (("all", decl),))
-            self.goal(st, (), "ASSERT", x, f"(exists ({decl}) {t})")
+            k = self.goal(st, (), "ASSERT", x, f"(exists ({decl}) {t})")
             for b in a[0].items:
                 self.var(st, b.items[0].text, b.items[1])
             q, self.quiet = self.quiet, True
-            st.facts.append(self.expr(a[1], st, True)[0])
+            st.facts.append(Fact(self.expr(a[1], st, True)[0], {k}))
             self.quiet = q
             return st
         # D99: (forall ((x T) ...) (call L e*)): the arguments' goals at every point, L's measure
@@ -984,7 +1016,7 @@ class Gen:
         self.quiet = q
         if self.item and name == self.item[0]:
             self.term_goal(st, every + (("if", f"(and true {req})"),), c, lemma, terms)
-        st.facts.append(f"(forall ({decl}) (=> (and true {req}) (and true {ens})))")
+        st.facts.append(Fact(f"(forall ({decl}) (=> (and true {req}) (and true {ens})))", {("item", name)}))
         return st
 
     def place(self, p, st, ghost):
@@ -1046,8 +1078,8 @@ class Gen:
             return yes or no
         st = State(dict(base.env), list(base.facts))
         n = len(base.facts)
-        st.facts.append(f"(=> {c} (and true {' '.join(yes.facts[n:])}))")
-        st.facts.append(f"(=> (not {c}) (and true {' '.join(no.facts[n:])}))")
+        st.facts.append(Fact(f"(=> {c} (and true {' '.join(yes.facts[n:])}))", guard=c, parts=yes.facts[n:]))
+        st.facts.append(Fact(f"(=> (not {c}) (and true {' '.join(no.facts[n:])}))", guard=f"(not {c})", parts=no.facts[n:]))
         for name, (t, typ) in base.env.items():
             if yes.env[name][0] != no.env[name][0]:
                 m = self.var(st, name, typ)
@@ -1068,7 +1100,7 @@ class Gen:
         for name in [n for n in self.assigned(body) if n in st.env]:  # in a name-independent order (D63)
             self.var(it, name, st.env[name][1])  # what an iteration forgets
         for inv in invs:
-            it.facts.append(self.expr(inv, it, True)[0])
+            it.facts.append(Fact(self.expr(inv, it, True)[0], {("inv", id(inv))}))
         c, _ = self.expr(cond, it, ghost)
         after = it.copy()
         it.facts.append(c)
@@ -1114,14 +1146,15 @@ class Gen:
         q, self.quiet = self.quiet, True
         pres = [(c, self.expr(c, env, True)[0]) for cl in clauses(callee, "requires") for c in cl]
         self.quiet = q
-        for c, pre in pres:
-            self.goal(st, (), "PRE", x, pre, clause=c)
+        if g:  # a lemma's call is ghost code, though its node isn't an expression
+            self.ghost.add(id(x))
+        on = {("item" if "lemma" in d else "post", name), *(self.goal(st, (), "PRE", x, pre, clause=c) for c, pre in pres)}
         if self.item and name == self.item[0]:
             self.term_goal(st, (), x, d.get("def") or callee, terms)
         for r, p in zip(results, clauses(callee, "returns")[0] if "spec" in d else ()):
             env.env[p.items[0].text] = (self.var(st, r.items[0].text, r.items[1]), p.items[1])
         q, self.quiet = self.quiet, True
-        st.facts += [self.expr(c, env, True)[0] for cl in clauses(callee, "ensures") for c in cl]
+        st.facts += [Fact(self.expr(c, env, True)[0], on) for cl in clauses(callee, "ensures") for c in cl]
         self.quiet = q
 
     def ret(self, x, a, st, ghost):
@@ -1208,13 +1241,14 @@ class Gen:
             self.post(it, it, State(dict(end.env), end.facts), end)
 
 
-def query(gen, facts, g, item=None):
+def query(gen, facts, g, item=None, opaque=()):
     """One goal's query: only the declarations and ghost-fns it uses, so an edit elsewhere in
     the module leaves it unchanged (D22, D63). A recursive ghost-fn's own goals don't get its
-    definition."""
+    definition, and nor does any goal get an opaque ghost-fn's, whose equation doesn't count (D91)."""
     asserts = [*(f"(assert {f})" for f in facts), f"(assert (not {g}))", "(check-sat)"]
     used = set(TOKEN.findall(" ".join(asserts)))
-    funs = [(name, t) for name, t in gen.funs if name is None or name != item]
+    read = {t: r for name in opaque for t, r in gen.opaque.get(name, {}).items()}
+    funs = [(name, read.get(t, t)) for name, t in gen.funs if name is None or name != item]
     keep, grew = set(), True
     while grew:  # the ghost-fns the query uses, and the ones they use
         grew = False

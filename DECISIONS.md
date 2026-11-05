@@ -907,7 +907,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **`rank`** keeps measures integers, so §7's termination goal doesn't change.
 - **Touches:** D20; D36; D42; D58; D62; D65; D68; D69; D71; WP3; WP4a; WP5; WP7; WP10; WP15; WP16; interfaces 1, 6, 10 and 11; `docs/b17-0.md` §8 and §11; `docs/roadmap.md`; `README.md`.
 
-## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63; refined by D91)
+## D80 · Verification levels, and what an unproved goal does below L2 · Accepted (refines D63; refined by D91 and D120)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Levels are cumulative:**
@@ -1046,7 +1046,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Every data value:** an LLRB tree recurses on `(option node)`, which isn't itself recursive, so `rank` must reach it too.
 - **Touches:** D57; D79; `docs/b17-1.md` §7, §8, §9.
 
-## D88 · The property-test generator · Accepted
+## D88 · The property-test generator · Accepted (refined by D120)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Generator:** SplitMix64. Its state starts at the first 16 hex digits after `spec0:` in the def's spec hash (D46), read as an unsigned 64-bit integer. `docs/b17-1.md` §10 gives the exact stream: the order of draws, how each value consumes it, and each type's smallest value.
@@ -1092,7 +1092,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Evidence:** the surveyed specs quantify over sequences in 28 tasks, counting the tries' comprehensions over keys, and over flows in 2 and a matching in 1, which rewrite to sequences. `max_matching` also binds tuple edges, which are exact as `(tuple int int)`.
 - **Touches:** D61; D68; D79; D89; WP10; `docs/b17-1.md` §7, §11, §12.
 
-## D91 · L2's closure covers the ghost-fns a proof unfolds · Accepted (refines D80)
+## D91 · L2's closure covers the ghost-fns a proof unfolds · Accepted (refines D80; refined by D120)
 - **Date:** 2026-10-28
 - **Decision:** a goal's canonical query includes the defining equations of the ghost-fns it uses (D63), and a proof may rest on any of them. It counts for L2 only once every goal of each such ghost-fn counts too: the well-definedness of its `requires`, its measure and its body, and its termination, and likewise, transitively, for the ghost-fns those goals' queries include. WP5 solves a goal again without an equation that doesn't count. This adds a fourth item to D80's list of what a proof may assume, after earlier goals on the path, callees' `ensures` and lemmas' claims.
 - **Why:** a ghost-fn is transparent (`docs/b17-0.md` §7), so its equation is an assumption like any other. If its `BOUNDS` or `TERM` goal were only tested, a safety proof resting on it could still be wrong, and an L2 module could abort.
@@ -1705,3 +1705,47 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **It shows no more diagnostics.** Those that fit whole are the same as before, and each cut prompt loses the part of the entry the old cut left in. What it adds is the count, and that a new check follows.
   - **Later runs differ from earlier ones.** A run's settings pin the harness's hash, so `--resume` won't mix the two. The effect isn't measured, and a rerun of Codex on the five harder ports would be a weak test, since its passes there have gone 3, 0 and 2 of 15 with an example.
 - **Touches:** D98; WP17: `gym/harness.py`, `gym/test_b17.py`.
+
+## D120 · What WP5's verification levels settle where D80, D88, D91 and §10 are silent · Accepted (refines D80, D88 and D91)
+- **Date:** 2026-11-05
+- **Decision:** building `docs/b17-1.md` §10 settled these readings. None changes what §10 says.
+  - **What a proof rests on, for L2 (D80, D91):**
+    - **A call's `ensures`** rest on that call's `PRE` goals too, besides the callee's `POST` goals or a lemma's goals.
+    - **A loop invariant,** assumed in an arbitrary iteration and after the loop, rests on its `INV-ENTRY` and `INV-KEEP` goals.
+    - **An `obtain`'s witness** rests on its ∃ goal. A `forall` statement's claim rests on its lemma's goals.
+    - **A spec with no def** proves nothing, so a proof resting on its `ensures` doesn't count.
+    - **A ghost-fn's equation that doesn't count** leaves its function declared, and its `requires` with it.
+  - **The closure starts from every proved goal and only shrinks.** A goal leaves once it isn't proved without what rests on goals that have left. So a recursive def's `POST` goals, which assume its `ensures` at a recursive call, and a loop's `INV-KEEP` goals, which assume its invariants, may rest on themselves, as a proof by induction does.
+  - **When tests run:** only when some goal isn't proved. A module whose goals are all proved is L3-S, with nothing left to test.
+  - **Each run** has D59's defaults, 1,000,000 steps and a depth of 1,000.
+  - **Which inputs are kept:**
+    - An input is dropped when a `requires` clause is false or unknown, or its run reaches a spec with no def or ends in a limit.
+    - A failure inside a `requires` clause, once the clauses before it hold, refutes that goal.
+  - **Counts:** a goal's count is over every def's runs, so a goal that a callee and its caller both reach counts the inputs of each. A node that goals.py checks twice, a loop's condition or invariant, on entry and in an arbitrary iteration, has the second goal's count from the checks after a pass, so a loop that never passes tests none of them.
+  - **A `seq-build`'s length,** n, is a fact only where its `BOUNDS` goal, n ≥ 0, holds. Under binders or in a ghost-fn's body, its facts were already guarded by n ≥ 0. Elsewhere, where its goal is generated, they now rest on that goal, so their text is unchanged, and where none is, as in a callee's `ensures`, they're guarded too. Otherwise, with every length at least 0, they would give the goal back once it didn't count.
+  - **A value's type facts aren't traced** to the runtime goals that guard them, such as an `i64`'s range after `(set x (+ x 1))` and its `OVERFLOW` goal. Runtime code aborts where those goals fail (D80), and L2 needs every one of them to count anyway, so no level changes. But `uncounted` can leave out a proof that rests on such a goal.
+  - **A lemma's claim** checked at a call (D57) can refute its `POST` goal, but never tests it.
+  - **A proved goal that a test refutes** is listed as refuted and still counts as proved. Its proof may rest on a fact the run couldn't evaluate (D58), or show a fault in the encoding. Either is worth reading.
+  - **The report's fields:**
+    - `level`: `L0`, `L1`, `L2-S` or `L3-S`;
+    - `tested`: each tested goal, with the number of inputs that evaluated it;
+    - `untested`: each goal neither proved nor tested, refuted ones included;
+    - `refuted`: each refuted goal, with the def, input and outcome;
+    - `uncounted`: for L2, the proved goals whose proofs didn't count;
+    - `may_abort`: D80's goals whose failure would abort, the `BOUNDS`, `OVERFLOW`, `DIV` and `FIELD` goals in runtime code that don't count for L2.
+  - **`--level` or `--report`** makes `verify.py` work out the level. Without either, it does what it did, so M3 and the agent protocol are unchanged.
+- **Why:**
+  - **A call's `PRE`:** a callee's `ensures` hold only where its `requires` do. Without that, an L2 proof could rest on a callee's `ensures` at a call whose `PRE` is only tested, and the program could abort.
+  - **A closure that only shrinks:** built up from nothing instead, it would count no recursive def's `POST` goals and no loop's `INV-KEEP` goals, so no module with a loop could reach L2.
+  - **Tests only when needed:** at L3 there's nothing for them to show, and a module's runs can take minutes.
+  - **D59's defaults:** a run stops at the same point on every machine, and no new constant is needed.
+  - **Counts by pass:** with one count per node, a loop that never passes would have its condition's second goal tested by its check on entry. Codex's review found that overgrade.
+  - **`seq-build`'s guard only where no goal is generated:** guarding every one would change the queries of 10 suite programs and 110 of M3's verified programs. This way none changes.
+- **Cost:**
+  - **Runs can be slow.** Over the suite's accept programs, at 400 draws each, `power`'s def took 366 seconds, since its ghost integers grow without bound, and `fib`'s 18.
+  - **Random inputs rarely meet a graph task's `requires`.** At 400 draws, 7 of B17-1's 15 ports kept no input, all but one of them graph tasks, so their goals need proofs to count.
+  - **Unchecked runs are slower:** recording which goals a run evaluates costs 3% to 5% on a loop of arithmetic, when no test is running.
+- **Alternatives:**
+  - **Tracing type facts** to the goals that guard them, so that `uncounted` is complete. It would mean provenance on every assignment, for a list that doesn't change a level.
+  - **A smaller limit of steps for tests,** to make the slow runs cheaper.
+- **Touches:** D57; D58; D59; D80; D88; D91; WP5; WP15; `b17c/verify.py`, `b17c/goals.py`, `b17c/interp.py`; `docs/b17-1.md` §10.

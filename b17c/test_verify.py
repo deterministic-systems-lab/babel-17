@@ -2,6 +2,9 @@
 
 Needs z3 on PATH, so it runs locally rather than in CI.
 """
+import contextlib
+import io
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -62,18 +65,23 @@ assert v.cache_key("d", ["a", "b"], "q", cfg) != v.cache_key("d", ["a", "c"], "q
 assert v.cache_key("d", [], "q", cfg) != v.cache_key("d", [], "q", {"seeds": 2})
 
 # A failing goal is reported by node ID, contract clause and family; the report gives the
-# level, input hash and goals D24 and D25 ask for.
+# level, input hash and goals D24 and D25 ask for. bad_abs's POST is refuted by a test, so it
+# is neither proved nor tested, and the module reaches only L0 (D80).
 bad = (SUITE / "reject/E-PROOF-POST-wrong-result.b17").read_text()
-rows, cfg = v.verify(parse(bad), 1, CACHE, subset=0)
+rows, cfg, reached = v.levels(parse(bad), 1, CACHE, subset=0)
 failed = [r for r in rows if r["verdict"] != "proved"]
 assert [r["family"] for r in failed] == ["POST"] and failed[0]["node"].startswith("def bad_abs/2.1@14:7 spec bad_abs/"), rows
-rep = v.report(parse(bad), rows, cfg)
-assert rep["level"] == "L2-S" and rep["lockfile_sha256"] is None and rep["admitted"] == []
+rep = v.report(parse(bad), rows, cfg, reached)
+assert rep["level"] == "L0" and rep["lockfile_sha256"] is None and rep["admitted"] == []
+assert rep["untested"] == [{"node": failed[0]["node"], "family": "POST"}] and rep["tested"] == []
+assert [(r["node"], r["family"], r["def"]) for r in rep["refuted"]] == [(failed[0]["node"], "POST", "bad_abs")]
+assert rep["refuted"][0]["outcome"].startswith("contract POST") and int(rep["refuted"][0]["input"]) < 0
 assert rep["input_sha256"] == v.sha256(v.canonical_bytes(parse(bad))) and len(rep["solver_sha256"]) == 64
 assert rep["failed"] == [{"node": failed[0]["node"], "family": "POST", "verdict": failed[0]["verdict"]}]
 assert rep["solver_trusted"] == [r["node"] for r in rows if r["verdict"] == "proved"]
 assert "law_take_step" in rep["axioms"]["core"]
-assert v.report(parse(src("abs")), run(src("abs")), cfg)["level"] == "L3-S"
+assert v.levels(parse(src("abs")), 1, CACHE, 0)[2] == {
+    "level": "L3-S", "tested": [], "untested": [], "refuted": [], "uncounted": [], "may_abort": []}
 
 # Every goal has its own node ID: one per ensures clause at a return, and a number for a
 # node checked twice, as a loop condition is on entry and at each iteration.
@@ -313,5 +321,89 @@ OPEN = ["(== (len (lookup (map-lit (1 (seq-lit))) 1)) 0)", "(== (len (field (som
 for e in OPEN:
     assert open_(run1(H0 + f"(lemma l (params) (ensures {e}) (body)))")) == [], e
 assert open_(run1(H0 + "(lemma l (params) (ensures (!= (match (tuple (seq-lit) 1) (case (tuple a b) a)) (seq-lit true))) (body)))")) == ["POST"]
+
+# D80's levels (docs/b17-1.md §10). x(x + 1) is even, which the solver doesn't find, so a
+# goal resting on EVEN is true on every input but not proved.
+EVEN, X = "(% (* x (+ x 1)) 2)", "(>= x 0) (<= x 1000)"
+
+
+def reach(body):
+    """The level a B17-1 module of these items reaches, and its report's lists as (family, inputs)."""
+    _, _, r = v.levels(parse(H1 + "  " + body, 1), 1, CACHE, 1)
+    return r["level"], {k: [(x["family"], x.get("inputs")) for x in r[k]] for k in r if k != "level"}
+
+
+# A runtime BOUNDS goal proved only from an assert that's tested, not proved, doesn't count for
+# L2 (D80): L1, and it may abort.
+level, r = reach(f"""(spec f (params (a (ref (slice i64))) (x i64)) (returns (r i64)) (requires (>= (len a) 1) {X}) (effects))
+  (def f (body (assert (== {EVEN} 0)) (return (idx a {EVEN})))))""")
+assert level == "L1" and r["tested"] == [("ASSERT", 100)] and r["uncounted"] == r["may_abort"] == [("BOUNDS", None)], r
+# Nor does one proved from a callee's ensures, when its POST goal is only tested.
+level, r = reach(f"""(spec parity (params (x i64)) (returns (r i64)) (requires {X}) (ensures (== r 0)) (effects))
+  (def parity (body (return {EVEN})))
+  (spec f (params (a (ref (slice i64))) (x i64)) (returns (r i64)) (requires (>= (len a) 1) {X}) (effects))
+  (def f (body (let ((z i64)) (call parity x)) (return (idx a z)))))""")
+assert level == "L1" and r["tested"] == [("POST", 200)] and r["uncounted"] == [("BOUNDS", None)], r
+# Nor from a ghost-fn's equation, when one of its goals is only tested (D91).
+level, r = reach("""(ghost-fn first ((s (seq int))) int (body (idx s 0)))
+  (spec f (params (a (ref (slice i64)))) (returns (r i64)) (requires (>= (len a) 1) (== (first a) 0)) (effects))
+  (def f (body (return (idx a (idx a 0))))))""")
+assert level == "L1" and r["tested"] == [("BOUNDS", 100)] and r["uncounted"] == [("BOUNDS", None)], r
+# Nor from a loop invariant whose INV-ENTRY goal is only tested; its INV-KEEP rested on it too.
+level, r = reach(f"""(spec f (params (a (ref (slice i64))) (x i64) (n i64)) (returns (r i64))
+    (requires (== (len a) 1) {X} (>= n 0) (<= n 5)) (effects))
+  (def f (body (let-mut i i64 0) (let-mut t i64 0)
+    (while (< i n) (invariant (<= 0 i)) (invariant (== {EVEN} 0)) (decreases (- n i))
+      (set t (idx a {EVEN})) (set i (+ i 1)))
+    (return t))))""")
+assert level == "L1" and [f for f, _ in r["tested"]] == ["INV-ENTRY"] and r["uncounted"] == [("BOUNDS", None), ("INV-KEEP", None)], r
+# A goal only tested that no runtime goal rests on leaves L2 whole, and a recursive def's POST
+# goals, which rest on themselves, still count.
+level, r = reach(f"""(spec f (params (x i64)) (returns (r i64)) (requires {X}) (ensures (== {EVEN} 0)) (effects))
+  (def f (body (return (+ x 1))))
+  (spec count (params (n i64)) (returns (r i64)) (requires (>= n 0) (<= n 3)) (ensures (>= r 0) (<= r n)) (effects))
+  (def count (decreases n)
+    (body (if (== n 0) (return 0) (block (let ((r i64)) (call count (- n 1))) (return (+ r 1)))))))""")
+assert level == "L2-S" and r["tested"] == [("POST", 100)] and r["uncounted"] == r["may_abort"] == [], r
+# A lemma's body never runs, so an unproved lemma goal is never tested; a goal no input reaches
+# isn't either. Both leave the module at L0.
+assert reach("""(lemma bad (params (x int)) (ensures (> x 0)) (body))
+  (spec f (params (x i64)) (returns (r i64)) (effects))
+  (def f (body (return x))))""") == ("L0", {"tested": [], "untested": [("POST", None)], "refuted": [], "uncounted": [], "may_abort": []})
+level, r = reach("""(spec f (params (x i64)) (returns (r i64)) (effects))
+  (def f (body (if (== x 123456789) (assert false) (block)) (return x))))""")
+assert level == "L0" and r["untested"] == [("ASSERT", None)] and r["refuted"] == [], r
+# Nor from a seq-build's length, when its BOUNDS goal, n >= 0, is only tested: with len >= 0,
+# its length fact would give that goal back (D120).
+level, r = reach(f"""(spec f (params (a (ref (slice i64))) (x i64)) (returns (r i64)) (requires (>= (len a) 1) {X}) (effects))
+  (def f (body (ghost-let s (seq int) (seq-build (- 0 {EVEN}) (fn (i) 0))) (return (idx a {EVEN})))))""")
+assert level == "L1" and r["tested"] == [("BOUNDS", 100)] and r["uncounted"] == [("BOUNDS", None)], r
+# A loop that never passes tests nothing its condition checks on a later pass: (idx a i) there
+# isn't proved, since i may reach 3, so the module is at L0, not L1.
+level, r = reach("""(spec f (params (a (ref (slice i64)))) (returns (r i64)) (requires (== (len a) 3) (>= (idx a 0) 0)) (effects))
+  (def f (body (let-mut i i64 0)
+    (while (< (idx a i) 0) (invariant (and (<= 0 i) (<= i 3))) (decreases (- 3 i)) (set i (+ i 1)))
+    (return i))))""")
+assert level == "L0" and r["untested"] == [("BOUNDS", None)] and r["tested"] == [], r
+# A joined branch's facts outlive one of them resting on a goal that doesn't count.
+f = v.G.Fact("(=> c (and true a b))", guard="c", parts=[v.G.Fact("a", {3}), "b"])
+assert v.G.without([f, v.G.Fact("d", {("post", "g")}), "e"], {3, ("post", "g")}) == ["(=> c (and true b))", "e"]
+# The suite's proof rejects: a test refutes only a goal of the label's family. Only DIV's is
+# missed, since only i64's least value over -1 fails it, and it's listed as one that may abort.
+for path in sorted((SUITE / "reject").glob("E-PROOF-*.b17")) + sorted((SUITE / "b17-1/reject").glob("E-PROOF-*.b17")):
+    sub = 1 if "b17-1" in str(path) else 0
+    label = "-".join(path.name.split("-")[2:4]) if path.name.startswith("E-PROOF-INV") else path.name.split("-")[2]
+    _, _, r = v.levels(parse(path.read_text(), sub), 1, CACHE, sub)
+    assert {x["family"] for x in r["refuted"]} <= {label} and r["level"] == ("L1" if label == "DIV" else "L0"), (path.name, r)
+    assert label != "DIV" or [x["family"] for x in r["may_abort"]] == ["DIV"], r
+# --level: the exit code says whether the module reaches the level, and --report writes it.
+out = Path(tempfile.mkdtemp()) / "r.json"
+abs_file, bad_file = str(SUITE / "accept/abs.b17"), str(SUITE / "reject/E-PROOF-POST-wrong-result.b17")
+quiet = lambda *a: v.main(["--subset", "0", "--seeds", "1", "--cache", str(CACHE), *a])
+with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    assert quiet("--level", "L3", abs_file) == 0 and quiet("--level", "L1", bad_file) == 1
+    assert quiet("--level", "L0", "--report", str(out), bad_file) == 0 and quiet("--level", "L4", abs_file) == 2
+    assert v.main(["--subset", "2", abs_file]) == 2 and v.main(["--seeds", "x", abs_file]) == v.main(["--seeds", "²", abs_file]) == 2
+assert json.loads(out.read_text())["level"] == "L0"
 
 print("verifier self-check passed")
