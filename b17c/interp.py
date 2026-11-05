@@ -1417,6 +1417,51 @@ def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAW
     return n, counts, refuted
 
 
+# WP4b's witnesses (D121): a spec's clauses at concrete values, whether or not it has a def.
+
+def _spec(module, name):
+    return next(it for it in module.items[3:] if it.items[0].text == "spec" and it.items[1].text == name)
+
+
+def _holds(p, spec, args, results):
+    """Spec's requires at args in order, stopping at the first that doesn't hold, since a later
+    one may assume it; then, given results, its ensures. Each is (kind, clause, value), the value
+    None where the clause is undefined or unknown (D57, D58)."""
+    env = dict(zip(_names(_clauses(spec, "params")), args))
+    env.update(zip(_names(_clauses(spec, "returns")), results or ()))
+    r, out = _Run(p, True, FUEL, DEPTH), []
+    for kind in ("requires", "ensures") if results is not None else ("requires",):
+        for e in _clauses(spec, kind):
+            try:
+                v = r.quiet(e, env)
+            except _Stop:  # a limit
+                v = None
+            out.append((kind, e, v))
+            if kind == "requires" and v is not True:
+                return out
+    return out
+
+
+def holds(module, name, args, results=None, subset=SUBSET):
+    """Spec name's clauses at args, and at results if given, as _holds gives them."""
+    with _deep(DEPTH):
+        return _holds(_Program(module, subset), _spec(module, name), tuple(_value(a) for a in args), results)
+
+
+def spec_inputs(module, name, seed, k, subset=SUBSET, draws=DRAWS):
+    """The first k of D88's inputs for spec name, from a stream starting at seed, whose requires all hold."""
+    p, spec, out = _Program(module, subset), _spec(module, name), []
+    gen, types = _Draws(p, seed), [_ground(t, {}) for t in _types(_clauses(spec, "params"))]
+    with _deep(DEPTH):
+        for _ in range(draws):
+            if len(out) == k:
+                break
+            args = tuple([gen.value(t) for t in types])
+            if all(v is True for _, _, v in _holds(p, spec, args, None)):
+                out.append(args)
+    return out
+
+
 def _conjuncts(x):
     if _head(x) == "and":
         return _conjuncts(x.items[1]) + _conjuncts(x.items[2])

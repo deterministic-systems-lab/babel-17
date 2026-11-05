@@ -111,6 +111,14 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Checked on the suite:** a program reaching every goal family has all 58 of its goals evaluated. No accept program has a goal refuted. In 10 of the 15 proof rejects a test refutes the labelled goal, and in 4 no test reaches it. The last, `E-PROOF-DIV-min-rem-minus-one`, reaches L1, since only i64's least value over −1 fails it, and it's listed as a goal that may abort.
   - **Every query is unchanged:** all 5,824 of the suite's and the core library's queries are byte-identical, and so are those of the 110 verified M3 programs that use `seq-build`, where the one change in encoding could reach. So M3's verdicts don't move, though cached ones are solved again, since the cache's key includes `b17c`'s own hash.
   - **Limits:** random inputs meet few graph tasks' `requires`, and some runs are slow, as D120 records.
+- **WP4b, the spec workbench, with D121 proposed.** `b17c/spec.py` runs the design spec's checks on a spec, as the owner chose them: Codex for back-translation, signatures by spec hash, and a surviving mutant one that verifies.
+  - **On the worked example,** `merge_sorted`:
+    - its `requires` can hold, and neither `ensures` clause is trivial;
+    - each witness forbids an output that loses an element and one out of order;
+    - of 23 mutants, 22 are killed and the survivor computes the same results;
+    - Codex's English matches the spec, and it found two places where the header says what the spec doesn't.
+  - **On the suite:** no spec has a vacuous `requires` or a trivial `ensures` clause. For 7 of B17-1's specs, 6 of them graph tasks, whether the `requires` can hold stays unknown: the solver finds no model, and random inputs don't meet them.
+  - **A limit:** 15 of the 22 mutants were killed only through the def's own invariants, so a weak spec can hide behind a strong proof.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
@@ -147,6 +155,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
+- **D121, the spec workbench (WP4b).** The owner chose its translator, signing and rule for a surviving mutant. The rest of its design is proposed: what each check does, the readable witnesses, interface 9's first version, and what's left out.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
 D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D119 and D120 on 2026-11-05. D2–D10, carried over from the design spec, are still Proposed.
@@ -181,6 +190,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
 3. **B17-1's verification levels (WP5): done, with D120** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
 4. **WP16** grows the core library as B17-1 and the ports need it.
+5. **WP4b, the spec workbench: done on the worked example, with D121 proposed** ([above](#recent-and-current-work)). With it, WP11's dependencies are all built but WP10's further ports.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -199,7 +209,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP16 | The core spec library: `sorted`, ranges, sequence and multiset laws | WP1a, WP15 | Every entry has witness examples that the interpreter confirms (D28). In progress: met for its 33 laws and 3 ghost-fns. |
 | WP5 | The verifier: `b17c` generates its own goals and sends them to Z3 (D17) | WP3, WP1a, WP16 | The worked example verifies, seed-shuffle checks pass (D23), and the proof cache hits on unchanged code. Done for B17-0, and B17-1's verification levels are built (D120). |
 | WP6 | Agent protocol and diagnostics | WP3, WP1a, WP5 | Diagnostics match interface 3, and all five queries answer (interface 8). Done for B17-0 (D93, D94), except repairs, which wait for WP2's typed edits. |
-| WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example |
+| WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example. Done (`b17c/spec.py`, D121). |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`) and B17-1 (`docs/manual-1.md`, D112). |
 | B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113 and 1.2 by D114. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels and works out its verification levels (D120). |

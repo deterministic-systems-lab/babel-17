@@ -1010,4 +1010,15 @@ NODEF = parse(HEAD + """  (spec g (params) (returns (r i64)) (effects))
   (def f (body (let ((r i64)) (call g)) (return r))))""")
 assert i.test_def(NODEF, "f", 3, 0, draws=20)[0] == 0  # g has no def to run
 
+# WP4b's witnesses (D121): a spec's clauses at concrete values, and inputs whose requires hold,
+# whether or not the spec has a def.
+MS = parse((SUITE / "accept/merge_sorted.b17").read_bytes())
+assert [v for _, _, v in i.holds(MS, "merge_sorted", ((1, 3), (2,)), ((1, 2, 3),))] == [True, True, True, True, True]
+assert [v for _, _, v in i.holds(MS, "merge_sorted", ((1, 3), (2,)), ((1, 3, 2),))][3:] == [False, True]
+assert [v for _, _, v in i.holds(MS, "merge_sorted", ((3, 1), (2,)))] == [False]  # stops at the first that fails
+got = i.spec_inputs(MS, "merge_sorted", 11, 5)
+assert len(got) == 5 and all(list(a) == sorted(a) and list(b) == sorted(b) for a, b in got), got
+SPEC_ONLY = parse(HEAD + "  (spec f (params (x i64)) (returns (r i64)) (requires (> x 3)) (ensures (> r x)) (effects)))")
+assert all(x > 3 for (x,) in i.spec_inputs(SPEC_ONLY, "f", 4, 10)) and [v for _, _, v in i.holds(SPEC_ONLY, "f", (5,), (5,))] == [True, False]
+
 print("interpreter conformance tests passed")

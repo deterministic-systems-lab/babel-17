@@ -1749,3 +1749,38 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Tracing type facts** to the goals that guard them, so that `uncounted` is complete. It would mean provenance on every assignment, for a list that doesn't change a level.
   - **A smaller limit of steps for tests,** to make the slow runs cheaper.
 - **Touches:** D57; D58; D59; D80; D88; D91; WP5; WP15; `b17c/verify.py`, `b17c/goals.py`, `b17c/interp.py`; `docs/b17-1.md` §10.
+
+## D121 · The spec workbench, WP4b · Proposed (the owner chose its translator, signing and mutant rule on 2026-11-05)
+- **Date:** 2026-11-05
+- **Decision:** `b17c/spec.py` is the design spec's `mfl spec`. Each of its commands prints JSON, and exits 1 when it finds a problem.
+  - **Vacuity checks:**
+    - **The `requires` can hold:** for each spec and lemma, shown by a model from the solver or by one of D88's inputs. It's vacuous when the solver proves no input meets it, and that's a spec challenge.
+    - **No spec's `ensures` clause is trivial:** a clause is trivially true when the solver proves it from the `requires` and the results' types alone. Under a vacuous `requires` every clause would be, so none is judged. A lemma's claim always follows from its `requires`, so proving one alone only shows the lemma isn't needed, and lemmas' claims aren't judged.
+  - **Witness examples:**
+    - **The inputs:** the three most readable distinct ones among D88's first 100 that meet the `requires`, which are the property tests' own (D80). Small integers come first, then more elements.
+    - **With a def:** its output, from a checked run, then each output a step away that the spec forbids, with the first clause it breaks, and each that it also allows. A step drops, repeats or changes an element, swaps two, moves an integer by one, negates a boolean or picks another constructor.
+    - **With no def:** if the solver proves that no output meets the `ensures`, that's a spec challenge. Otherwise D88 draws up to 1,000 outputs, and the first that meets them is shown. The solver rarely finds a model under the sequence axioms, so it can't show one exists by itself.
+  - **Mutant rejection,** as the owner chose:
+    - **The mutants:** in the def's runtime code, each comparison, `+`, `-`, `and` and `or` changed to its neighbour, each integer literal moved by one, each `if`'s branches swapped, and each `set`, `set-idx`, `push` and `print` left out. Ghost code isn't changed, since it doesn't change what runs. A mutant that fails tier 0 is dropped.
+    - **Killed** by a property test that refutes a goal, which names the goal's family, or else by the verifier, with a goal it doesn't prove.
+    - **Survivors:** a mutant that verifies survives. It's compared with the def on the tests' inputs, and if any output differs, the spec allows that bug.
+  - **Back-translation,** as the owner chose: Codex (`gpt-5.6-sol`), with the harness's flags and no tools.
+    - **What it's shown:** the header, data types, ghost-fns, specs, lemmas without their proofs, the core library's ghost-fns and a short guide to the notation. Defs are left out.
+    - **What it returns:** JSON with a plain-English paragraph per spec, and each way the specs and the header disagree.
+    - **The record:** the reply isn't deterministic, so it's kept with the CLI, its version, the model and the prompt's hash.
+  - **Signing,** as the owner chose: `sign FILE NAME REVIEWER` records the spec's hash (D46), the reviewer and the date in `FILE.signatures.json`. A spec's hash covers the hashes of the items it refers to (D45), so editing it or a ghost-fn it uses voids its signature. `unsigned FILE` lists the unsigned specs, and the trusted base report gains `unsigned_specs`.
+  - **Interface 9, version 0.1, Draft:**
+    - **Spec signatures:** that file's JSON list of `{name, spec, by, date}`.
+    - **Spec challenges:** `{kind, spec, spec_hash, query_sha256, verdict, input}`, where kind is `requires-unsatisfiable` or `no-output`, the query is the canonical one the solver proved, and only `no-output` has an input.
+  - **Not built:**
+    - **The design spec's fifth check,** agreement with a legacy reference, since there's no legacy code yet.
+    - **A challenge that a spec contradicts another.**
+    - **The pull-request view of witnesses that flipped.**
+- **Why:**
+  - **The tests' own inputs:** a reviewer sees examples drawn from what L1 tests, and small ones read fastest.
+  - **Steps from the true output:** each is a likely bug's output, so a forbidden one shows a clause doing its job, and an allowed one shows where a spec is loose.
+  - **A survivor must verify:** a test can't show a spec allows a bug, only that a mutant got past it.
+  - **A limit on what mutants show:** a mutant keeps the def's invariants, asserts and measures, and a test or the verifier can kill it through them alone. So a weak spec can hide behind a strong proof, and only a survivor shows a spec is weak.
+  - **Codex for back-translation:** Claude wrote the suite's specs and ports, so a different model reads them.
+  - **Signing by hash:** there's no identity to bind a signature to until WP13's registry.
+- **Touches:** D4; D21; D27; D28; D45; D46; D80; D88; WP4b; WP11; `b17c/spec.py`, `b17c/interp.py`, `b17c/verify.py`; interface 9.

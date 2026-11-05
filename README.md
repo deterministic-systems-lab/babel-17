@@ -26,6 +26,7 @@ Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10
 | WP2 | Canonical form and content hashes | Parser, canonical printer and hasher done ([b17c/](b17c/)). Both done-whens pass: round trips, and golden hashes reproduced on Linux CI (D46). Typed edits, and the manifest and lockfile schemas, remain (interfaces 2, 4 and 7). |
 | WP3 | Tier 0 checker: types, names, ghost code, ownership, effects | Done ([b17c/check.py](b17c/check.py)): agrees with every tier 0 label in the suite. Its readings of the semantics are D66–D78, accepted. It checks B17-1 too, by default, and agrees with every tier 0 label of `suite/b17-1/`. B17-1's freeze review settled seven more readings (D109). |
 | WP4a | The spec language | Done (D62, D79): B17-0's spec language is WP1a's, and B17-1 adds no data-type invariants or refinement links. |
+| WP4b | Spec workbench: checks that a spec says what's meant | Done on the worked example ([b17c/spec.py](b17c/spec.py), D121): vacuity checks, witness examples, mutant rejection, back-translation by Codex, and signatures on spec hashes, which the trusted base report lists as `unsigned_specs`. A `requires` no input meets, or an input no output serves, comes with a spec challenge (interface 9). |
 | WP5 | Verifier: proof goals sent to Z3 | Done for B17-0: [b17c/verify.py](b17c/verify.py) caches every verdict under D22's key, sends canonical queries (interface 11, D63) and reports solver-trusted goals by node ID. [b17c/goals.py](b17c/goals.py) generates the goals from WP3's types, with D61's encoding. It checks the suite's proof labels: all 20 accept programs prove every goal under 10 shuffled seeds (D23), and all 9 proof rejects fail as labelled. It verifies B17-1 too, by default (D89, D103, D105, D106, D108): its 6 proof rejects fail as labelled, and all 15 of its accept programs prove every goal, `kruskal`'s minimum spanning tree and the maximum flows of `edmond_karp` and `push_relabel` included. A review of that work found two ways the verifier could prove `false`, in B17-0 as well, and both are fixed (D103). No B17-0 suite proof relied on them. A later review found a third: a binder or parameter could share its SMT name with a ghost-fn, so a definition read the wrong value. It's fixed too, and no suite proof or agent's program relied on it. B17-1's verification levels are built (`docs/b17-1.md` §10, D120): `--level L0|L1|L2|L3` and the report give the level a module reaches, from proofs, from D88's property tests in the interpreter, and from L2's closure, which solves a proof again without what rests on a goal that's only tested. |
 | WP6 | Agent protocol and diagnostics | Done for B17-0 and B17-1 ([b17c/agent.py](b17c/agent.py)). Diagnostics carry interface 3's fields (D93), with counterexamples the interpreter replays, and the five queries answer (interface 8, D94). In B17-1 a counterexample shows tuple and data values as terms, with any sequence inside as a `seq-lit`, but none yet for sets, maps or multisets (D112). Repairs wait for WP2's typed edits. |
 | WP7 | Backend that emits safe Rust | Done for B17-0 and B17-1 ([b17c/rust.py](b17c/rust.py)): every program that passes tier 0 becomes a crate that forbids unsafe code, and its runs print exactly what the interpreter prints, on both suites, corner cases and generated programs. Its readings are D95–D97 for B17-0 and D110–D111 for B17-1, all accepted. It lowers B17-1 too, by default, with data types as Rust enums. |
@@ -89,6 +90,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`b17c/rust.py`](b17c/rust.py) | The Rust backend: one crate per module, whose runs print what the interpreter prints (D95–D97); B17-1's by default, and B17-0's with `--subset 0` (D110, D111) |
 | [`b17c/goals.py`](b17c/goals.py) | Proof goals from WP3's types, one Z3 query each (§9); also checks the suite's proof labels; B17-1's by default, and B17-0's with `--subset 0` |
 | [`b17c/verify.py`](b17c/verify.py) | The verifier's front end: canonical queries, the proof cache, and the trusted base report (D63); B17-1's by default, and B17-0's with `--subset 0` |
+| [`b17c/spec.py`](b17c/spec.py) | The spec workbench (WP4b, D121): vacuity checks, witnesses, mutants, back-translation and signatures |
 | [`b17c/agent.py`](b17c/agent.py) | The agent protocol: diagnostics as JSON (interface 3), and the five queries (interface 8); B17-1's by default, and B17-0's with `--subset 0` |
 | [`gym/harness.py`](gym/harness.py) | WP17's harness: CLI agents writing verified Dafny, and B17-0 and B17-1 for M3 (D98, D112) |
 | [`gym/audit.py`](gym/audit.py) | The run-time audit: a run's verified B17 programs, on random valid inputs, against a separate reference (D118) |
@@ -115,6 +117,7 @@ uv run --no-project b17c/test_core.py      # core library: every law confirmed b
 uv run --no-project b17c/test_agent.py     # agent protocol: diagnostics and the five queries (Z3 for the queries that solve)
 uv run --no-project b17c/test_rust.py      # Rust backend: emitted crates compile, and runs match the interpreter, B17-0's and B17-1's (needs rustc)
 uv run --no-project b17c/test_manual.py    # agent manual and its B17-1 supplement: every example has its stated outcome, every code has one (Z3 for proofs)
+uv run --no-project b17c/test_spec.py      # spec workbench: vacuity, witnesses, mutants, back-translation against a fake CLI, signing (needs Z3)
 uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report, B17-1's encoding, the levels (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 uv run --no-project gym/test_b17.py        # the harness's B17-0 and B17-1 tracks: tasks, verdicts, one attempt against a fake CLI (needs Z3)
@@ -137,6 +140,9 @@ uv run --no-project b17c/rust.py --run suite/b17-1/accept/bst_insert.b17 insert 
 uv run --no-project b17c/verify.py --subset 0 suite/accept/merge_sorted.b17      # every goal, cached; --report FILE writes the trusted base part
 uv run --no-project b17c/verify.py suite/b17-1/accept/bst_insert.b17   # the same for B17-1
 uv run --no-project b17c/verify.py --level L2 --report r.json suite/b17-1/reject/E-PROOF-FIELD-wrong-constructor.b17   # fails: L0, a test refutes FIELD
+uv run --no-project b17c/spec.py --subset 0 witness suite/accept/merge_sorted.b17 merge_sorted   # inputs, the output, and outputs it forbids
+uv run --no-project b17c/spec.py --subset 0 mutants suite/accept/merge_sorted.b17 merge_sorted   # each small bug, killed or surviving
+uv run --no-project b17c/spec.py --subset 0 english suite/accept/merge_sorted.b17   # Codex's English for each spec, and where it disagrees with the header
 uv run --no-project b17c/agent.py --subset 0 check suite/reject/E-PROOF-OVERFLOW-unbounded-increment.b17   # diagnostics as JSON, with a counterexample
 uv run --no-project b17c/agent.py check suite/b17-1/reject/E-PROOF-FIELD-wrong-constructor.b17   # the same for B17-1: t is (leaf)
 uv run --no-project b17c/agent.py explain E-OWN-005                   # a code's rule, with the suite's labelled example
@@ -245,6 +251,7 @@ The most recent run put all 14 ports under one prompt, so it's the one to read f
   - anything it left admitted.
 - **Interfaces** between work packages are versioned and marked Draft or Frozen (D27). WP1a's interfaces, 6 and B17-0's part of 1, are Frozen (D44), and so are B17-1's parts of 1 and 6, in `docs/b17-1.md`. The rest are Draft:
   - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94), with 0.2 for B17-1's counterexample terms (D112);
+  - 9, spec signatures and spec challenges, at version 0.1 (D121);
   - 10, interpreter traces, at version 0.1 (D56);
   - 11, solver queries, at version 0.1, with 0.2 for B17-1 implemented by WP5 (D63, D89, D103, D105, D106, D108);
-  - 5, the trusted base report, which now carries WP7's backend fields (D25, D97) and B17-1's level fields (D80, D120).
+  - 5, the trusted base report, which now carries WP7's backend fields (D25, D97), B17-1's level fields (D80, D120) and `unsigned_specs` (D121).

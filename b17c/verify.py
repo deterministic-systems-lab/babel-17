@@ -250,9 +250,26 @@ def levels(module, seeds=SEEDS, cache=CACHE, subset=SUBSET):
     }
 
 
-def report(module, rows, cfg, reached):
-    """The module's trusted base report (D24, D25), with reached from levels(). Until the kernel
-    exists, every proved goal is solver-trusted, so a module whose goals all hold is L3-S, not L3."""
+def signatures_path(path):
+    return Path(str(path) + ".signatures.json")
+
+
+def signatures(path):
+    """The spec signatures recorded beside the module at path (interface 9, D121)."""
+    p = signatures_path(path)
+    return json.loads(p.read_text()) if p.exists() else []
+
+
+def unsigned(path, module, subset=SUBSET):
+    """The module's specs whose current hash no signature beside path records (D121)."""
+    signed = {s["spec"] for s in signatures(path)}
+    return [name for name, (kind, spec, _) in H.hashes(module, subset).items() if kind == "spec" and spec not in signed]
+
+
+def report(module, rows, cfg, reached, unsigned_specs=None):
+    """The module's trusted base report (D24, D25), with reached from levels(), and the specs no
+    reviewer has signed, where known (D121). Until the kernel exists, every proved goal is
+    solver-trusted, so a module whose goals all hold is L3-S, not L3."""
     laws = sorted(it.items[1].text for it in G.CORE.items[3:] if _head(it) == "lemma")
     held = lambda r: r["verdict"] == "proved"
     return {
@@ -266,6 +283,7 @@ def report(module, rows, cfg, reached):
         "failed": [{"node": r["node"], "family": r["family"], "verdict": r["verdict"]}
                    for r in rows if not held(r) and not r["verdict"].startswith("brittle")],
         "admitted": [],  # B17-0 has no admit or assume
+        "unsigned_specs": unsigned_specs,
         "axioms": {"core": laws, "encoding": f"b17c prelude {cfg['prelude'][:16]} (D61)"},
     }
 
@@ -308,7 +326,7 @@ def main(argv):
         print(f"{argv[0]}: reached {reached['level']}: {len(reached['tested'])} tested, {len(reached['untested'])} neither "
               f"proved nor tested, {len(reached['refuted'])} refuted, {len(reached['uncounted'])} proofs that don't count for L2")
     if out:
-        out.write_text(json.dumps(report(module, rows, cfg, reached), indent=2) + "\n")
+        out.write_text(json.dumps(report(module, rows, cfg, reached, unsigned(argv[0], module, subset)), indent=2) + "\n")
     if level:
         return 0 if reached["level"][:2] >= level else 1
     return 0 if proved == len(rows) else 1
