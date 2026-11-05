@@ -438,6 +438,7 @@ class _Program:
 
     def __init__(self, module, subset=SUBSET):
         self.fns, self.ids, specs, defs = {}, {}, {}, {}
+        self.later = {}  # a loop -> the nodes it checks again after each pass
         self.sub, self.datas, self.ctors = subset, {}, {}  # data name -> item; constructor -> (item, field names)
         for m in (CORE, CORE1, module) if subset else (CORE, module):
             for item in m.items[3:]:
@@ -479,6 +480,18 @@ class _Program:
     def node(self, x):
         item, path = self.ids.get(id(x), ("argument", ()))
         return Node(item, path, x.pos)
+
+    def again(self, s):
+        """The ids of the nodes that loop s checks again after each pass: its condition's and its
+        invariants'. goals.py checks them twice too, so a goal there is #2 the second time (D63)."""
+        if id(s) not in self.later:
+            out, todo = set(), [s.items[1], *(c.items[1] for c in s.items[2:] if _head(c) == "invariant")]
+            while todo:
+                x = todo.pop()
+                out.add(id(x))
+                todo += x.items if isinstance(x, Form) else []
+            self.later[id(s)] = out
+        return self.later[id(s)]
 
     def fits(self, v, t, params):
         """Whether v is a value of the type t, a spec's parameter type, whose type parameters
@@ -535,6 +548,7 @@ class _Run:
         self.active = set()  # (ghost-fn name, args) of the ghost-fn calls in progress
         self.clause = None   # the clause being evaluated, to which a failure inside it belongs
         self.seen = None     # for L1's tests: goal key -> whether it held, each time one is evaluated (D80)
+        self.again = None    # while a loop checks its condition or invariants after a pass, the nodes they hold
         self.exprs = _EXPRS | _EXPRS_1 if program.sub else _EXPRS  # B17-0 may name a ghost-fn union (D101)
 
     def tick(self, x):
@@ -543,9 +557,11 @@ class _Run:
             raise _Stop(Limit("steps", self.p.node(x)))
 
     def saw(self, family, x, clause=None, held=True):
-        """The goal (family, x, clause) was evaluated, keyed as verify.py keys goals.py's goals."""
+        """The goal (family, x, clause) was evaluated, keyed as verify.py keys goals.py's goals: the
+        second of its name when a loop checks it after a pass. A loop's INV goals are one each."""
         if self.seen is not None:
-            self.seen[family, id(x), None if clause is None else id(clause)] = held
+            again = self.again is not None and id(x) in self.again and not family.startswith("INV-")
+            self.seen[family, id(x), None if clause is None else id(clause), 2 if again else 1] = held
 
     def fail(self, reason, x, detail, g):
         self.saw(reason, x, held=False)
@@ -708,14 +724,23 @@ class _Run:
         if self.check:
             for e in invs:
                 self.holds("INV-ENTRY", e, env, s)
-        while self.eval(it[1], env, False):
+        again = None
+        while True:
+            self.again = again  # no statement runs inside a condition, so nothing resets it early
+            c = self.eval(it[1], env, False)
+            self.again = None
+            if not c:
+                break
             d0 = self.measure(dec, env, s) if self.check else None
             r = self.block(body, env)
             if r is not None:
                 return r
+            again = self.p.again(s) if self.seen is not None else None
             if self.check:
+                self.again = again
                 for e in invs:
                     self.holds("INV-KEEP", e, env, s)
+                self.again = None
                 if d0 is not None:
                     d = self.ghost(dec, env)
                     if d is UNKNOWN:
@@ -1376,10 +1401,9 @@ def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAW
             r = _Run(p, True, fuel, DEPTH)
             r.seen = {}
             try:
-                try:
-                    out = Ok(r.invoke(fn, args, fn.item))
-                except _Stop as e:
-                    out = e.outcome
+                out = Ok(r.invoke(fn, args, fn.item))
+            except _Stop as e:
+                out = e.outcome
             except _Unbound:
                 continue
             if (isinstance(out, Limit) or (isinstance(out, Contract) and out.kind == "PRE" and out.node == top)

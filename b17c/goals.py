@@ -504,9 +504,9 @@ class Gen:
         st.facts.append(Fact(g, {k}))  # every goal is assumed once generated (§9)
         return k
 
-    def fact(self, st, guard, f):
+    def fact(self, st, guard, f, on=()):
         if st is not None and not any(k == "all" for k, _ in guard):
-            st.facts.append(wrap(guard, f))
+            st.facts.append(Fact(wrap(guard, f), on))
 
     # Expressions: (SMT term, SMT sort).
     def expr(self, x, st, ghost, guard=(), want="SI"):
@@ -617,7 +617,7 @@ class Gen:
             return f"({h} ({decl}) {body})", "Bool"
         if h == "seq-build":
             n, _ = e(a[0])
-            self.goal(st, guard, "BOUNDS", x, f"(>= {n} 0)")
+            k = self.goal(st, guard, "BOUNDS", x, f"(>= {n} 0)")
             name = a[1].items[1].items[0].text
             i = self.bound(name)
             inner = State(dict(st.env), st.facts)
@@ -630,18 +630,21 @@ class Gen:
             # off the encoded body, where a seq-build lifted inside this one takes the index as an argument.
             same = i not in re.findall(r"[^\s()]+", body)
             counted = lambda r: f"(= {fn('ms', ss, r)} (store ((as const (Array {srt} Int)) 0) {body} {n}))"
+            under = guard + (("if", f"(>= {n} 0)"),)
             if not bound and self.lifting is None:
+                # Its length is n only where its BOUNDS goal holds: so these facts rest on that goal, or
+                # where none is generated, as in a callee's ensures, are guarded by it (D120).
                 r = self.fresh("seq", ss)
-                self.fact(st, guard, f"(= {fn('len', ss, r)} {n})")
+                where, on = (guard, {k}) if k is not None else (under, ())
+                self.fact(st, where, f"(= {fn('len', ss, r)} {n})", on)
                 self.fact(st, guard, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")
                 if same:
-                    self.fact(st, guard, counted(r))
+                    self.fact(st, where, counted(r), on)
                 return r, ss
             # Under binders, a function of them, with its facts at every point where the length
             # is defined; in a ghost-fn's body, an axiom beside its definition.
             f = self.name("seq")
             r = app(f, [v for v, _ in bound])
-            under = guard + (("if", f"(>= {n} 0)"),)
             facts = [wrap(under, f"(= {fn('len', ss, r)} {n})"),
                      wrap(under, f"(forall (({i} Int)) (! (=> {rng} (= {fn('nth', ss, r, i)} {body})) :pattern ({fn('nth', ss, r, i)})))")]
             facts += [wrap(under, counted(r))] if same else []

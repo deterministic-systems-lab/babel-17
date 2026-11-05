@@ -1721,7 +1721,9 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Which inputs are kept:**
     - An input is dropped when a `requires` clause is false or unknown, or its run reaches a spec with no def or ends in a limit.
     - A failure inside a `requires` clause, once the clauses before it hold, refutes that goal.
-  - **Counts:** a goal's count is over every def's runs, so a goal that a callee and its caller both reach counts the inputs of each. A node checked twice, as a loop condition is on entry and after each pass, has one count for both of its goals.
+  - **Counts:** a goal's count is over every def's runs, so a goal that a callee and its caller both reach counts the inputs of each. A node that goals.py checks twice, a loop's condition or invariant, on entry and in an arbitrary iteration, has the second goal's count from the checks after a pass, so a loop that never passes tests none of them.
+  - **A `seq-build`'s length,** n, is a fact only where its `BOUNDS` goal, n ≥ 0, holds. Where that goal is generated, the facts rest on it, so their text is unchanged. Where it isn't, as in a callee's `ensures`, they're guarded by n ≥ 0. Otherwise, with every length at least 0, they would give the goal back once it didn't count.
+  - **A value's type facts aren't traced** to the runtime goals that guard them, such as an `i64`'s range after `(set x (+ x 1))` and its `OVERFLOW` goal. Runtime code aborts where those goals fail (D80), and L2 needs every one of them to count anyway, so no level changes. But `uncounted` can leave out a proof that rests on such a goal.
   - **A lemma's claim** checked at a call (D57) can refute its `POST` goal, but never tests it.
   - **A proved goal that a test refutes** is listed as refuted and still counts as proved. Its proof may rest on a fact the run couldn't evaluate (D58), or show a fault in the encoding. Either is worth reading.
   - **The report's fields:**
@@ -1737,12 +1739,13 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A closure that only shrinks:** built up from nothing instead, it would count no recursive def's `POST` goals and no loop's `INV-KEEP` goals, so no module with a loop could reach L2.
   - **Tests only when needed:** at L3 there's nothing for them to show, and a module's runs can take minutes.
   - **D59's defaults:** a run stops at the same point on every machine, and no new constant is needed.
-  - **One count per node:** the interpreter would need to know which pass it's on. A goal reached only on entry and never on a later pass is the case this counts wrongly.
+  - **Counts by pass:** with one count per node, a loop that never passes would have its condition's second goal tested by its check on entry. Codex's review found that overgrade.
+  - **`seq-build`'s guard only where no goal is generated:** guarding every one would change the queries of 10 suite programs and 110 of M3's verified programs. This way none changes.
 - **Cost:**
   - **Runs can be slow.** Over the suite's accept programs, at 400 draws each, `power`'s def took 366 seconds, since its ghost integers grow without bound, and `fib`'s 18.
   - **Random inputs rarely meet a graph task's `requires`.** At 400 draws, 7 of B17-1's 15 ports kept no input, all but one of them graph tasks, so their goals need proofs to count.
-  - **Unchecked runs are slower:** recording which goals a run evaluates costs 4.6% on a loop of arithmetic, when no test is running.
+  - **Unchecked runs are slower:** recording which goals a run evaluates costs 3% to 5% on a loop of arithmetic, when no test is running.
 - **Alternatives:**
-  - **A count per node and pass,** as the report's goal names number them.
+  - **Tracing type facts** to the goals that guard them, so that `uncounted` is complete. It would mean provenance on every assignment, for a list that doesn't change a level.
   - **A smaller limit of steps for tests,** to make the slow runs cheaper.
 - **Touches:** D57; D58; D59; D80; D88; D91; WP5; WP15; `b17c/verify.py`, `b17c/goals.py`, `b17c/interp.py`; `docs/b17-1.md` §10.

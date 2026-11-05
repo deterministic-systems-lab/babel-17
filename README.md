@@ -247,4 +247,4 @@ The most recent run put all 14 ports under one prompt, so it's the one to read f
   - 3 and 8, the diagnostics and queries, at version 0.1 (D93, D94), with 0.2 for B17-1's counterexample terms (D112);
   - 10, interpreter traces, at version 0.1 (D56);
   - 11, solver queries, at version 0.1, with 0.2 for B17-1 implemented by WP5 (D63, D89, D103, D105, D106, D108);
-  - 5, the trusted base report, which now carries WP7's backend fields (D25, D97).
+  - 5, the trusted base report, which now carries WP7's backend fields (D25, D97) and B17-1's level fields (D80, D120).

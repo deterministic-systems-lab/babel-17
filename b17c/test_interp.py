@@ -965,8 +965,9 @@ EVERY = parse("""(module every
       (let ((h i64)) (call helper n))
       (let ((c i64)) (call count n))
       (let-mut i i64 0)
-      (while (< i n)
+      (while (< (+ i 0) n)
         (invariant (and (<= 0 i) (<= i n)))
+        (invariant (>= (twice i) 0))
         (decreases (- n i))
         (set i (+ i 1)))
       (return (+ (+ (+ k d) (+ e y)) (+ h (+ c i)))))))
@@ -977,9 +978,22 @@ for name in ("helper", "count", "main"):
     kept, seen, bad = i.test_def(EVERY, name, int(H.hashes(EVERY, 1)[name][1][6:22], 16), 1)
     assert kept == 100 and bad == {}, (name, kept, bad)
     counts.update(seen)
-missed = [(g[0], g[1], g[2]) for g in gen.check(EVERY) if not (g[6] == "impl" and "lemma" in gen.defs[g[0]])
-          and (g[1], id(g[5]), None if g[7] is None else id(g[7])) not in counts]
-assert missed == [], missed
+missed, nth = [], {}
+for g in gen.check(EVERY):  # keyed as verify.py keys them, a loop's second check of a node as #2
+    k = (g[1], id(g[5]), None if g[7] is None else id(g[7]))
+    nth[k] = nth.get(k, 0) + 1
+    if not (g[6] == "impl" and "lemma" in gen.defs[g[0]]) and (*k, nth[k]) not in counts:
+        missed.append((g[0], g[1], g[2], nth[k]))
+assert missed == [] and 2 in nth.values(), missed
+# A loop that never passes doesn't evaluate the goals of its condition's second check: here
+# (idx a i) on a later pass, which isn't proved, since i may reach 3.
+NEVER = parse(HEAD + """  (spec f (params (a (ref (slice i64)))) (returns (r i64)) (requires (== (len a) 3) (>= (idx a 0) 0)) (effects))
+  (def f (body (let-mut i i64 0)
+    (while (< (idx a i) 0) (invariant (and (<= 0 i) (<= i 3))) (decreases (- 3 i)) (set i (+ i 1)))
+    (return i))))""", 1)
+gen, seen = G.Gen(NEVER, 1), i.test_def(NEVER, "f", 5, 1)[1]
+cond = [g for g in gen.check(NEVER) if g[1] == "BOUNDS" and _print(g[5]) == "(idx a i)"]
+assert len(cond) == 2 and seen[("BOUNDS", id(cond[0][5]), None, 1)] > 0 and ("BOUNDS", id(cond[0][5]), None, 2) not in seen
 # An input is dropped when its requires fail, or its run ends in a limit; a refuted goal comes
 # with its input and outcome.
 DROP = parse(HEAD + """  (spec f (params (n i64)) (returns (r i64)) (requires (>= n 0)) (ensures (< r 5)) (effects))

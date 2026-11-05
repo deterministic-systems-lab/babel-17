@@ -224,23 +224,25 @@ def levels(module, seeds=SEEDS, cache=CACHE, subset=SUBSET):
             counts.update(seen)
             for k, (given, outcome) in bad.items():
                 refuted.setdefault(k, {"def": name, "input": given, "outcome": outcome})
-    # ponytail: a node checked twice, as a loop condition is, shares one count; split them if a
-    # goal ever passes on entry and is never reached on a later pass, and that matters.
-    key = lambda g: (g[1], id(g[5]), None if g[7] is None else id(g[7]))
+    keys, nth = [], Counter()  # a goal's key, numbered as its name is: a loop's #2 is after a pass
+    for g in goals:
+        nth[k := (g[1], id(g[5]), None if g[7] is None else id(g[7]))] += 1
+        keys.append((*k, nth[k]))
+    key = lambda g: keys[g]
     lemma_body = lambda g: g[6] == "impl" and "lemma" in gen.defs[g[0]]  # never runs (D57), so always proved
-    tested = {k for k, g in enumerate(goals) if k not in proved and counts[key(g)]
-              and key(g) not in refuted and not lemma_body(g)}
+    tested = {k for k, g in enumerate(goals) if k not in proved and counts[key(k)]
+              and key(k) not in refuted and not lemma_body(g)}
     counted = closure(gen, goals, proved, checker(module, gen, cfg, cache, subset))
     runtime = {k for k, g in enumerate(goals) if g[1] in RUNTIME and g[6] == "impl" and "def" in gen.defs[g[0]]
                and (g[1] == "TERM" or id(g[5]) not in gen.ghost)}  # a def's TERM goals are its loops' and calls'
     one = len(proved | tested) == len(goals)
     named = lambda k: {"node": rows[k]["node"], "family": rows[k]["family"]}
     first = {}
-    for k, g in enumerate(goals):
-        first.setdefault(key(g), k)
+    for k in range(len(goals)):
+        first.setdefault(key(k), k)
     return rows, cfg, {
         "level": "L2-S" if one and runtime <= counted else "L1" if one else "L0",
-        "tested": [{**named(k), "inputs": counts[key(goals[k])]} for k in sorted(tested)],
+        "tested": [{**named(k), "inputs": counts[key(k)]} for k in sorted(tested)],
         "untested": [named(k) for k in sorted(set(range(len(goals))) - proved - tested)],
         "refuted": [{"node": rows[first[k]]["node"] if k in first else None, "family": k[0], **v} for k, v in refuted.items()],
         "uncounted": [named(k) for k in sorted(proved - counted)],
@@ -269,20 +271,20 @@ def report(module, rows, cfg, reached):
 
 
 def main(argv):
-    seeds, cache, out, subset, level = SEEDS, CACHE, None, SUBSET, None
+    seeds, cache, out, subset, level, bad = SEEDS, CACHE, None, SUBSET, None, False
     while argv and argv[0] in ("--subset", "--seeds", "--cache", "--level", "--report") and len(argv) > 1:
         flag, val, argv = argv[0], argv[1], argv[2:]
-        if flag == "--subset" and val in ("0", "1"):
-            subset = int(val)
+        if flag == "--subset":
+            subset, bad = (int(val), bad) if val in ("0", "1") else (subset, True)
         elif flag == "--seeds":
-            seeds = int(val)
+            seeds, bad = (int(val), bad) if val.isdigit() else (seeds, True)
         elif flag == "--cache":
             cache = Path(val)
         elif flag == "--level":
             level = val
         else:
             out = Path(val)
-    if len(argv) != 1 or level not in (None, "L0", "L1", "L2", "L3"):
+    if bad or len(argv) != 1 or level not in (None, "L0", "L1", "L2", "L3"):
         print("usage: uv run --no-project b17c/verify.py [--subset 0|1] [--seeds N] [--cache DIR] [--level L0|L1|L2|L3] "
               "[--report FILE] FILE", file=sys.stderr)
         return 2

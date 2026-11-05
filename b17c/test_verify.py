@@ -373,6 +373,18 @@ assert reach("""(lemma bad (params (x int)) (ensures (> x 0)) (body))
 level, r = reach("""(spec f (params (x i64)) (returns (r i64)) (effects))
   (def f (body (if (== x 123456789) (assert false) (block)) (return x))))""")
 assert level == "L0" and r["untested"] == [("ASSERT", None)] and r["refuted"] == [], r
+# Nor from a seq-build's length, when its BOUNDS goal, n >= 0, is only tested: with len >= 0,
+# its length fact would give that goal back (D120).
+level, r = reach(f"""(spec f (params (a (ref (slice i64))) (x i64)) (returns (r i64)) (requires (>= (len a) 1) {X}) (effects))
+  (def f (body (ghost-let s (seq int) (seq-build (- 0 {EVEN}) (fn (i) 0))) (return (idx a {EVEN})))))""")
+assert level == "L1" and r["tested"] == [("BOUNDS", 100)] and r["uncounted"] == [("BOUNDS", None)], r
+# A loop that never passes tests nothing its condition checks on a later pass: (idx a i) there
+# isn't proved, since i may reach 3, so the module is at L0, not L1.
+level, r = reach("""(spec f (params (a (ref (slice i64)))) (returns (r i64)) (requires (== (len a) 3) (>= (idx a 0) 0)) (effects))
+  (def f (body (let-mut i i64 0)
+    (while (< (idx a i) 0) (invariant (and (<= 0 i) (<= i 3))) (decreases (- 3 i)) (set i (+ i 1)))
+    (return i))))""")
+assert level == "L0" and r["untested"] == [("BOUNDS", None)] and r["tested"] == [], r
 # A joined branch's facts outlive one of them resting on a goal that doesn't count.
 f = v.G.Fact("(=> c (and true a b))", guard="c", parts=[v.G.Fact("a", {3}), "b"])
 assert v.G.without([f, v.G.Fact("d", {("post", "g")}), "e"], {3, ("post", "g")}) == ["(=> c (and true b))", "e"]
@@ -391,6 +403,7 @@ quiet = lambda *a: v.main(["--subset", "0", "--seeds", "1", "--cache", str(CACHE
 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
     assert quiet("--level", "L3", abs_file) == 0 and quiet("--level", "L1", bad_file) == 1
     assert quiet("--level", "L0", "--report", str(out), bad_file) == 0 and quiet("--level", "L4", abs_file) == 2
+    assert v.main(["--subset", "2", abs_file]) == 2 and v.main(["--seeds", "x", abs_file]) == 2
 assert json.loads(out.read_text())["level"] == "L0"
 
 print("verifier self-check passed")

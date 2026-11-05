@@ -109,7 +109,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **L1's property tests:** the interpreter runs each def, checking on, on D88's inputs, and records each goal it evaluates. Tests run only when some goal isn't proved.
   - **L2's closure:** each proved goal is solved again without what rests on goals that don't count: earlier goals, callees' `ensures`, lemmas' claims, loop invariants and ghost-fns' equations (D91).
   - **Checked on the suite:** a program reaching every goal family has all 58 of its goals evaluated. No accept program has a goal refuted. In 10 of the 15 proof rejects a test refutes the labelled goal, and in 4 no test reaches it. The last, `E-PROOF-DIV-min-rem-minus-one`, reaches L1, since only i64's least value over −1 fails it, and it's listed as a goal that may abort.
-  - **Every query is unchanged:** all 5,824 of the suite's and the core library's queries are byte-identical, so M3's verdicts and cache keys don't move.
+  - **Every query is unchanged:** all 5,824 of the suite's and the core library's queries are byte-identical, and so are those of the 110 verified M3 programs that use `seq-build`, where the one change in encoding could reach. So M3's verdicts don't move, though cached ones are solved again, since the cache's key includes `b17c`'s own hash.
   - **Limits:** random inputs meet few graph tasks' `requires`, and some runs are slow, as D120 records.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
