@@ -2821,3 +2821,73 @@ WP17. The owner accepted both proposals from the last entry: the worked proof st
 - **Not changed:** `b17c`, the harness, the manuals, the tasks and the recorded runs.
 - **Updated:** DECISIONS (D118, and the owner's call on D117); the README's files, self-checks, commands and notes on M3; the roadmap's date, recent work, decisions waiting for the owner, and critical path.
 - **Interfaces touched:** none. `gym/audit.py` and `gym/test_audit.py` are new.
+
+## 2026-11-04 · M3: all 14 ports under one prompt: Claude 42 of 42 at about 2.5 times Dafny's tokens, and Codex 25 of 42
+
+- **Started by the owner** after PR #70's merge: `20261104T231447Z-claude-codex`, all 14 ports × Claude and Codex × 3 samples, up to 8 rounds. It made 258 calls in about 4.3 hours, from a clean tree at `49bf921`. `b17c`, the harness, the prompts, Z3 and the CLIs match the last run's, so its 5 harder ports repeat that run exactly. No call ended in an infra error, and the longest recorded call took 1,157 seconds.
+- **The first B17-1 numbers from one prompt.** The earlier run of the 9 easier ports came before D114, D115 and D117. Dafny's figures are the same 14 tasks in its two AlgoVeri runs, 2 attempts per task and CLI.
+
+  | Measure | Claude, B17-1 | Claude, Dafny | Codex, B17-1 | Codex, Dafny |
+  |---|---|---|---|---|
+  | Verified | 42 of 42 | 28 of 28 | 25 of 42 | 22 of 28 |
+  | On the 9 easier ports | 27 of 27 | 18 of 18 | 23 of 27 | 16 of 18 |
+  | On the 5 harder ports | 15 of 15 | 10 of 10 | 2 of 15 | 6 of 10 |
+  | Verified in round 1 | 32 | 13 | 12 | 8 |
+  | Rounds on average, verified | 1.31 | 1.82 | 2.68 | 3.14 |
+  | Tokens per verified task | 128k | 51k | 393k | 141k |
+  | On the 9 | 80k | 21k | 163k | 61k |
+  | On the 5 | 215k | 105k | 3.03M | 355k |
+  | Input | 59k | 13k | 321k | 94k |
+  | Output | 69k | 38k | 72k | 47k |
+  | Thinking | 53k | 27k | 44k | 20k |
+  | Median first-call input | 35.9k | 4.2k | 35.6k | 13.5k |
+
+  So Claude is at about 2.5 times Dafny's tokens per verified task: 3.8 on the 9 and 2.0 on the 5. Input is about 4.4 times and output about 1.8. Codex is at about 2.8 times, though that compares different passes, since its passes here lean easier. On the 8 ports that aren't `kruskal`, which both languages nearly always verify, it's about 3.2 times: 111k against 35k.
+- **Per task,** tokens per verified task. "Before" is the first B17-1 run for the 9 and the last run for the 5.
+
+  | Task | Claude | Before | Dafny | Codex verified, B17-1 and Dafny | Codex | Before | Dafny |
+  |---|---|---|---|---|---|---|---|
+  | `bst_insert` | 42k | 50k | 4k | 3 of 3, 2 of 2 | 36k | 29k | 23k |
+  | `bst_search` | 38k | 28k | 4k | 3 of 3, 2 of 2 | 37k | 30k | 14k |
+  | `coin_change` | 89k | 97k | 54k | 2 of 3, 2 of 2 | 314k | 172k | 45k |
+  | `discrete_logarithm` | 45k | 30k | 5k | 3 of 3, 2 of 2 | 39k | 32k | 14k |
+  | `kruskal` | 197k | 416k | 62k | 0 of 3, 0 of 2 | | | |
+  | `lca` | 66k | 95k | 14k | 3 of 3, 2 of 2 | 208k | 148k | 45k |
+  | `longest_palindrome_substring` | 70k | 48k | 14k | 3 of 3, 2 of 2 | 109k | 48k | 77k |
+  | `segmenttree_query` | 82k | 113k | 14k | 3 of 3, 2 of 2 | 136k | 72k | 28k |
+  | `trie_insert` | 87k | 86k | 18k | 3 of 3, 2 of 2 | 76k | 87k | 33k |
+  | `bellman_ford` | 161k | 157k | 109k | 1 of 3, 2 of 2 | 1.18M | | 233k |
+  | `dijkstra` | 116k | 117k | 67k | 1 of 3, 2 of 2 | 1.33M | | 182k |
+  | `edmond_karp` | 375k | 220k | 157k | 0 of 3, 0 of 2 | | | |
+  | `prim` | 168k | 204k | 110k | 0 of 3, 1 of 2 | | | 412k |
+  | `push_relabel` | 252k | 362k | 85k | 0 of 3, 1 of 2 | | | 425k |
+
+- **The audit, in its first standing use (D118):** all 67 verified programs are `right` on all 25 inputs. The most steps any used on one input is 543,965, and the median program's most is 8,641, so none is near the limit.
+  - **By reading:** no `seq-build` in the run has a literal the size of the old trick's, and no verified program has a literal of 15 or more digits. There are 29 uses of `(assert false)` or `(ensures false)`. In the 7 inside defs, each marks a branch the proof rules out: a `segmenttree_query` node with only one child, or the end of `bellman_ford` 3's `while true`. The other 22 are in lemmas, as contradiction branches or as lemmas that a given case can't happen, which their callers must prove. The tiniest programs, Codex's `bst_insert` at about 450 characters, are the plain recursion the spec asks for.
+  - **Which algorithms Claude wrote:** none of the `kruskal` programs is a search or scans every weight. Sample 1 is Prim's, growing from vertex 0, and samples 2 and 3 repeatedly take the lightest edge joining two components, which is Kruskal's rule with a rescan in place of a sort. All 3 `edmond_karp` programs use BFS with augmenting paths. Of the 3 `push_relabel` programs, 1 is push-relabel (sample 1), and the other 2 find augmenting paths, the same split as the last run.
+- **Claude's total repeats, and its per-task figures don't.** On the 5 harder ports, the same setup gives 215k against 212k, with a permutation test within tasks at a p of about 0.93. But `edmond_karp` went from 220k to 375k and `push_relabel` from 362k to 252k. So the per-task moves in earlier entries are within what a repeat produces. Over 30 samples with the example, the mean is 213k against 250k over the 15 of the rerun, with a p of about 0.15. So the level has repeated, but the fall still isn't shown to be the example's.
+- **The fall on the 9 is `kruskal`.** Claude's tokens per verified task went from 107k to 80k (p of about 0.21), or from about 5.1 times Dafny's to 3.8. Without `kruskal`, they went from 68k to 65k (p of about 0.76), about 4.3 times to 4.1, with input per call up from 27.0k to 35.7k and calls down from 31 to 25. So on the easier ports the ratio has barely moved. More than half of that cost is input there, 57% on those 8. Across all 14, at no less than 35.3k per call, the fixed prompt is about 1.94M of Claude's 5.37M tokens, or 36%. That's why its ratio falls as tasks get harder.
+- **Codex on the 9:** 23 of 27, against 24 of 27 in the first run once its 2 trick passes are left out, and 16 of 18 in Dafny. `kruskal` fails in both languages, and otherwise B17-1 lost only 1 of 24 samples, `coin_change` 3 after 8 rounds at 21,000 to 30,000 characters. So these 9 still don't separate the languages. It costs more than the first run, though: on the 8 without `kruskal`, 2.55M tokens against 1.86M (p of about 0.055), from more calls, 59 against 49, and more input per call, 37.5k against 31.2k.
+- **Codex on the 5:**
+  - **Passes:** 2 of 15 against none of 15 in the same setup, both in round 8: `dijkstra` 1 at 35,662 characters and `bellman_ford` 3 at 54,392. That's its first `bellman_ford` pass in B17-1. With a worked proof in the prompt or the supplement, it has now passed 5 of 45, against 6 of 10 in Dafny, where its one `push_relabel` pass is an exhaustive search.
+  - **Few failed goals doesn't mean close.** `prim` 3 ended at 2 failed goals, but both are lemmas with empty bodies, one stating the whole of `is_mst`. `bellman_ford` 1 ended at 1, which is its whole correctness property, in a program of 6,016 characters. In 32 of its 40 failed rounds of at least 7,000 characters on these 5, a lemma with an empty body is among the failures. All of Codex's samples on these 5 used the limit of 8 rounds.
+  - **Maximum flow:** 5 of 6 samples wrote loops, in 17 of 48 rounds, the same count of rounds as the last run. 15 are searches over flow matrices. `push_relabel` 3's round 7 is a stub that keeps 0. And `edmond_karp` 2's round 1, at 8,606 characters, uses BFS, a queue and augmenting paths, the first such attempt in any B17 run of Codex's. The next round replaced it with `exhaustive_max_flow`.
+- **E-PARSE-001's note:** 14 of Codex's rounds got it, and in 4 of those the next round was unbalanced again. The last run's none of 7 was partly luck. Over both, it's 4 of 21, against 16 of 36 before the note (p of about 0.08), so it still points the right way, more weakly than that entry suggested.
+- **New: long diagnostics get cut, and B17's far more often.** The harness gives an agent the first 6,000 characters of its feedback, for Dafny and B17 alike (D98). That isn't the same limit in practice, since a B17 diagnostic is JSON, a median of 473 characters per entry.
+  - **How often:** 21 of the 161 repair prompts Codex got here were cut, 19 of them on the 5 harder ports, against 2 of its 89 on these tasks in Dafny. None of Claude's 13 was. These counts leave out feedback on a last round, which no agent reads.
+  - **What's lost:** in those 21 prompts, 178 of the 450 diagnostics start after the cut, and in one prompt 43 of 56 do. The cut falls mid-entry, with nothing to say so.
+  - **What it costs:** Codex noticed in 2 rounds, and each used up a round. In `dijkstra` 2's round 5, it wrote no code and asked for the rest. `push_relabel` 3's round 3 is a code block holding only a comment that the list is truncated, and that sample's rounds stay short from there, after 26,836 characters in round 2. Whether the cut matters beyond that isn't measured, since a fixed goal lets later ones show in the next round, but those rounds have a limit of 8.
+- **Reproduced:** `reverify` gave the same verdict on all 249 rounds with code.
+- **What it says:**
+  - **On what verifies, only the harder ports separate the languages, and only for Codex.** Claude verifies everything Dafny does. On the 9, Codex's one loss outside `kruskal` is 1 sample of 24.
+  - **On cost, B17-1 isn't at parity,** at about 2.5 and 2.8 times Dafny's tokens per verified task. Claude is closest on the hardest tasks, at 2.0. The fixed prompt is the largest single part, which training (Bet 2) or prompt caching would cut, and nothing here tests either.
+  - **More runs of these tasks won't say much more for Claude.** Its verdicts are all passes again, and its total on the 5 repeated within about 1%. Codex's passes on the 5 with an example have gone 3, 0 and 2 of 15, so a gap of that size between two runs is within what repeats produce.
+- **Proposed, not made:**
+  - **Cut feedback at a whole diagnostic, and say how many more there are.** An agent can't fix what it can't see, and two of Codex's rounds went to saying so. It's a small change to the harness, but it changes what agents see, so later runs would differ from this one. Raising B17's limit is the alternative, at more input per call. A rerun of Codex on the 5 would measure it.
+  - **WP5's verification levels next,** if no further runs are wanted, since this track's main measurement is now in.
+  - **Optional, more rounds for Codex** on `dijkstra`, `bellman_ford` and `prim`. Dafny's prompt had the same limit of 8, so that wouldn't be a fair count against Dafny.
+- **Codex fact-check** (`gpt-5.6-sol`) recomputed both tables, every ratio and the p values from the records, read the programs this entry describes and all 17 of Codex's maximum-flow rounds with a loop, and ran the audit, which gave 67 `right` and the same step counts. It found no trick or exhaustive search among the verified programs, and no earlier BFS attempt by Codex. It found two errors, both fixed: loops were in 5 of 6 maximum-flow samples, not 4, and the first count of cut feedback included 5 last rounds that no agent read. It didn't review those fixes, which were recomputed separately. It couldn't confirm the 4.3 hours, which come from the run's start time and the log's last write.
+- **Ponytail:** not run, since only records change.
+- **Not changed:** `b17c`, the harness, the manuals and the tasks.
+- **Updated:** the README's results table and notes on M3; the roadmap's recent work, decisions waiting for the owner, critical path and open questions.
+- **Interfaces touched:** none.

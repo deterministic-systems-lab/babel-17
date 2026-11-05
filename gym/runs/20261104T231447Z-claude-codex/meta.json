@@ -1,0 +1,91 @@
+{
+  "run_id": "20261104T231447Z-claude-codex",
+  "started": "2026-11-04T23:14:49.307980+00:00",
+  "git_commit": "49bf921e506b7a890fc6a4d2d1cc424652d9f96b",
+  "git_dirty": false,
+  "samples": 3,
+  "max_iters": 8,
+  "tasks": [
+    "b17-1/bellman_ford",
+    "b17-1/bst_insert",
+    "b17-1/bst_search",
+    "b17-1/coin_change",
+    "b17-1/dijkstra",
+    "b17-1/discrete_logarithm",
+    "b17-1/edmond_karp",
+    "b17-1/kruskal",
+    "b17-1/lca",
+    "b17-1/longest_palindrome_substring",
+    "b17-1/prim",
+    "b17-1/push_relabel",
+    "b17-1/segmenttree_query",
+    "b17-1/trie_insert"
+  ],
+  "task_sha": {
+    "b17-1/bellman_ford": "5077a9b860791677f14688504fdb2639f1f79c198bec8923a2dbef82d0986693",
+    "b17-1/bst_insert": "4c028e9999a18dfab20be26ef72217b927304cffa5e456d7b80003599ae270d9",
+    "b17-1/bst_search": "10ee3e1b874c0a529dd043b6135a990fdb2a1a51b7deb989cbb3bac6987a7566",
+    "b17-1/coin_change": "b935c6b859af572a04c67dae9889a01e8147b99670d3eb7a5a73ce4de5b50c10",
+    "b17-1/dijkstra": "0428676cf0a4503f91d76932cc7a5ce71b0c9f2e889062a22e452b48c05f72a2",
+    "b17-1/discrete_logarithm": "f6590cbc1359d3c27abba80900962d46d168c010e200d72e5eeda1fc5726c7a6",
+    "b17-1/edmond_karp": "0bf9a2c4df24e8fed02e574cfe5610afbd0111c14c7dbe8612d58ad5bb11c879",
+    "b17-1/kruskal": "4356341a04c47f3cabd4cb1a9906ec2c4f2b2f0d805b3b72d0f6b41f297f4e9b",
+    "b17-1/lca": "8edd7cc74a9ae000a00e2a1be204c655ab277d19515e4917343b1eeb1a7d613b",
+    "b17-1/longest_palindrome_substring": "c56ebadddd6fb09d7fa5e9306c91209ecea3d025f8d41483d95c74606abd4502",
+    "b17-1/prim": "8140180278d56c1da82890c201ab69dff217e06305ce0818d7ad40068cde020a",
+    "b17-1/push_relabel": "2aef1dc52a6e06d60d3042d8ef6d7fd595dd3692646f175572aa23f6dc923147",
+    "b17-1/segmenttree_query": "22d2f7552f34d595e26a29c4ba0b8b91bb774b71d36c56ffd76537033ba68c93",
+    "b17-1/trie_insert": "0926abf5bde1199866089608af17ba294edc867c17a112ba0779d7cf2ae37ce9"
+  },
+  "z3": "Z3 version 5.3.2 - 64 bit",
+  "harness_sha": "b59079661304068eee524d8e322ef7a3e9b83716df13c8cdf834e3b874ba13d6",
+  "b17_prompt_sha": "5875a918e742bf6c42d16441505edebfad8f87f9e89d8278021ababd0166661e",
+  "b17c_sha": "eef353c4dc17bcb8d9b24e20b75de7f4f269d4cf7ff318dc53ad343563979d4c",
+  "b17_1_prompt_sha": "253d837de836ef1746946b4a4402909841dde8092e78bbdf67de614e89201c0b",
+  "clis": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--model",
+        "opus",
+        "--effort",
+        "high",
+        "--tools",
+        "",
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--output-format",
+        "stream-json",
+        "--verbose"
+      ],
+      "version": "2.1.309 (Claude Code)"
+    },
+    "codex": {
+      "cmd": [
+        "codex",
+        "exec",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--ignore-rules",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "unified_exec",
+        "-m",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=high",
+        "-s",
+        "read-only",
+        "--skip-git-repo-check",
+        "--json",
+        "-"
+      ],
+      "version": "codex-cli 0.145.0"
+    }
+  }
+}
