@@ -1233,7 +1233,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Pinning:** D23 pins the solver for the same reason. A newer rustc can add lints or change code generation, and the report must name the toolchain a binary came from (D25).
 - **Touches:** D18; D23; D25; D59; WP7; `.github/workflows/check.yml`.
 
-## D98 · M3's B17-0 track in the harness · Accepted (extended by D112)
+## D98 · M3's B17-0 track in the harness · Accepted (extended by D112; its feedback cut amended by D119)
 - **Date:** 2026-10-28
 - **Decision:** `gym/harness.py` gains a B17-0 track. It runs the same CLIs, isolation, samples and round limit as the Dafny track (WP17), so only the language differs.
   - **Tasks:** the 20 seed tasks, from `suite/accept/`. Each poses:
@@ -1690,3 +1690,18 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Stating a cost in the specs.** D30 allows exact operation counts with ghost counters, but that changes the tasks, and so the comparison with Dafny.
 - **Cost:** at the limit, the length trick takes about a minute and up to 2.3 GB, and an exhaustive search about two minutes. Each of the two slow `kruskal` programs takes about 13 minutes.
 - **Touches:** D14; D30; D114; D117; WP17: `gym/audit.py`, `gym/test_audit.py`.
+
+## D119 · B17's feedback ends at a whole diagnostic and says how many more · Accepted (amends D98)
+- **Date:** 2026-11-05
+- **Decision:** the limit stays at 6,000 characters. A B17 repair prompt holds the diagnostics that fit whole, in order, then one line: "Diagnostics not shown: N. Fix the ones above, and the next check will report on your new items."
+  - **The first is always kept,** so there's one to act on. None recorded is longer than 1,591 characters.
+  - **Dafny's track still gets a plain cut,** so its baselines stay comparable.
+  - **Records still hold the feedback in full.**
+- **Why:** a B17 diagnostic is JSON, a median of 436 characters per entry across all runs, so the same limit cuts B17 far more often: 21 of Codex's 161 repair prompts in the run of all 14 ports, against 2 of its 89 in Dafny. The cut fell mid-entry with nothing to say so, and the two times Codex noticed, it lost a round.
+- **Alternatives:**
+  - **Raising B17's limit.** It would show more, at more input per call, on top of a fixed prompt that's already the largest part of B17's cost.
+  - **Compact JSON.** At the same limit, it would show 123 of the 536 diagnostics this cut leaves out, across all runs. It could apply to prompts over the limit alone, but agents would then see two formats, and about three-quarters of the 536 would still be left out.
+- **Cost:**
+  - **It shows no more diagnostics.** Those that fit whole are the same as before, and each cut prompt loses the part of the entry the old cut left in. What it adds is the count, and that a new check follows.
+  - **Later runs differ from earlier ones.** A run's settings pin the harness's hash, so `--resume` won't mix the two. The effect isn't measured, and a rerun of Codex on the five harder ports would be a weak test, since its passes there have gone 3, 0 and 2 of 15 with an example.
+- **Touches:** D98; WP17: `gym/harness.py`, `gym/test_b17.py`.

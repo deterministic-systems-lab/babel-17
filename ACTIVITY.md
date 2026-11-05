@@ -2891,3 +2891,27 @@ WP17. The owner accepted both proposals from the last entry: the worked proof st
 - **Not changed:** `b17c`, the harness, the manuals and the tasks.
 - **Updated:** the README's results table and notes on M3; the roadmap's recent work, decisions waiting for the owner, critical path and open questions.
 - **Interfaces touched:** none.
+
+## 2026-11-05 · B17's feedback ends at a whole diagnostic and says how many more, D119
+
+WP17. The last entry found that the harness's cut hid B17's long diagnostics mid-entry, with nothing to say so. The owner accepted D119 on 2026-11-05, keeping the limit at 6,000 characters.
+
+- **What's new:** `cut_diagnostics` in `gym/harness.py`. A B17 repair prompt holds the diagnostics that fit in 6,000 characters whole, then says how many aren't shown and that the next check will report on the agent's new items. Dafny's track and the recorded feedback don't change.
+- **Replayed on every recorded B17 round an agent read,** 813 of them:
+  - **Under the limit:** 744 come out byte-identical.
+  - **Over it:** in all 69, the result parses, its entries are the feedback's first ones in order, and the count is right. The longest prompt section is 6,077 characters.
+  - **In the run of all 14 ports:** of the 450 diagnostics in its 21 cut prompts, 199 aren't shown. That's the last entry's 178 that started after the cut, and the 21 it cut mid-entry.
+- **It shows no more diagnostics:** across the 69, 536 of 1,407 weren't whole before, and the same 536 aren't shown now. What changes is that the agent knows they exist and that a new check follows.
+- **Measured for comparison:** compact JSON at the same limit would leave out 413 rather than 536. Not taken: it could apply to prompts over the limit alone, but agents would then see two formats, and about three-quarters of the 536 would still be left out.
+- **Not measured:** whether this changes what agents verify. No run has used it, and Codex's passes on the five harder ports have gone 3, 0 and 2 of 15 with an example, so one rerun would be a weak test.
+- **Self-check:** `gym/test_b17.py` and `gym/test_harness.py` passed.
+- **Codex review** (`gpt-5.6-sol`) traced every path that sets the feedback and found no value that breaks the cut, and recomputed every count here from the records, all of which held. It found three things, all fixed:
+  - the note said the next check reports what's left, but that check runs on the agent's new items, and "Fix these" could be read as the ones not shown;
+  - the first reason given against compact JSON was wrong, since it needn't touch prompts under the limit;
+  - the self-check didn't hold Dafny's cut byte for byte.
+
+  Its sandbox couldn't run `gym/test_b17.py`.
+- **Ponytail:** found nothing to cut.
+- **Not changed:** `b17c`, the manuals, the tasks, Dafny's track and the recorded runs.
+- **Updated:** DECISIONS (D119, and D98's status); the README's note on M3; the roadmap's date, recent work, decisions waiting for the owner and critical path.
+- **Interfaces touched:** none.

@@ -35,6 +35,22 @@ assert h.verify_b17(ABS, "(def abs (body (return x)")[0] == "rejected"
 p = h.render(ABS, None)
 assert h.MANUAL.read_text() in p and f"line {ABS['frozen'].count(chr(10)) + 2}" in p and "```lisp" in p
 assert '"code": "E-PROOF-POST"' in h.render(ABS, None, "(def abs (body (return x)))", '[{"code": "E-PROOF-POST"}]')
+# Long diagnostics end at a whole one and say how many more (D119), and Dafny's output is still a plain cut.
+diags = [{"code": "E-PROOF-POST", "message": "x" * 1000, "n": n} for n in range(20)]
+shown, note = h.cut_diagnostics(json.dumps(diags, indent=1)).split("\n\n")
+k = len(json.loads(shown))
+assert 1 < k < 20 and json.loads(shown) == diags[:k] and len(shown) <= h.FEEDBACK_CHARS, k
+assert len(json.dumps(diags[:k + 1], indent=1)) > h.FEEDBACK_CHARS and f"not shown: {20 - k}." in note, k
+assert note in h.render(ABS, None, "(none)", json.dumps(diags, indent=1)), "the prompt carries the note"
+few = json.dumps(diags[:2], indent=1)
+assert h.cut_diagnostics(few) == few and h.cut_diagnostics("No ```lisp code block") == "No ```lisp code block"
+one = json.dumps([{"message": "x" * 7000}], indent=1)  # longer than the limit alone: whole, and nothing to count
+assert h.cut_diagnostics(one) == one
+assert json.loads(h.cut_diagnostics("[" + " " * 7000 + "1]")) == [1]  # long only in its whitespace: still ends
+assert h.cut_diagnostics("x" * 7000) == "x" * h.FEEDBACK_CHARS  # not diagnostics: as before
+DAFNY_TASK = dict(signature="method f()", preamble="", name="f")
+long = json.dumps(diags, indent=1)
+assert h.render(DAFNY_TASK, "4", "c", long).endswith(h.REPAIR_PROMPT.format(code="c", feedback=long[:h.FEEDBACK_CHARS]))
 assert h.extract_code("a\n```lisp\nX\n```\n```dafny\nY\n```", "b17") == "X"
 # A reply Claude Code resumed after the output limit is read whole, not just its last part, whether
 # a part continues mid-line or reopens the block.
