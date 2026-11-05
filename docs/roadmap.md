@@ -103,7 +103,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
   - **Cost:** Claude at about 2.5 times Dafny's tokens per verified task, 3.8 on the 9 easier ports and 2.0 on the 5 harder ones, and Codex at about 2.8. About a third of Claude's tokens are the fixed prompt.
   - **Codex:** 23 of 27 on the 9, against 16 of 18, and 2 of 15 on the 5, against 6 of 10, both in round 8. On maximum flow, one round used BFS, the first in B17, and the next went back to a search.
   - **A repeat of the 5:** Claude's total came out at 215k against 212k, with single tasks moving by up to about 1.7 times.
-  - **Long diagnostics are cut:** the harness's limit of 6,000 characters cut 26 of Codex's 178 feedback rounds, against 2 of 95 in Dafny, and hid 191 of those rounds' 564 diagnostics. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
+  - **Long diagnostics are cut:** the harness's limit of 6,000 characters cut 21 of Codex's 161 repair prompts, against 2 of 89 in Dafny, and hid 178 of those prompts' 450 diagnostics. [ACTIVITY.md](../ACTIVITY.md) has the full analysis.
 - **WP16, the core spec library,** is under way. Its first part is merged (PR #9).
   - `b17c/core.b17` holds `sorted`, `in_i64`, `seq_update`, and 33 laws as lemmas: §9's background facts with D61's derived `contains` facts, and the laws of integer order.
   - **The interpreter confirms every law** at every point of a grid of sequences and integers. That's WP16's done-when (D28).
