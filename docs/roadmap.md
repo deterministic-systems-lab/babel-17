@@ -134,6 +134,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **WP5, the verifier, reads B17-1,** by default since it froze, encoding it as D89 says, refined by D103, D105, D106 and D108.
   - **Proof labels:** each of the 6 proof rejects fails exactly its labelled goal.
   - **Accept programs:** all 15 verify under 10 shuffled seeds. Their proofs use D99's `forall` statement, D100's `obtain` and, for `bfs`, `coin_change` and `kruskal`, D106's folded ghost-fns, with invariants written as folded predicates. `kruskal`'s proof that no spanning tree weighs less is an exchange argument, round by round.
+  - **From 2026-10-31 to 2026-11-06, `coin_change` didn't:** numbering ghost-fn parameters in queries changed no query's meaning, but one lemma then proved under only 9 of 10 seeds, and `test_verify.py` proved the suite under one. The lemma now applies a smaller one at every key, and `test_verify.py` proves both suites under 10 seeds.
   - **Soundness fixes that reach B17-0:** a review found two ways the verifier proved `false`, in B17-0 too. One was a recursive ghost-fn's equation holding outside its parameter types. The other was a `seq-build` under a quantifier being one constant. Both are fixed (D103). A later review found a third, also fixed: a binder or parameter could share its SMT name with a ghost-fn, so a definition read the wrong value. No suite proof or agent's program relied on it.
   - **B17-0's suite is unchanged:** every one of its 511 queries is byte-identical, so no suite proof relied on either hole.
   - **Open types inside values:** an empty literal nested in a map, tuple, set, sequence or constructor value used to reach goal generation with its type open, and crash it or send an ill-sorted query. After tier 0, each open type now takes its type where the value is used, or becomes an integer, as `docs/b17-1.md` §4 says. Every suite and core query is byte-identical.
@@ -155,6 +156,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
+- **Whether Phase 1's gate has passed.** Checked on 2026-11-06: B17-1 is frozen, and every ported task, B17-0's 20 and B17-1's 15, proves every goal under 10 shuffled seeds and runs as emitted Rust, printing what the interpreter prints on every self-check input. Not covered: WP10 has no Verus or Lean port yet, and for 7 of the 40 specs the spec workbench can't show that any input meets the `requires`.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
 D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D5, D7, D119, D120 and D121 on 2026-11-05. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.

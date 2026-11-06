@@ -18,7 +18,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 2. WP2's round-trip tests pass;
 3. WP15's interpreter passes its conformance tests.
 
-Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite, D113 corrected four of its statements, making it v1.1, and D114 gave `push` a goal on its vector's length, making it v1.2 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0 and B17-1. B17-1's verification levels are built (D120), and WP4b's spec workbench runs its checks on the worked example (D121).
+Phase 1, the embedded MVP, has begun. B17-1, the second subset, froze on 2026-10-30 with its labelled suite, D113 corrected four of its statements, making it v1.1, and D114 gave `push` a goal on its vector's length, making it v1.2 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0 and B17-1. B17-1's verification levels are built (D120), and WP4b's spec workbench runs its checks on the worked example (D121). Phase 1's gate was checked on 2026-11-06, and waits for the owner ([docs/roadmap.md](docs/roadmap.md#decisions-waiting-for-the-owner)).
 
 | WP | What | State |
 |---|---|---|
@@ -120,7 +120,7 @@ uv run --no-project b17c/test_agent.py     # agent protocol: diagnostics and the
 uv run --no-project b17c/test_rust.py      # Rust backend: emitted crates compile, and runs match the interpreter, B17-0's and B17-1's (needs rustc)
 uv run --no-project b17c/test_manual.py    # agent manual and its B17-1 supplement: every example has its stated outcome, every code has one (Z3 for proofs)
 uv run --no-project b17c/test_spec.py      # spec workbench: vacuity, witnesses, mutants, back-translation against a fake CLI, signing (needs Z3)
-uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report, B17-1's encoding, the levels (needs Z3)
+uv run --no-project b17c/test_verify.py    # verifier: cache hits, renames, invalidation, the report, B17-1's encoding, the levels, both suites' proofs under 10 seeds (needs Z3)
 uv run --no-project gym/test_harness.py    # harness verdicts (needs Dafny)
 uv run --no-project gym/test_b17.py        # the harness's B17-0 and B17-1 tracks: tasks, verdicts, one attempt against a fake CLI (needs Z3)
 uv run --no-project gym/test_audit.py      # run-time audit: each task's reference against the suite; it catches a wrong answer, the length trick, a search

@@ -3025,3 +3025,28 @@ WP4b. The owner accepted D121, the spec workbench, on 2026-11-05, and asked for 
 - **Not changed:** the code, the suite, the manuals, M3's prompts and tasks, and the recorded runs.
 - **Updated:** DECISIONS (the statuses of D5, D7 and D121); the README's status, WP8 row, requirements and commands; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path, Phase 1's table, M3's summary, Phase 0's remaining baselines and open questions; `docs/b17-0.md` §9; `docs/b17-1.md`'s status and §13.
 - **Interfaces touched:** none. Interface 9 stays version 0.1, Draft.
+
+## 2026-11-06 · Phase 1's gate checked, and `coin_change`'s proof fixed
+
+Phase 1. The owner asked for Phase 1's gate (D65) to be checked: B17-1 is frozen, and every ported benchmark task, B17-1's included, verifies end to end and runs as emitted Rust.
+
+- **What was checked,** for each of the 35 accept programs, B17-0's 20 seed ports and B17-1's 15 AlgoVeri ports:
+  - **Verifies:** `verify.py` under 10 shuffled seeds (D23), on an empty cache.
+  - **Runs as emitted Rust:** on the inputs the self-checks give each program, the binary prints what the interpreter prints, and the interpreter's checked run is ok with the expected results.
+  - **Its specs aren't vacuous:** the spec workbench's vacuity check (D121) on each of the 40 specs.
+- **On `main` (`f7dadd5`), one goal failed:** 5,714 of 5,715 goals proved. `coin_change`'s lemma `keep_ok_wc`, whose body was empty, proved its postcondition under only 9 of 10 seeds.
+  - **The cause:** bisection puts it at `3e769a9`, 2026-10-31, which numbered ghost-fn parameters in queries, so that renaming one keeps its cached proofs. Under its parent all 236 goals proved. The query means the same, but its new names changed Z3's search. That day's entry recorded no effect on results.
+  - **Why nothing caught it:** `test_verify.py` proved B17-1's accept programs under 1 seed, and no self-check proved B17-0's. Since then the README, the roadmap and `suite/README.md` had said all 15 verify under 10 seeds, which was false for `coin_change`.
+- **The fix:** a lemma for one key, `solved_wc`: an entry stays solved when the map changes at another key. `keep_ok_wc` applies it at every key with D99's `forall` statement, as `keep_ok_dp` already does.
+  - **Its proof:** all 237 goals prove under 10 seeds and under 20, in 67,776,946 units against 89,550,060.
+  - **Unchanged:** the spec, the def and the label, and the task M3 poses, which leaves out lemmas. The task's `task_sha` changes, since it carries the hidden solution.
+  - **The suite's rule:** `suite/README.md` lets a B17-1 proof that fails be a finding against the program, and now records this one. The owner approved the edit.
+- **`test_verify.py` proves both suites under 10 seeds,** all 35 accept programs, found by glob rather than listed. It took 5 min 17 s here, against TIMING_MAIN on `main`.
+- **The gate, after the fix:**
+  - **Verifies:** all 5,716 goals prove under 10 seeds, none from the cache.
+  - **Runs as emitted Rust:** all 154 runs, 104 of B17-0's and 50 of B17-1's, print what the interpreter prints, and every checked run is ok with the expected results.
+  - **Vacuity:** no spec is shown vacuous, and no `ensures` clause trivial. 33 of the 40 specs have an input that meets their `requires`. For 7 the workbench neither finds one nor shows there's none: `bellman_ford`, `dijkstra_shortest_paths`, `kruskal_mst`, `prim_mst`, `segmenttree_query`'s `query`, and the `max_flow_value` specs of `edmond_karp` and `push_relabel`. Of the 75 `ensures` clauses, 50 are shown not trivial and 25 are unknown.
+- **The margin, under 20 seeds:** 6 goals in 5 programs fail on 1 or 2 of seeds 11–20: one each of `dijkstra`'s and `bellman_ford`'s, two of `lca`'s, and one query that `edmond_karp` and `push_relabel` share. All prove under D23's 10, so they're left as they are. A change to query text could break one as it broke `coin_change`, and `test_verify.py` would now catch it.
+- **Not settled by the check:** WP10 has no Verus or Lean port, though its done-when names them, and 7 specs' `requires` are unknown. Whether either holds the gate back is the owner's call, so the gate isn't declared passed here.
+- **Updated:** the README's status and its `test_verify.py` line; the roadmap's decisions waiting for the owner and B17-1's accept programs; `suite/README.md`.
+- **Interfaces touched:** none.
