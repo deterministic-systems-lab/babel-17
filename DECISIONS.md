@@ -1750,7 +1750,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A smaller limit of steps for tests,** to make the slow runs cheaper.
 - **Touches:** D57; D58; D59; D80; D88; D91; WP5; WP15; `b17c/verify.py`, `b17c/goals.py`, `b17c/interp.py`; `docs/b17-1.md` §10.
 
-## D121 · The spec workbench, WP4b · Proposed (the owner chose its translator, signing and mutant rule on 2026-11-05)
+## D121 · The spec workbench, WP4b · Accepted
 - **Date:** 2026-11-05
 - **Decision:** `b17c/spec.py` is the design spec's `mfl spec`. Each of its commands prints JSON, and exits 1 when it finds a problem.
   - **Vacuity checks:**

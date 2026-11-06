@@ -2955,7 +2955,7 @@ WP5. With M3's B17-1 track measured, the next item on the critical path was `doc
 
 ## 2026-11-05 · The spec workbench, WP4b, with D121 proposed
 
-WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10's further ports. Its done-when is that back-translation, vacuity checks, witnesses and mutant rejection run on the worked example, `merge_sorted`, and D28 adds signing. Before building, the owner chose Codex as the translator, signatures by spec hash, and that a surviving mutant is one that verifies.
+WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10, which has no Verus or Lean ports yet. Its done-when is that back-translation, vacuity checks, witnesses and mutant rejection run on the worked example, `merge_sorted`, and D28 adds signing. Before building, the owner chose Codex as the translator, signatures by spec hash, and that a surviving mutant is one that verifies.
 
 - **What's new:** `b17c/spec.py`, with six commands, each printing JSON and exiting 1 on a finding. `interp.holds` and `interp.spec_inputs` evaluate a spec's clauses at concrete values and draw D88's inputs, whether or not the spec has a def. The trusted base report gains `unsigned_specs`. D121 has the design.
 - **On the worked example:**
@@ -2994,3 +2994,34 @@ WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10's furthe
 - **Not changed:** the language, the verifier's queries, M3's prompts, harness and tasks, and the recorded runs.
 - **Updated:** DECISIONS (D121); the README's work packages, files, self-checks, commands and interfaces 5 and 9; the roadmap's recent work, decisions waiting for the owner, critical path and Phase 1's table.
 - **Interfaces touched:** 9, spec signatures and challenges, is new at version 0.1, Draft. 5, the trusted base report, gains `unsigned_specs`.
+
+## 2026-11-05 · The owner accepts D121, and the documentation checked against the code
+
+WP4b. The owner accepted D121, the spec workbench, on 2026-11-05, and asked for the documentation to be checked against the state of the language and its tools.
+
+- **The README's commands:** every toolchain command it lists was run, but `english`, which spends a Codex call and ran when it was built. Each gives the output its comment states, such as `ok (some 3)` for `discrete_log_naive 2 8 11`, L0 with `FIELD` refuted for `--level L2` on `E-PROOF-FIELD-wrong-constructor`, and 23 mutants of `merge_sorted` with one survivor. Every relative link and anchor in the README, the roadmap, both spec documents, both manuals and the suite's README resolves.
+- **Codex** (`gpt-5.6-sol`) audited the same documents against the code on its own, and found 10 mismatches:
+  - **Fixed:**
+    - `docs/b17-1.md` §13 listed only the 10 accept programs of the freeze. It now says WP10's 5 joined after it, changing no label (D112).
+    - Its status line ended its decisions at D113, though §14 lists D120.
+    - `docs/b17-0.md` §9 said WP6 would refine the codes and define node IDs. WP6 kept the codes, and its diagnostics give node IDs (D93).
+    - The roadmap said WP11 waits on WP10's further ports, which are done. What WP10 lacks is a Verus or Lean port. The WP4b entry above said the same, and now says this.
+    - The roadmap said no model term shows a data value with a sequence inside, which WP6 has since done.
+  - **For the owner:** D5, every module opens with a header, and D7, solver budgets in resource units, are still Proposed, though accepted D47 and D23 implement them. They're among D2–D10, from the design spec, which only the owner decides.
+  - **Left as they are:**
+    - WP16 is "in progress" though its done-when holds for every entry, since the library grows as the ports need it, and the roadmap says the done-when holds.
+    - `docs/b17-1.md` §10 names `b17c verify`, the toolchain's command as the design spec writes it, as WP8's done-when names `b17c check`.
+- **Found by the same check, and fixed:**
+  - **README:** the supplement has 28 examples, not 27. The requirements leave out Z3, which the verifier and spec workbench need, and the `codex` CLI, which back-translation needs. The commands leave out `vacuity` and `unsigned`. The status leaves out the levels and WP4b.
+  - **The roadmap:**
+    - B17-1's suite has 15 accept programs, which the interpreter runs and the verifier proves, not 10.
+    - Phase 1's table had WP6 done for B17-0 only, and WP10 with no state.
+    - M3's summary said B17-1's tasks could join, after six runs of them, and left out the sixth.
+    - The open question on hard tasks stopped at the fourth run.
+    - The baselines waited for Gemini's quota to reset around 2026-11-02, which has passed.
+- **The frozen documents:** the edits to `docs/b17-0.md` and `docs/b17-1.md` point to later decisions and ports, and change no rule, so both stay version 1.2.
+- **Self-checks:** `b17c/test_syntax.py` and `b17c/test_manual.py`, which read the documents, pass, and so does `b17c/test_check.py`.
+- **Ponytail:** no code changed, so there's nothing for it to cut.
+- **Not changed:** the code, the suite, the manuals, M3's prompts and tasks, and the recorded runs.
+- **Updated:** DECISIONS (D121's status); the README's status, WP8 row, requirements and commands; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path, Phase 1's table, M3's summary, Phase 0's remaining baselines and open questions; `docs/b17-0.md` §9; `docs/b17-1.md`'s status and §13.
+- **Interfaces touched:** none. Interface 9 stays version 0.1, Draft.
