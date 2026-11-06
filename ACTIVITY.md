@@ -3007,7 +3007,7 @@ WP4b. The owner accepted D121, the spec workbench, on 2026-11-05, and asked for 
     - `docs/b17-0.md` §9 said WP6 would refine the codes and define node IDs. WP6 kept the codes, and its diagnostics give node IDs (D93).
     - The roadmap said WP11 waits on WP10's further ports, which are done. What WP10 lacks is a Verus or Lean port. The WP4b entry above said the same, and now says this.
     - The roadmap said no model term shows a data value with a sequence inside, which WP6 has since done.
-  - **For the owner:** D5, every module opens with a header, and D7, solver budgets in resource units, are still Proposed, though accepted D47 and D23 implement them. They're among D2–D10, from the design spec, which only the owner decides.
+  - **Accepted by the owner:** D5, every module opens with a header, and D7, solver budgets in resource units, were still Proposed, though accepted D47 and D23 implement them. They're among D2–D10, from the design spec, which only the owner decides, and the owner accepted both on 2026-11-05.
   - **Left as they are:**
     - WP16 is "in progress" though its done-when holds for every entry, since the library grows as the ports need it, and the roadmap says the done-when holds.
     - `docs/b17-1.md` §10 names `b17c verify`, the toolchain's command as the design spec writes it, as WP8's done-when names `b17c check`.
@@ -3023,5 +3023,5 @@ WP4b. The owner accepted D121, the spec workbench, on 2026-11-05, and asked for 
 - **Self-checks:** `b17c/test_syntax.py` and `b17c/test_manual.py`, which read the documents, pass, and so does `b17c/test_check.py`.
 - **Ponytail:** no code changed, so there's nothing for it to cut.
 - **Not changed:** the code, the suite, the manuals, M3's prompts and tasks, and the recorded runs.
-- **Updated:** DECISIONS (D121's status); the README's status, WP8 row, requirements and commands; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path, Phase 1's table, M3's summary, Phase 0's remaining baselines and open questions; `docs/b17-0.md` §9; `docs/b17-1.md`'s status and §13.
+- **Updated:** DECISIONS (the statuses of D5, D7 and D121); the README's status, WP8 row, requirements and commands; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path, Phase 1's table, M3's summary, Phase 0's remaining baselines and open questions; `docs/b17-0.md` §9; `docs/b17-1.md`'s status and §13.
 - **Interfaces touched:** none. Interface 9 stays version 0.1, Draft.

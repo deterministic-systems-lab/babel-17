@@ -32,7 +32,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** People sign specs, never implementations; an approved spec is frozen for its implementer.
 - **Touches:** Specification layer.
 
-## D5 · Every module opens with a prose header · Proposed
+## D5 · Every module opens with a prose header · Accepted
 - **Date:** 2026-10-26 (spec v0.1)
 - **Decision:** Every module opens with a prose header: purpose, invariants, failure modes.
 - **Touches:** Specification layer.
@@ -42,7 +42,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Decision:** Every proof passes the kernel; anything else is reported as solver-trusted.
 - **Touches:** Verification model.
 
-## D7 · Solver budgets count resource units, not seconds · Proposed (refined by D23)
+## D7 · Solver budgets count resource units, not seconds · Accepted (refined by D23)
 - **Date:** 2026-10-26 (spec v0.1)
 - **Decision:** Verifier budgets count solver resource units, not seconds.
 - **Touches:** Verification model.
