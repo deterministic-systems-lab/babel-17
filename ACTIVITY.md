@@ -3052,3 +3052,24 @@ Phase 1. The owner asked for Phase 1's gate (D65) to be checked: B17-1 is frozen
 - **Ponytail:** nothing to cut. The loop replaces a hand-written list.
 - **Updated:** the README's status and its `test_verify.py` line; the roadmap's decisions waiting for the owner and B17-1's accept programs; `suite/README.md`.
 - **Interfaces touched:** none.
+
+## 2026-11-06 · Phase 1's gate passes, D122 proposed, and a plan for the spec workbench's reach
+
+Phase 1, then Phase 2. The owner declared Phase 1's gate passed on the check above, asked for a decision on WP10, and asked for a real approach to the 7 specs the workbench can't show satisfiable.
+
+- **The gate:** passed on 2026-11-06, so Phase 2 begins. D65's wording needs every ported task to verify end to end and run as emitted Rust, which the check showed. It names no Verus or Lean port, which WP10's done-when does, and no vacuity check, which the check added.
+- **D122, proposed:** WP10 is done with its 35 ports, Verus becomes a WP17 baseline before the Phase 2 gate, and vericoding's Lean tasks with no Dafny version become a source of tasks for WP11. Its evidence, from both benchmarks' repositories on 2026-11-06:
+  - **AlgoVeri:** all 77 of its problems have a Dafny, a Verus and a Lean spec, 231 files, so a Verus or Lean port repeats a Dafny one.
+  - **vericoding:** 2,165 of its 2,166 Verus tasks share a source task with one of its Dafny tasks. 4,200 of its 6,368 Lean tasks don't, 4,006 of them from FVAPPS, and 1,983 of the 4,200 mention floats, strings or characters.
+- **Why the workbench can't show the 7:** `bellman_ford`, `dijkstra_shortest_paths`, `kruskal_mst`, `prim_mst`, `segmenttree_query`'s `query` and the two `max_flow_value` specs.
+  - **The solver:** under the encoding's quantified axioms, Z3 gives no model for any of the 40 specs. All 33 shown satisfiable were shown by an input.
+  - **The interpreter can't evaluate one clause of each:** a bound on weights or capacities whose guard calls a ghost-fn, in all six graph specs; an equivalence under `forall` with no guard, in `is_segment_tree`; and connectivity, an ∃ over paths, in `kruskal` and `prim`.
+  - **The specs aren't vacuous:** on the self-checks' 25 inputs to these defs, checked by hand, the weights and capacities are in bounds, `dijkstra`'s are non-negative, the graphs `kruskal` and `prim` get are connected, and the trees are segment trees. The interpreter evaluates every other clause true.
+  - **L1 tests none of the 7 defs:** D88's property tests drop a draw whose `requires` is unknown (`docs/b17-1.md` §10), so they keep no input for any of the 7, against 1 for `bfs` and 100 for `bst_insert`.
+- **A prototype of the fix,** in scratch, not committed: rules 1–3 as rewrites of the 7 programs' text, or patched into the interpreter, and rule 4 patched into the draws.
+  - **Rules 1–3** (a guard's ghost-fn call unfolded, an equivalence split, a bounded search for an ∃'s witness): every `requires` clause of the 7 evaluated true on the self-checks' inputs. The draws then found an input for 4 of the 7, each a graph of one vertex with no edges.
+  - **Rule 4** (an integer parameter drawn within the `requires`' bounds): the draws found one for the other 3, a graph of two vertices with no edges and `s` 0 and `t` 1 for both `max_flow_value` specs, and a segment tree of one leaf at the top of `i64`'s range.
+  - **The plan** is in the roadmap's Phase 1 work outside the gate. Rules 1–3 change `docs/b17-1.md` §8 and rule 4 §10, so it needs a decision and version 1.3.
+- **Updated:** DECISIONS (D122); the README's status, its WP4b row and a WP10 row; the roadmap's heading, Phase 1's gate, the decisions waiting for the owner, the critical path, Phase 1's work outside the gate, Phase 1's WP10 row and Phase 2's Verus baseline.
+- **Not changed:** the code, the suite, M3's tasks and the recorded runs.
+- **Interfaces touched:** none.

@@ -29,7 +29,17 @@ Where the project stands, and what comes next. This is the state as of 2026-11-0
 - **Python first (D19).** `b17c` stays a Python prototype until Phase 3, so distribution (WP9) waits for the Rust rewrite.
 - **Manifest and lockfile (D26).** Their schemas move into Phase 0 under WP2, and the registry stays in Phase 3 (WP13).
 
-## Where we are: Phase 0's gate has passed
+## Where we are: Phase 1's gate has passed
+
+### The Phase 1 gate
+
+The owner declared it passed on 2026-11-06, so Phase 2 begins. The Phase 1 work that isn't part of the gate goes on, listed [below](#phase-1-work-outside-the-gate).
+
+| Gate item | State |
+|---|---|
+| **B17-1 frozen** | Done. Version 1.0 and its suite froze on 2026-10-30 under D44, and D113 and D114 amended it to version 1.2. |
+| **Every ported task verifies end to end** | Done. On 2026-11-06, from an empty cache, all 5,716 goals of the 35 accept programs, B17-0's 20 seed ports and B17-1's 15 AlgoVeri ports, proved under 10 shuffled seeds (D23). `coin_change`'s proof needed a fix first ([below](#recent-and-current-work)), and `test_verify.py` now checks all 35. |
+| **Every ported task runs as emitted Rust** | Done. On the self-checks' 154 inputs, each binary printed what the interpreter prints, and each checked run was ok with the expected results. |
 
 ### The Phase 0 gate
 
@@ -156,7 +166,7 @@ All three items hold, so Phase 1 begins. Two pieces of Phase 0 that aren't part 
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **Whether Phase 1's gate has passed.** Checked on 2026-11-06: B17-1 is frozen, and every ported task, B17-0's 20 and B17-1's 15, proves every goal under 10 shuffled seeds and runs as emitted Rust, printing what the interpreter prints on every self-check input. Not covered: WP10 has no Verus or Lean port yet, and for 7 of the 40 specs the spec workbench can't show that any input meets the `requires`.
+- **D122, WP10's done-when, proposed.** WP10 would be done with its 35 ports. Verus would become a WP17 baseline before the Phase 2 gate, and vericoding's Lean tasks with no Dafny version a source of tasks for WP11.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
 D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D5, D7, D119, D120 and D121 on 2026-11-05. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
@@ -191,7 +201,9 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
 3. **B17-1's verification levels (WP5): done, with D120** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
 4. **WP16** grows the core library as B17-1 and the ports need it.
-5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, every dependency of WP11 is built but WP10, which has no Verus or Lean ports yet.
+5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, every dependency of WP11 is built but WP10, which D122, proposed, would make done with its 35 ports.
+
+6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). WP10 leaves its path once D122 is accepted.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -199,9 +211,26 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
 - **The rest of WP2:** the manifest and lockfile schemas (interfaces 4 and 7, D26) and typed edit operations (interface 2).
 - **The rest of the baselines:** Gemini's remaining tasks, whose quota was due to reset around 2026-11-02, and Grok's once its balance is topped up.
 
+### Phase 1 work outside the gate
+- **WP16** grows the core library as later subsets and ports need it.
+- **WP6's repairs** wait for WP2's typed edits.
+- **The spec workbench's reach (WP4b, WP15).** For 7 of the suite's 40 specs, `vacuity` can't show that any input meets the `requires`: `bellman_ford`, `dijkstra_shortest_paths`, `kruskal_mst`, `prim_mst`, `segmenttree_query`'s `query`, and the `max_flow_value` specs of `edmond_karp` and `push_relabel`. The specs aren't vacuous, since the self-checks' inputs meet them, checked by hand. But for the same reason, D88's property tests keep no input for those 7 defs, so none of them is tested at L1.
+  - **Two causes:**
+    - **The interpreter can't evaluate one clause of each** (D58, D102). The six graph specs bound weights or capacities with a quantifier whose guard calls a ghost-fn, `(=> (has_edge g u v w) …)`. `is_segment_tree` has an equivalence under `forall` with no guard. `kruskal` and `prim` also require a connected graph, an ∃ over paths. Z3 doesn't fill the gap: under the encoding's quantified axioms, it returns no model for any of the 40 specs.
+    - **D88's draws rarely meet a `requires`,** even one the interpreter can evaluate. A random graph is mostly well formed only when it has no edges, and a random tree is almost never a segment tree.
+  - **The plan:** four changes. A prototype of them, on 2026-11-06, closed all 7.
+    1. **Unfold a ghost-fn call in a guard.** An ∃ in the unfolded guard of a `forall` becomes one more binder, and a binder that the guard equates to a term takes that term's value. Binders are fixed in an order where each one's range is known when it's reached. This makes the six bounds evaluable.
+    2. **Split `(forall (x) (== A B))` on booleans** into `(=> A B)` and `(=> B A)`, whose guards D58 and D102 already read. This makes `is_segment_tree` evaluable.
+    3. **Search for a witness of an ∃ that no guard bounds:** values built from the integers in scope, shortest first, under a fixed budget. A witness makes the ∃ true, and running out leaves it unknown, as now. This makes connectivity evaluable.
+    4. **Draw a parameter within the `requires`' bounds:** an integer parameter that the `requires`' leading conjuncts bound, given the parameters drawn before it, is drawn from that range, as D58 reads a binder's range from a guard.
+  - **In the prototype:** with rules 1–3, every `requires` clause of the 7 evaluated true on the self-checks' inputs, and the draws found an input for 4 of the 7. With rule 4 they found one for all 7. Each input is a smallest case, such as a graph with no edges or a segment tree with one leaf.
+  - **What it changes:** rules 1–3 are checking rules, in `docs/b17-1.md` §8, and rule 4 changes how §10's draws give a parameter its value. So they need a decision and an amendment to version 1.3, as D114 did. They also change which inputs the property tests keep, and so L1's results and the witness examples, but every run stays deterministic.
+  - **Done when:** all 40 of the suite's specs are shown satisfiable; each rule has a test where it decides a quantifier and one where it leaves it unknown; and every suite label, the Rust backend's differential runs and the interpreter's other results are unchanged.
+  - **Not covered:** a `requires` whose inputs are all larger than the draws make, or whose ∃ needs a witness past the budget. An input the reviewer gives, as `vacuity --input`, would cover those.
+
 ## Phase 1
 
-From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11. B17-1 froze on 2026-10-30, so what's left of the second is WP10 and WP11.
+From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11. B17-1 froze on 2026-10-30, so what's left of the second is WP10 and WP11, or WP11 alone once D122 is accepted.
 
 | WP | What | Depends on | Done when |
 |---|---|---|---|
@@ -214,7 +243,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`) and B17-1 (`docs/manual-1.md`, D112). |
 | B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113 and 1.2 by D114. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels and works out its verification levels (D120). |
-| WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end. In progress: the 20 seed tasks, in B17-0, and 15 of AlgoVeri's, in B17-1, verify and run as emitted Rust. None comes from Verus or Lean yet. |
+| WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 need its features (D79) | Ported Dafny, Verus and Lean tasks verify end to end. D122, proposed, makes it ported tasks that verify end to end and run as emitted Rust, which the 20 seed tasks, in B17-0, and 15 of AlgoVeri's, in B17-1, do: Phase 1's gate checked them on 2026-11-06. None comes from Verus or Lean. |
 
 **The head-to-head experiment** is called M3 in the activity log.
 - **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It started on B17-0's tasks, and has run B17-1's since B17-1 froze (D65, D112).
@@ -234,6 +263,8 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 Its curriculum covers every domain the language has reached by then (D65).
 
 Agents first learn B17-0 from the manual in context, and models are trained in Phase 2 (D8, proposed).
+
+**A Verus baseline (WP17), D122, proposed:** agents writing Verus on AlgoVeri's Verus specs of the tasks M3 uses, so the gate has a number for models writing Verus.
 
 **The gate** compares a gym-trained model against off-the-shelf models, and against the same base model trained on Dafny with equal compute (D31). Passing it needs open model weights and training compute. The CLI subscriptions used so far (D13) can run agents but can't train them.
 
