@@ -976,7 +976,7 @@ gen = G.Gen(EVERY, 1)
 counts = {}
 for name in ("helper", "count", "main"):
     kept, seen, bad = i.test_def(EVERY, name, int(H.hashes(EVERY, 1)[name][1][6:22], 16), 1)
-    assert kept == 100 and bad == {}, (name, kept, bad)
+    assert len(kept) == 100 and bad == {}, (name, len(kept), bad)
     counts.update(seen)
 missed, nth = [], {}
 for g in gen.check(EVERY):  # keyed as verify.py keys them, a loop's second check of a node as #2
@@ -1001,13 +1001,24 @@ DROP = parse(HEAD + """  (spec f (params (n i64)) (returns (r i64)) (requires (>
     (while (< i n) (invariant (<= 0 i)) (decreases (- n i)) (set i (+ i 1)))
     (return i))))""")
 kept, seen, bad = i.test_def(DROP, "f", 3, 0, fuel=1000)
-assert kept == 100 and [k[0] for k in bad] == ["POST"], (kept, bad)
+assert len(kept) == 100 and [k[0] for k in bad] == ["POST"], (len(kept), bad)
 (given, outcome), = bad.values()
 assert int(given) >= 5 and outcome.startswith("contract POST"), bad
-assert i.test_def(DROP, "f", 3, 0, fuel=1000, draws=50)[0] < 50  # negative and huge n were dropped
+assert len(i.test_def(DROP, "f", 3, 0, fuel=1000, draws=50)[0]) < 50  # negative and huge n were dropped
 NODEF = parse(HEAD + """  (spec g (params) (returns (r i64)) (effects))
   (spec f (params (n i64)) (returns (r i64)) (effects))
   (def f (body (let ((r i64)) (call g)) (return r))))""")
-assert i.test_def(NODEF, "f", 3, 0, draws=20)[0] == 0  # g has no def to run
+assert i.test_def(NODEF, "f", 3, 0, draws=20)[0] == []  # g has no def to run
+
+# WP4b's witnesses (D121): a spec's clauses at concrete values, and inputs whose requires hold,
+# whether or not the spec has a def.
+MS = parse((SUITE / "accept/merge_sorted.b17").read_bytes())
+assert [v for _, _, v in i.holds(MS, "merge_sorted", ((1, 3), (2,)), ((1, 2, 3),))] == [True, True, True, True, True]
+assert [v for _, _, v in i.holds(MS, "merge_sorted", ((1, 3), (2,)), ((1, 3, 2),))][3:] == [False, True]
+assert [v for _, _, v in i.holds(MS, "merge_sorted", ((3, 1), (2,)))] == [False]  # stops at the first that fails
+got = i.spec_inputs(MS, "merge_sorted", 11, 5)
+assert len(got) == 5 and all(list(a) == sorted(a) and list(b) == sorted(b) for a, b in got), got
+SPEC_ONLY = parse(HEAD + "  (spec f (params (x i64)) (returns (r i64)) (requires (> x 3)) (ensures (> r x)) (effects)))")
+assert all(x > 3 for (x,) in i.spec_inputs(SPEC_ONLY, "f", 4, 10)) and [v for _, _, v in i.holds(SPEC_ONLY, "f", (5,), (5,))] == [True, False]
 
 print("interpreter conformance tests passed")

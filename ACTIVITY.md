@@ -2952,3 +2952,76 @@ WP5. With M3's B17-1 track measured, the next item on the critical path was `doc
 - **Not changed:** M3's prompts, harness, manuals and tasks, the recorded runs, and every query the suite sends.
 - **Updated:** DECISIONS (D120, and the statuses of D80, D88 and D91); `docs/b17-1.md` §10 and §14, which point to D120 without changing a statement, so it stays version 1.2; the README's goal, WP5 row, self-checks, commands and interface 5; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path and Phase 1's table.
 - **Interfaces touched:** 5, the trusted base report, gains the level fields (D80, D120).
+
+## 2026-11-05 · The spec workbench, WP4b, with D121 proposed
+
+WP4b. It was the last dependency of WP11 still unbuilt, apart from WP10, which has no Verus or Lean ports yet. Its done-when is that back-translation, vacuity checks, witnesses and mutant rejection run on the worked example, `merge_sorted`, and D28 adds signing. Before building, the owner chose Codex as the translator, signatures by spec hash, and that a surviving mutant is one that verifies.
+
+- **What's new:** `b17c/spec.py`, with six commands, each printing JSON and exiting 1 on a finding. `interp.holds` and `interp.spec_inputs` evaluate a spec's clauses at concrete values and draw D88's inputs, whether or not the spec has a def. The trusted base report gains `unsigned_specs`. D121 has the design.
+- **On the worked example:**
+  - **Vacuity:** its `requires` can hold, shown by a generated input, since the solver finds no model under the sequence axioms. Neither `ensures` clause is trivial: a drawn output makes each false.
+  - **Witnesses:** for `[-9, 6]` and `[-8, -1]` the def gives `[-9, -8, -1, 6]`. The spec forbids `[-9, -8, -1]` and `[-9, -8, -1, 6, 6]` by the multiset clause, and `[-8, -9, -1, 6]` by `sorted`. No output a step away is also allowed.
+  - **Mutants:** 23 pass tier 0 and 22 are killed by tests: 11 through `INV-KEEP`, 6 `BOUNDS`, 4 `INV-ENTRY` and 1 `POST`. The survivor takes `b`'s element first on a tie, which verifies at 10 seeds and gives the same result on every test input, so it's equivalent. 5 s.
+  - **Back-translation,** Codex `gpt-5.6-sol` through codex-cli 0.145.0, in 14 s: "The caller must provide two sequences whose elements are in nondecreasing order and whose combined length is at most 9,223,372,036,854,775,807. The function allocates and returns a nondecreasing sequence containing every occurrence from both inputs exactly once, including all duplicates, with no additional elements." It found two disagreements with the header:
+    - the header says there's no failure for sorted input, but the spec also requires the combined length to fit in an `i64`;
+    - the header says allocation failure aborts, which the spec doesn't state.
+
+    Both are true. The second is outside B17's semantics (D29), so no spec could state it.
+  - **Signing:** signing `merge_sorted` empties `unsigned`, and adding a clause to its spec makes it unsigned again.
+- **On the suite's 35 accept programs,** vacuity, in 12.5 minutes:
+  - **The 40 specs:** none is shown vacuous. 33 are shown satisfiable by a generated input, none by a model from the solver. For the other 7, 6 of them graph tasks, it stays unknown, since the solver finds no model and none of 10,000 random inputs meets them.
+  - **Their 75 `ensures` clauses:** none is proved trivial. 50 are shown not to be, by an input and an output that make them false. 25 stay unknown: 10 in the 7 specs with no input, and 15 that neither the solver nor up to 999 drawn outputs, 333 for each of up to 3 inputs, settles.
+  - **The 230 lemmas:** whether each `requires` can hold stays unknown. Their parameters are ghost types D88 doesn't draw, and the solver finds no model.
+- **Found while building it:**
+  - **A lemma's claim always follows from its `requires`.** A first version called some lemma claims trivial, so lemmas' claims aren't judged.
+  - **A vacuous `requires` makes every clause trivial,** so under one, none is judged.
+  - **The solver rarely shows an output exists,** so with no def, D88 draws outputs to find one.
+  - **Witnesses from D88's first inputs were unreadable,** with integers near 2^63, so the most readable distinct ones are shown.
+- **Codex review** (`gpt-5.6-sol`) found eight problems, all fixed:
+  - **No baseline for mutants:** a def that already failed had every mutant killed by its own failure. Now the def must verify and pass its tests first.
+  - **An output called allowed** where an `ensures` clause couldn't be evaluated (D58). Now one is allowed only where every clause holds.
+  - **Vacuity's verdicts:** a solver's model could be a point where the `requires` weren't defined, and `trivial: false` meant only "not proved". Now the `requires`' own goals are facts, a clause is non-trivial only on a model or a concrete input and output, and otherwise unknown. The suite's counts above are the corrected ones.
+  - **Not the tests' own inputs:** inputs that the tests drop at a limit were kept. Now `test_def` returns its kept inputs.
+  - **Exit codes:** an output a step away that the spec also allows exited 0, and errors weren't JSON. Its re-check found that failures while a command ran, such as a missing Z3, still weren't, and those are JSON now too.
+  - **Back-translation:** a reply with no text for a spec counted as one.
+  - **Signatures:** written in place, so a crash could leave half a file. Now atomically. Renaming a spec keeps its signature, since a hash ignores names, as D121 now says.
+  - **A statement in an `if`'s branch** was never left out. Now each is replaced by an empty block, wherever it is.
+
+  It found no way for the no-output check to prove "none" where an output exists, and that `_smt` encodes values as the verifier does. Its sandbox couldn't run `b17c/test_spec.py`.
+- **Ponytail:** cut a helper with one caller and a closure with three modes.
+- **What mutants can't show:** a mutant keeps the def's invariants, and 15 of the 22 kills came through them alone. So a spec with only `(sorted out)` would still have those mutants killed. Only a survivor shows a spec is weak, as the self-check's `x + 2` above `x` does.
+- **Self-checks:** `b17c/test_spec.py` is new and needs Z3, and `b17c/test_interp.py` checks the two new helpers in CI.
+- **Not changed:** the language, the verifier's queries, M3's prompts, harness and tasks, and the recorded runs.
+- **Updated:** DECISIONS (D121); the README's work packages, files, self-checks, commands and interfaces 5 and 9; the roadmap's recent work, decisions waiting for the owner, critical path and Phase 1's table.
+- **Interfaces touched:** 9, spec signatures and challenges, is new at version 0.1, Draft. 5, the trusted base report, gains `unsigned_specs`.
+
+## 2026-11-05 · The owner accepts D121, and the documentation checked against the code
+
+WP4b. The owner accepted D121, the spec workbench, on 2026-11-05, and asked for the documentation to be checked against the state of the language and its tools.
+
+- **The README's commands:** every toolchain command it lists was run, but `english`, which spends a Codex call and ran when it was built. Each gives the output its comment states, such as `ok (some 3)` for `discrete_log_naive 2 8 11`, L0 with `FIELD` refuted for `--level L2` on `E-PROOF-FIELD-wrong-constructor`, and 23 mutants of `merge_sorted` with one survivor. Every relative link and anchor in the README, the roadmap, both spec documents, both manuals and the suite's README resolves.
+- **Codex** (`gpt-5.6-sol`) audited the same documents against the code on its own, and found 10 mismatches:
+  - **Fixed:**
+    - `docs/b17-1.md` §13 listed only the 10 accept programs of the freeze. It now says WP10's 5 joined after it, changing no label (D112).
+    - Its status line ended its decisions at D113, though §14 lists D120.
+    - `docs/b17-0.md` §9 said WP6 would refine the codes and define node IDs. WP6 kept the codes, and its diagnostics give node IDs (D93).
+    - The roadmap said WP11 waits on WP10's further ports, which are done. What WP10 lacks is a Verus or Lean port. The WP4b entry above said the same, and now says this.
+    - The roadmap said no model term shows a data value with a sequence inside, which WP6 has since done.
+  - **Accepted by the owner:** D5, every module opens with a header, and D7, solver budgets in resource units, were still Proposed, though accepted D47 and D23 implement them. They're among D2–D10, from the design spec, which only the owner decides, and the owner accepted both on 2026-11-05.
+  - **Left as they are:**
+    - WP16 is "in progress" though its done-when holds for every entry, since the library grows as the ports need it, and the roadmap says the done-when holds.
+    - `docs/b17-1.md` §10 names `b17c verify`, the toolchain's command as the design spec writes it, as WP8's done-when names `b17c check`.
+- **Found by the same check, and fixed:**
+  - **README:** the supplement has 28 examples, not 27. The requirements leave out Z3, which the verifier and spec workbench need, and the `codex` CLI, which back-translation needs. The commands leave out `vacuity` and `unsigned`. The status leaves out the levels and WP4b.
+  - **The roadmap:**
+    - B17-1's suite has 15 accept programs, which the interpreter runs and the verifier proves, not 10.
+    - Phase 1's table had WP6 done for B17-0 only, and WP10 with no state.
+    - M3's summary said B17-1's tasks could join, after six runs of them, and left out the sixth.
+    - The open question on hard tasks stopped at the fourth run.
+    - The baselines waited for Gemini's quota to reset around 2026-11-02, which has passed.
+- **The frozen documents:** the edits to `docs/b17-0.md` and `docs/b17-1.md` point to later decisions and ports, and change no rule, so both stay version 1.2.
+- **Self-checks:** `b17c/test_syntax.py` and `b17c/test_manual.py`, which read the documents, pass, and so does `b17c/test_check.py`.
+- **Ponytail:** no code changed, so there's nothing for it to cut.
+- **Not changed:** the code, the suite, the manuals, M3's prompts and tasks, and the recorded runs.
+- **Updated:** DECISIONS (the statuses of D5, D7 and D121); the README's status, WP8 row, requirements and commands; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path, Phase 1's table, M3's summary, Phase 0's remaining baselines and open questions; `docs/b17-0.md` §9; `docs/b17-1.md`'s status and §13.
+- **Interfaces touched:** none. Interface 9 stays version 0.1, Draft.

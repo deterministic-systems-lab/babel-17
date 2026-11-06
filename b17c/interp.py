@@ -1385,17 +1385,16 @@ class _Draws:
 
 
 def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAWS):
-    """Run the def name, checking on, on inputs from a stream starting at seed: how many inputs
-    were kept, how many of them evaluated each goal, and for each goal one refuted, its input and
-    outcome. An input is dropped if its requires fail or are unknown, or its run ends in a limit,
+    """Run the def name, checking on, on inputs from a stream starting at seed: the inputs kept,
+    how many of them evaluated each goal, and for each goal one refuted, its input and outcome. An input is dropped if its requires fail or are unknown, or its run ends in a limit,
     so it tests nothing, or if the run reaches a spec with no def."""
     p = _Program(module, subset)
     fn, gen = p.fns[name], _Draws(p, seed)
     types, top = [_ground(t, {}) for t in fn.types], p.node(fn.item)
-    n, counts, refuted = 0, Counter(), {}
+    inputs, counts, refuted = [], Counter(), {}
     with _deep(DEPTH):
         for _ in range(draws):
-            if n == kept:
+            if len(inputs) == kept:
                 break
             args = tuple([gen.value(t) for t in types])
             r = _Run(p, True, fuel, DEPTH)
@@ -1409,12 +1408,57 @@ def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAW
             if (isinstance(out, Limit) or (isinstance(out, Contract) and out.kind == "PRE" and out.node == top)
                     or any(u.kind == "PRE" and u.node == top for u in r.unchecked)):
                 continue
-            n += 1
+            inputs.append(args)
             for k, held in r.seen.items():
                 counts[k] += 1
                 if not held:
                     refuted.setdefault(k, (" ".join(map(_term, args)), text_of(out)))
-    return n, counts, refuted
+    return inputs, counts, refuted
+
+
+# WP4b's witnesses (D121): a spec's clauses at concrete values, whether or not it has a def.
+
+def _spec(module, name):
+    return next(it for it in module.items[3:] if it.items[0].text == "spec" and it.items[1].text == name)
+
+
+def _holds(p, spec, args, results):
+    """Spec's requires at args in order, stopping at the first that doesn't hold, since a later
+    one may assume it; then, given results, its ensures. Each is (kind, clause, value), the value
+    None where the clause is undefined or unknown (D57, D58)."""
+    env = dict(zip(_names(_clauses(spec, "params")), args))
+    env.update(zip(_names(_clauses(spec, "returns")), results or ()))
+    r, out = _Run(p, True, FUEL, DEPTH), []
+    for kind in ("requires", "ensures") if results is not None else ("requires",):
+        for e in _clauses(spec, kind):
+            try:
+                v = r.quiet(e, env)
+            except _Stop:  # a limit
+                v = None
+            out.append((kind, e, v))
+            if kind == "requires" and v is not True:
+                return out
+    return out
+
+
+def holds(module, name, args, results=None, subset=SUBSET):
+    """Spec name's clauses at args, and at results if given, as _holds gives them."""
+    with _deep(DEPTH):
+        return _holds(_Program(module, subset), _spec(module, name), tuple(_value(a) for a in args), results)
+
+
+def spec_inputs(module, name, seed, k, subset=SUBSET, draws=DRAWS):
+    """The first k of D88's inputs for spec name, from a stream starting at seed, whose requires all hold."""
+    p, spec, out = _Program(module, subset), _spec(module, name), []
+    gen, types = _Draws(p, seed), [_ground(t, {}) for t in _types(_clauses(spec, "params"))]
+    with _deep(DEPTH):
+        for _ in range(draws):
+            if len(out) == k:
+                break
+            args = tuple([gen.value(t) for t in types])
+            if all(v is True for _, _, v in _holds(p, spec, args, None)):
+                out.append(args)
+    return out
 
 
 def _conjuncts(x):
