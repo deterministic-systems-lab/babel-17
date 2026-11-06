@@ -64,7 +64,7 @@ The labels were first checked by review: by the author, and by an independent mo
 
 - **Verified:** WP5 proves every goal under 10 shuffled seeds (D23).
 
-D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0.
+D99 and D100 are accepted, and WP5 reads B17-1. A proof that fails is a finding against the program, the encoding or the core library, recorded in `ACTIVITY.md` as for B17-0. One has been against a program: once ghost-fn parameters were numbered in queries on 2026-10-31, `coin_change`'s `keep_ok_wc` proved under only 9 of 10 seeds. Since 2026-11-06 it applies a lemma for one key, `solved_wc`, at every key, as `keep_ok_dp` does. Its spec, def and label are unchanged.
 
 **Findings so far:**
 - **Encoding gaps, now closed (D105):**

@@ -145,11 +145,12 @@ def open_(rows):
     return sorted({r["family"] for r in rows if r["verdict"] != "proved"})
 
 
-# The suite: every written proof verifies, and each proof reject fails only its label's family.
-for name in ("bst_insert", "bst_search", "discrete_logarithm", "longest_palindrome_substring", "lca", "segmenttree_query",
-             "trie_insert", "bfs", "coin_change", "kruskal", "prim", "dijkstra", "bellman_ford", "edmond_karp",
-             "push_relabel"):
-    assert open_(run1((SUITE / "b17-1/accept" / f"{name}.b17").read_text())) == [], name
+# The suites: every written proof verifies under D23's 10 seeds, as Phase 1's gate needs (D65). A
+# change to query text that means the same can still change Z3's search, and one seed missed the
+# goal that broke. Each proof reject fails only its label's family.
+for path in sorted((SUITE / "accept").glob("*.b17")) + sorted((SUITE / "b17-1/accept").glob("*.b17")):
+    sub = 1 if "b17-1" in str(path) else 0
+    assert open_(v.verify(parse(path.read_text(), sub), 10, CACHE, sub)[0]) == [], path.name
 for path in sorted((SUITE / "b17-1/reject").glob("E-PROOF-*.b17")):
     assert open_(run1(path.read_text())) == [path.name.split("-")[2]], path.name
 # ...and breaking a written proof leaves its goal unproved, so the encoding isn't vacuous.
