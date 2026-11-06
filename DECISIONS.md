@@ -1799,16 +1799,16 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
     - **Done with its 35 ports:** the 20 seed tasks, in B17-0, and 15 of AlgoVeri's, in B17-1. Phase 1's gate checked all of them on 2026-11-06.
     - **More ports** join as later subsets, task sets beyond algorithms (D64) and M3 need them, as WP10's five harder ones did (D112). None is a prerequisite.
   - **Verus becomes a baseline, not a source of ports.** Before the Phase 2 gate, WP17's harness runs agents in Verus on AlgoVeri's Verus specs of the tasks M3 uses, so the gate's comparison with models writing Verus has a number.
-  - **Lean** is neither. Its new problems are a source of tasks for WP11's curriculum, which needs specs to train on rather than verified ports, starting with the half that mention no strings, floats or characters.
+  - **Lean** is neither. Its new problems are a source of tasks for WP11's curriculum, which needs specs to train on rather than verified ports, starting with the half whose code has no `Float`, `String` or `Char`.
 - **Why:**
-  - **AlgoVeri's three languages are one problem set:** each of its 77 problems ships `dafny_spec.dfy`, `verus_spec.rs` and `lean_spec.lean`. Porting the Verus or Lean spec gives the B17 task already ported from Dafny.
-  - **vericoding's Verus tasks are its Dafny tasks again:** 2,165 of its 2,166 share a source task with one of its Dafny tasks.
-  - **Its Lean tasks are partly new:** 4,200 of 6,368 share no source task with its Dafny tasks. 4,006 of those are FVAPPS, competition problems from APPS, and 1,983 of the 4,200 mention floats, strings or characters, which `docs/b17-0.md` §11 leaves to later subsets. That's volume, which training needs and Phase 1's gate doesn't.
-  - **Where Verus matters:** the Phase 2 gate compares a gym-trained model with off-the-shelf models writing Dafny or Verus (D31). That needs agents writing Verus, which no port into B17 gives.
+  - **AlgoVeri's three languages are one problem set:** each of its 77 problems ships `dafny_spec.dfy`, `verus_spec.rs` and `lean_spec.lean`. So every problem a Verus or Lean spec poses can be ported from its Dafny spec, as 15 have been, and the other two languages add no problem as sources.
+  - **vericoding's Verus tasks are its Dafny problems again:** 2,165 of its 2,166 share a source problem with one of its Dafny tasks, so they add almost no problems. Whether their specs say the same isn't claimed.
+  - **Its Lean tasks are partly new:** 4,200 of 6,368 share no source task with its Dafny tasks. 4,006 of those are FVAPPS, competition problems from APPS, and 1,983 of the 4,200 have `Float`, `String` or `Char` in their code (the preamble, helpers, definitions, theorems or postamble), types which `docs/b17-0.md` §11 leaves to later subsets. That's volume, which training needs and Phase 1's gate doesn't.
+  - **Where Verus matters:** the Phase 2 gate compares a gym-trained model with off-the-shelf models writing Dafny or Verus, as the roadmap's table of phases states it, and D31 adds a model trained on Dafny. That needs agents writing Verus, which no port into B17 gives.
   - **What's left of a port's value:** another author's spec of the same problem can show where a port's spec says something else. That needs reading the other versions, which a port's review can do, not porting them.
   - **WP11 depends on WP10 (D21),** so the done-when as written held up one of the two paths to the Phase 2 gate for ports that add no task.
 - **Alternatives:**
-  - **Port AlgoVeri's Verus and Lean specs:** 154 files that become tasks already ported, or differ only in how the other language states them.
-  - **Port vericoding's Lean tasks now:** about half of the new ones mention strings, floats or characters, and as verified ports they'd add tasks to a gate that has passed, where WP11 needs them as specs.
+  - **Port AlgoVeri's Verus and Lean specs:** 154 files, each of a problem that also has a Dafny spec to port from.
+  - **Port vericoding's Lean tasks now:** about half of the new ones use `Float`, `String` or `Char`, and as verified ports they'd add tasks to a gate that has passed, where WP11 needs them as specs.
   - **Keep the done-when, with WP10 in progress:** WP11 then waits on ports nothing uses.
 - **Touches:** D21; D31; D64; D65; D112; WP10; WP11; WP17; `docs/roadmap.md`; `README.md`.
