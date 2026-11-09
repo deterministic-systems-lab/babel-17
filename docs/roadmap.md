@@ -278,7 +278,7 @@ Its curriculum covers every domain the language has reached by then (D65).
 **D123, proposed, scopes it:**
 - **The reward:** the design spec's tiers, from 0.05 for a reply that parses to 0.90 for one that's verified and right within 20M steps on 25 held-out inputs. There's no 1.00 tier until specs can state a cost (D30).
   - **Partial credit** counts each `ensures` clause whose goals are proved without resting on a goal that isn't (L2's closure), so padding, a failing `assert` and a loop that never ends earn no more than a reply without them.
-  - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input shows a hole in the verifier or a spec that says something other than the reference.
+  - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input is recorded for triage, since it shows a hole in the verifier, a spec that says something other than the reference, or a bug in the interpreter or the reference.
 - **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. WP11 tests the checks on the 35 ports. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
 - **The split:** M3's 34 tasks are the gate's test set, with the pool's problems that match them and 1 in 10 of the rest.
 - **The baseline:** Claude and Codex on the test set, then the pool's slice and the base model as they arrive.
