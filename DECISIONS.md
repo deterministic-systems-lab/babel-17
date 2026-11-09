@@ -1898,11 +1898,11 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Discrepancies score 0,** not 0.80. The design spec's table of risks gives zero reward for escapes, and a reply that earned 0.80 through a hole would teach the hole.
   - **The salt outside the repository:** the design spec asks for held-out inputs no model has seen, and a model can read the repository, through a checkout now or through its training data if it's ever published.
   - **A reference def per pool task:** `mutants` needs one, and it rules out every challenge. The cost is that a task nobody has verified can't enter, so the pool is only as hard as its porters can verify.
-  - **A survivor isn't always a loose spec.** On the 35 ports, `mutants` ran on 33 of the 35 ports' posed defs, the first 15 under D23's seeds and the rest under the canonical seed alone, for time. Of 686 mutants, tests killed 351 and the verifier 301.
+  - **A survivor isn't always a loose spec.** On the 35 ports, `mutants` ran on 34 of the 35 ports' posed defs, the first 15 under D23's seeds and the rest under the canonical seed alone, for time. Of 825 mutants, tests killed 351 and the verifier 434.
     - **Two survivors' outputs differ,** in `min_index` and `longest_palindrome_substring`, and both are ties the spec allows: the last smallest element, or the last longest palindrome, rather than the first.
-    - **On six graph and tree specs no test ran,** since their draws keep no input: `dijkstra`, `bellman_ford`, `kruskal`, `prim`, `edmond_karp` and `segmenttree_query`. 23 of their mutants survived without being compared, which is check 5's gap again.
+    - **On the 7 graph and tree specs no test ran,** since their draws keep no input. 29 of their mutants survived without being compared, which is check 5's gap again.
     - **`lca`'s posed def has nothing to mutate:** `mutants` changes only the def it's given, and `lca`'s work is in the `find` it calls.
-    - **It's slow:** `edmond_karp` took 13 minutes, and `power` and `push_relabel` hadn't finished after 50 and 18.
+    - **It's slow:** `edmond_karp` took 13 minutes and `push_relabel` 19, and `power` hadn't finished after 30 under the canonical seed alone.
   - **The test set** is what the gate compares: with Dafny for D31, with Verus for D122, with D118's references for the held-out tier, and with M3's recorded runs for the baseline.
   - **WP11 ports nothing:** D122 made further ports no prerequisite, and WP11's done-when names no pool size. Running the entry checks on the 35 ports tests them on specs already reviewed.
 - **Alternatives:**

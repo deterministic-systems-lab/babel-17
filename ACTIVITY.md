@@ -3095,10 +3095,10 @@ WP11. The owner asked for a decision scoping WP11, the training environment, wit
 - **D123, proposed:** the design spec's reward tiers, from 0.05 for a reply that parses to 0.90 for one verified and right on 25 held-out inputs, with no 1.00 tier until specs can state a cost; five checks a task passes to enter the pool; M3's 34 tasks as the gate's test set; and Claude and Codex as the in-context baseline. WP11 trains no model and ports no tasks.
 - **Partial credit, measured on `b17/abs`:** against 0.35 for a `(return 0)`, which meets one of its two `ensures` clauses, a share of goals pays 0.49 with twenty true asserts before it, 0.40 with an `(assert false)` and 0.45 with a loop that never ends. Counting `ensures` clauses whose goals are in L2's closure pays them 0.40, 0.40, 0.30 and 0.20, and the `(return 0)` 0.40.
   - **Other replies tried:** a lemma with a false `ensures` pays 0.30, and an overflow before the `return` 0.30. A `panic` fails tier 0 (`E-EFF-001`), declaring the spec again fails it too (`E-TYPE-002`), and `(assume false)` doesn't parse.
-- **The workbench's mutants on the 35 ports,** for entry check 4: on 33, 686 mutants, of which tests killed 351 and the verifier 301.
+- **The workbench's mutants on the 35 ports,** for entry check 4: on 34, 825 mutants, of which tests killed 351 and the verifier 434.
   - **Two survivors whose outputs differ,** in `min_index` and `longest_palindrome_substring`, are both ties the spec allows, so check 4 records such answers rather than rejecting the spec.
-  - **No test ran on six graph and tree specs,** since their draws keep no input, and 23 of their mutants survived uncompared.
-  - **`power` and `push_relabel`** hadn't finished after 50 and 18 minutes.
+  - **No test ran on the 7 graph and tree specs,** since their draws keep no input, and 29 of their mutants survived uncompared.
+  - **`power`** hadn't finished after 30 minutes under the canonical seed alone, and 21 under D23's seeds before that.
 - **FVAPPS:** with D122's way of counting, 2,102 of its tasks have no `Float`, `String` or `Char`, and 1,810 of those come with worked examples. Its theorems often fix an answer's shape rather than its value, and none has a Dafny spec, which matters if D31's model trained on Dafny is to train on the same problems.
 - **Codex review** (`gpt-5.6-sol`): it confirmed the counts, the quoted reasons and that the named hacks are stopped, and found 14 problems. 13 are fixed:
   - **The held-out tier:** a clause the interpreter can't decide on a reply's output no longer counts as right; a disagreement with the reference is recorded for triage rather than called a hole in the verifier; and the 20M step limit is named a floor on speed.
