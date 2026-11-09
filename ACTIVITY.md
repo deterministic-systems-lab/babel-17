@@ -3025,3 +3025,65 @@ WP4b. The owner accepted D121, the spec workbench, on 2026-11-05, and asked for 
 - **Not changed:** the code, the suite, the manuals, M3's prompts and tasks, and the recorded runs.
 - **Updated:** DECISIONS (the statuses of D5, D7 and D121); the README's status, WP8 row, requirements and commands; the roadmap's recent work, decisions waiting for the owner, accepted decisions, critical path, Phase 1's table, M3's summary, Phase 0's remaining baselines and open questions; `docs/b17-0.md` §9; `docs/b17-1.md`'s status and §13.
 - **Interfaces touched:** none. Interface 9 stays version 0.1, Draft.
+
+## 2026-11-06 · Phase 1's gate checked, and `coin_change`'s proof fixed
+
+Phase 1. The owner asked for Phase 1's gate (D65) to be checked: B17-1 is frozen, and every ported benchmark task, B17-1's included, verifies end to end and runs as emitted Rust.
+
+- **What was checked,** for each of the 35 accept programs, B17-0's 20 seed ports and B17-1's 15 AlgoVeri ports:
+  - **Verifies:** `verify.py` under 10 shuffled seeds (D23), on an empty cache.
+  - **Runs as emitted Rust:** on the inputs the self-checks give each program, the binary prints what the interpreter prints, and the interpreter's checked run is ok with the expected results.
+  - **Its specs aren't vacuous:** the spec workbench's vacuity check (D121) on each of the 40 specs.
+- **On `main` (`f7dadd5`), one goal failed:** 5,714 of 5,715 goals proved. `coin_change`'s lemma `keep_ok_wc`, whose body was empty, proved its postcondition under only 9 of 10 seeds.
+  - **The cause:** bisection puts it at `3e769a9`, 2026-10-31, which numbered ghost-fn parameters in queries, so that renaming one keeps its cached proofs. Under its parent all 236 goals proved. The query means the same, but its new names changed Z3's search. That day's entry recorded no effect on results.
+  - **Why nothing caught it:** `test_verify.py` proved B17-1's accept programs under 1 seed, and no self-check proved B17-0's. Since then the README, the roadmap and `suite/README.md` had said all 15 verify under 10 seeds, which was false for `coin_change`. The 2026-11-02 entry on D114 also says `test_verify.py` proves every suite program under 10 seeds. It proved B17-1's 15 accept programs under 1.
+- **The fix:** a lemma for one key, `solved_wc`: an entry stays solved when the map changes at another key. `keep_ok_wc` applies it at every key with D99's `forall` statement, as `keep_ok_dp` already does.
+  - **Its proof:** all 237 goals prove under 10 seeds and under 20, in 67,776,946 units against 89,550,060.
+  - **Unchanged:** the spec, the def and the label, and the task M3 poses, which leaves out lemmas. The task's `task_sha` changes, since it carries the hidden solution.
+  - **The suite's rule:** `suite/README.md` lets a B17-1 proof that fails be a finding against the program, and now records this one. The owner approved the edit.
+- **`test_verify.py` proves both suites under 10 seeds,** all 35 accept programs, found by glob rather than listed. It took 5 min 17 s here, against 3 min 10 s on `main`.
+- **The gate, after the fix:**
+  - **Verifies:** all 5,716 goals prove under 10 seeds, none from the cache.
+  - **Runs as emitted Rust:** all 154 runs, 104 of B17-0's and 50 of B17-1's, print what the interpreter prints, and every checked run is ok with the expected results.
+  - **Vacuity:** no spec is shown vacuous, and no `ensures` clause trivial. 33 of the 40 specs have an input that meets their `requires`. For 7 the workbench neither finds one nor shows there's none: `bellman_ford`, `dijkstra_shortest_paths`, `kruskal_mst`, `prim_mst`, `segmenttree_query`'s `query`, and the `max_flow_value` specs of `edmond_karp` and `push_relabel`. Of the 75 `ensures` clauses, 50 are shown not trivial and 25 are unknown.
+- **The margin, under 20 seeds:** 6 goals in 5 programs fail on 1 or 2 of seeds 11–20: one each of `dijkstra`'s and `bellman_ford`'s, two of `lca`'s, and one each of `edmond_karp`'s and `push_relabel`'s, which are the same query. All prove under D23's 10, so they're left as they are. A change to query text could break one as it broke `coin_change`, and `test_verify.py` would now catch it.
+- **Not settled by the check:** WP10 has no Verus or Lean port, though its done-when names them, and 7 specs' `requires` are unknown. Whether either holds the gate back is the owner's call, so the gate isn't declared passed here.
+- **Codex review** (`gpt-5.6-sol`): it found `solved_wc` and the new body sound, with nothing weakened, and the loop failing on a brittle goal and covering exactly the 35 programs. It confirmed the counts and the history, and found two problems, both fixed: a placeholder for `main`'s timing, and the D114 entry's claim above.
+- **Ponytail:** nothing to cut. The loop replaces a hand-written list.
+- **Updated:** the README's status and its `test_verify.py` line; the roadmap's decisions waiting for the owner and B17-1's accept programs; `suite/README.md`.
+- **Interfaces touched:** none.
+
+## 2026-11-06 · Phase 1's gate passes, D122 proposed, and a plan for the spec workbench's reach
+
+Phase 1, then Phase 2. The owner declared Phase 1's gate passed on the check above, asked for a decision on WP10, and asked for a real approach to the 7 specs the workbench can't show satisfiable.
+
+- **The gate:** passed on 2026-11-06, so Phase 2 begins. D65's wording needs every ported task to verify end to end and run as emitted Rust, which the check showed. It names no Verus or Lean port, which WP10's done-when does, and no vacuity check, which the check added.
+- **D122, proposed:** WP10 is done with its 35 ports, Verus becomes a WP17 baseline before the Phase 2 gate, and vericoding's Lean tasks with no Dafny version become a source of tasks for WP11. Its evidence, from both benchmarks' repositories on 2026-11-06:
+  - **AlgoVeri:** all 77 of its problems have a Dafny, a Verus and a Lean spec, 231 files, so any problem a Verus or Lean port would pose has a Dafny spec to port from.
+  - **vericoding:** 2,165 of its 2,166 Verus tasks share a source problem, by source and source ID, with one of its Dafny tasks. 4,200 of its 6,368 Lean tasks don't, 4,006 of them from FVAPPS, and 1,983 of the 4,200 have `Float`, `String` or `Char` in their code fields.
+- **Why the workbench can't show the 7:** `bellman_ford`, `dijkstra_shortest_paths`, `kruskal_mst`, `prim_mst`, `segmenttree_query`'s `query` and the two `max_flow_value` specs.
+  - **The solver:** under the encoding's quantified axioms, Z3 gives no model for any of the 40 specs. All 33 shown satisfiable were shown by an input.
+  - **The interpreter can't evaluate at least one clause of each, 10 in all:** a bound on weights or capacities whose guard calls a ghost-fn, in all six graph specs; an equivalence under `forall` with no guard, in `is_segment_tree`; and connectivity, an ∃ over paths, in `kruskal` and `prim`.
+  - **The specs aren't vacuous:** on the self-checks' 25 inputs to these defs, checked by hand, the weights and capacities are in bounds, `dijkstra`'s are non-negative, the graphs `kruskal` and `prim` get are connected, and the trees are segment trees. The interpreter evaluates every other clause true.
+  - **L1 tests none of the 7 defs:** D88's property tests drop a draw whose `requires` is unknown (`docs/b17-1.md` §10), so they keep no input for any of the 7, against 1 for `bfs` and 100 for `bst_insert`.
+- **A prototype of the fix,** in scratch, not committed: rules 1–3 as rewrites of the 7 programs' text, or patched into the interpreter, and rule 4 patched into the draws.
+  - **Rules 1–3** (a guard's ghost-fn call unfolded, an equivalence split, a bounded search for an ∃'s witness): every `requires` clause of the 7 evaluated true on the self-checks' inputs. The draws then found an input for 4 of the 7, each a graph of one vertex with no edges.
+  - **Rule 4** (an integer parameter drawn within the `requires`' bounds): the draws found one for the other 3, a graph of two vertices with no edges and `s` 0 and `t` 1 for both `max_flow_value` specs, and a segment tree of one leaf at the top of `i64`'s range.
+  - **The plan** is in the roadmap's Phase 1 work outside the gate. Rules 1–3 change `docs/b17-1.md` §8 and rule 4 §10, so it needs a decision and version 1.3.
+- **Codex review** (`gpt-5.6-sol`): it reproduced every count, both benchmarks' and the workbench's, and the prototype's results, and found 12 problems, all fixed:
+  - **The plan's rules, stated past the evidence:** rule 3 returned true at the first witness, which D58 rejects, since a point it skips may be undefined, so it's now evidence for the workbench only. Rule 1 now names the calls it unfolds and the order its binders take, rule 2 the sides it splits, and rule 4 how a draw consumes the stream. `vacuity --input` doesn't exist, and is now a further change.
+  - **D122:** it said every AlgoVeri Verus or Lean spec gives a task already ported, though 15 of 77 problems are; it called vericoding's Verus tasks its Dafny tasks, though they share only a source problem; it didn't say how floats and strings were counted; and it cited D31 for the comparison with Verus, which the roadmap's table of phases states.
+  - **The roadmap:** its date, a "Phase 1 begins", WP10 "leaving" WP11's path, AlgoVeri's 64 tasks with no source, and "one clause of each" where there are 10.
+  - **Its re-check** found the 12 fixed and 2 more, both fixed: rule 1's substitution could skip, repeat or delay an argument's evaluation, so it now takes only variables and binders; and rule 3's witness could still skip an undefined point in the workbench, so it now needs the clause's definedness goals proved, which `kruskal`'s and `prim`'s are. It confirmed that the workbench and the property tests draw from the same seed and stream.
+- **Ponytail:** no code changed, so there's nothing for it to cut.
+- **Updated:** DECISIONS (D122); the README's status, its WP4b row and a WP10 row; the roadmap's heading, Phase 1's gate, the decisions waiting for the owner, the critical path, Phase 1's work outside the gate, Phase 1's WP10 row and Phase 2's Verus baseline.
+- **Not changed:** the code, the suite, M3's tasks and the recorded runs.
+- **Interfaces touched:** none.
+
+## 2026-11-09 · The owner accepts D122
+
+WP10. The owner accepted D122 on 2026-11-09: WP10 is done with its 35 ports, Verus becomes a WP17 baseline before the Phase 2 gate, and vericoding's Lean tasks with no Dafny version are a source of tasks for WP11.
+
+- **What follows:** WP11 is the one unfinished item on either path to the Phase 2 gate.
+- **Updated:** DECISIONS (D122's status); the README's WP10 row; the roadmap's date, decisions waiting for the owner, accepted decisions, critical path, Phase 1's paths and WP10 row, and Phase 2's Verus baseline.
+- **Interfaces touched:** none.
