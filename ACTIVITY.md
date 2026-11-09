@@ -3087,3 +3087,27 @@ WP10. The owner accepted D122 on 2026-11-09: WP10 is done with its 35 ports, Ver
 - **What follows:** WP11 is the one unfinished item on either path to the Phase 2 gate.
 - **Updated:** DECISIONS (D122's status); the README's WP10 row; the roadmap's date, decisions waiting for the owner, accepted decisions, critical path, Phase 1's paths and WP10 row, and Phase 2's Verus baseline.
 - **Interfaces touched:** none.
+
+## 2026-11-09 · D123 proposed: WP11's scope
+
+WP11. The owner asked for a decision scoping WP11, the training environment, with an answer proposed for each open question: the reward's top tier, the pool of tasks, the held-out split, the baseline and spec challenges.
+
+- **D123, proposed:** the design spec's reward tiers, from 0.05 for a reply that parses to 0.90 for one verified and right on 25 held-out inputs, with no 1.00 tier until specs can state a cost; five checks a task passes to enter the pool; M3's 34 tasks as the gate's test set; and Claude and Codex as the in-context baseline. WP11 trains no model and ports no tasks.
+- **Partial credit, measured on `b17/abs`:** against 0.35 for a `(return 0)`, which meets one of its two `ensures` clauses, a share of goals pays 0.49 with twenty true asserts before it, 0.40 with an `(assert false)` and 0.45 with a loop that never ends. Counting `ensures` clauses whose goals are in L2's closure pays them 0.40, 0.40, 0.30 and 0.20, and the `(return 0)` 0.40.
+  - **Other replies tried:** a lemma with a false `ensures` pays 0.30, and an overflow before the `return` 0.30. A `panic` fails tier 0 (`E-EFF-001`), declaring the spec again fails it too (`E-TYPE-002`), and `(assume false)` doesn't parse.
+- **The workbench's mutants on the 35 ports,** for entry check 4: on 33, 686 mutants, of which tests killed 351 and the verifier 301.
+  - **Two survivors whose outputs differ,** in `min_index` and `longest_palindrome_substring`, are both ties the spec allows, so check 4 records such answers rather than rejecting the spec.
+  - **No test ran on six graph and tree specs,** since their draws keep no input, and 23 of their mutants survived uncompared.
+  - **`power` and `push_relabel`** hadn't finished after 50 and 18 minutes.
+- **FVAPPS:** with D122's way of counting, 2,102 of its tasks have no `Float`, `String` or `Char`, and 1,810 of those come with worked examples. Its theorems often fix an answer's shape rather than its value, and none has a Dafny spec, which matters if D31's model trained on Dafny is to train on the same problems.
+- **Codex review** (`gpt-5.6-sol`): it confirmed the counts, the quoted reasons and that the named hacks are stopped, and found 14 problems. 13 are fixed:
+  - **The held-out tier:** a clause the interpreter can't decide on a reply's output no longer counts as right; a disagreement with the reference is recorded for triage rather than called a hole in the verifier; and the 20M step limit is named a floor on speed.
+  - **The inputs** are drawn with a salt kept outside the repository, where D118's seed and the split's salt were readable from it.
+  - **Parts and problems:** `ensures` clauses are split at a top-level `and`, so a spec's grouping doesn't change its reward, and tasks are named by problem, with a reviewed table across sources, for the split.
+  - **Statements past the evidence:** "doesn't parse" for `admit` and `assume`, which are legal names; what `vacuity` and `mutants` show; spec challenges ruled out only if the verifier is sound; a check on Dafny specs that D31 doesn't require, now left to training's plan; "62 unported", now 49 the harness imports and 13 its importer skips; and D21's reason changed without D123 saying it amends D21.
+  - **Scope:** WP11 no longer ports the first pool. Its entry checks are tested on the 35 ports, and the pool grows in Phase 2.
+  - **Kept as written:** its advice to require every runtime goal for a clause's credit. The closure already drops what a failed goal assumed, and an overflow before the `return` pays less than the `return` alone, so only `TERM` needs requiring, now only for the posed def and the defs it calls.
+- **Ponytail:** no code changed.
+- **Updated:** DECISIONS (D123); the README's WP11 row; the roadmap's decisions waiting for the owner, critical path and Phase 2.
+- **Not changed:** the code, the suite, M3's tasks and the recorded runs.
+- **Interfaces touched:** none.
