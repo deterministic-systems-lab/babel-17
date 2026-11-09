@@ -3079,3 +3079,11 @@ Phase 1, then Phase 2. The owner declared Phase 1's gate passed on the check abo
 - **Updated:** DECISIONS (D122); the README's status, its WP4b row and a WP10 row; the roadmap's heading, Phase 1's gate, the decisions waiting for the owner, the critical path, Phase 1's work outside the gate, Phase 1's WP10 row and Phase 2's Verus baseline.
 - **Not changed:** the code, the suite, M3's tasks and the recorded runs.
 - **Interfaces touched:** none.
+
+## 2026-11-09 · The owner accepts D122
+
+WP10. The owner accepted D122 on 2026-11-09: WP10 is done with its 35 ports, Verus becomes a WP17 baseline before the Phase 2 gate, and vericoding's Lean tasks with no Dafny version are a source of tasks for WP11.
+
+- **What follows:** WP11 is the one unfinished item on either path to the Phase 2 gate.
+- **Updated:** DECISIONS (D122's status); the README's WP10 row; the roadmap's date, decisions waiting for the owner, accepted decisions, critical path, Phase 1's paths and WP10 row, and Phase 2's Verus baseline.
+- **Interfaces touched:** none.

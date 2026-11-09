@@ -1,6 +1,6 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-11-06.
+Where the project stands, and what comes next. This is the state as of 2026-11-09.
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
@@ -166,10 +166,9 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
-- **D122, WP10's done-when, proposed.** WP10 would be done with its 35 ports. Verus would become a WP17 baseline before the Phase 2 gate, and vericoding's Lean tasks with no Dafny version a source of tasks for WP11.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, and D5, D7, D119, D120 and D121 on 2026-11-05. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, and D122 on 2026-11-09. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of the 64 AlgoVeri tasks D79 surveyed need B17-1's tuples or data types. In order:
@@ -201,9 +200,9 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
 3. **B17-1's verification levels (WP5): done, with D120** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
 4. **WP16** grows the core library as B17-1 and the ports need it.
-5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, every dependency of WP11 is built but WP10, which D122, proposed, would make done with its 35 ports.
+5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
 
-6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path once D122 is accepted, since WP10, which it depends on, is then done.
+6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122).
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -243,7 +242,7 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
 
 ## Phase 1
 
-From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11. B17-1 froze on 2026-10-30, so what's left of the second is WP10 and WP11, or WP11 alone once D122 is accepted.
+From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11. B17-1 froze on 2026-10-30, and D122 made WP10 done, so what's left of the second is WP11 too.
 
 | WP | What | Depends on | Done when |
 |---|---|---|---|
@@ -256,7 +255,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`) and B17-1 (`docs/manual-1.md`, D112). |
 | B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113 and 1.2 by D114. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels and works out its verification levels (D120). |
-| WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 that D79 surveyed need its features | Ported Dafny, Verus and Lean tasks verify end to end. D122, proposed, makes it ported tasks that verify end to end and run as emitted Rust, which the 20 seed tasks, in B17-0, and 15 of AlgoVeri's, in B17-1, do: Phase 1's gate checked them on 2026-11-06. None comes from Verus or Lean. |
+| WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 that D79 surveyed need its features | Ported tasks verify end to end and run as emitted Rust (D122, which dropped Dafny, Verus and Lean as the languages they come from). Done with 35: the 20 seed tasks, in B17-0, and 15 of AlgoVeri's, in B17-1, all checked by Phase 1's gate on 2026-11-06. None comes from Verus or Lean. |
 
 **The head-to-head experiment** is called M3 in the activity log.
 - **What it does:** agents write B17-0 and Dafny for the same frozen tasks, whose specs stay aligned across the two languages (D42). It started on B17-0's tasks, and has run B17-1's since B17-1 froze (D65, D112).
@@ -277,7 +276,7 @@ Its curriculum covers every domain the language has reached by then (D65).
 
 Agents first learn B17-0 from the manual in context, and models are trained in Phase 2 (D8, proposed).
 
-**A Verus baseline (WP17), D122, proposed:** agents writing Verus on AlgoVeri's Verus specs of the tasks M3 uses, so the gate has a number for models writing Verus.
+**A Verus baseline (WP17), D122:** agents writing Verus on AlgoVeri's Verus specs of the tasks M3 uses, so the gate has a number for models writing Verus.
 
 **The gate** compares a gym-trained model against off-the-shelf models, and against the same base model trained on Dafny with equal compute (D31). Passing it needs open model weights and training compute. The CLI subscriptions used so far (D13) can run agents but can't train them.
 

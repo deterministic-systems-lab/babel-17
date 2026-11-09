@@ -1792,7 +1792,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Signing by hash:** there's no identity to bind a signature to until WP13's registry.
 - **Touches:** D4; D21; D27; D28; D45; D46; D80; D88; WP4b; WP11; `b17c/spec.py`, `b17c/interp.py`, `b17c/verify.py`; interface 9.
 
-## D122 · WP10 is done with the ports it has, and Verus becomes a baseline · Proposed
+## D122 · WP10 is done with the ports it has, and Verus becomes a baseline · Accepted
 - **Date:** 2026-11-06
 - **Decision:**
   - **WP10's done-when** becomes: ported benchmark tasks verify end to end and run as emitted Rust. It no longer names Dafny, Verus and Lean as the languages the ports come from.
