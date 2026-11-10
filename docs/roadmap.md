@@ -166,7 +166,7 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 - **WP11's reward** is built: `gym/reward.py` (D123).
   - **The tiers:** a reply earns 0.05 when it parses, 0.20 when tier 0 passes, up to 0.50 for the share of its parts in L2's closure, 0.80 when verified, and 0.90 when also right within 20M steps on 25 held-out inputs.
   - **Its self-check,** `gym/test_reward.py`, gets D123's figures for the hacks it measured on `abs`. It also checks that a redeclared spec scores 0.05, a discrepancy 0, and running out of steps or a clause the interpreter can't decide 0.80.
-  - **Not yet run on real tasks:** scoring needs the secret whose hash `gym/split.json` records, and the split isn't frozen yet.
+  - **Not yet run with the real secret:** scoring needs the secret whose hash `gym/split.json` records, and the split isn't frozen yet. The self-check scores replies under a split of its own.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner

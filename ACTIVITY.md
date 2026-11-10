@@ -3142,7 +3142,7 @@ WP11. `gym/reward.py` scores a reply to a B17 task by D123's table, and `gym/tes
 - **What `abs`'s replies earn:** the right def 0.90; `(return 0)`, and the same padded with twenty true asserts, 0.40; `(assert false)` first, or a call to a false lemma, 0.30; a loop that never ends, or an overflow, first 0.20. These are D123's figures.
 - **How:**
   - **Parts** come from `verify.closure`. A clause also needs the runtime goals of the posed def and the defs it calls, which `verify.runtime_goals` now names for L2's level and the reward alike.
-  - **Held-out inputs** are drawn from the secret's HMAC before the reply is read, and every reward records their hash, with the reply's, the spec's and the commit.
+  - **Held-out inputs** are drawn from the secret's HMAC before the reply is parsed, and every reward records their hash, with the reply's, the spec's and the commit.
   - **On the test set** a reply runs as D118's audit runs it, against its references. **On the pool** it's a checked run, and the posed spec's `ensures` are evaluated on its output.
 - **Codex review** (`gpt-5.6-sol`): it found the tiers, the parts and the refactor right, and found 5 problems.
   - **Fixed:**

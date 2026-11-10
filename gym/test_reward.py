@@ -56,6 +56,9 @@ with tempfile.TemporaryDirectory() as d:
     zero = score(ABS, "(def abs (body (return 0)))")
     assert math.isclose(zero["reward"], 0.40) and zero["parts"] == [True, False, True], zero  # (>= y 0), not y = ±x
 
+    seven = score(pool_task("(== y x) (>= y -100) (<= y 100) (< y 101) (> y -101) (!= y 1000)"), "(def same (body (return 0)))")
+    assert seven["reward"] == 0.20 + 0.30 * 6 / 7 and seven["parts"] == [False] + [True] * 6, seven  # not rounded
+
     # D123's hacks earn no more than returning 0.
     pad = " ".join(f"(assert (== {k} {k}))" for k in range(20))
     for code, want in [(f"(def abs (body {pad} (return 0)))", 0.40),
@@ -69,18 +72,23 @@ with tempfile.TemporaryDirectory() as d:
     # A verified reply that runs out of steps keeps 0.80, and is recorded. One the reference says is
     # wrong is a discrepancy and scores 0, whatever its other inputs do.
     steps, case, R.STEPS = R.STEPS, R.a.CASES["b17/abs"], 100_000
-    slow = score(ABS, SLOW)
-    R.a.CASES["b17/abs"] = lambda r, big: ((5,), lambda y: y == 6)
-    wrong = score(ABS, GOOD)
-    R.a.CASES["b17/abs"] = lambda r, big: ((2**63 - 1,), lambda y: True) if big else ((5,), lambda y: y == 6)
-    mixed = score(ABS, SLOW)
-    R.STEPS, R.a.CASES["b17/abs"] = steps, case
+    try:
+        slow = score(ABS, SLOW)
+        R.a.CASES["b17/abs"] = lambda r, big: ((5,), lambda y: y == 6)
+        wrong = score(ABS, GOOD)
+        R.a.CASES["b17/abs"] = lambda r, big: ((2**63 - 1,), lambda y: True) if big else ((5,), lambda y: y == 6)
+        mixed = score(ABS, SLOW)
+    finally:
+        R.STEPS, R.a.CASES["b17/abs"] = steps, case
     assert slow["reward"] == 0.80 and {t[1] for t in slow["triage"]} == {"limit"}, slow
     assert wrong["reward"] == 0.0 and {t[1] for t in wrong["triage"]} == {"discrepancy"}, wrong
     assert mixed["reward"] == 0.0 and {t[1] for t in mixed["triage"]} == {"limit", "discrepancy"}, mixed
 
-    # On the pool, the spec is the reference; a clause it can't decide on the output leaves 0.80.
+    # On the pool, the spec is the reference, evaluated in the reward's steps, not the interpreter's
+    # default 1M; a clause it can't decide on the output leaves 0.80.
     assert score(pool_task("(== y x)"), "(def same (body (return x)))")["reward"] == 0.90
+    assert score(pool_task("(== y x) (forall ((k int)) (=> (and (<= 0 k) (< k 100000)) (< k (+ y 100100))))"),
+                 "(def same (body (return x)))")["reward"] == 0.90
     undecided = score(pool_task("(== y x) (forall ((k int)) (=> (< k y) (< k (+ y 1))))"), "(def same (body (return x)))")
     assert undecided["reward"] == 0.80 and {t[1] for t in undecided["triage"]} == {"undecided"}, undecided
 print("reward self-check passed")
