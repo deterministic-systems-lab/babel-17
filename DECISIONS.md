@@ -148,7 +148,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62, WP10 and WP11 edges by D65)
+## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62, WP10 and WP11 edges by D65, and the reason for WP11's edge on WP7 by D123)
 - **Date:** 2026-10-26
 - **Decision:** WP4 splits:
   - **WP4a, the spec language:** depends on WP3.
@@ -1813,7 +1813,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Keep the done-when, with WP10 in progress:** WP11 then waits on ports nothing uses.
 - **Touches:** D21; D31; D64; D65; D112; WP10; WP11; WP17; `docs/roadmap.md`; `README.md`.
 
-## D123 · WP11's scope: its reward, entry checks, held-out split and baseline · Proposed (amends D21's reason for WP11's edge on WP7)
+## D123 · WP11's scope: its reward, entry checks, held-out split and baseline · Accepted (amends D21's reason for WP11's edge on WP7)
 - **Date:** 2026-11-09
 - **Decision:** WP11 builds the training environment on WP17's harness in `gym/` (D28).
   - **What it doesn't do:** it trains no model, since that needs open weights and training compute (D13), which the owner's choices settle. And it ports no tasks: growing the pool is Phase 2's work, as WP10's further ports are (D122).

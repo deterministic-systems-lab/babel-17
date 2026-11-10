@@ -3125,3 +3125,12 @@ WP11. The owner asked for a decision scoping WP11, the training environment, wit
 - **Updated:** DECISIONS (D123); the README's WP11 row; the roadmap's decisions waiting for the owner, critical path and Phase 2.
 - **Not changed:** the code, the suite, M3's tasks and the recorded runs.
 - **Interfaces touched:** none.
+
+## 2026-11-09 · The owner accepts D123
+
+WP11. The owner accepted D123 on 2026-11-09: WP11 builds the reward, with partial credit counted by `ensures` clause over L2's closure and 0 for a discrepancy on held-out inputs; the five checks a task passes to enter the pool; the held-out split, with M3's 34 tasks as the gate's test set; and Claude and Codex as the in-context baseline. It trains no model and ports no tasks.
+
+- **What follows:** `gym/reward.py` and its tests, then `gym/pool.py` on the 35 ports, the frozen split and the baseline.
+- **D21:** its heading names D123, which changes its reason for WP11's edge on WP7.
+- **Updated:** DECISIONS (D123's status, D21's heading); the README's WP11 row; the roadmap's decisions waiting for the owner, accepted decisions, critical path and Phase 2.
+- **Interfaces touched:** none.
