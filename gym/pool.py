@@ -45,8 +45,8 @@ def entry(task, key, split):
     frozen, ref = (syntax.parse(task[k].encode(), subset) for k in ("frozen", "solution"))
     spec = next(it for it in frozen.items[3:] if it.items[0].text == "spec")
     spec_sha = H.hashes(frozen, subset)[name][1]
-    if H.hashes(ref, subset)[name][1] != spec_sha:  # the spec, and the ghost-fns it uses, as posed
-        raise ValueError(f"{task['id']}: the reference's spec isn't the task's")
+    if not {syntax._print(it) for it in frozen.items[3:]} <= {syntax._print(it) for it in ref.items[3:]}:
+        raise ValueError(f"{task['id']}: the reference doesn't hold the task's items as posed")
     out = {"task": task["id"], "spec_sha256": spec_sha}
 
     tier0 = [d["code"] for d in agent.tier0(frozen, subset)]
@@ -79,7 +79,10 @@ def entry(task, key, split):
     except ValueError as e:  # too few kept, which names no input
         out[5] = {"pass": False, "kept": str(e)}
     else:
-        wrong = R.triage(task, frozen, ref, cases)
+        try:
+            wrong = R.triage(task, frozen, ref, cases)
+        except Exception as e:  # whose message may name an input
+            raise RuntimeError(f"{task['id']}: check 5 raised {type(e).__name__}") from None
         out[5] = {"pass": not wrong, "kept": R.INPUTS, "wrong": [(k, kind) for k, kind, _ in wrong]}  # not the inputs
     out["enters"] = all(out[k]["pass"] for k in range(1, 6))
     return out

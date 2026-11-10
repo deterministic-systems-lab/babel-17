@@ -34,10 +34,12 @@ assert all(ok is None for _, ok in R.inputs(ABS, R.syntax.parse(ABS["frozen"].en
 out, failing = checks(h.load_tasks(["b17/min_index"])[0])  # (and (<= 0 m) (< m (len a))), and a tie it allows
 assert failing == [1] and [m["path"] for m in out[4]["differ"]] == ["2.3.6.1"]
 BOUNDED = "(< -100 x) (< x 100)"
-assert checks(task(BOUNDED, "(and (== y x) (< y 100))", "(return (+ x 0))"))[1] == [1]
+out, failing = checks(task(BOUNDED, "(and (== y x) (< y 100))", "(return (+ x 0))"))
+assert failing == [1] and out[1]["and"] == ["(and (== y x) (< y 100))"]
 out, failing = checks(task(BOUNDED, "(== y x) (< x 100)", "(return (+ x 0))"))
 assert failing == [2] and out[2]["trivial"] == ["(< x 100)"]  # true by the requires alone
-assert checks(task(BOUNDED, "(== y x)", "(return (+ x 1))"))[1] == [3, 4, 5]  # a wrong reference
+out, failing = checks(task(BOUNDED, "(== y x)", "(return (+ x 1))"))  # a wrong reference
+assert failing == [3, 4, 5] and out[4]["mutants"] is None and {kind for _, kind in out[5]["wrong"]} == {"discrepancy"}
 out, failing = checks(task(BOUNDED, "(== y x)", "(return x)"))
 assert failing == [4] and out[4]["mutants"] == 0  # nothing to mutate
 # The interpreter can't decide a forall with no bound on its output; what's kept of it names no input.
@@ -46,6 +48,6 @@ assert failing == [5] and out[5]["wrong"] == [(k, "undecided") for k in range(25
 try:
     P.entry(task(BOUNDED, "(== y x)", "(return x)") | {"solution": task(BOUNDED, "(>= y x)", "(return x)")["solution"]}, KEY, SPLIT)
     raise AssertionError("a reference with a spec of its own passed")
-except ValueError:
-    pass
+except ValueError as e:
+    assert "as posed" in str(e), e
 print("entry checks self-check passed")
