@@ -148,7 +148,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** This is enough to express the worked example (D29) and the seed tasks, yet small enough to specify, interpret and verify in weeks. Dependent types, linear resources, information-flow labels, cost proofs and concurrency are research-grade, and they don't change what the first experiments measure.
 - **Touches:** Type system; WP3; Worked example.
 
-## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62, WP10 and WP11 edges by D65)
+## D21 · Work package dependencies are rewired · Accepted (WP1a edges amended by D44, WP4a edges by D62, WP10 and WP11 edges by D65, and the reason for WP11's edge on WP7 by D123)
 - **Date:** 2026-10-26
 - **Decision:** WP4 splits:
   - **WP4a, the spec language:** depends on WP3.
@@ -1812,3 +1812,111 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Port vericoding's Lean tasks now:** about half of the new ones use `Float`, `String` or `Char`, and as verified ports they'd add tasks to a gate that has passed, where WP11 needs them as specs.
   - **Keep the done-when, with WP10 in progress:** WP11 then waits on ports nothing uses.
 - **Touches:** D21; D31; D64; D65; D112; WP10; WP11; WP17; `docs/roadmap.md`; `README.md`.
+
+## D123 · WP11's scope: its reward, entry checks, held-out split and baseline · Accepted (amends D21's reason for WP11's edge on WP7)
+- **Date:** 2026-11-09
+- **Decision:** WP11 builds the training environment on WP17's harness in `gym/` (D28).
+  - **What it doesn't do:** it trains no model, since that needs open weights and training compute (D13), which the owner's choices settle. And it ports no tasks: growing the pool is Phase 2's work, as WP10's further ports are (D122).
+  - **The reward** for a reply to a task is the highest tier it reaches, computed by `gym/reward.py` the same way every time:
+
+    | Tier | What `b17c` shows | Reward |
+    |---|---|---|
+    | Parses | the reply parses into the task's module | 0.05 |
+    | Checks | tier 0 passes, and every spec has a def | 0.20 |
+    | Some goals | 0.20, plus 0.30 times the share of parts proved, below | up to 0.50 |
+    | Verified | every goal proved under D23's seeds, provisional while the solver is trusted (D24) | 0.80 |
+    | Right | verified, and right within 20M steps on each of 25 held-out inputs | 0.90 |
+
+    - **The weights are the design spec's placeholders,** tuned when training starts.
+    - **No 1.00 tier yet.** The design spec gives it for meeting the spec's performance target, but no spec states one, since cost contracts are deferred (D29, D30). The step limit is a floor on speed, not a target.
+    - **Every reward is recorded** with the reply's hash, the task's spec hash and `b17c`'s commit, so it can be recomputed when the verifier changes, as when D114 closed the length hole.
+  - **Partial credit counts parts, not goals.**
+    - **The parts:** each `ensures` clause of the posed spec is a part, and the reply's other goals together are one more. A pool spec has no clause that's a top-level `and` (entry check 1), so its parts don't depend on how its author grouped them. The test set's specs stay as M3 posed them, and 6 of the 34 have such a clause, so partial credit on them groups its conjuncts, and isn't compared across tasks.
+    - **A part counts** when all its goals are in L2's closure (D80, D91): proved without resting on a goal that isn't.
+    - **A clause also needs every runtime goal of the posed def, and of the defs it calls, in the closure:** the six families L2 requires (D80). A def that may not end meets every `ensures` on the paths that do, and one that may abort can rest a clause on a fact its failed goal guards, which the closure can't always drop (D120).
+  - **Right on held-out inputs:**
+    - **The inputs** are drawn from a secret kept outside the repository, so nothing a model could have read shows them.
+      - **A task's seed** is an HMAC, under the secret, of the task's problem and spec hash, with one domain for inputs and another for choosing the pool's held-out slice.
+      - **`gym/split.json` records the secret's hash.** Scoring won't run without the matching secret, and each reward records a hash of its inputs.
+      - **On the gate's test set,** below, they come from D118's generators.
+      - **On the pool's tasks,** they're D88's draws that meet the `requires`, chosen from the spec alone before any reply runs, as the workbench's are (D121). D88's property tests can't be reused as they are, since they drop an input whose run hits the step limit.
+    - **The reference:**
+      - **On the test set:** D118's, a checker written separately in Python for each task.
+      - **On the pool:** the spec. Each reply runs as a checked run (D58), and is right on an input only when every `ensures` clause of the posed spec evaluates to true. A clause the interpreter can't decide on the reply's output leaves the reply at 0.80.
+    - **The step limit is 20M per input,** where D118's audit allows 500M, since a reward is computed for every reply. D118 found that 222 of its 224 `right` programs fit. The two that don't scan every possible weight, so they'd stay at 0.80.
+    - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input, or ends in a runtime error a goal ruled out.
+      - **It's recorded for triage.** It shows a hole in the verifier, a spec that says something other than the reference, or a bug in the interpreter or the reference.
+      - **A reply that runs out of steps keeps 0.80,** since it isn't shown wrong. It's recorded too, since a hole in a termination proof would look the same, and rescored 0 if triage shows it never ends.
+  - **The design spec's rules against reward hacking:**
+    - **A reply can't edit its spec:** it's added to the frozen module (D98), and declaring the spec again is `E-TYPE-002`.
+    - **`admit`, `assume`, unchecked FFI and `unsafe` aren't constructs in B17-0 or B17-1.** `(assume false)` as a statement doesn't parse, and written as a call it names nothing and fails tier 0.
+    - **Spec challenges:** if the verifier is sound, neither of interface 9's two kinds can hold for a pool task. Check 2 shows its `requires` can hold, and check 3's reference def gives every input that meets it an output.
+      - **So no reply is read as a challenge.**
+      - **A challenge the workbench finds anyway** is recorded as a discrepancy.
+    - **Held-out inputs** come from the secret, above.
+    - **The kernel signs nothing yet:** D24 suspends that rule until the kernel exists.
+  - **A task enters the pool when:**
+    1. its module, with no def, passes tier 0, its spec doesn't list `panic`, as the harness already checks, and no `ensures` clause is a top-level `and`;
+    2. `vacuity` shows its `requires` can hold, and judges no `ensures` clause trivial (D121);
+    3. a reference def, written with the port, verifies;
+    4. every survivor of `mutants` on that def whose output differs on the tests' inputs (D121) is a second answer the spec means to allow, recorded with the task, as `min_index`'s returning the last smallest element rather than the first is. At least one mutant must be tried: `mutants` changes only the def it's given, so a posed def that only calls a helper, as `lca`'s does, gets none, and fails this check until `mutants` reaches the defs it calls;
+    5. the held-out draws keep 25 inputs on which the interpreter decides every `ensures` clause for the reference def's output.
+
+    A pool task's spec needn't say what its source says, since the spec is the task. Whether D31's model trained on Dafny trains on the same problems is left to the decision that plans training. If it does, faithfulness matters, and each pool task keeps its source's Dafny spec beside it. AlgoVeri's and vericoding's tasks have one, and FVAPPS's don't.
+  - **Tasks are named by problem.** Each task names its problem, and a reviewed table maps names across sources, such as a seed task and an AlgoVeri problem that pose the same one. The split holds out by problem.
+  - **The held-out split,** frozen in `gym/split.json`:
+    - **The gate's test set:** M3's 34 tasks, B17-0's 20 seed tasks and 14 of B17-1's ports. Each has a Dafny version, the 14 have AlgoVeri's Verus specs (D122), all have D118's references, and M3 has recorded runs of them. `bfs` isn't held out, since the supplement's worked proof of it is in every prompt (D117).
+    - **The same problems:** a pool task posing a test-set problem is held out too, as AlgoVeri's `binary_search`, `gcd` and `insertion_sort` would be.
+    - **A slice of the pool:** 1 problem in 10, chosen by the secret's HMAC of its name, held out to show how training carries over within the pool. The rule is frozen now and applies as tasks arrive.
+  - **The in-context baseline:** Claude and Codex through the harness, 3 samples per task as M3 ran. It runs on the test set under the prompt then in force, with every reply scored and recorded. The pool's slice and the base model join as they arrive.
+  - **The curriculum** is the pool. It covers algorithms, the one domain B17-0 and B17-1 reach (D65). The order is training's to choose.
+  - **Done when:**
+    - `gym/reward.py` scores replies by the table. `gym/test_reward.py` checks a reply at each tier. It also checks that:
+      - padding with asserts, an `(assert false)`, a loop that never ends and an overflow before the `return` earn no more than a def that returns 0;
+      - scoring won't run without the secret that matches `gym/split.json`;
+      - declaring the spec again scores 0.05;
+      - an output whose clause the interpreter can't decide stays at 0.80;
+      - a discrepancy scores 0.
+    - `gym/pool.py` runs the entry checks, and has run them on the 35 ports with the results recorded. The ports stay held out, so this tests the checks.
+    - `gym/split.json` is frozen, and a test checks that no pool task shares a problem with a held-out one.
+    - The baseline is recorded and summarized.
+  - **After WP11, in Phase 2, the pool grows:**
+    - **First, AlgoVeri's unported problems:** up to 62. 49 are ones the harness imports, and 13 are ones its importer skips as ill-formed, unsatisfiable or built on classes.
+    - **Then vericoding's 2,334 Dafny tasks,** from eight sources, those whose types B17 has.
+    - **Then FVAPPS's problems (D122).** Their theorems often fix an answer's shape rather than its value, as the first task's `solve_output_structure` does. So a port strengthens its spec from the problem statement until check 4 passes, and the examples most of them come with check it.
+    - **Graph and tree specs need the workbench's reach first.** Like the 7 the workbench can't show satisfiable, they'd fail checks 2 and 5. The roadmap's plan closes them, rules 1, 2 and 4 through a decision of their own and B17-1's version 1.3. A `requires` with an ∃ that no guard bounds, such as `kruskal`'s connectivity, still fails check 5, since rule 3 is the workbench's alone.
+  - **Not in WP11:**
+    - the base model, the compute and the training itself;
+    - a reward for D31's model trained on Dafny. The harness's Dafny verdicts give the parse, check and verified tiers, but partial credit and the held-out tier need a design of their own, with training's plan;
+    - the design spec's other sources of tasks: clean-room ports, translated code with its tests, and spec-first self-play;
+    - growing the pool.
+- **Why:**
+  - **A share of goals pays for hacks.** On `b17/abs`, `(return 0)` meets one of its two `ensures` clauses.
+    - **A share of goals** pays it 0.35. It pays 0.49 when twenty `(assert (== k k))` come first, 0.40 for an `(assert false)` first, and 0.45 for a loop that never ends first. Every goal is assumed once generated (`docs/b17-0.md` §7), so the goals after `(assert false)` rest on it, and those after the loop are on no path.
+    - **Parts in L2's closure** pay the four 0.40, 0.40, 0.30 and 0.20, and an overflow before the `return` 0.20.
+  - **Every runtime goal for a clause:** a loop that never ends cuts off the paths after it without assuming anything, and a value's type facts aren't traced to the runtime goals that guard them (D120), so the closure alone can't keep a failed one from helping a clause.
+  - **No top-level `and` in a pool spec:** otherwise `(and A B)` written as one clause or as two would pay differently. Splitting them when scoring would need a goal per conjunct, which the verifier doesn't make.
+  - **The spec as the reference** needs nothing written per task. D118's references are a Python checker and an input generator per task, which the test set has and a pool of hundreds wouldn't.
+  - **The interpreter, not the Rust binary, runs the held-out inputs.** Its steps are counted the same way every run, where a binary's time isn't, and WP7's differential tests already hold the binary to the interpreter's output. That changes D21's reason for WP11's edge on WP7, that "the differential and performance rewards run emitted code". The edge stays, and WP7 is done. If D123 is accepted, D21's heading names it, as it does D44, D62 and D65.
+  - **Discrepancies score 0,** not 0.80. The design spec's table of risks gives zero reward for escapes, and a reply shown wrong that kept 0.80 would teach the hole it went through. A reply that runs out of steps may hide a hole in a termination proof, so it's triaged too.
+  - **The secret outside the repository:** the design spec asks for held-out inputs no model has seen, and a model can read the repository, through a checkout now or through its training data if it's ever published.
+  - **A reference def per pool task:** `mutants` needs one, and it rules out every challenge. The cost is that a task nobody has verified can't enter, so the pool is only as hard as its porters can verify.
+  - **A survivor isn't always a loose spec.** On the 35 ports, `mutants` ran on 34 of the 35 ports' posed defs, the first 15 under D23's seeds and the rest under the canonical seed alone, for time. Of 825 mutants, tests killed 351 and the verifier 434.
+    - **Two survivors' outputs differ,** in `min_index` and `longest_palindrome_substring`, and both are ties the spec allows: the last smallest element, or the last longest palindrome, rather than the first.
+    - **On the 7 graph and tree specs no test ran,** since their draws keep no input. 29 of their mutants survived without being compared, which is check 5's gap again.
+    - **`lca`'s posed def has nothing to mutate:** `mutants` changes only the def it's given, and `lca`'s work is in the `find` it calls.
+    - **It's slow:** `edmond_karp` took 13 minutes and `push_relabel` 19, and `power` hadn't finished after 30 under the canonical seed alone.
+  - **The test set** is what the gate compares: with Dafny for D31, with Verus for D122, with D118's references for the held-out tier, and with M3's recorded runs for the baseline.
+  - **WP11 ports nothing:** D122 made further ports no prerequisite, and WP11's done-when names no pool size. Running the entry checks on the 35 ports tests them on specs already reviewed.
+- **Alternatives:**
+  - **A share of goals for partial credit,** as the design spec has it: padding, a failing assert and a loop that never ends all raise it.
+  - **Only `TERM` goals required for a clause to count,** as first drafted: an overflow before the `return` then paid 0.30 rather than 0.20, and the closure would have to drop everything the overflow guards, which D120 says it can't always.
+  - **A reviewed list of reward parts per task:** a reviewer's call for each task, where splitting at `and` is mechanical.
+  - **A 1.00 tier for steps within a factor of a reference def's:** each task would need its fastest known def, and a right program with a different but sound algorithm could fail it on small inputs.
+  - **D118's limit of 500M steps:** a reply that runs out takes a minute or more per input, for every reward.
+  - **D118's references for every task:** a Python checker and an input generator written per task.
+  - **Running the emitted Rust for the held-out tier:** its time isn't deterministic, and each reply would need a compile.
+  - **Admitting tasks whose draws aren't decided, capped at 0.80:** they'd enter without the check that catches a discrepancy.
+  - **Porting the first pool within WP11:** up to 62 ports would hold up WP11's done-when, which names no pool size.
+  - **Waiting for compute before building WP11:** WP11 needs none, and the Phase 2 gate needs both.
+- **Touches:** D13; D21; D23; D24; D28; D29; D30; D31; D58; D65; D80; D88; D91; D98; D114; D117; D118; D121; D122; WP4b; WP7; WP11; WP17; `gym/`; `docs/roadmap.md`; `README.md`.

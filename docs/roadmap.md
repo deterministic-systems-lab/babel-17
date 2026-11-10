@@ -168,7 +168,7 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 ### Decisions waiting for the owner
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, and D122 on 2026-11-09. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, and D122 and D123 on 2026-11-09. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of the 64 AlgoVeri tasks D79 surveyed need B17-1's tuples or data types. In order:
@@ -202,7 +202,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
 4. **WP16** grows the core library as B17-1 and the ports need it.
 5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
 
-6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122).
+6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it, and its first piece is the reward, `gym/reward.py`. Growing its pool of tasks follows it in Phase 2, and needs the spec workbench's reach first, [below](#phase-1-work-outside-the-gate), since graph and tree specs can't enter the pool until then.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -273,6 +273,14 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 - an in-context baseline is recorded.
 
 Its curriculum covers every domain the language has reached by then (D65).
+
+**D123 scopes it:**
+- **The reward:** the design spec's tiers, from 0.05 for a reply that parses to 0.90 for one that's verified and right within 20M steps on 25 held-out inputs. There's no 1.00 tier until specs can state a cost (D30).
+  - **Partial credit** counts each `ensures` clause whose goals are proved without resting on a goal that isn't (L2's closure), so padding, a failing `assert` and a loop that never ends earn no more than a reply without them.
+  - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input is recorded for triage, since it shows a hole in the verifier, a spec that says something other than the reference, or a bug in the interpreter or the reference.
+- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. WP11 tests the checks on the 35 ports. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
+- **The split:** M3's 34 tasks are the gate's test set, with the pool's problems that match them and 1 in 10 of the rest.
+- **The baseline:** Claude and Codex on the test set, then the pool's slice and the base model as they arrive.
 
 Agents first learn B17-0 from the manual in context, and models are trained in Phase 2 (D8, proposed).
 
