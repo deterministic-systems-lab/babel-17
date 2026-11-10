@@ -74,37 +74,41 @@ def parts(gen, goals, rows, check, name):
     return [safe and post.get(id(c), set()) <= counted for c in clauses] + [other <= counted]
 
 
-def held_out(task, frozen, module, secret, spec_sha):
-    """A hash of the task's held-out inputs, and each one the verified module isn't right on: its
-    index, discrepancy, limit or undecided, and what happened."""
-    name, subset = task["name"], task.get("subset", 0)
+def held_out(task, frozen, secret, spec_sha):
+    """The task's held-out inputs, each with D118's reference for it, or None where the spec is the reference."""
     s = seed(secret, task["id"].rsplit("/", 1)[-1], spec_sha)
     if task["id"] in a.CASES:  # the gate's test set: D118's inputs, one in five large, and references
         r = random.Random(s)
-        cases = [a.CASES[task["id"]](r, k % 5 == 4) for k in range(INPUTS)]
-    else:  # the pool: D88's draws that meet the requires, and the spec as the reference
-        cases = [(args, None) for args in I.spec_inputs(frozen, name, s, INPUTS, subset)]
-        if len(cases) < INPUTS:
-            raise ValueError(f"{task['id']}: D88's draws keep {len(cases)} of {INPUTS} inputs (entry check 5)")
-    triage = []
+        return [a.CASES[task["id"]](r, k % 5 == 4) for k in range(INPUTS)]
+    # the pool: D88's draws that meet the requires
+    cases = [(args, None) for args in I.spec_inputs(frozen, task["name"], s, INPUTS, task.get("subset", 0))]
+    if len(cases) < INPUTS:
+        raise ValueError(f"{task['id']}: D88's draws keep {len(cases)} of {INPUTS} inputs (entry check 5)")
+    return cases
+
+
+def triage(task, frozen, module, cases):
+    """Each held-out input the verified module isn't right on: its index, discrepancy, limit or
+    undecided, and what happened."""
+    name, subset, out = task["name"], task.get("subset", 0), []
     for k, (args, ok) in enumerate(cases):
-        out = I.run(module, name, args, check=ok is None, fuel=STEPS, depth=a.DEPTH, subset=subset)
-        if isinstance(out, I.Limit):
-            triage.append((k, "limit", f"out of {out.kind}"))
-        elif not isinstance(out, I.Ok):
-            triage.append((k, "discrepancy", I.text_of(out).splitlines()[-1][:300]))
+        run = I.run(module, name, args, check=ok is None, fuel=STEPS, depth=a.DEPTH, subset=subset)
+        if isinstance(run, I.Limit):
+            out.append((k, "limit", f"out of {run.kind}"))
+        elif not isinstance(run, I.Ok):
+            out.append((k, "discrepancy", I.text_of(run).splitlines()[-1][:300]))
         elif ok is not None:
             try:
-                good = ok(*map(a.py, out.results))
+                good = ok(*map(a.py, run.results))
             except (IndexError, TypeError, ValueError):  # an answer not even of the expected shape
                 good = False
             if not good:
-                triage.append((k, "discrepancy", f"{a.py(args)} gave {a.py(out.results)}"[:300]))
+                out.append((k, "discrepancy", f"{a.py(args)} gave {a.py(run.results)}"[:300]))
         else:
-            held = [v for kind, _, v in I.holds(frozen, name, args, out.results, subset) if kind == "ensures"]
+            held = [v for kind, _, v in I.holds(frozen, name, args, run.results, subset, STEPS) if kind == "ensures"]
             if False in held or None in held:
-                triage.append((k, "discrepancy" if False in held else "undecided", f"{a.py(args)} gave {a.py(out.results)}"[:300]))
-    return h.sha(repr([a.py(args) for args, _ in cases])), triage
+                out.append((k, "discrepancy" if False in held else "undecided", f"{a.py(args)} gave {a.py(run.results)}"[:300]))
+    return out
 
 
 def score(task, code, secret, split=SPLIT):
@@ -114,8 +118,10 @@ def score(task, code, secret, split=SPLIT):
     subset, name = task.get("subset", 0), task["name"]
     frozen = syntax.parse(task["frozen"].encode(), subset)
     spec_sha = H.hashes(frozen, subset)[name][1]
+    cases = held_out(task, frozen, secret, spec_sha)  # drawn before the reply is read
     commit = subprocess.run(["git", "-C", str(h.B17C), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    out = {"task": task["id"], "reply_sha256": h.sha(code), "spec_sha256": spec_sha, "b17c_commit": commit or None}
+    out = {"task": task["id"], "reply_sha256": h.sha(code), "spec_sha256": spec_sha, "b17c_commit": commit or None,
+           "inputs_sha256": h.sha(repr([a.py(args) for args, _ in cases]))}
     try:
         module = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode(), subset)
     except syntax.ParseError:
@@ -129,7 +135,6 @@ def score(task, code, secret, split=SPLIT):
             raise RuntimeError(f"{task['id']}: {bad[0]['node']}: {bad[0]['verdict']}")
         if any(r["verdict"] != "proved" for r in rows):
             counts = parts(gen, goals, rows, V.checker(module, gen, cfg, Path(cache), subset), name)
-            return out | {"reward": round(0.20 + 0.30 * sum(counts) / len(counts), 6), "parts": counts}
-    inputs, triage = held_out(task, frozen, module, secret, spec_sha)
-    reward = 0.0 if any(t[1] == "discrepancy" for t in triage) else 0.80 if triage else 0.90
-    return out | {"reward": reward, "inputs_sha256": inputs, "triage": triage}
+            return out | {"reward": 0.20 + 0.30 * sum(counts) / len(counts), "parts": counts}
+    wrong = triage(task, frozen, module, cases)
+    return out | {"reward": 0.0 if any(t[1] == "discrepancy" for t in wrong) else 0.80 if wrong else 0.90, "triage": wrong}
