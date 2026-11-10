@@ -178,7 +178,7 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
       - AlgoVeri's versions of the next two pairs.
     - **4 give one name each to test problems with the same spec:** `edmond_karp` and `push_relabel` become `max_flow`, and `kruskal` and `prim` become `mst`.
     - **The other 13** pair tasks within the pool that pose the same problem, so the slice takes both or neither.
-- **WP11's entry checks** are built: `gym/pool.py` (D123), with results on the 35 ports in `gym/pool-ports.jsonl`. The ports stay held out, so the run tests the checks.
+- **WP11's entry checks** are built: `gym/pool.py` (D123), with results on the 35 ports in `gym/pool-ports.jsonl`. None of them enters the pool, so the run tests the checks.
   - **16 pass all five:** 14 of the 20 seed ports, and `bst_insert` and `bst_search`.
   - **Check 1, no top-level `and` in an `ensures`:** 6 fail, as D123 counted.
   - **Check 2, vacuity:** the 7 graph and tree specs fail, since the workbench can't show their `requires` can hold.

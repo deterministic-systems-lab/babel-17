@@ -3195,7 +3195,7 @@ WP11. `gym/split.json` freezes D123's held-out split, under a secret the owner k
 
 ## 2026-11-10 · WP11's entry checks, on the 35 ports
 
-WP11. `gym/pool.py` runs D123's five checks on a task with its reference def, and has run them on the 35 ports, B17-0's 20 seed ports and B17-1's 15, `bfs` among them. The results are in `gym/pool-ports.jsonl`. The ports stay held out, so the run tests the checks.
+WP11. `gym/pool.py` runs D123's five checks on a task with its reference def, and has run them on the 35 ports, B17-0's 20 seed ports and B17-1's 15, `bfs` among them. The results are in `gym/pool-ports.jsonl`. None of them enters the pool, so the run tests the checks.
 
 - **The checks,** as D123 words them:
   1. the module with no def passes tier 0, its spec doesn't list `panic`, and no `ensures` clause is a top-level `and`;
@@ -3219,7 +3219,7 @@ WP11. `gym/pool.py` runs D123's five checks on a task with its reference def, an
     - On `dedup_sorted`, `coin_change`, `trie_insert` and `longest_palindrome_substring`, the interpreter can't decide a clause on any of the 25 inputs: respectively, a `forall` over every integer, an `exists` over sequences, an equality of sets, and a `forall` bounded only inside ghost-fns.
     - `isqrt`'s and `discrete_logarithm`'s references run past 20M steps on 11 and 4 of the inputs. Both try one candidate at a time, and D88 draws i64's extremes. A faster reference, such as a binary search for `isqrt`, or a bound in the `requires` would fit.
   - **Time:** about 2 hours, in four processes. `power`'s group took longest: its property tests draw exponents near i64's extremes, and each of those runs the `requires` to the 1M-step limit, for the def and again for every mutant.
-- **The run** was at 2d2f9f0. The commit after it changes only how a malformed reference or an error in check 5 is reported, and all 35 ports pass the stricter test.
+- **The run** was at 2d2f9f0. The commit after it binds the reference by the posed items verbatim rather than by spec hash, and reports only an error's type from check 5. All 35 ports pass the stricter binding, so their results stand.
 - **Codex review** (`gpt-5.6-sol`), told not to read the secret or run `pool.py`, and it didn't. It found 7 problems, all fixed:
   - **A leak:** an error's text in check 5 could name a held-out input.
   - **The reference wasn't bound to the task's spec.**
