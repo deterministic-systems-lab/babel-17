@@ -3134,3 +3134,25 @@ WP11. The owner accepted D123 on 2026-11-09: WP11 builds the reward, with partia
 - **D21:** its heading names D123, which changes its reason for WP11's edge on WP7.
 - **Updated:** DECISIONS (D123's status, D21's heading); the README's WP11 row; the roadmap's decisions waiting for the owner, accepted decisions, critical path and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-09 · WP11's reward
+
+WP11. `gym/reward.py` scores a reply to a B17 task by D123's table, and `gym/test_reward.py` checks it.
+
+- **What `abs`'s replies earn:** the right def 0.90; `(return 0)`, and the same padded with twenty true asserts, 0.40; `(assert false)` first, or a call to a false lemma, 0.30; a loop that never ends, or an overflow, first 0.20. These are D123's figures.
+- **How:**
+  - **Parts** come from `verify.closure`. A clause also needs the runtime goals of the posed def and the defs it calls, which `verify.runtime_goals` now names for L2's level and the reward alike.
+  - **Held-out inputs** are drawn from the secret's HMAC before the reply is parsed, and every reward records their hash, with the reply's, the spec's and the commit.
+  - **On the test set** a reply runs as D118's audit runs it, against its references. **On the pool** it's a checked run, and the posed spec's `ensures` are evaluated on its output.
+- **Codex review** (`gpt-5.6-sol`): it found the tiers, the parts and the refactor right, and found 5 problems.
+  - **Fixed:**
+    - a pool output's `ensures` were evaluated in 1M steps, not 20M, so `interp.holds` now takes a step limit;
+    - rewards below 0.80 didn't record an inputs hash;
+    - partial credit was rounded;
+    - no test showed that the secret picks the inputs, or that a discrepancy scores 0 among inputs that run out of steps. Both are tested now.
+  - **Not yet:**
+    - `gym/split.json` doesn't exist, so scoring runs only on a split passed in. Freezing it, with the secret, is the split's step.
+    - A runtime-error discrepancy can't be tested without a hole in the verifier.
+- **Self-checks:** `test_reward.py`, in 30 s, and `test_verify.py`, `test_spec.py`, `test_agent.py` and `test_interp.py` pass.
+- **Updated:** the README's WP11 row; the roadmap's recent work and critical path.
+- **Interfaces touched:** none.

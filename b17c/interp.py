@@ -1422,13 +1422,13 @@ def _spec(module, name):
     return next(it for it in module.items[3:] if it.items[0].text == "spec" and it.items[1].text == name)
 
 
-def _holds(p, spec, args, results):
+def _holds(p, spec, args, results, fuel=FUEL):
     """Spec's requires at args in order, stopping at the first that doesn't hold, since a later
     one may assume it; then, given results, its ensures. Each is (kind, clause, value), the value
     None where the clause is undefined or unknown (D57, D58)."""
     env = dict(zip(_names(_clauses(spec, "params")), args))
     env.update(zip(_names(_clauses(spec, "returns")), results or ()))
-    r, out = _Run(p, True, FUEL, DEPTH), []
+    r, out = _Run(p, True, fuel, DEPTH), []
     for kind in ("requires", "ensures") if results is not None else ("requires",):
         for e in _clauses(spec, kind):
             try:
@@ -1441,10 +1441,10 @@ def _holds(p, spec, args, results):
     return out
 
 
-def holds(module, name, args, results=None, subset=SUBSET):
-    """Spec name's clauses at args, and at results if given, as _holds gives them."""
+def holds(module, name, args, results=None, subset=SUBSET, fuel=FUEL):
+    """Spec name's clauses at args, and at results if given, as _holds gives them, in fuel steps."""
     with _deep(DEPTH):
-        return _holds(_Program(module, subset), _spec(module, name), tuple(_value(a) for a in args), results)
+        return _holds(_Program(module, subset), _spec(module, name), tuple(_value(a) for a in args), results, fuel)
 
 
 def spec_inputs(module, name, seed, k, subset=SUBSET, draws=DRAWS):

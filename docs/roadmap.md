@@ -163,6 +163,10 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 - **WP8, the agent reference manual,** is done for B17-0, `docs/manual.md`, and for B17-1, with its supplement `docs/manual-1.md` (D112).
   - **Every rule and every code:** it covers all 25 codes of §9, each with a minimal example and the fix, along with the rules an agent writing B17-0 needs.
   - **Every example is checked:** `test_manual.py` holds each of its 38 examples to its stated outcome, tier 0 in CI and proofs with Z3, and fails if a code loses its example or its list of `core.b17`'s items drifts from the file.
+- **WP11's reward** is built: `gym/reward.py` (D123).
+  - **The tiers:** a reply earns 0.05 when it parses, 0.20 when tier 0 passes, up to 0.50 for the share of its parts in L2's closure, 0.80 when verified, and 0.90 when also right within 20M steps on 25 held-out inputs.
+  - **Its self-check,** `gym/test_reward.py`, gets D123's figures for the hacks it measured on `abs`. It also checks that a redeclared spec scores 0.05, a discrepancy 0, and running out of steps or a clause the interpreter can't decide 0.80.
+  - **Not yet run with the real secret:** scoring needs the secret whose hash `gym/split.json` records, and the split isn't frozen yet. The self-check scores replies under a split of its own.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
@@ -202,7 +206,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
 4. **WP16** grows the core library as B17-1 and the ports need it.
 5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
 
-6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it, and its first piece is the reward, `gym/reward.py`. Growing its pool of tasks follows it in Phase 2, and needs the spec workbench's reach first, [below](#phase-1-work-outside-the-gate), since graph and tree specs can't enter the pool until then.
+6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it. Its first piece, the reward, is built ([above](#recent-and-current-work)). Next are the entry checks, `gym/pool.py`, on the 35 ports, then the frozen split with its secret, and the baseline. Growing its pool of tasks follows it in Phase 2, and needs the spec workbench's reach first, [below](#phase-1-work-outside-the-gate), since graph and tree specs can't enter the pool until then.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
