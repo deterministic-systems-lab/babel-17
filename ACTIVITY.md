@@ -3156,3 +3156,23 @@ WP11. `gym/reward.py` scores a reply to a B17 task by D123's table, and `gym/tes
 - **Self-checks:** `test_reward.py`, in 30 s, and `test_verify.py`, `test_spec.py`, `test_agent.py` and `test_interp.py` pass.
 - **Updated:** the README's WP11 row; the roadmap's recent work and critical path.
 - **Interfaces touched:** none.
+
+## 2026-11-09 · WP11's held-out split, frozen
+
+WP11. `gym/split.json` freezes D123's held-out split, under a secret the owner keeps outside the repository, and `gym/split.py` reads it.
+
+- **The secret:** 32 random bytes, written in hex to `~/.config/babel-17/gym-secret`, readable only by the owner. The split records its SHA-256. The owner chose the location, and keeps a copy, since losing it means a new split with new inputs.
+- **The test set:** M3's 34 tasks.
+- **Problems:** a task's problem is its entry in the split's table, or else its name. Of the table's 21 entries:
+  - **9 map a task to a test problem:** AlgoVeri's `linear_search`, the same lower bound as its `binary_search`; its `bubble_sort`, `merge_sort` and `quick_sort`, and vericoding's `DH0032`, `DV0015` and `DV0132`, whose specs are `insertion_sort`'s; and AlgoVeri's two exponentials, whose specs are `power`'s;
+  - **12 pair tasks within the pool:** `kmp` and `string_search_naive`; the two trial divisions; and four vericoding pairs. So the slice takes both or neither.
+- **What's held out**, of the 92 AlgoVeri and vericoding tasks in the harness:
+  - **26 pose a test problem.** AlgoVeri's 14 that M3 ported match by name, as its `binary_search`, `gcd` and `insertion_sort` do.
+  - **The slice:** 8 of the other 60 problems, 10 tasks, chosen by the secret.
+  - **`bfs` isn't held out (D117),** and the self-check fails if a secret ever puts it in the slice.
+- **The reward** now takes its problem from the split, and `split.py` holds the secret's check and HMAC that `reward.py` had.
+- **Self-checks:** `test_split.py` and `test_reward.py` pass.
+  - **`test_split.py`** checks the secret, the test set, the table's tasks and the named cases. It checks that no problem left to train on is held out, across every task the harness loads, and that the slice is 1 in 10 and set by the secret.
+  - **`test_reward.py`** now scores under the real split's table, with a secret of its own.
+- **Updated:** the README's WP11 row; the roadmap's recent work and critical path.
+- **Interfaces touched:** none.

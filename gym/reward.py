@@ -20,9 +20,6 @@ ends with every ensures clause of the posed spec true. A verified reply that's w
 runtime error, is a discrepancy and scores 0. Running out of steps, or a clause the interpreter can't
 decide, keeps 0.80. Each of the three is recorded for triage.
 """
-import hashlib
-import hmac
-import json
 import random
 import subprocess
 import sys
@@ -31,6 +28,7 @@ from pathlib import Path
 
 import audit as a
 import harness as h
+import split as S
 
 sys.path.insert(0, str(h.B17C))
 import agent
@@ -40,20 +38,7 @@ import interp as I
 import syntax
 import verify as V
 
-SPLIT = h.GYM / "split.json"
 INPUTS, STEPS = 25, 20_000_000
-
-
-def check_secret(secret, split=SPLIT):
-    """Refuse to score without the secret whose hash the frozen split records."""
-    if hashlib.sha256(secret).hexdigest() != json.loads(Path(split).read_text())["secret_sha256"]:
-        raise ValueError(f"the secret doesn't match the one {split} records")
-
-
-def seed(secret, problem, spec_sha):
-    """A task's seed for its held-out inputs: an HMAC under the secret of its problem and spec hash."""
-    return int.from_bytes(hmac.new(secret, b"\0".join([b"inputs", problem.encode(), spec_sha.encode()]),
-                                   hashlib.sha256).digest()[:8], "big")
 
 
 def parts(gen, goals, rows, check, name):
@@ -74,9 +59,10 @@ def parts(gen, goals, rows, check, name):
     return [safe and post.get(id(c), set()) <= counted for c in clauses] + [other <= counted]
 
 
-def held_out(task, frozen, secret, spec_sha):
-    """The task's held-out inputs, each with D118's reference for it, or None where the spec is the reference."""
-    s = seed(secret, task["id"].rsplit("/", 1)[-1], spec_sha)
+def inputs(task, frozen, key, spec_sha, split):
+    """The task's held-out inputs, each with D118's reference for it, or None where the spec is the reference.
+    Their seed is the secret's HMAC of the task's problem and spec hash."""
+    s = S.mac(key, "inputs", S.problem(split, task["id"]), spec_sha)
     if task["id"] in a.CASES:  # the gate's test set: D118's inputs, one in five large, and references
         r = random.Random(s)
         return [a.CASES[task["id"]](r, k % 5 == 4) for k in range(INPUTS)]
@@ -111,14 +97,15 @@ def triage(task, frozen, module, cases):
     return out
 
 
-def score(task, code, secret, split=SPLIT):
+def score(task, code, key, split=S.SPLIT):
     """The reward for code, a reply to the B17 task, with what recomputing it needs: the hashes of the
     reply, the spec and the held-out inputs, and the commit it was scored at (D123)."""
-    check_secret(secret, split)
+    split = S.load(split)
+    S.check_secret(key, split)
     subset, name = task.get("subset", 0), task["name"]
     frozen = syntax.parse(task["frozen"].encode(), subset)
     spec_sha = H.hashes(frozen, subset)[name][1]
-    cases = held_out(task, frozen, secret, spec_sha)  # drawn before the reply is parsed
+    cases = inputs(task, frozen, key, spec_sha, split)  # drawn before the reply is parsed
     commit = subprocess.run(["git", "-C", str(h.B17C), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     out = {"task": task["id"], "reply_sha256": h.sha(code), "spec_sha256": spec_sha, "b17c_commit": commit or None,
            "inputs_sha256": h.sha(repr([a.py(args) for args, _ in cases]))}
