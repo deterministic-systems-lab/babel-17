@@ -25,16 +25,17 @@ assert split["test"] == sorted(t for t in tasks if t.startswith(("b17/", "b17-1/
 assert set(split["problems"]) <= set(tasks), set(split["problems"]) - set(tasks)  # the table names real tasks
 # The same problem under another name is held out, as D123's three are and the test set's Dafny versions.
 for t in ["algoveri/binary_search", "algoveri/gcd", "algoveri/insertion_sort", "algoveri/linear_search",
-          "algoveri/quick_sort", "algoveri/fast_exponential", "vericoding/DV0015", "vericoding/DT0555",
+          "algoveri/quick_sort", "algoveri/fast_exponential", "vericoding/DV0015", "vericoding/DT0555", "vericoding/DD0369",
           "algoveri/prim", "abs"]:
     assert S.held_out(split, key, t), t
 assert not S.held_out(split, key, "algoveri/bfs")  # the supplement's worked proof, in every prompt (D117)
 
-same = {}  # a Dafny task's spec, its comments and method name taken out -> the tasks with it
+same = {}  # a Dafny task's spec, with its comments and its method's name taken out -> the tasks with it
 for t in loaded:
     if t.get("lang") != "b17":
-        text = re.sub(r"//[^\n]*", "", t["preamble"] + "\n" + t["signature"]).replace(t["name"], "NAME")
-        same.setdefault(re.sub(r"\s+", " ", text), []).append(t["id"])
+        code = "".join(" " if k[:2] in ("//", "/*") else k for k in h.TOKEN.findall(t["preamble"] + "\n" + t["signature"]))
+        text = re.sub(r"\s+", " ", re.sub(rf"\b{re.escape(t['name'])}\b", "NAME", code))
+        same.setdefault(text, []).append(t["id"])
 for ids in same.values():
     assert len({S.problem(split, t) for t in ids}) == 1, ids
 held = {S.problem(split, t) for t in tasks if S.held_out(split, key, t)}

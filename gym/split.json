@@ -57,6 +57,8 @@
   "b17-1/push_relabel": "max_flow",
   "vericoding/DD0170": "count_evens",
   "vericoding/DD0172": "count_evens",
+  "vericoding/DD0368": "partition",
+  "vericoding/DD0369": "partition",
   "vericoding/DD0378": "remove_element",
   "vericoding/DD0462": "max_profit",
   "vericoding/DD0469": "remove_element",

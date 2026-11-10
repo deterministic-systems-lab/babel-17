@@ -168,13 +168,13 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
   - **Its self-check,** `gym/test_reward.py`, gets D123's figures for the hacks it measured on `abs`. It also checks that a redeclared spec scores 0.05, a discrepancy 0, and running out of steps or a clause the interpreter can't decide 0.80.
 - **WP11's held-out split** is frozen: `gym/split.json`, with `gym/split.py` (D123).
   - **The secret** is 32 random bytes kept outside the repository, at `~/.config/babel-17/gym-secret`. The split records its SHA-256, and the reward won't score a reply without it.
-  - **Held out:** M3's 34 tasks, the 27 of AlgoVeri's and vericoding's tasks in the harness that pose one of their problems, and 8 of the other 58 problems, the slice, chosen by the secret.
-  - **Problems by another name:** the split's table has 31 entries.
-    - **14 map a pool task to a test problem:**
+  - **Held out:** M3's 34 tasks, the 29 of AlgoVeri's and vericoding's tasks in the harness that pose one of their problems, and 8 of the other 56 problems, the slice, chosen by the secret.
+  - **Problems by another name:** the split's table has 33 entries.
+    - **16 map a pool task to a test problem:**
       - AlgoVeri's `linear_search`, the same lower bound as its `binary_search`;
       - its three other sorts and vericoding's three, all meant as sorts, like `insertion_sort`;
       - its two exponentials, whose specs are `power`'s;
-      - vericoding's `DT0555`, the sorted distinct values that `dedup_sorted` asks for;
+      - vericoding's `DT0555`, the sorted distinct values that `dedup_sorted` asks for, and its two partitions, `partition`'s problem;
       - AlgoVeri's versions of the next two pairs.
     - **4 give one name each to test problems with the same spec:** `edmond_karp` and `push_relabel` become `max_flow`, and `kruskal` and `prim` become `mst`.
     - **The other 13** pair tasks within the pool that pose the same problem, so the slice takes both or neither.
