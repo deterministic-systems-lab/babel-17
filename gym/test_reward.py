@@ -29,7 +29,7 @@ def pool_task(ensures):
 with tempfile.TemporaryDirectory() as d:
     def split_for(secret):
         path = Path(d, f"{secret.hex()}.json")
-        path.write_text(json.dumps({"secret_sha256": hashlib.sha256(secret).hexdigest()}))
+        path.write_text(json.dumps(R.S.load() | {"secret_sha256": hashlib.sha256(secret).hexdigest()}))
         return path
     split = split_for(SECRET)
     score = lambda task, code: R.score(task, code, SECRET, split)
