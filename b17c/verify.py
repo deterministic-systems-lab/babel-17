@@ -208,6 +208,12 @@ def closure(gen, goals, proved, check):
         counted -= gone
 
 
+def runtime_goals(gen, goals):
+    """The goals L2 needs proved for no runtime errors (D80): a def's RUNTIME goals outside its ghost code."""
+    return {k for k, g in enumerate(goals) if g[1] in RUNTIME and g[6] == "impl" and "def" in gen.defs[g[0]]
+            and (g[1] == "TERM" or id(g[5]) not in gen.ghost)}  # a def's TERM goals are its loops' and calls'
+
+
 def levels(module, seeds=SEEDS, cache=CACHE, subset=SUBSET):
     """verify(), with the level the module reaches (D80), and the report's fields that say why
     (docs/b17-1.md §10)."""
@@ -233,8 +239,7 @@ def levels(module, seeds=SEEDS, cache=CACHE, subset=SUBSET):
     tested = {k for k, g in enumerate(goals) if k not in proved and counts[key(k)]
               and key(k) not in refuted and not lemma_body(g)}
     counted = closure(gen, goals, proved, checker(module, gen, cfg, cache, subset))
-    runtime = {k for k, g in enumerate(goals) if g[1] in RUNTIME and g[6] == "impl" and "def" in gen.defs[g[0]]
-               and (g[1] == "TERM" or id(g[5]) not in gen.ghost)}  # a def's TERM goals are its loops' and calls'
+    runtime = runtime_goals(gen, goals)
     one = len(proved | tested) == len(goals)
     named = lambda k: {"node": rows[k]["node"], "family": rows[k]["family"]}
     first = {}
