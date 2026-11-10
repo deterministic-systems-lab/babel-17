@@ -3163,16 +3163,28 @@ WP11. `gym/split.json` freezes D123's held-out split, under a secret the owner k
 
 - **The secret:** 32 random bytes, written in hex to `~/.config/babel-17/gym-secret`, readable only by the owner. The split records its SHA-256. The owner chose the location, and keeps a copy, since losing it means a new split with new inputs.
 - **The test set:** M3's 34 tasks.
-- **Problems:** a task's problem is its entry in the split's table, or else its name. Of the table's 21 entries:
-  - **9 map a task to a test problem:** AlgoVeri's `linear_search`, the same lower bound as its `binary_search`; its `bubble_sort`, `merge_sort` and `quick_sort`, and vericoding's `DH0032`, `DV0015` and `DV0132`, whose specs are `insertion_sort`'s; and AlgoVeri's two exponentials, whose specs are `power`'s;
-  - **12 pair tasks within the pool:** `kmp` and `string_search_naive`; the two trial divisions; and four vericoding pairs. So the slice takes both or neither.
+- **Problems:** a task's problem is its entry in the split's table, or else its name. Grouping errs toward one problem, since that only holds more out. Of the table's 31 entries:
+  - **14 map a pool task to a test problem:**
+    - AlgoVeri's `linear_search`, the same lower bound as its `binary_search`;
+    - its `bubble_sort`, `merge_sort` and `quick_sort`, and vericoding's `DH0032`, `DV0015` and `DV0132`, all meant as sorts. `DV0015`'s permutation predicate is a placeholder, `true`, but an insertion sort meets its spec;
+    - AlgoVeri's two exponentials, whose specs are `power`'s;
+    - vericoding's `DT0555`, the sorted distinct values of any sequence, which solves `dedup_sorted`;
+    - AlgoVeri's `edmond_karp`, `push_relabel`, `kruskal` and `prim`.
+  - **4 give one name each to test problems with the same spec:** `edmond_karp` and `push_relabel` become `max_flow`, and `kruskal` and `prim` become `mst`;
+  - **13 pair tasks within the pool:** `kmp` and `string_search_naive`; the two trial divisions; and vericoding's mask sorts, with `DH0031`'s sort of every third place, its counts of evens, its element removals and its stock profits. So the slice takes both or neither.
 - **What's held out**, of the 92 AlgoVeri and vericoding tasks in the harness:
-  - **26 pose a test problem.** AlgoVeri's 14 that M3 ported match by name, as its `binary_search`, `gcd` and `insertion_sort` do.
-  - **The slice:** 8 of the other 60 problems, 10 tasks, chosen by the secret.
+  - **27 pose a test problem.** AlgoVeri's `binary_search`, `gcd`, `insertion_sort` and the other ports M3 uses match by name or by the table.
+  - **The slice:** 8 of the other 58 problems, 10 tasks, chosen by the secret.
   - **`bfs` isn't held out (D117),** and the self-check fails if a secret ever puts it in the slice.
-- **The reward** now takes its problem from the split, and `split.py` holds the secret's check and HMAC that `reward.py` had.
+- **The reward** now takes its problem from the split, and `split.py` holds the secret's check and HMAC that `reward.py` had. The inputs' HMAC is byte for byte as before.
+- **Codex review** (`gpt-5.6-sol`), told not to read the secret, and it didn't. It confirmed the split's rules and found 5 problems:
+  - **A leak, fixed:** `DT0555` poses `dedup_sorted`'s problem and wasn't in the table, so it could have been trained on.
+  - **A vacuous check, replaced:** being held out depends on a task's problem alone, so checking that no problem is both held out and trained on couldn't fail. `test_split.py` now requires tasks whose specs are the same text, but for the method's name, to share a problem. That found the two test pairs, now `max_flow` and `mst`.
+  - **`DH0031`,** a mask sort with a fixed mask, now joins the mask sorts.
+  - **Kept as one problem, against the review:** `DV0015` with the sorts, and vericoding's two stock-profit tasks, whose specs differ. Each pair poses much the same problem, and grouping only holds more out.
+  - **Two statements narrowed:** only `reward.score()` refuses a wrong secret, not every function that draws inputs.
 - **Self-checks:** `test_split.py` and `test_reward.py` pass.
-  - **`test_split.py`** checks the secret, the test set, the table's tasks and the named cases. It checks that no problem left to train on is held out, across every task the harness loads, and that the slice is 1 in 10 and set by the secret.
+  - **`test_split.py`** checks the secret, the test set, the table's tasks, the named cases, the tasks with the same spec, and that the slice is 1 in 10 and set by the secret.
   - **`test_reward.py`** now scores under the real split's table, with a secret of its own.
 - **Updated:** the README's WP11 row; the roadmap's recent work and critical path.
 - **Interfaces touched:** none.

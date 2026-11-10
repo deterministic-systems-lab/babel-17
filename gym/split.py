@@ -1,11 +1,12 @@
 """WP11's held-out split (D123), frozen in gym/split.json, and the secret it rests on.
 
 The secret is 32 random bytes, written in hex to ~/.config/babel-17/gym-secret, readable only by its
-owner and never in the repository. split.json records its SHA-256, and nothing scores a reply or
-draws held-out inputs under another. Losing it means freezing a new split, with new inputs.
+owner and never in the repository. split.json records its SHA-256, and reward.score() won't score a
+reply under another. Losing it means freezing a new split, with new inputs.
 
 A task's problem is its entry in split.json's table of problems, or else its name. The table maps
-names across sources that pose the same problem, and is reviewed as tasks arrive. Held out are the
+names across sources that pose the same problem, and is reviewed as tasks arrive. It errs toward one
+problem where two tasks pose much the same one, since that only holds out more. Held out are the
 gate's test set, M3's 34 tasks; any task posing one of their problems; and 1 problem in 10 of the
 rest, chosen by the secret's HMAC of its name. So a problem is held out or trained on, never both.
 """
