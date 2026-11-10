@@ -15,7 +15,7 @@ A task enters when:
 Every check runs whatever the others find, and each task's results print as a JSON line. Check 5's
 inputs come from the secret, so what's printed of it names none of them. With no TASK it runs the 35
 ports, B17-0's 20 seed programs and B17-1's 15, bfs among them. They stay held out: running them
-tests the checks.
+tests the checks. Their results are recorded in gym/pool-ports.jsonl.
 """
 import json
 import sys

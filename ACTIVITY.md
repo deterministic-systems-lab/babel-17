@@ -3192,3 +3192,47 @@ WP11. `gym/split.json` freezes D123's held-out split, under a secret the owner k
   - **`test_reward.py`** now scores under the real split's table, with a secret of its own.
 - **Updated:** the README's WP11 row; the roadmap's recent work and critical path.
 - **Interfaces touched:** none.
+
+## 2026-11-10 · WP11's entry checks, on the 35 ports
+
+WP11. `gym/pool.py` runs D123's five checks on a task with its reference def, and has run them on the 35 ports, B17-0's 20 seed ports and B17-1's 15, `bfs` among them. The results are in `gym/pool-ports.jsonl`. The ports stay held out, so the run tests the checks.
+
+- **The checks,** as D123 words them:
+  1. the module with no def passes tier 0, its spec doesn't list `panic`, and no `ensures` clause is a top-level `and`;
+  2. `vacuity` shows the `requires` can hold, and judges no `ensures` clause trivial. A clause it can't judge passes;
+  3. the reference verifies under D23's seeds;
+  4. `mutants` tries at least one, and each survivor whose output differs is a reviewed answer the spec allows. Two are listed: `min_index`'s last smallest element and `longest_palindrome_substring`'s last longest palindrome, the ties D123 names;
+  5. the held-out draws keep 25 inputs, and on each the reference's checked run ends within 20M steps with every `ensures` clause decided true. On a test-set task they're the pool's draws, not D118's.
+- **The reference must hold the task's items exactly as posed.** A spec hash leaves out the names of data types and constructors, so it isn't enough.
+- **Held-out inputs stay secret:** check 5 records only how many inputs were kept and, for each one that fails, its index and kind. An error from check 5 reports only its type.
+- **Results:** 16 pass all five: 14 of the 20 seed ports, and `bst_insert` and `bst_search`.
+  - **Check 1:** 6 fail, as D123 counted: `binary_search`, `find`, `isqrt`, `min_index`, `partition` and `longest_palindrome_substring`.
+  - **Check 2:** the 7 graph and tree specs fail. The workbench can't show their `requires` can hold.
+  - **Check 3:** every reference verifies, all 5,716 goals.
+  - **Check 4:** on 34 posed defs, 835 mutants. Tests killed 361, the verifier 441, and 33 survived:
+    - 22 survived on the 5 graph and tree specs with no inputs to compare;
+    - 2 differ, the allowed ties;
+    - 9 compute the same outputs.
+    - `lca` fails: its def only calls `find`, so there's nothing to mutate.
+  - **Check 5:** 15 fail.
+    - The 7 graph and tree specs keep no input, `bfs` keeps 1 and `lca` 18.
+    - On `dedup_sorted`, `coin_change`, `trie_insert` and `longest_palindrome_substring`, the interpreter can't decide a clause on any of the 25 inputs: respectively, a `forall` over every integer, an `exists` over sequences, an equality of sets, and a `forall` bounded only inside ghost-fns.
+    - `isqrt`'s and `discrete_logarithm`'s references run past 20M steps on 11 and 4 of the inputs. Both try one candidate at a time, and D88 draws i64's extremes. A faster reference, such as a binary search for `isqrt`, or a bound in the `requires` would fit.
+  - **Time:** about 2 hours, in four processes. `power`'s group took longest: its property tests draw exponents near i64's extremes, and each of those runs the `requires` to the 1M-step limit, for the def and again for every mutant.
+- **The run** was at 2d2f9f0. The commit after it changes only how a malformed reference or an error in check 5 is reported, and all 35 ports pass the stricter test.
+- **Codex review** (`gpt-5.6-sol`), told not to read the secret or run `pool.py`, and it didn't. It found 7 problems, all fixed:
+  - **A leak:** an error's text in check 5 could name a held-out input.
+  - **The reference wasn't bound to the task's spec.**
+  - **`longest_palindrome_substring`'s tie** wasn't listed.
+  - **A survivor with no parameters** would have bypassed the list.
+  - **The self-check** tested which checks fail, not why.
+  - **`--seeds`** could have made check 4 weaker. It's gone.
+  - **No recorded run:** that's this entry and `gym/pool-ports.jsonl`.
+- **Codex's re-check** found 2 more, fixed:
+  - **Another leak:** binding by spec hash let a reference with renamed data types through, and running it raised an error naming the input. The check now requires the posed items verbatim, and reports only an error's type.
+  - **The self-check** now tests more reasons. `longest_palindrome_substring`'s tie isn't in it, since its mutants take long, but it's in the record.
+- **Ponytail:** `--seeds` and its parameter cut; two shorter lines.
+- **Self-check:** `gym/test_pool.py` passes, in about a minute, under a made-up secret. It runs the checks on `abs`, which passes all five; on `min_index`, whose tie is allowed; and on made-up tasks that fail each check for a stated reason.
+- **For the baseline:** `reward.score()`'s triage names the input a reply was wrong on. So the baseline's records must keep those details out of the repository.
+- **Updated:** the README's WP11 row; the roadmap's recent work, critical path and Phase 2.
+- **Interfaces touched:** none.
