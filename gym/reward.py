@@ -59,11 +59,11 @@ def parts(gen, goals, rows, check, name):
     return [safe and post.get(id(c), set()) <= counted for c in clauses] + [other <= counted]
 
 
-def inputs(task, frozen, key, spec_sha, split):
-    """The task's held-out inputs, each with D118's reference for it, or None where the spec is the reference.
-    Their seed is the secret's HMAC of the task's problem and spec hash."""
+def inputs(task, frozen, key, spec_sha, split, pool=False):
+    """The task's held-out inputs, each with D118's reference for it, or None where the spec is the reference,
+    as on the pool or with pool set. Their seed is the secret's HMAC of the task's problem and spec hash."""
     s = S.mac(key, "inputs", S.problem(split, task["id"]), spec_sha)
-    if task["id"] in a.CASES:  # the gate's test set: D118's inputs, one in five large, and references
+    if task["id"] in a.CASES and not pool:  # the gate's test set: D118's inputs, one in five large, and references
         r = random.Random(s)
         return [a.CASES[task["id"]](r, k % 5 == 4) for k in range(INPUTS)]
     # the pool: D88's draws that meet the requires
