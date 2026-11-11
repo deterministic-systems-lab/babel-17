@@ -44,6 +44,8 @@ triage = {("a", 2): {}, ("x", 1): {}, ("b", 1): {"discrepancy": 1, "limit": 2}, 
 rows = [{k: r[k] for k in ("attempt", "iter", "cli", "sample", "stage", "final", "task")} | {"reward": scores[r["attempt"]][r["iter"] - 1]}
         | ({"triage": triage[r["attempt"], r["iter"]]} if (r["attempt"], r["iter"]) in triage else {})
         for r in records if r["attempt"] in scores]
+assert [r["attempt"] for r in B.replies(records)] == ["a", "a", "x", "b", "c", "c"]  # all but d's failed call
+assert [B.tier({"reward": r}) for r in (0.2, 0.35, 0.8)] == ["checks", "some goals", "verified"]
 groups, undone, disagree = B.summarize(rows, records)
 assert groups["claude/b17"] == {"samples": 2, "first": 0.1, "last": 0.45, "tiers": {"right": 1, "discrepancy": 1},
                                 "triage": {"discrepancy": 1, "limit": 2}}, groups
