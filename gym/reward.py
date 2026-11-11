@@ -107,8 +107,10 @@ def score(task, code, key, split=S.SPLIT):
     spec_sha = H.hashes(frozen, subset)[name][1]
     cases = inputs(task, frozen, key, spec_sha, split)  # drawn before the reply is parsed
     commit = subprocess.run(["git", "-C", str(h.B17C), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    out = {"task": task["id"], "reply_sha256": h.sha(code), "spec_sha256": spec_sha, "b17c_commit": commit or None,
-           "inputs_sha256": h.sha(repr([a.py(args) for args, _ in cases]))}
+    out = {"task": task["id"], "reply_sha256": None if code is None else h.sha(code), "spec_sha256": spec_sha,
+           "b17c_commit": commit or None, "inputs_sha256": h.sha(repr([a.py(args) for args, _ in cases]))}
+    if code is None:  # a reply with no code in it
+        return out | {"reward": 0.0}
     try:
         module = syntax.parse((task["frozen"][:-1] + "\n" + code + ")").encode(), subset)
     except syntax.ParseError:
