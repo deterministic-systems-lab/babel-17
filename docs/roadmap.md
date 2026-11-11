@@ -178,6 +178,13 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
       - AlgoVeri's versions of the next two pairs.
     - **4 give one name each to test problems with the same spec:** `edmond_karp` and `push_relabel` become `max_flow`, and `kruskal` and `prim` become `mst`.
     - **The other 13** pair tasks within the pool that pose the same problem, so the slice takes both or neither.
+- **WP11's entry checks** are built: `gym/pool.py` (D123), with results on the 35 ports in `gym/pool-ports.jsonl`. None of them enters the pool, so the run tests the checks.
+  - **16 pass all five:** 14 of the 20 seed ports, and `bst_insert` and `bst_search`.
+  - **Check 1, no top-level `and` in an `ensures`:** 6 fail, as D123 counted.
+  - **Check 2, vacuity:** the 7 graph and tree specs fail, since the workbench can't show their `requires` can hold.
+  - **Check 3:** every reference verifies, all 5,716 goals.
+  - **Check 4, mutants:** of 835, tests killed 361 and the verifier 441. The 2 survivors whose outputs differ are the ties D123 allows. `lca` fails, with nothing to mutate.
+  - **Check 5, the held-out draws:** 15 fail. The 7 graph and tree specs, `bfs` and `lca` keep too few inputs. On 4, the interpreter can't decide a clause: a quantifier with no bound it can use, an `exists`, or an equality of sets. `isqrt`'s and `discrete_logarithm`'s references run past 20M steps on some inputs.
   - **Grouping errs toward one problem,** since that only holds more out. The self-check finds tasks whose specs are the same text, which must share a problem, but only review finds the same problem posed differently.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
@@ -218,7 +225,7 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
 4. **WP16** grows the core library as B17-1 and the ports need it.
 5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
 
-6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it. Its first piece, the reward, is built ([above](#recent-and-current-work)). So is the frozen held-out split. Next are the entry checks, `gym/pool.py`, on the 35 ports, and then the baseline. Growing its pool of tasks follows it in Phase 2, and needs the spec workbench's reach first, [below](#phase-1-work-outside-the-gate), since graph and tree specs can't enter the pool until then.
+6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it. Its first piece, the reward, is built ([above](#recent-and-current-work)). So are the frozen held-out split and the entry checks, which 16 of the 35 ports pass. Next is the baseline. Growing its pool of tasks follows it in Phase 2, and needs the spec workbench's reach first, [below](#phase-1-work-outside-the-gate), since graph and tree specs can't enter the pool until then.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -294,7 +301,7 @@ Its curriculum covers every domain the language has reached by then (D65).
 - **The reward:** the design spec's tiers, from 0.05 for a reply that parses to 0.90 for one that's verified and right within 20M steps on 25 held-out inputs. There's no 1.00 tier until specs can state a cost (D30).
   - **Partial credit** counts each `ensures` clause whose goals are proved without resting on a goal that isn't (L2's closure), so padding, a failing `assert` and a loop that never ends earn no more than a reply without them.
   - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input is recorded for triage, since it shows a hole in the verifier, a spec that says something other than the reference, or a bug in the interpreter or the reference.
-- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. WP11 tests the checks on the 35 ports. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
+- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. On the 35 ports, 16 pass all five. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
 - **The split:** M3's 34 tasks are the gate's test set, with the pool's problems that match them and 1 in 10 of the rest.
 - **The baseline:** Claude and Codex on the test set, then the pool's slice and the base model as they arrive.
 
