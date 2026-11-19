@@ -3236,3 +3236,100 @@ WP11. `gym/pool.py` runs D123's five checks on a task with its reference def, an
 - **For the baseline:** `reward.score()`'s triage names the input a reply was wrong on. So the baseline's records must keep those details out of the repository.
 - **Updated:** the README's WP11 row; the roadmap's recent work, critical path and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-19 · WP11's baseline: Claude and Codex on the test set
+
+WP11. `gym/baseline.py` scores every reply of a harness run with `gym/reward.py` and summarizes the run, and `gym/test_baseline.py` checks it. Its first run, of Claude and Codex on M3's 34 tasks, the test set, is the in-context baseline D123 asks for.
+
+- **The tool:**
+  - **`score RUN_ID`** writes `rewards.jsonl` in the run's directory, one line per reply, and resumes where it stopped. A reply with no code earns 0. A failed call isn't scored, and nor is a reply on which Z3 itself fails, since the harness retries it.
+  - **Held-out inputs stay secret:** a verified reply's triage keeps how many held-out inputs it isn't right on, by kind, not which. Scoring it again under the secret shows them.
+  - **`summary RUN_ID`** counts each sample by the attempt the harness counts done. For each CLI and track it gives the mean reward of that attempt's first reply, before any feedback, and of its last, and the last replies' tiers and triage. It lists samples with no attempt done and replies on which the reward and the harness disagree about whether they verified, and fails if there are any, or if a reply isn't scored.
+- **Codex review** (`gpt-5.6-sol`) found 6 problems, all fixed:
+  - triage kept the index of each held-out input a reply failed on. It keeps counts now;
+  - a reply the harness logged as an infra error after Z3 failed on it wasn't scored;
+  - the summary counted attempts, so a resumed sample would have counted twice;
+  - a reply that wasn't scored was left out silently;
+  - partial credit between the tiers was labelled "checks". It's "some goals" now;
+  - a reply with no code was recorded without its spec's hash, the commit or its inputs' hash. `reward.score()` now records them.
+- **Codex's re-check** confirmed the fixes. The self-check now also tests which records are replies, and the some-goals tier.
+- **Self-check:** `gym/test_baseline.py` passes.
+- **The run:** `20261111T000447Z-claude-codex`, all 34 tasks × Claude and Codex × 3 samples, up to 8 rounds, from a clean tree at `a8594f8`.
+  - **Against the last run:** the prompts, the manual and its supplement, Z3 and the Codex CLI are the same. Since then, D119 cuts feedback at a whole diagnostic, `b17c` has D120's levels and D121's workbench, and `coin_change`'s reference proof was fixed.
+  - **When:** 11 to 13 November, then three resumes on 18 November, the last ending early on the 19th. The first pass finished 197 of 204 samples, and 7 of Claude's ended in infra errors.
+  - **Claude Code changed in between,** from 2.1.309 to 2.1.311, and the harness won't resume a run whose CLI version changed. By the owner's choice, the run's record shows 2.1.311, with a `resumed` note that the 7 retried samples ran under it. The model asked for is `claude-opus-5-5` throughout, though 6 replies record a second model, below.
+  - **One sample is missing:** Claude's `edmond_karp` 2 got one reply, in round 1 of its first attempt, and then none. Its round 2 failed all 7 tries, and the three resumes' round-1 calls all 21, 17 of them on the harness's 30-minute timeout. By the owner's choice, the baseline leaves it out, so Claude's B17-1 figures are over 41 samples, and `summary` exits 1 on it.
+  - **Retries:** Claude's calls failed 121 times: 64 on the subscription's session limit, 47 on the 30-minute timeout, 4 at the 128k output limit with every token thinking, 4 on DNS failures and 2 on 403s, during network trouble. Only one of Claude's calls had timed out before, in `20261030T234603Z-claude-codex`. 44 of the 47, and all 4 at the output limit, are on the two maximum-flow tasks. Codex's calls never failed.
+  - **Why replies ran so long isn't known.** On calls with no retry, Claude's output came at about the last run's rate: 106 tokens a second, counting the round's verification, against 113.
+- **A safety classifier stopped Claude's replies, for the first time in any run.** In 9 replies, all on `prim`, `edmond_karp` and `push_relabel`, Claude mentions a safety classifier. In 8, it says its previous response was stopped by one, declines to write it again, even reworded, and gives no code. The ninth guesses that its length "almost certainly" tripped the classifier last time. The stopped outputs themselves aren't recorded. 6 replies on the same three tasks, the ninth among them, record two models, `claude-opus-5-5` and `claude-opus-4-8`, and their usage counts two requests. They're short, and mostly say the proof can't be written, but the records don't say why 4.8 was used. 6 of the 8 stops are on the two maximum-flow tasks, as are 44 of the 47 timeouts, but whether the two are linked isn't known.
+  - **In the baseline:** 7 of these 14 replies are in samples that count. They're the first replies of `prim` 1 and 3, `push_relabel` 2 and 3 and `edmond_karp` 1, which earn 0, and two second rounds, `push_relabel` 2's and `prim` 3's, the one with two models. The other 7 are in attempts that ended in infra errors.
+  - **Without those 5 samples,** Claude's mean first reward on B17-1 is 0.644, against 0.566, over 36 samples.
+  - **Its cost:** Claude used 277k tokens per verified task on B17-1, against 128k in the last run. Without the 14 replies and the attempts that ended in infra errors, it's 225k. So the stops account for part of the rise, not all of it.
+  - **Not shown:** that Claude did worse beyond the stops. On the six graph tasks, 3 of the 12 first replies the classifier didn't stop verified, against 9 of 18 in the last run, a Fisher test's p about 0.26.
+- **The baseline:**
+
+  | Agent and track | Samples | Mean reward, first reply | Last reply | Last reply's tier |
+  |---|---|---|---|---|
+  | Claude, B17-0 | 60 | 0.900 | 0.900 | right 60 |
+  | Codex, B17-0 | 60 | 0.847 | 0.900 | right 60 |
+  | Claude, B17-1 | 41 | 0.566 | 0.895 | right 39, verified 2 |
+  | Codex, B17-1 | 42 | 0.315 | 0.601 | right 24, verified 2, some goals 1, checks 8, parses 2, none 5 |
+
+  On B17-1, by task, first reply → last:
+
+  | Task | Claude | Codex |
+  |---|---|---|
+  | `bellman_ford` | 0.60 → 0.90 | 0.00 → 0.20 |
+  | `bst_insert` | 0.90 → 0.90 | 0.90 → 0.90 |
+  | `bst_search` | 0.90 → 0.90 | 0.60 → 0.90 |
+  | `coin_change` | 0.90 → 0.90 | 0.13 → 0.87 |
+  | `dijkstra` | 0.20 → 0.90 | 0.22 → 0.37 |
+  | `discrete_logarithm` | 0.90 → 0.90 | 0.60 → 0.90 |
+  | `edmond_karp` | 0.03 → 0.90, 2 samples | 0.25 → 0.15 |
+  | `kruskal` | 0.10 → 0.83 | 0.20 → 0.07 |
+  | `lca` | 0.60 → 0.90 | 0.03 → 0.90 |
+  | `longest_palindrome_substring` | 0.75 → 0.90 | 0.43 → 0.90 |
+  | `prim` | 0.30 → 0.90 | 0.15 → 0.07 |
+  | `push_relabel` | 0.07 → 0.90 | 0.15 → 0.40 |
+  | `segmenttree_query` | 0.60 → 0.90 | 0.60 → 0.90 |
+  | `trie_insert` | 0.90 → 0.90 | 0.14 → 0.90 |
+
+  - **The last reply counts, not the best.** On `edmond_karp`, `kruskal` and `prim`, Codex's last replies earn less than its first. 5 of its last replies earn 0: four don't parse, two of them blocks of 102 and 304 characters, and one has no code.
+- **The reward and the harness agree on every one of the 409 replies.** No verified reply was wrong on a held-out input, so there's no discrepancy to triage.
+- **Verified, but not right within 20M steps,** 0.80: 4 last replies ran out of steps on some held-out inputs.
+  - Claude's `kruskal` 1 and 3, on 23 of 25 each, take every weight from −100,000 to 100,000 in turn and scan every edge for it. The run's third `kruskal` jumps to the next weight present and is right on all 25.
+  - Codex's `push_relabel` 2, on 13 of 25, tries every flow from 0 to the capacity on every edge and keeps the best that conserves flow, an exhaustive search.
+  - Codex's `coin_change` 1, on 11 of 25, recurses over every coin with no table.
+  - So the top tier tells a usable program from one that isn't, on the inputs it draws, as D123 meant it to.
+- **Verdicts against the last run:** Claude verified 41 of 41 on B17-1, against 42 of 42, in 1.95 rounds on average against 1.31. Codex verified 26 of 42 against 25 of 42: 24 of 27 on the 9 easier ports and 2 of 15 on the 5 harder, against 23 and 2. On B17-0's 20 seed tasks, rerun in full for the first time since the manual's fixes, both verified 60 of 60, Claude all in round 1 and Codex 56, at 20k and 27k tokens per verified task.
+- **The audit (D118):** of the 187 verified programs, 185 are `right` on all 25 inputs, among them both of Claude's `kruskal` programs that scan every weight. 2 ran out of 500M steps, Codex's `push_relabel` 2 on its first input and `coin_change` 1 on its second, the search and the recursion the reward scored 0.80. None gave a wrong answer.
+  - **By reading,** the 187 verified programs:
+    - **Long literals:** 2 have a literal of 15 or more digits, and neither is the old trick. `partition`'s invariant states that its vector is shorter than 2^63, a type fact, and it never pushes. `discrete_logarithm`'s asserts its product's bound before it multiplies.
+    - **`(assert false)` and `(ensures false)`:** 9 uses. The 4 in defs are `segmenttree_query`'s branches for a node with one child, which the tree's invariant rules out. The 5 in lemmas are lemmas whose `requires` can't hold together, or a case of a match that they rule out.
+  - **Which algorithms,** read on the six graph tasks:
+    - **`bellman_ford`:** Claude's 3 are Bellman–Ford. Two relax n − 1 times and then check for a negative cycle. One relaxes until nothing changes, keeping each vertex's path and reporting a negative cycle when a path would repeat a vertex.
+    - **`dijkstra`:** all 4, Claude's 3 and Codex's 1, are Dijkstra's, scanning for the nearest unvisited vertex.
+    - **`prim`:** Claude's 3 are Prim's, scanning every edge for the lightest that leaves the tree.
+    - **`kruskal`:** Claude's 3 take edges in order of weight and merge components, as above.
+    - **`edmond_karp`:** Claude's 2 augment one unit at a time, one along BFS paths and one along DFS paths, so their steps grow with the flow's value.
+    - **`push_relabel`:** none of Claude's 3 is push-relabel. All find augmenting paths by BFS, one by the bottleneck, Edmonds–Karp, and two one unit at a time. Codex's one is the search above.
+- **What it says:**
+  - **The baseline is recorded,** and with it WP11's three conditions are met: the reward and its rules against hacking, the frozen split, and an in-context baseline.
+  - **Claude's B17-1 figures are low for this setup,** since a classifier stopped 5 of its first replies, and of 2 later rounds, one was stopped and one records two models. A rerun of the three tasks, with stops not counted against the agent, would give the figures without them.
+  - **The reward separates what the verdict doesn't:** 4 verified programs can't finish on the held-out inputs, and they score 0.80.
+  - **The seed tasks separate nothing:** 120 of 120, nearly all in round 1.
+- **Proposed, not made:**
+  - **Treat a reply stopped by a safety classifier as an infra error,** so a resume retries it. It changes the harness and what counts as the agent's, so it needs a decision.
+  - **A longer call timeout,** such as 60 minutes, for the next run. It changes the harness, so a run can't resume across it.
+- **Codex fact-check** (`gpt-5.6-sol`), told not to read the secret or run the audit, and it didn't. It recomputed both tables, every count and ratio, the Fisher test and the token rates from the records, and read the programs this entry describes. It found 5 errors, all fixed:
+  - 4 of Codex's last replies that earn 0 don't parse, not 3;
+  - one of Claude's calls had timed out before, in `20261030T234603Z-claude-codex`;
+  - `edmond_karp` 2 did get a reply, in round 1 of its first attempt;
+  - the records show 6 replies with a second model, but not why, so saying the model was `claude-opus-5-5` throughout, or that 4.8 was a fallback, went too far;
+  - 8 of the 9 replies say a classifier stopped the previous response, and the ninth only guesses why.
+  - It couldn't check the resumes' dates, which the records don't hold. There were three resumes, not the two the first draft said.
+- **Codex's re-check** found no errors in the fixes, the audit's figures or the README's figures across all nine runs.
+- **Ponytail:** on `gym/baseline.py`, its self-check and the change to `reward.py`, nothing to cut.
+- **Not changed:** `b17c`, the harness, the manuals and the tasks.
+- **Updated:** the README's WP11 row, results table and notes on M3; the roadmap's date, recent work, critical path, Phase 2, M3's runs and open questions.
+- **Interfaces touched:** none.
