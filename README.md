@@ -183,6 +183,7 @@ Babel-17's claims are measured against agents writing Dafny, the strongest exist
 
 **How it works:**
 - **Isolation:** each CLI runs through its own subscription (D13), with tools, web search, user configuration, hooks and MCP servers turned off. The exception is Grok's X search: it runs server-side and can't be disabled, so the harness counts every use.
+- **Failed calls are retried,** up to six times with growing waits, and again on resume. A call fails when the CLI errs, takes more than 45 minutes, or a safety classifier stops its reply (D124). Claude Code's own responses to a stop, continuing with a note not to write the reply again or having another model answer, are off, since neither reply is the agent's.
 - **Frozen contracts:** the agent's code is checked against the task's frozen contracts through a generated wrapper, so it can't weaken them.
 - **The B17-0 track (D98):** the same seed tasks, posed in B17-0 with the agent manual in the prompt. The agent's items join the task module, so restating its spec is an error.
   - **Verified:** tier 0 passes, every spec has a def, and every goal is proved under 11 seeds. A spec without a def would let a call assume anything.

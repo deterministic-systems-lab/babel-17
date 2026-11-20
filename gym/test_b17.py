@@ -59,20 +59,25 @@ out = "\n".join(json.dumps(e) for e in says("```lisp\n(a 1)\n(b", " 2)\n") + say
                 + [{"type": "result", "result": "```lisp\n(c 3)\n```", "usage": {"input_tokens": 1, "output_tokens": 1}}])
 assert h.extract_code(h.parse_reply("claude", out)["text"], "b17") == "(a 1)\n(b 2)\n\n(c 3)"
 assert h.join_parts(['```lisp\n(a "```")\n', "```lisp\n(b)\n```"]) == '```lisp\n(a "```")\n\n(b)\n```'  # only fence lines count
-# A reply a safety classifier stopped is a failed call, not the agent's (D124): a second model, a stop
-# reason, or a reply about the stop, as Claude Code's own retry gave in WP11's baseline.
-result = lambda models: {"type": "result", "result": "", "usage": {"input_tokens": 1, "output_tokens": 1},
-                         "modelUsage": {m: {} for m in models}}
-stopped = [says("```lisp\n(a 1)\n```") + [result(["claude-opus-5-5", "claude-opus-4-8"])],
-           [{"type": "assistant", "message": {"content": [], "stop_reason": "refusal"}}, result(["claude-opus-5-5"])],
-           says("My previous response was stopped by a safety classifier, so I won't write it again.") + [result(["claude-opus-5-5"])]]
-for events in stopped:
-    try:
-        h.parse_reply("claude", "\n".join(map(json.dumps, events)))
-        raise AssertionError(events)
-    except RuntimeError as e:
-        assert "safety classifier" in str(e)
-assert h.parse_reply("claude", "\n".join(map(json.dumps, says("```lisp\n(a 1)\n```") + [result(["claude-opus-5-5"])])))["model"] == "claude-opus-5-5"
+# A reply a safety classifier stopped is a failed call, not the agent's, and so is one another model
+# wrote (D124): a stop counted, a refusal stop reason on the result or a message, or a second model.
+result = lambda models, **kw: {"type": "result", "result": "", "usage": {"input_tokens": 1, "output_tokens": 1},
+                               "modelUsage": {m: {} for m in models}, **kw}
+code = says("```lisp\n(a 1)\n```")
+failed = {"safety classifier": [code + [result(["claude-opus-5-5"], safety_stops=1)],
+                                [{"type": "assistant", "message": {"content": [], "stop_reason": "refusal"}},
+                                 result(["claude-opus-5-5"], stop_reason="refusal")],
+                                [{"type": "assistant", "message": {"content": [], "stop_reason": "refusal"}}, result(["claude-opus-5-5"])]],
+          "another model": [code + [result(["claude-opus-5-5", "claude-opus-4-8"])]]}
+for why, cases in failed.items():
+    for events in cases:
+        try:
+            h.parse_reply("claude", "\n".join(map(json.dumps, events)))
+            raise AssertionError(events)
+        except RuntimeError as e:
+            assert why in str(e), (why, e)
+ok = code + [result(["claude-opus-5-5"], safety_stops=0, stop_reason="end_turn")]
+assert h.parse_reply("claude", "\n".join(map(json.dumps, ok)))["model"] == "claude-opus-5-5"
 
 # One attempt end to end: a wrong first reply, then a right one after the diagnostics.
 fake = Path(tempfile.mkdtemp()) / "fake.py"

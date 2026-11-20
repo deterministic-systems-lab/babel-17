@@ -1,6 +1,6 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-11-19.
+Where the project stands, and what comes next. This is the state as of 2026-11-20.
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
@@ -195,9 +195,8 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 
 ### Decisions waiting for the owner
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
-- **Two harness changes, from WP11's baseline:** count a reply that a safety classifier stopped as an infra error, so a resume retries it, and a longer call timeout than 30 minutes. Each changes the harness, so a run can't resume across it. A rerun of Claude on `prim`, `edmond_karp` and `push_relabel` would then give its baseline without the stops.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, and D122 and D123 on 2026-11-09. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, D122 and D123 on 2026-11-09, and D124 on 2026-11-20. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of the 64 AlgoVeri tasks D79 surveyed need B17-1's tuples or data types. In order:
