@@ -26,6 +26,7 @@ import argparse
 import concurrent.futures as cf
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -71,10 +72,15 @@ CLIS = {
              "--disable-web-search", "--no-subagents", "--no-plan", "--max-turns", "1",
              "--output-format", "streaming-json"],
 }
-CALL_TIMEOUT, RETRY_WAITS = 1800, [60, 120, 240, 480, 960, 1800]
+# Claude Code, on a reply a safety classifier stops, continues once telling the model not to write it
+# again, or has another model answer. Neither reply is the agent's (D124), so both are off, and a stop
+# is a failed call, which call_cli retries afresh.
+CLI_ENV = {"claude": {"CLAUDE_CODE_DISABLE_REFUSAL_RETRY": "1", "CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK": "1"}}
+# 45 minutes since WP11's baseline, where 47 of Claude's calls timed out at 30 (D124).
+CALL_TIMEOUT, RETRY_WAITS = 2700, [60, 120, 240, 480, 960, 1800]
 # Dafny's resource limit bounds a verification; this only backstops a hang. At 30 minutes, a
 # run near the limit timed out under 6 parallel jobs and ran out of resource alone (18 minutes).
-VERIFY_TIMEOUT = 4 * CALL_TIMEOUT
+VERIFY_TIMEOUT = 7200
 FEEDBACK_CHARS = 6000
 
 TASK_PROMPT = """Write Dafny {dafny_version} code that verifies with no errors.
@@ -383,9 +389,13 @@ def parse_reply(cli, stdout):
             raise RuntimeError(d.get("result") or f"claude reported an error: {stdout[-300:]}")
         u = d["usage"]
         # A reply cut at the output limit resumes in another message, and `result` holds only the last.
-        parts = ["".join(b["text"] for b in e["message"]["content"] if b["type"] == "text")
-                 for e in events if e.get("type") == "assistant"]
-        return dict(text=join_parts(parts), model=",".join(d.get("modelUsage", {})),
+        msgs = [e["message"] for e in events if e.get("type") == "assistant"]
+        text, models = join_parts("".join(b["text"] for b in m["content"] if b["type"] == "text") for m in msgs), \
+            list(d.get("modelUsage", {}))
+        # A stop that gets past CLI_ENV, as a second model or a reply about the stop, is a failed call (D124).
+        if len(models) > 1 or "stopped by a safety classifier" in text or any(m.get("stop_reason") == "refusal" for m in msgs):
+            raise RuntimeError(f"a safety classifier stopped the reply ({', '.join(models)}): {text[:200]}")
+        return dict(text=text, model=",".join(models),
                     tokens_in=u["input_tokens"] + u.get("cache_creation_input_tokens", 0)
                     + u.get("cache_read_input_tokens", 0),
                     tokens_out=u["output_tokens"], tool_items=0, usage=u)
@@ -422,7 +432,7 @@ def call_cli(cli, prompt):
                 as_arg = "{prompt}" in CLIS[cli]
                 p = subprocess.run([prompt if a == "{prompt}" else a for a in CLIS[cli]],
                                    input="" if as_arg else prompt, capture_output=True, text=True,
-                                   cwd=d, timeout=CALL_TIMEOUT)
+                                   cwd=d, timeout=CALL_TIMEOUT, env=os.environ | CLI_ENV.get(cli, {}))
                 if p.returncode != 0:
                     raise RuntimeError(f"exit {p.returncode}: {(p.stderr or p.stdout)[-500:]}")
                 return dict(parse_reply(cli, p.stdout), errors=errors)
@@ -574,7 +584,7 @@ def cmd_run(args):
     run_dir.mkdir(parents=True, exist_ok=bool(args.resume))
     dafny_version = tool_version(["dafny", "--version"])
     setup = dict(samples=args.samples, max_iters=args.max_iters, **settings(tasks, dafny_version),
-                 clis={c: dict(cmd=CLIS[c], version=tool_version([CLIS[c][0], "--version"])) for c in clis})
+                 clis={c: dict(cmd=CLIS[c], env=CLI_ENV.get(c), version=tool_version([CLIS[c][0], "--version"])) for c in clis})
     if (run_dir / "meta.json").exists():
         meta = json.loads((run_dir / "meta.json").read_text())
         changed = [k for k in setup if meta.get(k) != setup[k]]
