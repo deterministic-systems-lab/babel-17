@@ -3427,6 +3427,7 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
 - **Why:** the result event carries the message ahead of more than 500 characters of usage, so the old record cut off the cause of 22 of the rerun's 49 failures.
 - **Checks:**
   - `gym/test_b17.py` has a fake Claude Code that fails with a long result event, and the record keeps its message. It and `gym/test_harness.py` pass.
+  - **Codex's review** found one problem, fixed: a line with `"type":"result"` that wasn't a JSON object would have raised an error the retries don't catch, so only lines starting with `{` are read, as `parse_reply` reads them. Ponytail's review cut 2 lines from the test.
   - A real call to Claude Code 2.1.311 with a model that doesn't exist recorded "There's an issue with the selected model (no-such-model-xyz)…". Its result event is 1,365 characters long.
 - **Cost:** it changes the harness, so a run can't resume across it. No verdict changes.
 - **Updated:** the roadmap's date, recent work and decisions waiting.

@@ -438,7 +438,7 @@ def call_cli(cli, prompt):
                 if p.returncode != 0:
                     # Claude Code's result event says why a call failed, ahead of more than 500 characters of usage.
                     said = [json.loads(line).get("result") for line in p.stdout.splitlines()
-                            if cli == "claude" and '"type":"result"' in line]
+                            if cli == "claude" and line.startswith("{") and '"type":"result"' in line]
                     raise RuntimeError(f"exit {p.returncode}: "
                                        f"{said[-1] if said and said[-1] else (p.stderr or p.stdout)[-500:]}")
                 return dict(parse_reply(cli, p.stdout), errors=errors)
