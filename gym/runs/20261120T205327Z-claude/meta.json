@@ -1,0 +1,50 @@
+{
+  "run_id": "20261120T205327Z-claude",
+  "started": "2026-11-20T20:53:27.550199+00:00",
+  "git_commit": "f861289583f479243c9744fbcfb36981c7209698",
+  "git_dirty": false,
+  "samples": 3,
+  "max_iters": 8,
+  "tasks": [
+    "b17-1/edmond_karp",
+    "b17-1/prim",
+    "b17-1/push_relabel"
+  ],
+  "task_sha": {
+    "b17-1/edmond_karp": "0bf9a2c4df24e8fed02e574cfe5610afbd0111c14c7dbe8612d58ad5bb11c879",
+    "b17-1/prim": "8140180278d56c1da82890c201ab69dff217e06305ce0818d7ad40068cde020a",
+    "b17-1/push_relabel": "2aef1dc52a6e06d60d3042d8ef6d7fd595dd3692646f175572aa23f6dc923147"
+  },
+  "z3": "Z3 version 5.3.2 - 64 bit",
+  "harness_sha": "7b995ac60c9dc25eeb0b7f63daac60ca1674023d45c66597270e8debe3864734",
+  "b17_prompt_sha": "5875a918e742bf6c42d16441505edebfad8f87f9e89d8278021ababd0166661e",
+  "b17c_sha": "a8609b7691be0d0054f0ce0cfc498a2e6c65dba463e42496deb87b57028672c0",
+  "b17_1_prompt_sha": "253d837de836ef1746946b4a4402909841dde8092e78bbdf67de614e89201c0b",
+  "clis": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--model",
+        "opus",
+        "--effort",
+        "high",
+        "--tools",
+        "",
+        "--setting-sources",
+        "project",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--output-format",
+        "stream-json",
+        "--verbose"
+      ],
+      "env": {
+        "CLAUDE_CODE_DISABLE_REFUSAL_RETRY": "1",
+        "CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK": "1"
+      },
+      "version": "2.1.311 (Claude Code)"
+    }
+  }
+}
