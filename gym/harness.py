@@ -436,7 +436,11 @@ def call_cli(cli, prompt):
                                    input="" if as_arg else prompt, capture_output=True, text=True,
                                    cwd=d, timeout=CALL_TIMEOUT, env=os.environ | CLI_ENV.get(cli, {}))
                 if p.returncode != 0:
-                    raise RuntimeError(f"exit {p.returncode}: {(p.stderr or p.stdout)[-500:]}")
+                    # Claude Code's result event says why a call failed, ahead of more than 500 characters of usage.
+                    said = [json.loads(line).get("result") for line in p.stdout.splitlines()
+                            if cli == "claude" and '"type":"result"' in line]
+                    raise RuntimeError(f"exit {p.returncode}: "
+                                       f"{said[-1] if said and said[-1] else (p.stderr or p.stdout)[-500:]}")
                 return dict(parse_reply(cli, p.stdout), errors=errors)
             except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
                 errors.append(str(e)[-500:])

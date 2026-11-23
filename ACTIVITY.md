@@ -3421,3 +3421,13 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
 - **Not changed:** `b17c`, the manuals and the tasks.
 - **Updated:** DECISIONS (D124); the README's notes on how the benchmark works, its results table and notes on M3; the roadmap's date, recent work, decisions, M3's runs and open questions.
 - **Interfaces touched:** none.
+
+## 2026-11-23 · A failed call records Claude Code's message
+- **What:** when Claude Code exits with an error, `call_cli` records the message from its result event, falling back to the last 500 characters of the output as before. The owner agreed to it on 2026-11-23, from D124's rerun.
+- **Why:** the result event carries the message ahead of more than 500 characters of usage, so the old record cut off the cause of 22 of the rerun's 49 failures.
+- **Checks:**
+  - `gym/test_b17.py` has a fake Claude Code that fails with a long result event, and the record keeps its message. It and `gym/test_harness.py` pass.
+  - A real call to Claude Code 2.1.311 with a model that doesn't exist recorded "There's an issue with the selected model (no-such-model-xyz)…". Its result event is 1,365 characters long.
+- **Cost:** it changes the harness, so a run can't resume across it. No verdict changes.
+- **Updated:** the roadmap's date, recent work and decisions waiting.
+- **Interfaces touched:** none.

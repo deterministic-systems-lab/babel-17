@@ -79,6 +79,13 @@ for why, cases in failed.items():
 ok = code + [result(["claude-opus-5-5"], safety_stops=0, stop_reason="end_turn")]
 assert h.parse_reply("claude", "\n".join(map(json.dumps, ok)))["model"] == "claude-opus-5-5"
 
+# A failed call records Claude Code's message, though more than 500 characters of usage follow it.
+end = {"type": "result", "is_error": True, "result": "API Error: 529 Overloaded", "usage": {"x": "y" * 600}}
+h.CLIS["claude"], waits, h.RETRY_WAITS = ["sh", "-c", f"echo '{json.dumps(end, separators=(',', ':'))}'; exit 1"], \
+    h.RETRY_WAITS, []
+assert h.call_cli("claude", "hi")["error"] == "exit 1: API Error: 529 Overloaded"
+h.RETRY_WAITS = waits
+
 # One attempt end to end: a wrong first reply, then a right one after the diagnostics.
 fake = Path(tempfile.mkdtemp()) / "fake.py"
 fake.write_text(f"""import json, sys

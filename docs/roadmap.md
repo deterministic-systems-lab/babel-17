@@ -1,6 +1,6 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-11-20.
+Where the project stands, and what comes next. This is the state as of 2026-11-23.
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
@@ -195,13 +195,12 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 - **Claude's rerun under D124** of `prim`, `edmond_karp` and `push_relabel`, `20261120T205327Z-claude`, verified 9 of 9, all right on the held-out inputs, with no stops.
   - **Claude's B17-1 baseline with it in place** has all 42 samples, and the same means to three places, 0.566 and 0.895. Without stops, first replies on these tasks average 0.194, so the stops cost the first-reply mean next to nothing.
   - **Claude's first replies on the graph tasks have changed** since the sixth B17-1 run: longer, and 3 of 18 verified against 9 of 18. Today's checker gives the earlier replies the same verdicts, so the change is in the replies.
+- **A failed call's record keeps Claude Code's own message,** from its result event, not the last 500 characters of its output, which cut off the cause of 22 of the rerun's 49 failures. It changes no verdict, but a run can't resume across it.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
-- **From D124's rerun:**
-  - **Recording a failed call's message from Claude Code's result,** not the last 500 characters of its output, which cut off the cause of 22 of the rerun's 49 failures. It changes no verdict, but a run can't resume across it.
-  - **A test of why Claude's first replies on the graph tasks changed:** their round 1 under Claude Code 2.1.309 and 2.1.311, with more samples. It needs the older CLI installed again.
+- **From D124's rerun, a test of why Claude's first replies on the graph tasks changed:** their round 1 under Claude Code 2.1.309 and 2.1.311, with more samples. It needs the older CLI installed again.
 
 D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, D122 and D123 on 2026-11-09, and D124 on 2026-11-20. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
 
