@@ -3383,7 +3383,7 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
 - **What the stops cost:** less than the baseline's entry said.
   - **Its first-reply mean without the 5 stopped samples, 0.644, went too far.** Dropping those samples treated the three tasks as if they'd score like the other eleven. Without stops, first replies on these tasks average 0.194.
   - **So the stops cost Claude's mean first reward next to nothing,** and most of the rise in tokens has another cause.
-- **Where the rise is:** round 1 on the six graph tasks, where tokens per verified task are 481k with the rerun in place, against 212k in the sixth run.
+- **Where the rise is:** round 1 on the six graph tasks, where tokens per verified task are 480k with the rerun in place, against 212k in the sixth run.
   - **Longer first replies.** The median round-1 reply in output tokens, sixth run → later:
     - `edmond_karp`: 108k → 265k in the rerun;
     - `push_relabel`: 113k → 237k in the rerun;
@@ -3398,7 +3398,7 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
   - **What differs:** Claude Code, 2.1.309 then and 2.1.311 since, and whatever the service changed under the same model name. Which of these it is isn't known.
 - **The audit (D118):** all 9 verified programs are `right` on 25 random valid inputs each. None ran out of steps.
   - **By reading,** the 9:
-    - **Long literals:** none beyond the spec's capacity bound of 100,000, and 10⁸ and 10⁹ as an unbounded bottleneck's start, within i64.
+    - **Long literals:** none beyond the spec's capacity bound of 100,000, 10⁹ as `edmond_karp` 2's starting bottleneck, and 10⁸ as a bound on the flow's value in invariants, `decreases` clauses and `ensures`, all within i64.
     - **`(assert false)`:** 4 uses, in two `prim` programs, each in a branch the proof shows can't be reached.
   - **Which algorithms:**
     - **`prim`:** all 3 are Prim's, scanning every edge for the lightest that leaves the tree, as in the baseline.

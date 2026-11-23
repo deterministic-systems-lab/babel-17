@@ -260,7 +260,7 @@ WP11's baseline then ran all 34 tasks again, with every reply scored by the trai
 - **So the harness changed (D124):** a stopped reply is now a failed call, retried, with Claude Code's own handling of a stop turned off, and a call gets 45 minutes.
   - **A rerun of Claude on the three tasks** under D124 verified 9 of 9, all right on the held-out inputs, with no stops.
   - **With it in place,** Claude's figures on the ports cover all 42 samples, and the means are the same to three places, 0.566 and 0.895. Without stops, its first replies on these three tasks still average 0.194, so the stops cost the mean next to nothing.
-- **Claude's first replies on the graph tasks have changed** since the run of all 14 ports. On the two maximum-flow tasks they're about twice as long, and on the six graph tasks 3 of 18 verified, against 9 of 18, a Fisher test's p about 0.075. Its tokens per verified task there rose from 212k to 481k, while the other 8 tasks stayed within about 5%.
+- **Claude's first replies on the graph tasks have changed** since the run of all 14 ports. On the two maximum-flow tasks they're about twice as long, and on the six graph tasks 3 of 18 verified, against 9 of 18, a Fisher test's p about 0.075. Its tokens per verified task there rose from 212k to 480k, while the other 8 tasks stayed within about 5%.
   - **Unchanged:** the prompt, the model asked for and the effort. Today's checker gives the earlier replies the same verdicts.
   - **So the cause is** Claude Code's update or the service, and which isn't known.
 
