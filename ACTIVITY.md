@@ -3414,6 +3414,10 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
 - **Proposed, not made:**
   - **Record a failed call's message from Claude Code's result,** not the last 500 characters of its output, which cut off the cause of 22 of the 49 failures. It changes no verdict, but it changes the harness, so a run can't resume across it.
   - **A test of the round-1 change:** the six graph tasks' round 1 under Claude Code 2.1.309 and 2.1.311, with more samples. It needs the older CLI installed again.
+- **Codex fact-check** (`gpt-5.6-sol`), told not to read the secret or run the audit, and it didn't. It recomputed the tables, means, token figures, medians, failure counts and the Fisher test from the records, and read the 9 programs. It found 2 errors, both fixed:
+  - the graph tasks' tokens per verified task with the rerun in place are 480k, not 481k;
+  - only `edmond_karp` 2 starts a bottleneck at 10⁹. The 10⁸ literals bound the flow's value in invariants, `decreases` clauses and `ensures`.
+  - It didn't rerun the re-verification of the sixth run's replies, and relied on its 18 of 18.
 - **Not changed:** `b17c`, the manuals and the tasks.
 - **Updated:** DECISIONS (D124); the README's notes on how the benchmark works, its results table and notes on M3; the roadmap's date, recent work, decisions, M3's runs and open questions.
 - **Interfaces touched:** none.
