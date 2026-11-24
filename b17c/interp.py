@@ -1179,9 +1179,7 @@ class _Run:
         ints, bools = ({n for n in names if _print(types[n]) == t} for t in ("int", "bool"))
         seen = [False, False, False]
         self.points(q == "exists", names, ints, bools, out, new, dict(env), 0, seen, True)
-        if seen[0]:
-            return q == "exists"
-        return UNKNOWN if seen[1] else q == "forall"
+        return q == "exists" if seen[0] else UNKNOWN if seen[1] else q == "forall"
 
     def split(self, names, ints, bools, body, env):
         """D125's rule 2: (forall (xs) (== A B)), when every conjunct of A and B can't fail, as
@@ -1217,12 +1215,12 @@ class _Run:
             return UNKNOWN
         name, t = binders[0].items[0].text, _print(binders[0].items[1])
         ints = set()
-        for n in {s.text for s in _syms(body)} - {name}:
+        for n in {s.text for s in _nodes(body) if isinstance(s, Sym)} - {name}:
             if n in env:
                 _ints(env[n], ints)
         atoms = {"int": sorted(ints | {0}), "bool": [False, True]}
         if t in atoms:
-            candidates = iter(atoms[t])
+            candidates = atoms[t]
         elif t in ("(seq int)", "(seq bool)"):
             candidates = (tuple(c) for n in itertools.count() for c in itertools.product(atoms[t[5:-1]], repeat=n))
         else:
@@ -1658,12 +1656,11 @@ def _tighten(bounds, x, v, pick):
     bounds[x] = v if bounds[x] is None else pick(bounds[x], v)
 
 
-def _syms(x):
-    if isinstance(x, Sym):
-        yield x
-    elif isinstance(x, Form):
+def _nodes(x):
+    yield x
+    if isinstance(x, Form):
         for c in x.items:
-            yield from _syms(c)
+            yield from _nodes(c)
 
 
 def _ints(v, out):

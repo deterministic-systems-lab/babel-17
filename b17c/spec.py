@@ -58,13 +58,6 @@ def _challenge(kind, module, name, subset, query, **evidence):
             "query_sha256": hashlib.sha256(V.canonical(query).encode()).hexdigest(), "verdict": "proved", **evidence}
 
 
-def _nodes(x):
-    yield x
-    if isinstance(x, Form):
-        for c in x.items:
-            yield from _nodes(c)
-
-
 def _defined(module, subset):
     """The module's goals, and those proved that count for L2 (D80, D91)."""
     gen, goals, rows, cfg = V.verify_goals(module, subset=subset)
@@ -82,10 +75,10 @@ def _searchable(module, it, goals, counted):
     for c in [c for cl in G.clauses(it, "requires") for c in cl]:
         reach, todo = set(), [c]
         while todo:
-            for n in {x.text for x in _nodes(todo.pop()) if isinstance(x, Sym)} & fns.keys() - reach:
+            for n in {x.text for x in I._nodes(todo.pop()) if isinstance(x, Sym)} & fns.keys() - reach:
                 reach.add(n)
                 todo.append(fns[n])
-        inside = {id(x) for x in _nodes(c)}
+        inside = {id(x) for x in I._nodes(c)}
         if {k for k, g in enumerate(goals)
                 if g[0] in reach or g[0] == it.items[1].text and g[6] == "spec" and id(g[5]) in inside} <= counted:
             out.add(id(c))
