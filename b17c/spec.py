@@ -58,6 +58,46 @@ def _challenge(kind, module, name, subset, query, **evidence):
             "query_sha256": hashlib.sha256(V.canonical(query).encode()).hexdigest(), "verdict": "proved", **evidence}
 
 
+def _nodes(x):
+    yield x
+    if isinstance(x, Form):
+        for c in x.items:
+            yield from _nodes(c)
+
+
+def _defined(module, subset):
+    """The module's goals, and those proved that count for L2 (D80, D91)."""
+    gen, goals, rows, cfg = V.verify_goals(module, subset=subset)
+    proved = {k for k, r in enumerate(rows) if r["verdict"] == "proved"}
+    return goals, V.closure(gen, goals, proved, V.checker(module, gen, cfg, V.CACHE, subset))
+
+
+def _searchable(module, it, goals, counted):
+    """D125's rule 3: the ids of spec it's requires clauses the verifier proves defined everywhere, so
+    a search for an ∃'s witness in them skips no undefined point. Each of the clause's goals counts
+    for L2, and so does every goal of each ghost-fn it reaches. A core library ghost-fn's goals aren't
+    the module's, so a clause that reaches one isn't searched."""
+    fns = {f.items[1].text: f for f in _items(module, ("ghost-fn",))}
+    core = {f.items[1].text for m in (I.CORE, I.CORE1) for f in m.items[3:] if f.items[0].text == "ghost-fn"}
+    out = set()
+    for c in [c for cl in G.clauses(it, "requires") for c in cl]:
+        reach, todo = set(), [c]
+        while todo:
+            names = {x.text for x in _nodes(todo.pop()) if isinstance(x, Sym)}
+            if names & (core - fns.keys()):
+                reach = None
+                break
+            for n in (names & fns.keys()) - reach:
+                reach.add(n)
+                todo.append(fns[n])
+        inside = {id(x) for x in _nodes(c)}
+        need = {k for k, g in enumerate(goals)
+                if reach is not None and (g[0] in reach or g[0] == it.items[1].text and g[6] == "spec" and id(g[5]) in inside)}
+        if reach is not None and need <= counted:
+            out.add(id(c))
+    return out
+
+
 def vacuity(module, subset=SUBSET):
     """For each spec and lemma, whether its requires can hold; and for a spec, whether each ensures
     clause is trivial, true wherever the requires are. A clause is trivial when the solver proves it
@@ -67,7 +107,7 @@ def vacuity(module, subset=SUBSET):
     Each requires clause is assumed defined, so a model is a point where they're defined. An ensures
     clause is read as the verifier encodes it, where an undefined term still has a value, so whether
     it's defined is the verifier's spec goals' to say."""
-    gen, out = G.Gen(module, subset), []
+    gen, out, proofs = G.Gen(module, subset), [], None
     draws = I._Draws(I._Program(module, subset), 0)
     for it in _items(module, ("spec", "lemma")):
         kind, name = it.items[0].text, it.items[1].text
@@ -80,11 +120,16 @@ def vacuity(module, subset=SUBSET):
         v, _ = G.solve_stats(q)
         # a lemma's parameters may be ghost types, which D88 doesn't draw
         inputs = I.spec_inputs(module, name, _seed(module, name, subset), WITNESSES, subset) if kind == "spec" and v != "proved" else []
+        search = set()
+        if kind == "spec" and v not in ("proved", "failed") and not inputs:  # D125's rule 3, where the verifier proves a clause defined
+            proofs = proofs or _defined(module, subset)
+            search = _searchable(module, it, *proofs)
+            inputs = I.spec_inputs(module, name, _seed(module, name, subset), WITNESSES, subset, search=search) if search else []
         entry = {"item": f"{kind} {name}", "requires": (
             {"verdict": "vacuous", "challenge": _challenge("requires-unsatisfiable", module, name, subset, q)} if v == "proved" else
             {"verdict": "satisfiable", "by": "solver"} if v == "failed" else
-            {"verdict": "satisfiable", "by": "input", "input": [I._term(a) for a in inputs[0]]} if inputs else
-            {"verdict": "unknown", "solver": v}), "ensures": []}
+            {"verdict": "satisfiable", "by": "input", "input": [I._term(a) for a in inputs[0]], **({"searched": True} if search else {})}
+            if inputs else {"verdict": "unknown", "solver": v}), "ensures": []}
         if kind != "spec":
             out.append(entry)
             continue
@@ -99,7 +144,7 @@ def vacuity(module, subset=SUBSET):
                 with I._deep(I.DEPTH):
                     shown = None if w in ("proved", "failed") else next(
                         ((a, res) for a in inputs for res in (tuple(draws.value(t) for t in types) for _ in range(OUTPUTS // WITNESSES))
-                         if any(e is c and x is False for _, e, x in I._holds(draws.p, it, a, res))), None)
+                         if any(e is c and x is False for _, e, x in I._holds(draws.p, it, a, res, search=search))), None)
                 row["trivial"] = True if w == "proved" else False if w == "failed" or shown else None
                 if shown:
                     row["false_at"] = {"input": [I._term(x) for x in shown[0]], "output": [I._term(x) for x in shown[1]]}

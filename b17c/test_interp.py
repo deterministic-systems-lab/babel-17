@@ -116,16 +116,12 @@ OUTSIDE = {
     "min_index": [((),)], "power": [(2, -1), (2, 63), (3, 40)], "prefix_sums": [((MAX, 1),)],
     "sum": [((MAX, 1),)],
 }
-# dedup_sorted's "same elements" clauses quantify over every int, so they're never evaluated (D58).
-DEDUP_UNCHECKED = {("INV-ENTRY", (2, 3, 5, 1)), ("INV-KEEP", (2, 3, 5, 1)), ("POST", (5, 2))}
 
 
 def accepts(name, out):
-    if name == "dedup_sorted":
-        got = {(u.kind, u.clause.path) for u in out.unchecked}
-        assert ("POST", (5, 2)) in got and got <= DEDUP_UNCHECKED, i.text_of(out)
-    else:
-        assert out.unchecked == (), i.text_of(out)
+    # dedup_sorted's "same elements" clauses quantify over every int, but split into two
+    # memberships, both evaluate (D125's rule 2), so every accept program checks every clause.
+    assert out.unchecked == (), i.text_of(out)
 
 
 assert sorted(ACCEPT) == sorted(p.stem for p in (SUITE / "accept").glob("*.b17"))
@@ -502,11 +498,8 @@ assert i.text_of(go(boom, 7)) == 'print 7\npanic "too big"'
 assert i.text_of(i.run(load("reject/E-PROOF-OVERFLOW-unbounded-increment.b17"), "succ", (MAX,), subset=0)) == \
     "err OVERFLOW at def succ/2.1.1@13:15: (+ 9223372036854775807 1) = 9223372036854775808 leaves i64"
 assert i.text_of(out) == "contract PRE spec half/4.1@9:15 at def caller/2.1.2@21:22: (>= x 0) is false"
-assert i.text_of(i.run(load("accept/dedup_sorted.b17"), "dedup_sorted", ((1, 1),), check=True, subset=0)) == (
-    "unchecked INV-ENTRY def dedup_sorted/2.3.5.1@22:20 at def dedup_sorted/2.3@18:7\n"
-    "unchecked INV-KEEP def dedup_sorted/2.3.5.1@22:20 at def dedup_sorted/2.3@18:7\n"
-    "unchecked POST spec dedup_sorted/5.2@12:34 at def dedup_sorted/2.4@29:7\n"
-    "ok (seq-lit 1)")
+loose = f("(n i64)", "(r i64)", "(return n)", "(ensures (forall ((x int)) (>= (* x x) 0)))")
+assert i.text_of(go(loose, 3, check=True)) == "unchecked POST spec f/4.1@2:53 at def f/2.1@3:14\nok 3"
 assert i.text_of(go(hang, 0, fuel=100)).startswith("limit steps at def f/")
 
 # run() takes values of the spec's parameter types, and lists for sequences.
@@ -621,7 +614,7 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
                                                                         (((),), (T((0, 0)),)),
                                                                         (((4, 4),), (T((0, 2)),))],
                                      ["INV-KEEP", "INV-ENTRY", "INV-KEEP", "POST"]),
-    "segmenttree_query": ("query", [((SEG, 1, 3), (4,)), ((SEG, 0, 4), (4,)), ((SEG, 3, 4), (1,))], ["PRE"] * 3 + ["ASSERT"] * 2 + ["PRE"] * 2 + ["ASSERT"] * 6),
+    "segmenttree_query": ("query", [((SEG, 1, 3), (4,)), ((SEG, 0, 4), (4,)), ((SEG, 3, 4), (1,))], ["ASSERT"] * 8),
     "trie_insert": ("insert", [((NONE, (1, 2)), (trie((1, 2)),)), ((some(trie((5,))), (5, 7)), (trie((5,), (5, 7)),)),
                                ((some(trie((5,))), ()), (trie((5,), ()),))], ["POST", "ASSERT", "POST", "ASSERT", "POST", "POST"]),
     "lca": ("lowest_common_ancestor", [((TREE, 4, 5), (some(2),)), ((TREE, 4, 3), (some(1),)),
@@ -630,30 +623,28 @@ ACCEPT_1 = {  # name: (def, [(args, results)], the kinds left unchecked on the f
             ["INV-ENTRY", "INV-ENTRY", "POST", "PRE", "PRE", "POST", "INV-KEEP", "INV-KEEP", "POST"]),
     "kruskal": ("kruskal_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),)),
                                 ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),))],  # one-way edges, each listed once
-                ["PRE", "PRE", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "ASSERT", "POST"]),
+                ["PRE", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "ASSERT", "POST"]),
     "prim": ("prim_mst", [((WEIGHTED,), ((T((0, 2, 1)), T((1, 2, 2))),)),
                           ((CYCLE,), ((T((0, 2, 1)), T((1, 0, 1))),)),  # an entry used from its unvisited end
                           ((D("weighted_graph", (((),),)),), ((),))],
-             ["PRE", "PRE", "POST", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "POST"]),
+             ["PRE", "POST", "INV-ENTRY", "INV-ENTRY", "INV-KEEP", "INV-KEEP", "POST"]),
     "dijkstra": ("dijkstra_shortest_paths", [((DIJKSTRA, 0), ((some(0), some(3), some(1), some(3), NONE),)),
                                              ((DIJKSTRA, 4), ((NONE, NONE, NONE, NONE, some(0)),)),
                                              ((WEIGHTED, 1), ((some(3), some(0), some(2)),))],
-                 ["PRE", "PRE", "INV-ENTRY", "PRE", "PRE", "PRE", "POST", "POST", "INV-KEEP", "INV-KEEP", "PRE", "INV-KEEP", "INV-KEEP",
-                  "INV-ENTRY", "POST"]),
+                 ["INV-ENTRY", "PRE", "POST", "POST", "INV-KEEP", "INV-KEEP", "PRE", "INV-KEEP", "INV-KEEP", "INV-ENTRY", "POST"]),
     "bellman_ford": ("bellman_ford", [((NEG_EDGE, 0), (some((some(0), some(-1), some(2))),)),
                                       ((NEG_CYCLE, 0), (NONE,)),
                                       ((FAR_CYCLE, 0), (some((some(0), some(2), NONE, NONE)),)),
                                       ((D("weighted_graph", (((T((0, -1)),),),)), 0), (NONE,))],  # a negative self-loop
-                     ["PRE", "INV-ENTRY", "PRE", "POST", "INV-KEEP", "PRE", "INV-KEEP", "PRE", "POST", "INV-KEEP", "INV-KEEP",
-                      "INV-ENTRY", "INV-ENTRY", "PRE", "PRE", "POST"]),
+                     ["INV-ENTRY", "POST", "INV-KEEP", "PRE", "INV-KEEP", "PRE", "POST", "INV-KEEP", "INV-KEEP", "INV-ENTRY", "INV-ENTRY", "PRE", "POST"]),
     "edmond_karp": ("max_flow_value", [((FLOW, 0, 3), (5,)), ((UNDO, 0, 3), (2,)), ((OPPOSITE, 0, 2), (2,)),
                                        ((FLOW, 3, 0), (0,)),  # nothing leaves 3
                                        ((D("capacity_graph", (((T((1, 0)),), ()),)), 0, 1), (0,))],  # a capacity of 0
-                    ["PRE", "PRE", "PRE", "PRE", "PRE", "POST", "POST"]),
+                    ["PRE", "PRE", "PRE", "POST", "POST"]),
     "push_relabel": ("max_flow_value", [((FLOW, 0, 3), (5,)), ((BACK, 0, 2), (1,)), ((OPPOSITE, 0, 2), (2,)),
                                         ((FLOW, 3, 0), (0,)),  # nothing leaves 3
                                         ((D("capacity_graph", (((T((1, 0)),), ()),)), 0, 1), (0,))],  # a capacity of 0
-                     ["PRE", "PRE", "PRE", "INV-ENTRY", "INV-KEEP", "PRE", "POST", "PRE", "PRE", "PRE", "PRE", "POST", "POST"]),
+                     ["PRE", "INV-ENTRY", "INV-KEEP", "PRE", "POST", "PRE", "PRE", "PRE", "PRE", "POST", "POST"]),
     "coin_change": ("coin_change", [(((1, 2, 5), 11), (3,)), (((2,), 3), (-1,)), (((3,), 0), (0,))],
                     ["ASSERT", "INV-ENTRY", "INV-ENTRY", "ASSERT", "PRE", "POST", "INV-KEEP", "PRE", "POST", "PRE", "POST", "PRE",
                      "PRE", "POST", "INV-KEEP", "ASSERT", "POST"]),
@@ -826,6 +817,29 @@ for clause in ["(forall ((s (seq int))) (=> (> (len s) 0) (>= (len s) 1)))",
 # ...as in B17-0, whose sequences bound a binder the same way.
 is_contract(go(f("(a (ref (slice i64)))", "(r bool)", "(return true)",
                  clauses="(ensures (forall ((x int)) (=> (contains a x) (> x 0))))"), (1, 0), check=True), "POST")
+# Where a binder has no finite range, a guard's call to a ghost-fn with no requires, measure or
+# recursion is unfolded, and its ∃ becomes more binders, fixed in the first order that bounds
+# each: g's edges are read off the row and slot, so the bound on them is evaluated (D125's rule 1).
+EDGE = "(ghost-fn edge ((g (seq (seq int))) (u int) (v int)) bool (body (exists ((i int))" \
+       " (and (and (and (<= 0 u) (< u (len g))) (and (<= 0 i) (< i (len (idx g u))))) (== (idx (idx g u) i) v)))))"
+bounded = f1("(g (vec (vec i64)))", "(r bool)", "(return true)", extra=[EDGE],
+             clauses="(ensures (forall ((u int) (v int)) (=> (edge g u v) (>= v 0))))")
+is_ok(go1(bounded, ((1, 2), (), (0,)), check=True), True)
+is_contract(go1(bounded, ((1, -2),), check=True), "POST")
+# A ghost-fn with a requires isn't unfolded, nor is a call with an argument that isn't a binder or
+# a variable, so those stay unknown, as D58 leaves them.
+for fn, clause in [(EDGE.replace("bool (body", "bool (requires (>= u 0)) (body"), "(=> (edge g u v) (>= v 0))"),
+                   (EDGE, "(=> (edge g (+ u 0) v) (>= v 0))")]:
+    unknown(go1(f1("(g (vec (vec i64)))", "(r bool)", "(return true)", extra=[fn],
+                   clauses=f"(ensures (forall ((u int) (v int)) {clause}))"), ((1,),), check=True), "POST")
+# An equivalence under forall whose sides' conjuncts can't fail is two implications, each with a
+# guard (D125's rule 2). A side that might fail leaves it unknown.
+same = "(forall ((x int)) (== (contains a x) (and (<= 1 x) (< x 3))))"
+for a, out in [((2, 1, 2), True), ((1, 3), "POST"), ((1,), "POST")]:
+    claimed = f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures {same})")
+    is_ok(go1(claimed, a, check=True), True) if out is True else is_contract(go1(claimed, a, check=True), out)
+unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)",
+               clauses="(ensures (forall ((x int)) (== (contains a x) (> (* x x) 4))))"), (3,), check=True), "POST")
 # A forall statement checks nothing. obtain finds no witness, so its ∃ is unchecked, and its
 # binders are unknown to the ghost code that reads them (§8).
 LEMMA = "(lemma pos (params (k int)) (requires (> k 0)) (ensures (> (* k k) 0)) (body))"
@@ -917,6 +931,29 @@ for _ in range(300):
     assert i._rank(args[0]) <= 4 if args[0].ctor == "node" else True
     seen |= {len(args[3])} | {x.items[1] for x in args[3]}
 assert set(range(9)) <= seen and {i.MIN, i.MAX, -10, 10} <= seen
+# In B17-1 an i64 parameter is drawn within its requires' bounds, read as D58 reads a guard, the
+# parameters before it fixed: one word gives lo + next() mod (hi - lo + 1). A parameter with no
+# finite range is drawn as before, and an empty range drops the draw before any word is taken (D125's rule 4).
+BOUND = m1("(spec f (params (n i64) (k i64) (m i64) (a (vec i64))) (returns (r i64))"
+           " (requires (<= 0 k) (< k n) (<= n 5) (>= m 0)) (effects))", "(def f (body (return 0)))")
+fn = i._Program(BOUND, 1).fns["f"]
+types = [i._ground(t, {}) for t in fn.types]
+d, e = i._Draws(i._Program(BOUND, 1), 7), i._Draws(i._Program(BOUND, 1), 7)
+for _ in range(50):
+    n = 1 + e.next() % 5
+    want = (n, e.next() % n, e.value(("i64",)), e.value(("vec", ("i64",))))
+    assert d.args(fn.params, types, fn.requires) == want
+d = i._Draws(i._Program(BOUND, 1), 7)  # golden
+assert [d.args(fn.params, types, fn.requires) for _ in range(3)] == [
+    (3, 0, 0, (9, i.MAX, 3, -4, 8, 9, -7025984793190031819)), (1, 0, 7, (-10,)),
+    (2, 1, 7655978328340571165, (-4, i.MIN, 1397226789297177968, -3))]
+d, e = i._Draws(i._Program(BOUND, 0), 7), i._Draws(i._Program(BOUND, 0), 7)
+assert all(d.args(fn.params, types, fn.requires) == tuple(e.value(t) for t in types) for _ in range(50))  # B17-0's as before
+EMPTY = m1("(spec f (params (n i64) (k i64)) (returns (r i64)) (requires (< n 0) (> n 0)) (effects))",
+           "(def f (body (return 0)))")
+fn0 = i._Program(EMPTY, 1).fns["f"]
+d = i._Draws(i._Program(EMPTY, 1), 7)
+assert d.args(fn0.params, [("i64",), ("i64",)], fn0.requires) is None and d.state == 7
 # Each goal a run evaluates is keyed as verify.py keys goals.py's: in this module every goal
 # outside a lemma's body, of every family, is evaluated by some input, and none is refuted.
 import goals as G

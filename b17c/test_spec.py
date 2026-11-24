@@ -39,6 +39,25 @@ assert c["spec_hash"].startswith("spec0:") and len(c["query_sha256"]) == 64 and 
 assert m["requires"]["verdict"] == "satisfiable" and [c["trivial"] for c in m["ensures"]] == [True, False], m
 assert "false_at" in m["ensures"][1] and "false_at" not in m["ensures"][0], m  # shown by an input and an output
 
+# D125's rule 3: in a requires clause the verifier proves defined, the workbench looks for an
+# unbounded ∃'s witness among values built from the integers in scope, as a run doesn't. A clause
+# with a goal that isn't proved, or a binder of another type, stays unknown.
+import interp as I
+SEARCH = syntax.parse(H + """  (ghost-fn starts ((n int)) bool
+    (body (exists ((p (seq int))) (and (> (len p) 1) (and (== (idx p 0) n) (== (idx p 1) 0))))))
+  (ghost-fn loose ((n int)) bool (body (exists ((p (seq int))) (== (idx p 0) n))))
+  (ghost-fn pair ((n int)) bool (body (exists ((t (tuple int int))) (== (get t 0) n))))
+  (spec f (params (n i64)) (returns (r i64)) (requires (starts n) (pair n) (loose n)) (ensures (== r n)) (effects)))""", 1)
+spec = SEARCH.items[-1]
+(starts, pair, loose) = I._clauses(spec, "requires")
+assert S._searchable(SEARCH, spec, *S._defined(SEARCH, 1)) == {id(starts), id(pair)}
+holds = lambda n, search: [v for _, _, v in I.holds(SEARCH, "f", (n,), subset=1)] if not search else \
+    [v for _, _, v in I._holds(I._Program(SEARCH, 1), spec, (n,), None, search=search)]
+assert holds(5, ()) == [None]  # a run leaves the ∃ unknown, and stops at the first clause that doesn't hold
+assert holds(5, {id(starts)}) == [True, None]  # (seq-lit 5 0): 5 is in scope, and 0 always is
+assert holds(5, {id(starts), id(pair)}) == [True, None]  # a tuple isn't searched
+# Unproved, loose's first candidate, the empty sequence, would be a point where it's undefined.
+
 # A lemma's claim always follows from its requires, so only its requires are judged.
 lemma = next(e for e in S.vacuity(syntax.parse((SUITE / "accept/isqrt.b17").read_bytes(), 0), 0) if e["item"] == "lemma square_bound")
 assert lemma["requires"]["verdict"] != "vacuous" and lemma["ensures"] == [], lemma
