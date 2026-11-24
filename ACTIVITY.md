@@ -3570,6 +3570,7 @@ WP11's pool, in Phase 2. The owner asked for AlgoVeri's problems to be ported. 1
   - `jump_game`'s `if |path| < 1 then false else …` unfolds to an `if`, so its port writes it as a conjunction.
 
   It also suggested Boolean masks for three of the witnesses, which would need only length and element bounds. That's now an alternative: it moves those specs further from their sources.
+- **Codex's re-check** found the four fixed but for one part of the second: the search's evaluations could share the run's ghost-fn memo, changing a run's steps and L1's tested goals. They now have their own memo and call depth too.
 - **Counted for it,** by a sketch of the search at 8 elements: `house_robber` 55 points, `longest_increasing_subsequence` 256, `jump_game` 255, and `knapsack_01`, `bipartite_check` and `linearsys_gf2` 256 each. `k_smallest`'s permutations build 554,249 sequences, past the fuel.
 - **Not reached:** `k_smallest`, `cycle_detection`, `topological_sort`, `knapsack_unbounded` and `max_matching`, and the ported path specs and `coin_change`, whose clauses stay unknown as now.
 - **Updated:** DECISIONS (D126) and the roadmap's decisions waiting.
