@@ -840,6 +840,28 @@ for a, out in [((2, 1, 2), True), ((1, 3), "POST"), ((1,), "POST")]:
     is_ok(go1(claimed, a, check=True), True) if out is True else is_contract(go1(claimed, a, check=True), out)
 unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)",
                clauses="(ensures (forall ((x int)) (== (contains a x) (> (* x x) 4))))"), (3,), check=True), "POST")
+# A sequence of int or bool ranges over the sequences its guard bounds by length and by foralls over
+# its positions, built breadth first and dropped where such a forall is false (D126). Here the
+# houses robbed, each in [0, (len a)) and at least 2 past the one before, 55 of them at 8 houses,
+# at most 4 long; and an ∃ whose body is one call is unfolded too.
+ELEM = "(forall ((k int)) (=> (and (<= 0 k) (< k (len h))) (and (<= 0 (idx h k)) (< (idx h k) (len a)))))"
+GAP = "(forall ((k int)) (=> (and (<= 0 k) (< k (- (len h) 1))) (>= (idx h (+ k 1)) (+ (idx h k) 2))))"
+ROB = f"(ghost-fn rob ((h (seq int)) (a (vec i64)) (n int)) bool (body (and {ELEM} (and {GAP} (>= (len h) n)))))"
+for clause, n, out in [("(forall ((h (seq int))) (=> (rob h a n) (<= (len h) 4)))", 0, True),
+                       ("(forall ((h (seq int))) (=> (rob h a n) (<= (len h) 3)))", 0, "POST"),
+                       ("(exists ((h (seq int))) (rob h a n))", 4, True), ("(exists ((h (seq int))) (rob h a n))", 5, "POST"),
+                       ("(exists ((c (seq bool))) (and (== (len c) (len a)) (and (idx c 0) (not (idx c 7)))))", 0, True),
+                       ("(exists ((c (seq bool))) (and (<= (len c) 3) (and (> (len c) 0) (!= (idx c 0) (idx c 0)))))", 0,
+                        "POST")]:
+    claimed = f1("(a (vec i64)) (n i64)", "(r bool)", "(return true)", extra=[ROB], clauses=f"(ensures {clause})")
+    is_ok(go1(claimed, tuple(range(8)), n, check=True), True) if out is True else is_contract(go1(claimed, tuple(range(8)), n, check=True), out)
+# A forall over positions that reads an index its guard doesn't keep in range might fail, so it
+# bounds nothing; and a search that runs out of its own fuel, here over every sequence of 0s and
+# 1s, gives up without spending the run's.
+for elem in ["(and (<= (len h) 2) (forall ((k int)) (=> (and (<= 0 k) (<= k (len h))) (and (<= 0 (idx h k)) (< (idx h k) 2)))))",
+             "(forall ((k int)) (=> (and (<= 0 k) (< k (len h))) (and (<= 0 (idx h k)) (< (idx h k) 2))))"]:
+    unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures (forall ((h (seq int))) (=> {elem} true)))"),
+                (), check=True, fuel=10_000), "POST")
 # The forms the rules build are reported where the source's are: a run that runs out of steps
 # inside them stops at a node of the spec, never at one the source lacks.
 for m, a in [(f("(a (ref (slice i64)))", "(r bool)", "(return true)", clauses=f"(ensures {same})"), (1, 2)),
