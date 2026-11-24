@@ -3556,3 +3556,15 @@ WP11's pool, in Phase 2. The owner asked for AlgoVeri's problems to be ported. 1
 - **For the owner:** bounds on the two primality specs, the 11 specs over sequences, draws that miss, and mutants for a result built in one expression. They're in the roadmap's decisions waiting.
 - **Updated:** `gym/harness.py`, `gym/split.py`, `gym/pool.py`, `gym/test_split.py`, `gym/pool/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-24 · D126 proposed: quantifiers over sequences
+- **What:** the owner asked for a draft of the decision the roadmap's second item from the pool's first ports needs. D126 lets the interpreter give a `(seq int)` or `(seq bool)` binder a finite range, where its guard's leading conjuncts bound the sequence's length, and its elements through a `forall` over its positions. It builds sequences shortest first and drops any that extends one a `forall` over positions rules out. D125's rule 1 also unfolds an ∃ whose body is one ghost-fn call.
+- **Settled in drafting:**
+  - **Which conjuncts prune:** a `forall` over x's positions whose guard mentions `(len x)` only as an upper bound and keeps every index it reads in range, with a body of comparisons. It can't fail, and it's false at every extension of a sequence where it's false, so skipping those hides nothing (D58).
+  - **The search's fuel** is its own, D59's default, as D125's rule 4 reads bounds. Running out leaves the binder unbounded, as today, so no unknown becomes a `limit`.
+  - **No `or`:** `linearsys_gf2`'s port writes `x[i] == 0 || x[i] == 1` as two comparisons instead.
+- **Counted for it,** by a sketch of the search at 8 elements: `house_robber` 55 points, `longest_increasing_subsequence` 256, `jump_game` 255, and `knapsack_01`, `bipartite_check` and `linearsys_gf2` 256 each. `k_smallest`'s permutations build 554,249 candidates, past the fuel.
+- **Not reached:** `k_smallest`, `cycle_detection`, `topological_sort`, `knapsack_unbounded` and `max_matching`, and the ported path specs and `coin_change`, whose clauses stay unknown as now.
+- **Updated:** DECISIONS (D126) and the roadmap's decisions waiting.
+- **Not changed:** the code, the spec text and the suite, until D126 is accepted.
+- **Interfaces touched:** none.
