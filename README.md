@@ -22,7 +22,7 @@ The full design spec, *MFL: A Machine-First Language — Design Spec (Draft v0.1
 1. B17-1, the second subset, is frozen;
 2. every ported benchmark task, B17-1's included, verifies end to end and runs as emitted Rust. All 35 do: B17-0's 20 seed tasks and 15 AlgoVeri tasks in B17-1 prove every goal under 10 shuffled seeds, and print what the interpreter prints when run as emitted Rust.
 
-B17-1 froze on 2026-10-30 with its labelled suite, D113 corrected four of its statements, making it v1.1, and D114 gave `push` a goal on its vector's length, making it v1.2 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0 and B17-1. B17-1's verification levels are built (D120), and WP4b's spec workbench runs its checks on the worked example (D121).
+B17-1 froze on 2026-10-30 with its labelled suite, D113 corrected four of its statements, making it v1.1, D114 gave `push` a goal on its vector's length, making it v1.2, and D125 let checking evaluate more quantifiers and draw an integer parameter within its `requires`' bounds, making it v1.3 ([docs/b17-1.md](docs/b17-1.md), [suite/b17-1/](suite/b17-1/)): its parser, hasher and checker agree with every tier 0 label, its interpreter and Rust backend run every accept program, and its verifier checks every proof label. WP6, the agent protocol, WP7, the Rust backend, and WP8, the agent reference manual, are done for B17-0 and B17-1. B17-1's verification levels are built (D120), and WP4b's spec workbench runs its checks on the worked example (D121).
 
 | WP | What | State |
 |---|---|---|
@@ -84,7 +84,7 @@ The full grammar, typing rules, semantics and proof goals are in [docs/b17-0.md]
 | [`docs/manual.md`](docs/manual.md) | The agent reference manual: B17-0 for the model writing it, every example checked (WP8) |
 | [`docs/manual-1.md`](docs/manual-1.md) | The manual's B17-1 supplement, for M3's B17-1 track: what B17-1 adds, every example checked (D112), and one worked long proof (D117) |
 | [`docs/roadmap.md`](docs/roadmap.md) | The phases and their gates, what's done, and what comes next |
-| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.2 Frozen |
+| [`docs/b17-1.md`](docs/b17-1.md) | B17-1's semantics, as changes to B17-0's: its parts of interfaces 1 and 6, and interface 11 v0.2; v1.3 Frozen |
 | [`suite/`](suite/) | B17-0's 50 labelled programs: 20 that must be accepted, and 30 that must be rejected, each with exactly one error named by its code. `suite/b17-1/` holds B17-1's 69, 15 to accept and 54 to reject, which the checker and verifier agree with too |
 | [`b17c/syntax.py`](b17c/syntax.py) | Parser and canonical printer (§2, D47–D55); B17-1's grammar by default, and B17-0's with `--subset 0` (D101) |
 | [`b17c/hashing.py`](b17c/hashing.py) | Spec and implementation hashes (D45, D46); B17-1's data types and binders (D92) |
