@@ -1,0 +1,38 @@
+(module trial_division_naive
+  (header
+    (purpose "Decide whether a natural number is prime.")
+    (invariants "The result is true exactly when n is greater than 1 and no d with 1 < d < n divides n.")
+    (failures "None."))
+  (ghost-fn divides ((d int) (n int)) bool
+    (requires (!= d 0))
+    (body (== (% n d) 0)))
+  (ghost-fn is_prime ((n int)) bool
+    (body (and (> n 1) (forall ((d int)) (=> (and (< 1 d) (< d n)) (not (divides d n)))))))
+  (spec check_prime
+    (params (n i64))
+    (returns (res bool))
+    (requires (>= n 0))
+    (ensures (== res (is_prime n)))
+    (effects))
+  (ghost-fn no_div ((n int) (d int)) bool
+    (decreases d)
+    (body (if (<= d 2) true (and (no_div n (- d 1)) (not (divides (- d 1) n))))))
+  (lemma no_div_all (params (n int) (d int))
+    (requires (>= d 2) (no_div n d))
+    (ensures (forall ((k int)) (=> (and (< 1 k) (< k d)) (not (divides k n)))))
+    (decreases d)
+    (body (if (> d 2) (call no_div_all n (- d 1)) (block))))
+  (def check_prime
+    (body
+      (if (< n 2) (return false) (block))
+      (let-mut d i64 2)
+      (while (< d n)
+        (invariant (and (<= 2 d) (<= d n)))
+        (invariant (no_div n d))
+        (decreases (- n d))
+        (if (== (% n d) 0)
+          (block (assert (divides d n)) (return false))
+          (block))
+        (set d (+ d 1)))
+      (call no_div_all n d)
+      (return true))))
