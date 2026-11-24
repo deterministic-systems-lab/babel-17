@@ -41,7 +41,7 @@ def mac(key, domain, *parts):
 
 
 def problem(split, task_id):
-    return split["problems"].get(task_id, task_id.rsplit("/", 1)[-1])
+    return split["problems"].get(task_id.removeprefix("pool/"), task_id.rsplit("/", 1)[-1])  # a port is its source's problem
 
 
 def held_out(split, key, task_id):

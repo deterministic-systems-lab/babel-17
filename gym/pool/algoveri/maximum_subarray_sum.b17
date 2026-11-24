@@ -1,0 +1,44 @@
+(module maximum_subarray_sum
+  (header
+    (purpose "Find the largest sum of a contiguous subarray, the empty one included.")
+    (invariants "The result is at least every subarray's sum, and some subarray's sum equals it.")
+    (failures "None. The precondition keeps every subarray's running sum in i64."))
+  (ghost-fn spec_sum ((s (seq int)) (start int) (end int)) int
+    (requires (and (and (<= 0 start) (<= start end)) (<= end (len s))))
+    (decreases (- end start))
+    (body (if (>= start end) 0 (+ (idx s (- end 1)) (spec_sum s start (- end 1))))))
+  (spec max_subarray_sum
+    (params (s (ref (slice i64))))
+    (returns (result i64))
+    (requires
+      (> (len s) 0)
+      (<= (len s) 100000)
+      (forall ((i int) (j int)) (=> (and (and (<= 0 i) (<= i j)) (< j (len s))) (in_i64 (+ (spec_sum s i j) (idx s j))))))
+    (ensures
+      (forall ((i int) (j int)) (=> (and (and (<= 0 i) (<= i j)) (<= j (len s))) (<= (spec_sum s i j) result)))
+      (exists ((i int) (j int)) (and (and (and (<= 0 i) (<= i j)) (<= j (len s))) (== (spec_sum s i j) result))))
+    (effects))
+  (def max_subarray_sum
+    (body
+      (let-mut best i64 0)
+      (let-mut bi i64 0)
+      (let-mut bj i64 0)
+      (let-mut cur i64 0)
+      (let-mut cs i64 0)
+      (let-mut k i64 0)
+      (while (< k (len s))
+        (invariant (and (<= 0 k) (<= k (len s))))
+        (invariant (and (and (<= 0 cs) (<= cs k)) (and (<= 0 cur) (== (spec_sum s cs k) cur))))
+        (invariant (forall ((i int)) (=> (and (<= 0 i) (<= i k)) (<= (spec_sum s i k) cur))))
+        (invariant (and (and (<= 0 bi) (<= bi bj)) (and (<= bj k) (== (spec_sum s bi bj) best))))
+        (invariant (forall ((i int) (j int)) (=> (and (and (<= 0 i) (<= i j)) (<= j k)) (<= (spec_sum s i j) best))))
+        (decreases (- (len s) k))
+        (let next i64 (+ cur (idx s k)))
+        (if (< next 0)
+          (block (set cur 0) (set cs (+ k 1)))
+          (set cur next))
+        (if (< best cur)
+          (block (set best cur) (set bi cs) (set bj (+ k 1)))
+          (block))
+        (set k (+ k 1)))
+      (return best))))

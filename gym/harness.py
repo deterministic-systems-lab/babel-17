@@ -41,6 +41,7 @@ GYM = Path(__file__).resolve().parent
 TASKS, RUNS = GYM / "tasks", GYM / "runs"
 B17C, SUITE, MANUAL = GYM.parent / "b17c", GYM.parent / "suite" / "accept", GYM.parent / "docs" / "manual.md"
 SUITE1, MANUAL1 = GYM.parent / "suite" / "b17-1" / "accept", GYM.parent / "docs" / "manual-1.md"  # B17-1 (D112)
+POOL = GYM / "pool"  # the pool's ports, by source (D123)
 
 # Z3 rlimit units, same as Dafny's CSV ResourceCount. The heaviest reference proof
 # (merge_sorted) uses 14M; the rest stay under 0.5M.
@@ -231,7 +232,7 @@ def b17c():
     return agent, syntax
 
 
-def load_b17_task(path, subset=0):
+def load_b17_task(path, subset=0, group=None):
     """A task in B17-0 (D98) or B17-1 (D112): the suite program's header, its first spec, which
     for an AlgoVeri port is the entry point, and the data items and ghost-fns that spec refers
     to, transitively, cut from its source. Its defs, its other specs, and any lemma or ghost-fn
@@ -266,7 +267,7 @@ def load_b17_task(path, subset=0):
     frozen = text[:offset(m.items[3].pos)] + "\n  ".join(kept) + ")"
     dafny = TASKS / ("algoveri/" if subset else "") / f"{path.stem}.dfy"
     meta = dict(re.findall(r"^// (\w+): (.*)$", dafny.read_text(), re.M)) if dafny.exists() else {}
-    task = dict(id=f"{'b17-1' if subset else 'b17'}/{path.stem}", lang="b17", name=spec.items[1].text, frozen=frozen,
+    task = dict(id=f"{group or ('b17-1' if subset else 'b17')}/{path.stem}", lang="b17", name=spec.items[1].text, frozen=frozen,
                 solution=text, difficulty=meta.get("difficulty"))
     return task | ({"subset": 1} if subset else {})  # B17-0's tasks, and so their task_sha, are as before
 
@@ -277,6 +278,12 @@ def load_tasks(only=None):
     # An entry ending in "/" selects a whole task set, e.g. "algoveri/".
     return [t for t in tasks if not only
             or any(t["id"] == o or (o.endswith("/") and t["id"].startswith(o)) for o in only)]
+
+
+def load_pool():
+    """The pool's ports (D123): B17-1 modules under gym/pool/<source>/, each with its reference def,
+    posed as M3's ports are. None is in load_tasks(), so no run includes one unasked."""
+    return [load_b17_task(p, 1, f"pool/{p.parent.name}") for p in sorted(POOL.glob("*/*.b17"))]
 
 
 def violations(code):

@@ -14,8 +14,9 @@ A task enters when:
 
 Every check runs whatever the others find, and each task's results print as a JSON line. Check 5's
 inputs come from the secret, so what's printed of it names none of them. With no TASK it runs the 35
-ports, B17-0's 20 seed programs and B17-1's 15, bfs among them. None of them enters the pool: running
-them tests the checks. Their results are recorded in gym/pool-ports.jsonl.
+ports, B17-0's 20 seed programs and B17-1's 15, bfs among them, and the pool's ports in gym/pool/. The 35
+stay out of the pool, so running them tests the checks, and their results are in gym/pool-ports.jsonl.
+The pool's ports' results are in gym/pool.jsonl, and a port that passes all five is in the pool.
 """
 import json
 import sys
@@ -91,7 +92,7 @@ def entry(task, key, split):
 def main(argv):
     split, key = S.load(), S.secret()
     S.check_secret(key, split)
-    tasks = h.load_tasks() + [h.load_b17_task(h.SUITE1 / "bfs.b17", 1)]
+    tasks = h.load_tasks() + [h.load_b17_task(h.SUITE1 / "bfs.b17", 1)] + h.load_pool()
     for t in tasks:
         if t.get("lang") == "b17" and (not argv or t["id"] in argv):
             print(json.dumps(entry(t, key, split)), flush=True)
