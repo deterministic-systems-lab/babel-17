@@ -1974,6 +1974,8 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
       - every goal of each ghost-fn it reaches, directly or through others: the well-definedness of its `requires`, measure and body, and its termination;
       - each proof counting for L2, so resting on no goal that isn't proved (D91).
 
+      The core library's ghost-fns are total on their parameter types, as its header states, so they add no goals.
+
       `kruskal`'s and `prim`'s connectivity clauses are expected to qualify: the prototype found the verifier proves `nodes_have_path`'s and `path_follows_graph`'s 2 `BOUNDS` goals each. Building rule 3 checks the rest.
     - **Not in checked runs or property tests,** where the ∃ stays unknown. So `kruskal`'s and `prim`'s defs still get no property test.
     - **What it reaches:** connectivity in `kruskal` and `prim`, `(forall ((u int) (v int)) (=> … (nodes_have_path g u v)))`, an ∃ over paths.

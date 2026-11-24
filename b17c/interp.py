@@ -523,9 +523,6 @@ class _Program:
 
     def copy(self, new, old):
         self.orig[id(new)] = self.orig.get(id(old), old)
-        return self.keep(new)
-
-    def keep(self, new):
         self.rewrites[id(new)] = new  # kept, so its id is never reused
         return new
 
@@ -610,8 +607,8 @@ class _Run:
         """The goal (family, x, clause) was evaluated, keyed as verify.py keys goals.py's goals: the
         second of its name when a loop checks it after a pass. A loop's INV goals are one each."""
         if self.seen is not None:
-            again = self.again is not None and id(x) in self.again and not family.startswith("INV-")
             x, clause = self.p.orig.get(id(x), x), self.p.orig.get(id(clause), clause)
+            again = self.again is not None and id(x) in self.again and not family.startswith("INV-")
             self.seen[family, id(x), None if clause is None else id(clause), 2 if again else 1] = held
 
     def fail(self, reason, x, detail, g):
@@ -1172,8 +1169,8 @@ class _Run:
                 changed = True
             g = None
             for c in reversed(out):
-                g = c if g is None else self.p.keep(Form((Sym("and"), c, g), c.pos))
-            new = None if not changed else g if q == "exists" else self.p.keep(Form((Sym("=>"), g, body.items[2]), body.pos))
+                g = c if g is None else self.p.copy(Form((Sym("and"), c, g), c.pos), c)  # where it's reported
+            new = None if not changed else g if q == "exists" else self.p.copy(Form((Sym("=>"), g, body.items[2]), body.pos), body)
             self.p.rewrites[id(x), unknown] = new and (list(types), types, out, new)
         r = self.p.rewrites[id(x), unknown]
         if r is None:
@@ -1192,9 +1189,11 @@ class _Run:
         a, b = body.items[1], body.items[2]
         if not all(self.cant_fail(c, names, ints, env) for c in _conjuncts(a) + _conjuncts(b)):
             return UNKNOWN
+        if ("split", id(body)) not in self.p.rewrites:  # each half is reported at the equivalence
+            self.p.rewrites["split", id(body)] = [self.p.copy(Form((Sym("=>"), p, c), body.pos), body) for p, c in ((a, b), (b, a))]
         seen = [False, False, False]
-        for p, c in ((a, b), (b, a)):
-            self.points(False, names, ints, bools, _conjuncts(p), Form((Sym("=>"), p, c), body.pos), dict(env), 0, seen)
+        for half in self.p.rewrites["split", id(body)]:
+            self.points(False, names, ints, bools, _conjuncts(half.items[1]), half, dict(env), 0, seen)
         return False if seen[0] else UNKNOWN if seen[1] else True
 
     def cant_fail(self, c, free, ints, env):

@@ -75,25 +75,19 @@ def _defined(module, subset):
 def _searchable(module, it, goals, counted):
     """D125's rule 3: the ids of spec it's requires clauses the verifier proves defined everywhere, so
     a search for an ∃'s witness in them skips no undefined point. Each of the clause's goals counts
-    for L2, and so does every goal of each ghost-fn it reaches. A core library ghost-fn's goals aren't
-    the module's, so a clause that reaches one isn't searched."""
+    for L2, and so does every goal of each of the module's ghost-fns it reaches. The core library's
+    ghost-fns are total, as its header states, so they add none."""
     fns = {f.items[1].text: f for f in _items(module, ("ghost-fn",))}
-    core = {f.items[1].text for m in (I.CORE, I.CORE1) for f in m.items[3:] if f.items[0].text == "ghost-fn"}
     out = set()
     for c in [c for cl in G.clauses(it, "requires") for c in cl]:
         reach, todo = set(), [c]
         while todo:
-            names = {x.text for x in _nodes(todo.pop()) if isinstance(x, Sym)}
-            if names & (core - fns.keys()):
-                reach = None
-                break
-            for n in (names & fns.keys()) - reach:
+            for n in {x.text for x in _nodes(todo.pop()) if isinstance(x, Sym)} & fns.keys() - reach:
                 reach.add(n)
                 todo.append(fns[n])
         inside = {id(x) for x in _nodes(c)}
-        need = {k for k, g in enumerate(goals)
-                if reach is not None and (g[0] in reach or g[0] == it.items[1].text and g[6] == "spec" and id(g[5]) in inside)}
-        if reach is not None and need <= counted:
+        if {k for k, g in enumerate(goals)
+                if g[0] in reach or g[0] == it.items[1].text and g[6] == "spec" and id(g[5]) in inside} <= counted:
             out.add(id(c))
     return out
 

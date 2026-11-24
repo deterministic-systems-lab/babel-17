@@ -57,6 +57,10 @@ assert holds(5, ()) == [None]  # a run leaves the ∃ unknown, and stops at the 
 assert holds(5, {id(starts)}) == [True, None]  # (seq-lit 5 0): 5 is in scope, and 0 always is
 assert holds(5, {id(starts), id(pair)}) == [True, None]  # a tuple isn't searched
 # Unproved, loose's first candidate, the empty sequence, would be a point where it's undefined.
+# The core library's ghost-fns are total, so a clause that reaches one may be searched.
+CORED = syntax.parse(H + """  (spec g (params (n i64)) (returns (r i64))
+    (requires (exists ((x int)) (and (in_i64 (+ x 0)) (== x n)))) (ensures (== r n)) (effects)))""", 1)
+assert S._searchable(CORED, CORED.items[-1], *S._defined(CORED, 1)) == {id(I._clauses(CORED.items[-1], "requires")[0])}
 
 # A lemma's claim always follows from its requires, so only its requires are judged.
 lemma = next(e for e in S.vacuity(syntax.parse((SUITE / "accept/isqrt.b17").read_bytes(), 0), 0) if e["item"] == "lemma square_bound")

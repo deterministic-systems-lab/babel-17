@@ -840,6 +840,12 @@ for a, out in [((2, 1, 2), True), ((1, 3), "POST"), ((1,), "POST")]:
     is_ok(go1(claimed, a, check=True), True) if out is True else is_contract(go1(claimed, a, check=True), out)
 unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)",
                clauses="(ensures (forall ((x int)) (== (contains a x) (> (* x x) 4))))"), (3,), check=True), "POST")
+# The forms the rules build are reported where the source's are: a run that runs out of steps
+# inside them stops at a node of the spec, never at one the source lacks.
+for m, a in [(f("(a (ref (slice i64)))", "(r bool)", "(return true)", clauses=f"(ensures {same})"), (1, 2)),
+             (bounded, ((1, 2), (0,)))]:
+    stops = [go1(m, a, check=True, fuel=n) for n in range(1, 400)]
+    assert all(s.node.item != "argument" for s in stops if isinstance(s, i.Limit)), [i.text_of(s) for s in stops][:3]
 # A forall statement checks nothing. obtain finds no witness, so its ∃ is unchecked, and its
 # binders are unknown to the ghost code that reads them (§8).
 LEMMA = "(lemma pos (params (k int)) (requires (> k 0)) (ensures (> (* k k) 0)) (body))"
