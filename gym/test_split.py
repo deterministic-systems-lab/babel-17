@@ -40,6 +40,7 @@ for ids in same.values():
     assert len({S.problem(split, t) for t in ids}) == 1, ids
 held = {S.problem(split, t) for t in tasks if S.held_out(split, key, t)}
 train = {S.problem(split, t) for t in tasks if not S.held_out(split, key, t)}
+assert held.isdisjoint(train), held & train  # no pool task shares a problem with a held-out one (D123)
 # The slice holds out 1 problem in 10, by the secret.
 names = [f"problem {k}" for k in range(10_000)]
 share = sum(S.held_out(split, key, n) for n in names) / len(names)

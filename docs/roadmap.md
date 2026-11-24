@@ -1,6 +1,6 @@
 # Babel-17 roadmap
 
-Where the project stands, and what comes next. This is the state as of 2026-11-23.
+Where the project stands, and what comes next. This is the state as of 2026-11-24.
 
 **How the plan works:**
 - **The goal:** an all-purpose language for agents to write, from services and pipelines to user interfaces and machine learning, with each module held to the verification level its spec supports, from typed and memory-safe to proved correct (D64). The phases build toward it from a small verified core.
@@ -196,11 +196,12 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
   - **Claude's B17-1 baseline with it in place** has all 42 samples, and the same means to three places, 0.566 and 0.895. Without stops, first replies on these tasks average 0.194, so the stops cost the first-reply mean next to nothing.
   - **Claude's first replies on the graph tasks have changed** since the sixth B17-1 run: longer, and 3 of 18 verified against 9 of 18. Today's checker gives the earlier replies the same verdicts, so the change is in the replies.
 - **A failed call's record keeps Claude Code's own message,** from its result event, not the last 500 characters of its output, which cut off the cause of 22 of the rerun's 49 failures. It changes no verdict, but a run can't resume across it.
-- **The spec workbench's reach (WP4b, WP15), D125: built.** `vacuity` now shows that all 40 of the suite's specs have an input meeting the `requires`, against 33. B17-1 is version 1.3.
+- **The spec workbench's reach (WP4b, WP15), D125: merged (PR #82).** `vacuity` now shows that all 40 of the suite's specs have an input meeting the `requires`, against 33. B17-1 is version 1.3.
   - **Four rules:** where D58 finds a binder with no finite range and no point decides the quantifier, the interpreter evaluates it again with its guard's ghost-fn calls unfolded, or an equivalence under `forall` split in two. The workbench searches for an ∃'s witness in a clause the verifier proves defined, which shows `kruskal`'s and `prim`'s connectivity can hold. B17-1's draws give an `i64` parameter a value within its `requires`' bounds.
   - **L1:** D88's property tests keep inputs for 5 of the 7 defs that had none: 100 each for `bellman_ford` and `dijkstra`, 11 for each maximum-flow spec and 13 for `query`. `kruskal` and `prim` still keep none, since the search isn't used in runs. `bfs` keeps 100, against 1, and no property test refutes a goal, before or after.
   - **Nothing else moves:** every suite label, the Rust backend's 12,926 differential runs, and every outcome D58 decided. In the checked runs of the suite that the self-check records, some clauses once left unchecked are now checked, `requires` clauses in the 7 programs and `dedup_sorted`'s `ensures`, and none is newly unchecked.
   - **WP11's entry checks,** rerun on the 35 ports: 17 pass all five, with `dedup_sorted` now in. Check 2 passes on all 35, and tests kill 547 of the 835 mutants, against 361.
+- **WP11, the training environment, is done,** as of 2026-11-24: every item of D123's done-when holds. The reward, the entry checks and the frozen split are built, the entry checks' results on the 35 ports are recorded, and so is the in-context baseline ([Phase 2](#phase-2)).
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
@@ -241,7 +242,12 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
 4. **WP16** grows the core library as B17-1 and the ports need it.
 5. **WP4b, the spec workbench: done on the worked example, D121, and its reach on the suite, D125** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
 
-6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it. Its first piece, the reward, is built ([above](#recent-and-current-work)). So are the frozen held-out split and the entry checks, which 17 of the 35 ports pass, and the in-context baseline is recorded, so its three conditions are met. Growing its pool of tasks follows in Phase 2. D125 lets the workbench show the graph and tree specs can hold, but their held-out draws still keep the graph ports out, [below](#phase-1-work-outside-the-gate).
+6. **WP11, the training environment: done, as of 2026-11-24** ([Phase 2](#phase-2)). D123 scopes it, and every item of its done-when holds: the reward, the entry checks, which 17 of the 35 ports pass, the frozen held-out split, and the in-context baseline. It was the last item left on both paths to the Phase 2 gate, besides WP16, which grows the core library as tasks need it.
+7. **The Phase 2 gate** compares a model trained in the gym with off-the-shelf models and with the same base model trained on Dafny (D31). Before it come:
+   - **tasks to train on:** the pool has none yet. 34 of the 35 ports are held out, and `bfs`, which isn't, fails check 5. Of the 56 problems in the harness that no test task poses, 39 are AlgoVeri's and 17 vericoding's. The split holds out 8 more, chosen by its secret, which leaves 48 to train on, `bfs` the only one ported. D125 lets the workbench show graph and tree specs can hold, but check 5 still keeps graph specs out where the interpreter can't decide the `ensures` ([below](#phase-1-work-outside-the-gate));
+   - **the training itself,** on a base model with open weights and with training compute, which the owner settles. The CLI subscriptions used so far can run agents but can't train them (D13);
+   - **D31's comparison:** the same base model trained on Dafny with equal compute, whose reward needs a design of its own (D123);
+   - **the Verus baseline (WP17, D122),** so the gate has a number for models writing Verus.
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -257,7 +263,7 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
 
 ## Phase 1
 
-From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, and WP16 is under way, so what's left of the first path is WP11. B17-1 froze on 2026-10-30, and D122 made WP10 done, so what's left of the second is WP11 too.
+From D21's dependency table, as D62 and D65 amend it, two paths of the same length lead to the Phase 2 gate: WP1a, WP2, WP3, WP16, WP5, WP6, WP8, WP11, and WP1a, WP2, WP3, WP16, WP5, B17-1, WP10, WP11. WP4b and WP15 are each one step off them. WP1a, WP2, WP3, WP5, WP6 and WP8 are done for B17-0, B17-1 froze on 2026-10-30, D122 made WP10 done, and WP11 is done (D123). WP16 is under way, growing the core library as tasks need it, so that's what's left of both paths, and the gate itself needs a trained model.
 
 | WP | What | Depends on | Done when |
 |---|---|---|---|
@@ -282,7 +288,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 
 ## Phase 2
 
-**The training environment, WP11.** It's done when:
+**The training environment, WP11,** is done, as of 2026-11-24. Its done-when:
 - rewards and anti-hacking rules are enforced;
 - a held-out split is frozen;
 - an in-context baseline is recorded.
@@ -293,7 +299,7 @@ Its curriculum covers every domain the language has reached by then (D65).
 - **The reward:** the design spec's tiers, from 0.05 for a reply that parses to 0.90 for one that's verified and right within 20M steps on 25 held-out inputs. There's no 1.00 tier until specs can state a cost (D30).
   - **Partial credit** counts each `ensures` clause whose goals are proved without resting on a goal that isn't (L2's closure), so padding, a failing `assert` and a loop that never ends earn no more than a reply without them.
   - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input is recorded for triage, since it shows a hole in the verifier, a spec that says something other than the reference, or a bug in the interpreter or the reference.
-- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. On the 35 ports, 17 pass all five. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
+- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. On the 35 ports, 17 pass all five, but those 17 are held out, so the pool has no task yet. In Phase 2 it grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
 - **The split:** M3's 34 tasks are the gate's test set, with the pool's problems that match them and 1 in 10 of the rest.
 - **The baseline:** Claude and Codex on the test set, then the pool's slice and the base model as they arrive. The first part is recorded: last-reply means of 0.900 and 0.895 for Claude on B17-0 and B17-1, and 0.900 and 0.601 for Codex, with Claude's B17-1 samples complete after its rerun under D124 ([above](#recent-and-current-work)).
 

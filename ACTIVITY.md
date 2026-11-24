@@ -3507,3 +3507,16 @@ WP4b and WP15. D125's four rules are built, in `b17c/interp.py` and `b17c/spec.p
 - **Codex's fact-check of this entry,** the roadmap, the README and D125's Cost line, against the records: no number wrong. It found 4 claims worded too broadly, all fixed: the early drop comes only from a leading conjunct, rule 1's retry needs a binder with no finite range, rule 1 unfolds core ghost-fns too, and the `in_i64` test shows the clause admitted, not searched.
 - **Updated:** DECISIONS (D125's text, as above); `docs/b17-1.md`'s status, §8, §10 and §14; `gym/pool-ports.jsonl`; the README's WP4b and WP11 rows; the roadmap's recent work, entry checks, critical path, reach and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-24 · WP11 is done
+
+WP11. PR #82, D125's rules and their results, was merged on 2026-11-23. With it, every item of D123's done-when for WP11 holds, so the README and the roadmap now list WP11 as done:
+- `gym/reward.py` scores replies by D123's table, and `gym/test_reward.py` checks a reply at each tier and the hacks D123 names;
+- `gym/pool.py` has run the entry checks on the 35 ports, with the results in `gym/pool-ports.jsonl`, rerun under D125;
+- `gym/split.json` is frozen. `gym/test_split.py` checks that tasks posing one problem are held out together, and now asserts in so many words that no problem is both held out and trained on, which holds by construction since a task's problem alone decides it;
+- the in-context baseline is recorded and summarized (2026-11-19), with Claude's B17-1 samples completed under D124.
+- **What the Phase 2 gate still needs,** as the roadmap now lists it: tasks to train on; the training itself, on a base model with open weights and with training compute; D31's model trained on Dafny, with its own reward; and the Verus baseline (D122). WP16, the core library, grows alongside as tasks need it.
+- **The pool has no task yet:** 34 of the 35 ports are held out, and `bfs`, which D123 leaves in since its worked proof is in every prompt, fails check 5. Counted without the secret, 56 problems in the harness pose no test task's problem: 39 of AlgoVeri's and 17 of vericoding's. The split holds out 8 of them, which leaves 48 to train on, `bfs` the only one ported.
+- **Codex's fact-check** (`gpt-5.6-sol`), told not to read the secret, confirmed every count. It found 4 problems, all fixed: `test_split.py` didn't assert D123's disjointness itself, WP16 is still on both paths, the training itself was missing from the gate's list, and the README's list was short of D31's model and the Verus baseline.
+- **Updated:** `gym/test_split.py`; the README's status and WP11 row; the roadmap's date, recent work, critical path, Phase 1 paths and Phase 2.
+- **Interfaces touched:** none.
