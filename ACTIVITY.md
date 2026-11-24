@@ -3520,3 +3520,39 @@ WP11. PR #82, D125's rules and their results, was merged on 2026-11-23. With it,
 - **Codex's fact-check** (`gpt-5.6-sol`), told not to read the secret, confirmed every count. It found 4 problems, all fixed: `test_split.py` didn't assert D123's disjointness itself, WP16 is still on both paths, the training itself was missing from the gate's list, and the README's list was short of D31's model and the Verus baseline.
 - **Updated:** `gym/test_split.py`; the README's status and WP11 row; the roadmap's date, recent work, critical path, Phase 1 paths and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-24 · The pool's first ports
+
+WP11's pool, in Phase 2. The owner asked for AlgoVeri's problems to be ported. 12 are, each a B17-1 module in `gym/pool/algoveri/` with a reference def that verifies. D123's entry checks have run on them under the secret, in 231 seconds, with the results in `gym/pool.jsonl`. 8 enter: 5 to train on, and 3 that the split's slice holds out.
+
+- **Where ports live:** `gym/pool/<source>/NAME.b17`, beside the source's Dafny spec in `gym/tasks/<source>/`.
+  - `harness.load_pool()` poses each as M3's ports are, with the id `pool/<source>/NAME`. They're candidates, and `gym/pool.jsonl` records which enter.
+  - `split.problem()` gives a port its source's problem, so it's held out exactly when its source is, which `test_split.py` now checks for every port.
+  - `pool.py` runs them along with the 35. None is in `load_tasks()`, so no harness run includes one unasked.
+- **Which problems first:** of the 39 AlgoVeri problems that pose no test problem, 11 state their result with a quantifier over sequences, which check 5 can't decide, and `bfs` is ported already. The first 12 come from the other 27, leaving their two graph problems, `dfs` and `scc_tarjan`, for later. `trial_division_optimized` and `kmp` pose the same specs as `trial_division_naive` and `string_search_naive`, but for the method's name, so each problem has one port.
+- **How:** `maximum_subarray_sum` was ported first, to try the process. Five agents then ported the rest, each in its own worktree, told not to read the secret. They ran the entry checks with a made-up key, as `test_pool.py` does.
+- **The specs say what their Dafny sources say,** but for §11's types, D60's ranges and an `ensures` that's a top-level `and` split into clauses. Beyond those:
+  - **`maximum_subarray_sum` requires every subarray's sum to fit in i64.** Codex pointed out that this excludes inputs such as `[i64::MIN, -1]`, on which Kadane's algorithm computes only values in range, and suggested requiring it only of sums that are at least 0. It's kept: under it any algorithm that sums subarrays stays in range, where the narrower form would make a correct reply that sums every subarray overflow.
+  - **`string_search_naive`'s and `ac_automata`'s completeness clauses** add the bounds `matches_at` implies as leading conjuncts of their guard, so the interpreter can bound the binder.
+  - **The three rotations** add `(is node res)` before reading its value, which their view's equality already implies.
+  - **`longest_common_subsequence`'s `decreases`** is a sum where Dafny's is lexicographic.
+  - **`polymul_naive` and `ac_automata`** leave out an identity ghost-fn their specs never use.
+- **A reference needn't be the algorithm the source names,** since the spec is the task and no tier rewards speed (D30). `ac_automata`'s checks every pattern at every position, and `splaytree_splay`'s rotates the value up one level at a time.
+- **They enter:**
+  - `maximum_subarray_sum`, `polymul_naive`, `bracket_matching`, `longest_common_subsequence`, `string_search_naive`, `ac_automata`, `bst_delete` and `splaytree_splay`;
+  - between 33 and 120 goals each, and between 4 and 45 mutants, with no survivor whose output differs.
+- **Out:**
+  - **The three rotations, on check 4:** each reference returns its tree as one expression, so `mutants` has nothing to change, as with `lca`. A porter first wrote them to build the result in two steps, which gave `mutants` a `set` to drop. That passes the check without testing the spec, which Codex's review also judged, so they now return directly.
+  - **`bst_zigzag` and `bst_zigzig`, on check 5 too:** D88's random trees meet their `requires` too rarely, keeping 18 and 16 of 25 inputs.
+  - **`trial_division_naive`, on check 5:** 12 of 25 inputs run out of steps, since `is_prime`'s `forall` visits every d below n. With n at most 100,000 it enters.
+  - **`sieve_method`, not added:** the faithful port verifies, but check 5 runs out of steps on 24 of 25 inputs, and check 4 ran over an hour. With n at most 500 it passes all five.
+- **Draws that miss:** `bracket_matching`'s held-out inputs never contain a bracket, since D88 almost never draws 40 or 41. So the held-out tier tests it only on inputs with no brackets.
+- **Codex's review** (`gpt-5.6-sol`), told not to read the secret, found the other 11 specs faithful. It found 5 problems: `maximum_subarray_sum`'s range, kept as above, and 4 fixed:
+  - the rotations' references;
+  - `test_split.py` forbade a port of a test problem, which D123 allows if it's held out. It now checks that each port's problem and held-out status are its source's;
+  - `load_pool()`'s docstring didn't say its ports are candidates;
+  - a port's Dafny source was looked up under `algoveri/` whatever its source.
+- **Ponytail:** the scaffolding is 16 lines, with nothing to cut.
+- **For the owner:** bounds on the two primality specs, the 11 specs over sequences, draws that miss, and mutants for a result built in one expression. They're in the roadmap's decisions waiting.
+- **Updated:** `gym/harness.py`, `gym/split.py`, `gym/pool.py`, `gym/test_split.py`, `gym/pool/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path and Phase 2.
+- **Interfaces touched:** none.

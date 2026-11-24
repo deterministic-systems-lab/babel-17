@@ -41,8 +41,9 @@ for ids in same.values():
 held = {S.problem(split, t) for t in tasks if S.held_out(split, key, t)}
 train = {S.problem(split, t) for t in tasks if not S.held_out(split, key, t)}
 assert held.isdisjoint(train), held & train  # no pool task shares a problem with a held-out one (D123)
-ports = [t["id"] for t in h.load_pool()]
-assert {S.problem(split, t) for t in ports}.isdisjoint(S.problem(split, t) for t in split["test"]), ports  # none poses a test problem
+for t in h.load_pool():  # a port is its source's problem, held out or not with it
+    source = t["id"].removeprefix("pool/")
+    assert (S.problem(split, t["id"]), S.held_out(split, key, t["id"])) == (S.problem(split, source), S.held_out(split, key, source)), t["id"]
 # The slice holds out 1 problem in 10, by the secret.
 names = [f"problem {k}" for k in range(10_000)]
 share = sum(S.held_out(split, key, n) for n in names) / len(names)
