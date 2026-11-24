@@ -37,7 +37,7 @@ The owner declared it passed on 2026-11-06, so Phase 2 begins. The Phase 1 work 
 
 | Gate item | State |
 |---|---|
-| **B17-1 frozen** | Done. Version 1.0 and its suite froze on 2026-10-30 under D44, and D113 and D114 amended it to version 1.2. |
+| **B17-1 frozen** | Done. Version 1.0 and its suite froze on 2026-10-30 under D44, and D113, D114 and D125 amended it to version 1.3. |
 | **Every ported task verifies end to end** | Done. On 2026-11-06, from an empty cache, all 5,716 goals of the 35 accept programs, B17-0's 20 seed ports and B17-1's 15 AlgoVeri ports, proved under 10 shuffled seeds (D23). `coin_change`'s proof needed a fix first ([below](#recent-and-current-work)), and `test_verify.py` now checks all 35. |
 | **Every ported task runs as emitted Rust** | Done. On the self-checks' 154 inputs, each binary printed what the interpreter prints, and each checked run was ok with the expected results. |
 
@@ -178,13 +178,13 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
       - AlgoVeri's versions of the next two pairs.
     - **4 give one name each to test problems with the same spec:** `edmond_karp` and `push_relabel` become `max_flow`, and `kruskal` and `prim` become `mst`.
     - **The other 13** pair tasks within the pool that pose the same problem, so the slice takes both or neither.
-- **WP11's entry checks** are built: `gym/pool.py` (D123), with results on the 35 ports in `gym/pool-ports.jsonl`. None of them enters the pool, so the run tests the checks.
-  - **16 pass all five:** 14 of the 20 seed ports, and `bst_insert` and `bst_search`.
+- **WP11's entry checks** are built: `gym/pool.py` (D123), with results on the 35 ports in `gym/pool-ports.jsonl`, rerun under D125. None of them enters the pool, so the run tests the checks.
+  - **17 pass all five:** 15 of the 20 seed ports, and `bst_insert` and `bst_search`.
   - **Check 1, no top-level `and` in an `ensures`:** 6 fail, as D123 counted.
-  - **Check 2, vacuity:** the 7 graph and tree specs fail, since the workbench can't show their `requires` can hold.
+  - **Check 2, vacuity:** all 35 pass. Before D125, the 7 graph and tree specs failed.
   - **Check 3:** every reference verifies, all 5,716 goals.
-  - **Check 4, mutants:** of 835, tests killed 361 and the verifier 441. The 2 survivors whose outputs differ are the ties D123 allows. `lca` fails, with nothing to mutate.
-  - **Check 5, the held-out draws:** 15 fail. The 7 graph and tree specs, `bfs` and `lca` keep too few inputs. On 4, the interpreter can't decide a clause: a quantifier with no bound it can use, an `exists`, or an equality of sets. `isqrt`'s and `discrete_logarithm`'s references run past 20M steps on some inputs.
+  - **Check 4, mutants:** of 835, tests killed 547 and the verifier 255. The 2 survivors whose outputs differ are the ties D123 allows. `lca` fails, with nothing to mutate.
+  - **Check 5, the held-out draws:** 14 fail. `kruskal`, `prim`, both maximum-flow ports, `query` and `lca` keep too few inputs. On 6, the interpreter can't decide a clause of the `ensures` on any input: a quantifier over sequences in `coin_change` and the three shortest-path ports, an equality of sets in `trie_insert`, and a `forall` bounded only inside ghost-fns in `longest_palindrome_substring`. `isqrt`'s and `discrete_logarithm`'s references run past 20M steps on some inputs.
   - **Grouping errs toward one problem,** since that only holds more out. The self-check finds tasks whose specs are the same text, which must share a problem, but only review finds the same problem posed differently.
 - **WP11's baseline** is recorded: `gym/baseline.py` (D123) scored every reply of `20261111T000447Z-claude-codex`, Claude and Codex on the test set, 3 samples each.
   - **Mean reward of the last reply:** Claude 0.900 on B17-0's seed tasks and 0.895 on B17-1's 14 ports, Codex 0.900 and 0.601. Of the first reply, before feedback: 0.900 and 0.566, and 0.847 and 0.315.
@@ -196,13 +196,18 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
   - **Claude's B17-1 baseline with it in place** has all 42 samples, and the same means to three places, 0.566 and 0.895. Without stops, first replies on these tasks average 0.194, so the stops cost the first-reply mean next to nothing.
   - **Claude's first replies on the graph tasks have changed** since the sixth B17-1 run: longer, and 3 of 18 verified against 9 of 18. Today's checker gives the earlier replies the same verdicts, so the change is in the replies.
 - **A failed call's record keeps Claude Code's own message,** from its result event, not the last 500 characters of its output, which cut off the cause of 22 of the rerun's 49 failures. It changes no verdict, but a run can't resume across it.
+- **The spec workbench's reach (WP4b, WP15), D125: built.** `vacuity` now shows that all 40 of the suite's specs have an input meeting the `requires`, against 33. B17-1 is version 1.3.
+  - **Four rules:** where D58 finds a binder with no finite range and no point decides the quantifier, the interpreter evaluates it again with its guard's ghost-fn calls unfolded, or an equivalence under `forall` split in two. The workbench searches for an ∃'s witness in a clause the verifier proves defined, which shows `kruskal`'s and `prim`'s connectivity can hold. B17-1's draws give an `i64` parameter a value within its `requires`' bounds.
+  - **L1:** D88's property tests keep inputs for 5 of the 7 defs that had none: 100 each for `bellman_ford` and `dijkstra`, 11 for each maximum-flow spec and 13 for `query`. `kruskal` and `prim` still keep none, since the search isn't used in runs. `bfs` keeps 100, against 1, and no property test refutes a goal, before or after.
+  - **Nothing else moves:** every suite label, the Rust backend's 12,926 differential runs, and every outcome D58 decided. In the checked runs of the suite that the self-check records, some clauses once left unchecked are now checked, `requires` clauses in the 7 programs and `dedup_sorted`'s `ensures`, and none is newly unchecked.
+  - **WP11's entry checks,** rerun on the 35 ports: 17 pass all five, with `dedup_sorted` now in. Check 2 passes on all 35, and tests kill 547 of the 835 mutants, against 361.
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 - **From D124's rerun, a test of why Claude's first replies on the graph tasks changed:** their round 1 under Claude Code 2.1.309 and 2.1.311, with more samples. It needs the older CLI installed again.
 
-D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, D122 and D123 on 2026-11-09, and D124 on 2026-11-20. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
+D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29, D109, D112 and D113 on 2026-10-30, D114 on 2026-11-02, D115, D116 and D117 on 2026-11-03, D118 on 2026-11-04, D5, D7, D119, D120 and D121 on 2026-11-05, D122 and D123 on 2026-11-09, D124 on 2026-11-20, and D125 on 2026-11-23. D2–D4, D6 and D8–D10, carried over from the design spec, are still Proposed.
 
 ### Next on the critical path
 1. **M3's B17-1 track (D112),** now that B17-1 is frozen. It starts with the 10 AlgoVeri ports in `suite/b17-1/accept/`, harder than the seed tasks even in Dafny, and adds WP10's further ports as they come. 50 of the 64 AlgoVeri tasks D79 surveyed need B17-1's tuples or data types. In order:
@@ -234,9 +239,9 @@ D79–D101 were accepted on 2026-10-28, D102–D108, D110 and D111 on 2026-10-29
    - **Next for M3:** tasks hard enough to separate the two languages (WP10). On the seed tasks they differ only in tokens.
 3. **B17-1's verification levels (WP5): done, with D120** ([above](#recent-and-current-work)). `verify --level`, the report's level fields, D88's property tests and L2's closure are built as `docs/b17-1.md` §10 says. M3 doesn't use them: it counts a task verified only when every goal is proved.
 4. **WP16** grows the core library as B17-1 and the ports need it.
-5. **WP4b, the spec workbench: done on the worked example, D121** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
+5. **WP4b, the spec workbench: done on the worked example, D121, and its reach on the suite, D125** ([above](#recent-and-current-work)). With it, and WP10 done with its 35 ports (D122), every dependency of WP11 is built.
 
-6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it. Its first piece, the reward, is built ([above](#recent-and-current-work)). So are the frozen held-out split and the entry checks, which 16 of the 35 ports pass, and the in-context baseline is recorded, so its three conditions are met. Growing its pool of tasks follows in Phase 2, and needs the spec workbench's reach first, [below](#phase-1-work-outside-the-gate), since graph and tree specs can't enter the pool until then.
+6. **WP11, the training environment,** is next on both paths to the Phase 2 gate, now that Phase 1's gate has passed ([Phase 2](#phase-2)). It's the one unfinished item on either path, since WP10, which it depends on, is done (D122). D123 scopes it. Its first piece, the reward, is built ([above](#recent-and-current-work)). So are the frozen held-out split and the entry checks, which 17 of the 35 ports pass, and the in-context baseline is recorded, so its three conditions are met. Growing its pool of tasks follows in Phase 2. D125 lets the workbench show the graph and tree specs can hold, but their held-out draws still keep the graph ports out, [below](#phase-1-work-outside-the-gate).
 
 Off the critical path, **WP7**, the backend that emits safe Rust, is done for B17-0 and B17-1 (D95–D97, D110, D111).
 
@@ -247,32 +252,8 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
 ### Phase 1 work outside the gate
 - **WP16** grows the core library as later subsets and ports need it.
 - **WP6's repairs** wait for WP2's typed edits.
-- **The spec workbench's reach (WP4b, WP15).** For 7 of the suite's 40 specs, `vacuity` can't show that any input meets the `requires`: `bellman_ford`, `dijkstra_shortest_paths`, `kruskal_mst`, `prim_mst`, `segmenttree_query`'s `query`, and the `max_flow_value` specs of `edmond_karp` and `push_relabel`. The specs aren't vacuous, since the self-checks' inputs meet them, checked by hand. But for the same reason, D88's property tests keep no input for those 7 defs, so none of them is tested at L1.
-  - **Two causes:**
-    - **The interpreter can't evaluate at least one clause of each,** 10 in all (D58, D102). The six graph specs bound weights or capacities with a quantifier whose guard calls a ghost-fn, `(=> (has_edge g u v w) …)`. `is_segment_tree` has an equivalence under `forall` with no guard. `kruskal` and `prim` also require a connected graph, an ∃ over paths. Z3 doesn't fill the gap: under the encoding's quantified axioms, it returns no model for any of the 40 specs.
-    - **D88's draws rarely meet a `requires`,** even one the interpreter can evaluate. A random graph is mostly well formed only when it has no edges, and a random tree is almost never a segment tree.
-  - **The plan:** four changes. A prototype of them, on 2026-11-06, closed all 7.
-    1. **Unfold a ghost-fn call in a guard,** when the ghost-fn isn't recursive and has no `requires`, and each argument is a variable or a binder, so unfolding skips, repeats or delays no evaluation that could fail: its body, with the arguments substituted, replaces the call.
-       - **An ∃ at the head of a `forall`'s unfolded guard** becomes one more `forall` binder, since `(=> (exists (i) C) P)` holds at every point exactly when `(=> C P)` does at every value of i.
-       - **A binder that a leading conjunct equates to a term** takes that term's value, once the binders the term mentions have theirs. The conjunct can't fail, since the conjuncts before it keep the term defined (D58).
-       - **Binder order:** D58 fixes binders in declaration order. This rule needs each binder fixed after those its range mentions, so it amends that order, and a quantifier with no such order stays unknown.
-       - This makes the six bounds on weights and capacities evaluable.
-    2. **Split `(forall (x) (== A B))` on booleans** into `(=> A B)` and `(=> B A)`, evaluating both whatever the first gives, when A and B are each a guard whose conjuncts all can't fail (D58, D102). Then no point the split skips could have been undefined. This makes `is_segment_tree` evaluable.
-    3. **Search for a witness of an ∃ that no guard bounds, in the workbench only:** values built from the integers in scope, shortest first, under a fixed budget.
-       - **Only where no skipped point can be undefined:** the search runs only for a clause whose definedness goals the verifier has proved, its own and those of the ghost-fns it calls. `kruskal` and `prim` qualify: the verifier proves 2 `BOUNDS` goals each for `nodes_have_path` and `path_follows_graph`.
-       - **The result:** a witness shows the `requires` can hold. Running out, or a goal not proved, leaves it unknown.
-       - **Not in checked runs or property tests,** where the ∃ stays unknown, since D58 evaluates every point so that an undefined one is found. So `kruskal`'s and `prim`'s defs still get no property test. The same condition could let runs use the search, which would be a further decision.
-    4. **Draw an integer parameter within the `requires`' bounds:** the leading conjuncts that can't fail, given the parameters drawn before it in declaration order, bound it as D58 bounds a binder.
-       - **The draw:** the range is intersected with `i64`'s. A draw takes one word from §10's stream and gives `lo + next() mod (hi − lo + 1)`. An empty range drops the draw, as a `requires` that fails does, and a parameter with no finite range is drawn as now.
-       - **Which tests gain:** D88's property tests and the workbench draw from the same seed and stream, so the inputs the workbench finds are among the draws the property tests try. With rules 1, 2 and 4, that would give 5 of the 7 defs inputs to test.
-  - **In the prototype:** with rules 1–3, every `requires` clause of the 7 evaluated true on the self-checks' inputs, and the draws found an input for 4 of the 7. With rule 4 they found one for all 7. Each input is a smallest case, such as a graph with no edges or a segment tree with one leaf.
-  - **What it changes:** rules 1 and 2 are checking rules, in `docs/b17-1.md` §8, and rule 4 changes how §10's draws give a parameter its value. So they need a decision and an amendment to version 1.3, as D114 did. Rule 3 is the workbench's own (D121). Rules 1, 2 and 4 change which inputs the property tests keep, and so L1's results and the witness examples, but every run stays deterministic.
-  - **Done when:**
-    - all 40 of the suite's specs are shown satisfiable;
-    - rules 1–3 each have a test where they decide a quantifier and one where they leave it unknown, such as a ghost-fn with a `requires`, which isn't unfolded;
-    - rule 4 has golden draws for a fixed seed;
-    - every suite label, the Rust backend's differential runs and the interpreter's other results are unchanged, and L1's results and refutations on the suite are recorded before and after.
-  - **Not covered:** a `requires` whose inputs are all larger than the draws make, or whose ∃ needs a witness past the budget. A fifth change, an input the reviewer gives to `vacuity`, would cover those. The command takes none today.
+- **The spec workbench's reach (WP4b, WP15): done for the suite, D125** ([above](#recent-and-current-work)). Not covered: a `requires` whose inputs are all larger than the draws make, an ∃ whose witness is past the search's budget, and an ∃ with several binders or a binder of another type. An input the reviewer gives to `vacuity` would cover those, and the command takes none today.
+  - **What keeps the graph ports out of the pool now:** on `bellman_ford`, `bfs` and `dijkstra`, check 5 keeps 25 inputs, but the reference's `ensures` is undecided on every one, since each quantifies over paths with no bound the interpreter can use. `kruskal` and `prim` keep no inputs, since rule 3's search is the workbench's alone, and both maximum-flow ports keep 6 of 25.
 
 ## Phase 1
 
@@ -288,7 +269,7 @@ From D21's dependency table, as D62 and D65 amend it, two paths of the same leng
 | WP4b | The spec workbench: back-translation, vacuity checks, witnesses, mutant rejection, signing | WP1a, WP5, WP15 | They run on the worked example. Done (`b17c/spec.py`, D121). |
 | WP7 | A backend that emits safe Rust (D18) | WP3, WP15 | Emitted code compiles and matches the interpreter on differential tests. Done for B17-0 (D95–D97) and for B17-1 (D110, D111). |
 | WP8 | The agent reference manual | WP3, WP5, WP6 | Every rule and error code has an example, and every example passes `b17c check`. Done for B17-0 (`docs/manual.md`) and B17-1 (`docs/manual-1.md`, D112). |
-| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113 and 1.2 by D114. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels and works out its verification levels (D120). |
+| B17-1 | The second subset: data types, tuples, collections of any type, ghost sets and maps (D79); verification levels L0 to L3 (D80) | WP1a, WP3, WP5, WP15 | Its spec and suite freeze once the checker agrees with every tier 0 label (D44). Done: frozen on 2026-10-30 at version 1.0, with D81–D92, D99, D100 and D102–D109, and amended to version 1.1 by D113, 1.2 by D114 and 1.3 by D125. The interpreter and the Rust backend run its accept programs, and the verifier checks its proof labels and works out its verification levels (D120). |
 | WP10 | Benchmark ports | WP1a, WP5; B17-1 for the AlgoVeri ports, since 50 of the 64 that D79 surveyed need its features | Ported tasks verify end to end and run as emitted Rust (D122, which dropped Dafny, Verus and Lean as the languages they come from). Done with 35: the 20 seed tasks, in B17-0, and 15 of AlgoVeri's, in B17-1, all checked by Phase 1's gate on 2026-11-06. None comes from Verus or Lean. |
 
 **The head-to-head experiment** is called M3 in the activity log.
@@ -312,7 +293,7 @@ Its curriculum covers every domain the language has reached by then (D65).
 - **The reward:** the design spec's tiers, from 0.05 for a reply that parses to 0.90 for one that's verified and right within 20M steps on 25 held-out inputs. There's no 1.00 tier until specs can state a cost (D30).
   - **Partial credit** counts each `ensures` clause whose goals are proved without resting on a goal that isn't (L2's closure), so padding, a failing `assert` and a loop that never ends earn no more than a reply without them.
   - **A discrepancy scores 0:** a verified reply that's wrong on a held-out input is recorded for triage, since it shows a hole in the verifier, a spec that says something other than the reference, or a bug in the interpreter or the reference.
-- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. On the 35 ports, 16 pass all five. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
+- **The pool:** a task enters once its spec passes the workbench's vacuity and mutant checks, a reference def verifies, and its held-out inputs can be drawn. On the 35 ports, 17 pass all five. In Phase 2 the pool grows from AlgoVeri's unported problems, then vericoding's Dafny tasks and FVAPPS's problems.
 - **The split:** M3's 34 tasks are the gate's test set, with the pool's problems that match them and 1 in 10 of the rest.
 - **The baseline:** Claude and Codex on the test set, then the pool's slice and the base model as they arrive. The first part is recorded: last-reply means of 0.900 and 0.895 for Claude on B17-0 and B17-1, and 0.900 and 0.601 for Codex, with Claude's B17-1 samples complete after its rerun under D124 ([above](#recent-and-current-work)).
 
@@ -344,7 +325,7 @@ The phases build the toolchain. The language grows alongside them in subsets (D6
 | Subset | What it adds | When |
 |---|---|---|
 | **B17-0** | Checked integers, booleans, sequences, slices and owned vectors; contracts; the `alloc`, `panic` and `io` effects (D20) | Phase 0. Frozen on 2026-10-28, once WP3's checker agreed with the suite (D44). |
-| **B17-1** | Data types with type parameters, tuples, collections of any type, quantifiers over any ghost type, and ghost sets and maps (D79); verification levels L0 to L3, and what a goal that isn't proved does below L2 (D80) | Phase 1. Its scope (D79, D80) and its spec text's decisions D81–D92, D99 and D100 were accepted on 2026-10-28, D102–D108 on 2026-10-29, and D109 on 2026-10-30. Its spec text ([b17-1.md](b17-1.md)) and labelled suite (`suite/b17-1/`) froze on 2026-10-30, at version 1.0, D113 made it version 1.1, and D114 version 1.2. |
+| **B17-1** | Data types with type parameters, tuples, collections of any type, quantifiers over any ghost type, and ghost sets and maps (D79); verification levels L0 to L3, and what a goal that isn't proved does below L2 (D80) | Phase 1. Its scope (D79, D80) and its spec text's decisions D81–D92, D99 and D100 were accepted on 2026-10-28, D102–D108 on 2026-10-29, and D109 on 2026-10-30. Its spec text ([b17-1.md](b17-1.md)) and labelled suite (`suite/b17-1/`) froze on 2026-10-30, at version 1.0, D113 made it version 1.1, D114 version 1.2, and D125 version 1.3. |
 | **Later subsets** | From §11 and D79: mutable borrows, floats, strings, runtime sets and maps, and generic functions; mutual recursion, once there's group hashing (D22); and vector capacity, once there are allocation bounds (D30). From D64: closures and higher-order functions, interfaces or traits, asynchronous I/O, a user-interface model, and tensors with automatic differentiation. Effects for files, network and time. | Benchmarks set the order (D14), within §11's prerequisites. Growth continues past Phase 4 until D64's scope is covered. |
 
 - **The standard library** grows with the subsets. The design spec's library covers collections, numerics, text, parsers, cryptography and time. Each subset's scope includes the library entries it makes expressible.

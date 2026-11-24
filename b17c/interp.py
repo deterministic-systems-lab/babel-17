@@ -11,10 +11,13 @@ run can't start.
 run() assumes the program passes tier 0 (WP3). With check=False it is §8: ghost code is
 erased. With check=True it also evaluates contracts, invariants, measures, asserts,
 ghost locals and ghost-fn calls, and stops at the first clause the run refutes (D57).
-A quantifier whose range can't be read off its guard is never assumed (D58).
+A quantifier whose range can't be read off its guard is never assumed (D58). Where a binder has
+no finite range, a quantifier is evaluated again with a guard's ghost-fn calls unfolded, or an
+equivalence split (D125).
 
 test_def() runs a def on D88's generated inputs with checking on, for L1 (D80, docs/b17-1.md §10).
 """
+import itertools
 import operator
 import sys
 from collections import Counter
@@ -29,6 +32,7 @@ CORE1 = parse((Path(__file__).parent / "core1.b17").read_bytes(), 1)  # B17-1's 
 MIN, MAX = -2**63, 2**63 - 1
 FUEL, DEPTH = 1_000_000, 1_000  # D59: steps per run, and nested def and ghost-fn calls
 KEPT, DRAWS = 100, 10_000       # D88: inputs that satisfy the requires, from at most this many draws
+SEARCH = 1_000                  # D125: the workbench's candidates for an ∃'s witness, each time one is evaluated
 
 
 class _Unknown:
@@ -440,6 +444,7 @@ class _Program:
         self.fns, self.ids, specs, defs = {}, {}, {}, {}
         self.later = {}  # a loop -> the nodes it checks again after each pass
         self.sub, self.datas, self.ctors = subset, {}, {}  # data name -> item; constructor -> (item, field names)
+        self.orig, self.rewrites = {}, {}  # D125: id(copy) -> the node it copies; a quantifier's rewritten forms
         for m in (CORE, CORE1, module) if subset else (CORE, module):
             for item in m.items[3:]:
                 kind, name = item.items[0].text, item.items[1].text
@@ -478,8 +483,48 @@ class _Program:
                 self._index(c, item, path + (k,))
 
     def node(self, x):
+        x = self.orig.get(id(x), x)
         item, path = self.ids.get(id(x), ("argument", ()))
         return Node(item, path, x.pos)
+
+    def subst(self, x, names):
+        """x with each free name in names replaced by its Sym, and each name x binds renamed to a fresh
+        one, so nothing is captured (D125). Each copy stands for the node it copies, in IDs and L1's keys."""
+        if isinstance(x, Sym):
+            return names.get(x.text, x)
+        if not isinstance(x, Form) or not x.items:
+            return x
+        h, items = _head(x), list(x.items)
+
+        def bind(decl):  # a binder's declaration, (NAME type) or NAME, renamed in the scope that follows
+            sym = decl.items[0] if isinstance(decl, Form) else decl
+            new = self.copy(Sym(f"{sym.text}#{len(self.orig)}", sym.pos), sym)
+            names[sym.text] = new
+            return self.copy(Form((new, *decl.items[1:]), decl.pos, decl.end), decl) if isinstance(decl, Form) else new
+        names = dict(names)
+        if h in ("forall", "exists", "iset-of"):  # (q ((NAME type)+) e)
+            items[1] = self.copy(Form(tuple(bind(b) for b in x.items[1].items), x.items[1].pos, x.items[1].end), x.items[1])
+            items[2] = self.subst(x.items[2], names)
+        elif h == "seq-build":  # (seq-build e (fn (NAME) e))
+            f = x.items[2]
+            items[1] = self.subst(x.items[1], names)
+            ps = self.copy(Form((bind(f.items[1].items[0]),), f.items[1].pos, f.items[1].end), f.items[1])
+            items[2] = self.copy(Form((f.items[0], ps, self.subst(f.items[2], names)), f.pos, f.end), f)
+        elif h == "match":  # (match e (case (C NAME*) e)+), each arm's names its own
+            items[1] = self.subst(x.items[1], names)
+            for k, c in enumerate(x.items[2:], 2):
+                arm, pat = dict(names), c.items[1]
+                pat = self.copy(Form((pat.items[0], *[bind(n) for n in pat.items[1:]]), pat.pos, pat.end), pat)
+                items[k] = self.copy(Form((c.items[0], pat, self.subst(c.items[2], names)), c.pos, c.end), c)
+                names = arm
+        else:
+            items = [self.subst(c, names) for c in x.items]
+        return self.copy(Form(tuple(items), x.pos, x.end), x)
+
+    def copy(self, new, old):
+        self.orig[id(new)] = self.orig.get(id(old), old)
+        self.rewrites[id(new)] = new  # kept, so its id is never reused
+        return new
 
     def again(self, s):
         """The ids of the nodes that loop s checks again after each pass: its condition's and its
@@ -549,6 +594,8 @@ class _Run:
         self.clause = None   # the clause being evaluated, to which a failure inside it belongs
         self.seen = None     # for L1's tests: goal key -> whether it held, each time one is evaluated (D80)
         self.again = None    # while a loop checks its condition or invariants after a pass, the nodes they hold
+        self.search = 0      # D125's rule 3: candidates for an unbounded ∃'s witness, in the workbench only
+        self.soft = False    # D125's rule 4: running out of fuel makes a quiet evaluation undefined, not a limit
         self.exprs = _EXPRS | _EXPRS_1 if program.sub else _EXPRS  # B17-0 may name a ghost-fn union (D101)
 
     def tick(self, x):
@@ -560,6 +607,7 @@ class _Run:
         """The goal (family, x, clause) was evaluated, keyed as verify.py keys goals.py's goals: the
         second of its name when a loop checks it after a pass. A loop's INV goals are one each."""
         if self.seen is not None:
+            x, clause = self.p.orig.get(id(x), x), self.p.orig.get(id(clause), clause)
             again = self.again is not None and id(x) in self.again and not family.startswith("INV-")
             self.seen[family, id(x), None if clause is None else id(clause), 2 if again else 1] = held
 
@@ -807,7 +855,7 @@ class _Run:
         try:
             v = self.ghost(e, env)
         except _Stop as stop:
-            if isinstance(stop.outcome, Limit):
+            if isinstance(stop.outcome, Limit) and not self.soft:
                 raise
             return None
         finally:
@@ -1048,24 +1096,34 @@ class _Run:
         return UNKNOWN if v is None else v[0].count(v[1])  # a sequence's count, or a multiset's
 
     def e_quantifier(self, x, env, g):
-        """forall or exists over the ranges its guard gives its binders, at every point (D58, D102)."""
+        """forall or exists over the ranges its guard gives its binders, at every point (D58, D102).
+        Where a binder has no finite range, it's evaluated again by D125's rules."""
         q, binders, body = x.items[0].text, x.items[1].items, x.items[2]
         names = [b.items[0].text for b in binders]
-        ints, bools = ({b.items[0].text for b in binders if _print(b.items[1]) == t} for t in ("int", "bool"))
+        types = {b.items[0].text: b.items[1] for b in binders}
+        ints, bools = ({n for n in names if _print(types[n]) == t} for t in ("int", "bool"))
         if q == "forall":
             guard = body.items[1] if _head(body) == "=>" else None
         else:
             guard = body if _head(body) == "and" else None
-        seen = [False, False]  # a point that decides the result; a point or range that's unknown
+        seen = [False, False, False]  # a point that decides the result; a point or range that's unknown; a binder with no finite range
         self.points(q == "exists", names, ints, bools, [] if guard is None else _conjuncts(guard), body, dict(env), 0,
                     seen)
         if seen[0]:
             return q == "exists"  # forall has a false point, or exists a true one
-        return UNKNOWN if seen[1] else q == "forall"
+        if not seen[2]:
+            return UNKNOWN if seen[1] else q == "forall"
+        if q == "forall" and _head(body) == "==":
+            return self.split(names, ints, bools, body, env)
+        v = self.unfolded(x, q, names, types, guard, body, env)
+        if v is UNKNOWN and q == "exists" and self.search:
+            return self.witness(x, env)
+        return v
 
-    def points(self, want, names, ints, bools, guard, body, env, k, seen):
+    def points(self, want, names, ints, bools, guard, body, env, k, seen, adaptive=False):
         """Evaluate body at every point, fixing the binders in order. Points after the result
-        is decided are still evaluated, so that an undefined one is found (D58)."""
+        is decided are still evaluated, so that an undefined one is found (D58). Adaptive, the
+        next binder is the first whose range is finite with those before it fixed (D125)."""
         if k == len(names):
             v = self.eval(body, env, True)
             if v is UNKNOWN:
@@ -1073,14 +1131,106 @@ class _Run:
             elif v == want:
                 seen[0] = True
             return
-        x = names[k]
-        values = (False, True) if x in bools else self.span(x, names[k:], ints, guard, env)
-        if values is None:
-            seen[1] = True
+        for j in range(k, len(names) if adaptive else k + 1):
+            x = names[j]
+            values = (False, True) if x in bools else self.span(x, names[k:], ints, guard, env)
+            if values is not None:
+                names = names[:k] + [x] + names[k:j] + names[j + 1:]
+                break
+        else:
+            seen[1] = seen[2] = True
             return
         for v in values:
             env[x] = v
-            self.points(want, names, ints, bools, guard, body, env, k + 1, seen)
+            self.points(want, names, ints, bools, guard, body, env, k + 1, seen, adaptive)
+
+    def unfolded(self, x, q, names, types, guard, body, env):
+        """D125's rule 1: the guard's calls to a ghost-fn with no requires, measure or recursion, each
+        argument a binder or a variable that isn't unknown, replaced by its body, and in a forall each
+        ∃ among the conjuncts made more binders, with binders fixed adaptively. Unknown if nothing unfolds."""
+        unknown = tuple(sorted(n for n, v in env.items() if v is UNKNOWN))
+        if (id(x), unknown) not in self.p.rewrites:
+            types, out, todo, changed = dict(types), [], [] if guard is None else _conjuncts(guard), False
+            while todo:
+                c = todo.pop(0)
+                fn = self.p.fns.get(c.items[0].text) if isinstance(c, Form) and isinstance(c.items[0], Sym) else None
+                if (fn is not None and fn.kind == "ghost-fn" and not fn.requires and fn.decreases is None
+                        and not _mentions(fn.body, {fn.name})
+                        and all(isinstance(a, Sym) and (a.text in types or a.text in env and env[a.text] is not UNKNOWN)
+                                for a in c.items[1:])):
+                    todo[:0] = _conjuncts(self.p.subst(fn.body, dict(zip(fn.params, c.items[1:]))))
+                elif q == "forall" and _head(c) == "exists":  # (=> (exists (ys) B) P) is (=> B P) at every ys
+                    lifted = self.p.subst(c, {})
+                    types.update((b.items[0].text, b.items[1]) for b in lifted.items[1].items)
+                    todo[:0] = _conjuncts(lifted.items[2])
+                else:
+                    out.append(c)
+                    continue
+                changed = True
+            g = None
+            for c in reversed(out):
+                g = c if g is None else self.p.copy(Form((Sym("and"), c, g), c.pos), c)  # where it's reported
+            new = None if not changed else g if q == "exists" else self.p.copy(Form((Sym("=>"), g, body.items[2]), body.pos), body)
+            self.p.rewrites[id(x), unknown] = new and (list(types), types, out, new)
+        r = self.p.rewrites[id(x), unknown]
+        if r is None:
+            return UNKNOWN
+        names, types, out, new = r
+        ints, bools = ({n for n in names if _print(types[n]) == t} for t in ("int", "bool"))
+        seen = [False, False, False]
+        self.points(q == "exists", names, ints, bools, out, new, dict(env), 0, seen, True)
+        return q == "exists" if seen[0] else UNKNOWN if seen[1] else q == "forall"
+
+    def split(self, names, ints, bools, body, env):
+        """D125's rule 2: (forall (xs) (== A B)), when every conjunct of A and B can't fail, as
+        (forall (xs) (=> A B)) and (forall (xs) (=> B A)), each evaluated whatever the other gives."""
+        a, b = body.items[1], body.items[2]
+        if not all(self.cant_fail(c, names, ints, env) for c in _conjuncts(a) + _conjuncts(b)):
+            return UNKNOWN
+        if ("split", id(body)) not in self.p.rewrites:  # each half is reported at the equivalence
+            self.p.rewrites["split", id(body)] = [self.p.copy(Form((Sym("=>"), p, c), body.pos), body) for p, c in ((a, b), (b, a))]
+        seen = [False, False, False]
+        for half in self.p.rewrites["split", id(body)]:
+            self.points(False, names, ints, bools, _conjuncts(half.items[1]), half, dict(env), 0, seen)
+        return False if seen[0] else UNKNOWN if seen[1] else True
+
+    def cant_fail(self, c, free, ints, env):
+        """Whether conjunct c can't fail, with the binders free unassigned (D58, D102): a comparison
+        of binders and defined terms that mention none, a binder's membership in a finite collection
+        such a term gives, or a term that mentions none and is a defined boolean."""
+        op = _head(c)
+        if op == "contains" and isinstance(c.items[2], Sym) and c.items[2].text in free:
+            return not _mentions(c.items[1], free) and isinstance(self.quiet(c.items[1], env), (tuple, frozenset, Map))
+        if op in _FLIP and len(c.items) == 3:
+            return all(isinstance(s, Sym) and s.text in free or not _mentions(s, free) and self.quiet(s, env) is not None
+                       for s in c.items[1:])
+        return not _mentions(c, free) and type(self.quiet(c, env)) is bool
+
+    def witness(self, x, env):
+        """D125's rule 3, in the workbench only: true at the first of SEARCH candidates for an ∃'s one
+        binder of type int, bool or a sequence of either at which its body is true, else unknown. Its
+        clause's definedness goals are proved, so the points it skips are defined."""
+        binders, body = x.items[1].items, x.items[2]
+        if len(binders) != 1:
+            return UNKNOWN
+        name, t = binders[0].items[0].text, _print(binders[0].items[1])
+        ints = set()
+        for n in {s.text for s in _nodes(body) if isinstance(s, Sym)} - {name}:
+            if n in env:
+                _ints(env[n], ints)
+        atoms = {"int": sorted(ints | {0}), "bool": [False, True]}
+        if t in atoms:
+            candidates = atoms[t]
+        elif t in ("(seq int)", "(seq bool)"):
+            candidates = (tuple(c) for n in itertools.count() for c in itertools.product(atoms[t[5:-1]], repeat=n))
+        else:
+            return UNKNOWN
+        inner = dict(env)
+        for c in itertools.islice(candidates, self.search):
+            inner[name] = c
+            if self.eval(body, inner, True) is True:
+                return True
+        return UNKNOWN
 
     def span(self, x, free, ints, guard, env):
         """The values the guard allows binder x, with the binders before it fixed in env: a
@@ -1337,6 +1487,28 @@ class _Draws:
     def below(self, n):
         return self.next() % n
 
+    def args(self, names, types, requires):
+        """One draw of a def's parameters, in order (§10), or None when it's dropped. In B17-1, an i64
+        parameter is drawn within the range that the requires' leading conjuncts that can't fail give
+        it, with the parameters drawn so far fixed and the rest unassigned, as D58 reads a guard. An
+        empty range drops the draw at once (D125)."""
+        guard, env, ints = [c for e in requires for c in _conjuncts(e)], {}, {n for n, t in zip(names, types) if t == ("i64",)}
+        for k, (n, t) in enumerate(zip(names, types)):
+            values = None
+            if self.p.sub and t == ("i64",):
+                r = _Run(self.p, True, FUEL, DEPTH)
+                r.soft = True  # its own fuel, whose running out only ends the conjuncts read
+                values = r.span(n, names[k:], ints, guard, env)
+            if values is None:
+                env[n] = self.value(t)
+                continue
+            lo, hi = (values.start, values.stop - 1) if isinstance(values, range) else (min(values, default=1), max(values, default=0))
+            lo, hi = max(lo, MIN), min(hi, MAX)
+            if lo > hi:
+                return None
+            env[n] = lo + self.next() % (hi - lo + 1)
+        return tuple(env[n] for n in names)
+
     def ctors(self, t):
         """Data type t's constructors, each as (name, its field types)."""
         item = self.p.datas[t[0]]
@@ -1396,7 +1568,9 @@ def test_def(module, name, seed, subset=SUBSET, fuel=FUEL, kept=KEPT, draws=DRAW
         for _ in range(draws):
             if len(inputs) == kept:
                 break
-            args = tuple([gen.value(t) for t in types])
+            args = gen.args(fn.params, types, fn.requires)
+            if args is None:
+                continue
             r = _Run(p, True, fuel, DEPTH)
             r.seen = {}
             try:
@@ -1422,7 +1596,7 @@ def _spec(module, name):
     return next(it for it in module.items[3:] if it.items[0].text == "spec" and it.items[1].text == name)
 
 
-def _holds(p, spec, args, results, fuel=FUEL):
+def _holds(p, spec, args, results, fuel=FUEL, search=()):
     """Spec's requires at args in order, stopping at the first that doesn't hold, since a later
     one may assume it; then, given results, its ensures. Each is (kind, clause, value), the value
     None where the clause is undefined or unknown (D57, D58)."""
@@ -1431,6 +1605,9 @@ def _holds(p, spec, args, results, fuel=FUEL):
     r, out = _Run(p, True, fuel, DEPTH), []
     for kind in ("requires", "ensures") if results is not None else ("requires",):
         for e in _clauses(spec, kind):
+            r.search = SEARCH if id(e) in search else 0
+            if r.search or search:
+                r.memo = {}  # a value found by searching isn't one a run would find, nor the other way round
             try:
                 v = r.quiet(e, env)
             except _Stop:  # a limit
@@ -1447,16 +1624,18 @@ def holds(module, name, args, results=None, subset=SUBSET, fuel=FUEL):
         return _holds(_Program(module, subset), _spec(module, name), tuple(_value(a) for a in args), results, fuel)
 
 
-def spec_inputs(module, name, seed, k, subset=SUBSET, draws=DRAWS):
-    """The first k of D88's inputs for spec name, from a stream starting at seed, whose requires all hold."""
+def spec_inputs(module, name, seed, k, subset=SUBSET, draws=DRAWS, search=()):
+    """The first k of D88's inputs for spec name, from a stream starting at seed, whose requires all hold.
+    The requires clauses in search may look for an ∃'s witness (D125's rule 3)."""
     p, spec, out = _Program(module, subset), _spec(module, name), []
-    gen, types = _Draws(p, seed), [_ground(t, {}) for t in _types(_clauses(spec, "params"))]
+    params = _clauses(spec, "params")
+    gen, types = _Draws(p, seed), [_ground(t, {}) for t in _types(params)]
     with _deep(DEPTH):
         for _ in range(draws):
             if len(out) == k:
                 break
-            args = tuple([gen.value(t) for t in types])
-            if all(v is True for _, _, v in _holds(p, spec, args, None)):
+            args = gen.args(_names(params), types, _clauses(spec, "requires"))
+            if args is not None and all(v is True for _, _, v in _holds(p, spec, args, None, search=search)):
                 out.append(args)
     return out
 
@@ -1475,6 +1654,28 @@ def _steps(x, op, y):
 
 def _tighten(bounds, x, v, pick):
     bounds[x] = v if bounds[x] is None else pick(bounds[x], v)
+
+
+def _nodes(x):
+    yield x
+    if isinstance(x, Form):
+        for c in x.items:
+            yield from _nodes(c)
+
+
+def _ints(v, out):
+    """Add the integers in value v to out (D125's rule 3)."""
+    if type(v) is int:
+        out.add(v)
+    elif isinstance(v, (tuple, frozenset)):
+        for x in v:
+            _ints(x, out)
+    elif isinstance(v, (Tup, Data)):
+        _ints(v.parts(), out)
+    elif isinstance(v, Map):
+        _ints(tuple(v.items()), out)
+    elif isinstance(v, Multiset):
+        _ints(tuple(x for x, _ in v.counts), out)
 
 
 def _mentions(x, names):
