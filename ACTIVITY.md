@@ -3467,3 +3467,43 @@ WP4b and WP15. The owner accepted D125 on 2026-11-23, as drafted: a ghost-fn cal
 - **D58, D88 and D121:** their headings name D125, which refines them.
 - **Updated:** DECISIONS (D125's status and the headings of D58, D88 and D121); the README's WP4b row; the roadmap's decisions waiting for the owner, accepted decisions and plan.
 - **Interfaces touched:** none.
+
+## 2026-11-23 · D125 built: the spec workbench's reach
+
+WP4b and WP15. D125's four rules are built, in `b17c/interp.py` and `b17c/spec.py`, and `docs/b17-1.md` is version 1.3. `vacuity` now shows that all 40 of the suite's specs have an input meeting the `requires`, against 33.
+
+- **The rules, as built:**
+  1. **`_Run.unfolded`:** where D58 finds a binder with no finite range and no point decides the quantifier, the guard's calls are unfolded. Each call is of a ghost-fn with no `requires` or `decreases` that isn't recursive, and each argument is a binder or a variable whose value is known. An ∃ in a `forall`'s guard becomes more binders, renamed apart, and the binders are fixed in the first order that gives each a finite range. The rewrite is built once per quantifier and set of unknown names.
+  2. **`_Run.split`:** `(forall (xs) (== A B))`, where every conjunct of A and of B can't fail, is evaluated as two implications, both whatever the first gives.
+  3. **`_Run.witness`:** the workbench's search, on a `requires` clause that `spec._searchable` admits. The clause's own definedness goals and every goal of each module ghost-fn it reaches must count in L2's closure. Core ghost-fns add no goals.
+  4. **`_Draws.args`:** in B17-1, an `i64` parameter at depth 0 is drawn within its `requires`' bounds.
+- **Tests:**
+  - **Rule 1:** a bound through an edge ghost-fn, decided true and false, and left unknown for a ghost-fn with a `requires` and for an argument that isn't a variable.
+  - **Rule 2:** an equivalence decided, and one with a side that might fail left unknown.
+  - **Rule 3:** the search finds `(seq-lit 5 0)` for a clause proved defined. It doesn't run on a clause with a goal that isn't proved, and a tuple binder isn't searched. A clause that reaches the core library's `in_i64` is admitted to the search.
+  - **Rule 4:** golden draws for seed 7. B17-0's draws are unchanged, and an empty range drops the draw before any word is taken.
+  - **Where a limit is reported:** a loop over fuel 1 to 399 checks that no run stops at a form the rules built.
+- **Done-when, item by item:**
+  - **All 40 specs shown satisfiable,** against 33: `kruskal_mst` and `prim_mst` by rule 3's search, the other 5 by a draw. Of the `ensures` clauses, 58 are shown not trivial, against 50, and 17 stay unjudged, against 25.
+  - **Unchanged:** all 17 self-checks pass, with every suite label. The Rust backend's 12,926 differential runs match, the same count as before. In the checked runs of the suite that `test_interp.py` records, some clauses once left unchecked are now checked, and none is newly unchecked: `requires` clauses in the 7 programs, among them the calls of `entry_w` and `cap_step`, and `dedup_sorted`'s `ensures`, which rule 2 evaluates.
+  - **L1, D88's property tests on the 35 accept programs:** no goal refuted, before or after. Inputs kept:
+    - 0 to 100 for `bellman_ford` and `dijkstra_shortest_paths`, 0 to 11 for each `max_flow_value`, and 0 to 13 for `query`;
+    - `kruskal_mst` and `prim_mst` stay at 0, since the search isn't used in runs;
+    - `bfs_shortest_path` 1 to 100, `trie_insert`'s `insert_at` 79 to 100, and `push_relabel`'s `add_flow` 52 to 100;
+    - the draws change, but not the count kept, for `bst_insert`, `bst_search`, `coin_change`, `discrete_logarithm` and `lca`'s two defs;
+    - `dedup_sorted` evaluates 34 goals, against 30, now that its `ensures` is checked.
+  - **WP11's entry checks,** rerun on the 35 ports in six processes, in 79 minutes: 17 pass all five, against 16. `dedup_sorted` enters.
+    - **Check 2** passes on all 35. Before, the 7 graph and tree specs failed.
+    - **Check 4:** tests kill 547 of the 835 mutants, against 361, and the verifier 255, against 441. Survivors are 33, as before.
+    - **Check 5** fails on 14, against 15. `bellman_ford`, `bfs` and `dijkstra` now keep 25 inputs, but on each the interpreter can't decide the `ensures`, which quantifies over paths. `kruskal` and `prim` keep none, both maximum-flow ports keep 6 and `query` 17. `lca` keeps 14, against 18, since its draws changed.
+- **Rule 4 changes more draws than D125's Cost said:** a draw now stops where a leading conjunct of the `requires` is already false when an `i64` parameter is reached, which changes the stream for `lca`, `bst_search` and `coin_change`, among others, whose `requires` give no parameter a finite range. That's what the rule states, and the Cost line now says it.
+- **D125's text:**
+  - **Rule 1 and §8** say a quantifier is evaluated again only where no point decided it, which the claim that no decided outcome changes needs.
+  - **Rule 3** says the core library's ghost-fns add no goals, as its header states.
+- **Codex review** (`gpt-5.6-sol`), told not to read the secret or run `pool.py`: it found no path that returns a value against D58's or skips an undefined point. It found 2 problems, both fixed:
+  - **Rule 3 refused every clause that reaches a core ghost-fn,** though they're total. It's tested with `in_i64`.
+  - **Provenance:** a goal copied by a rewrite was keyed before being mapped to its source, so a loop's second check of it counted as the first. And the `and` and `=>` forms the rules build reported a limit at `argument`. The fuel loop above fails on the code before the fix.
+- **Ponytail:** one tree walk shared by the interpreter and the workbench, and two shorter forms, 10 lines fewer.
+- **Codex's fact-check of this entry,** the roadmap, the README and D125's Cost line, against the records: no number wrong. It found 4 claims worded too broadly, all fixed: the early drop comes only from a leading conjunct, rule 1's retry needs a binder with no finite range, rule 1 unfolds core ghost-fns too, and the `in_i64` test shows the clause admitted, not searched.
+- **Updated:** DECISIONS (D125's text, as above); `docs/b17-1.md`'s status, §8, §10 and §14; `gym/pool-ports.jsonl`; the README's WP4b and WP11 rows; the roadmap's recent work, entry checks, critical path, reach and Phase 2.
+- **Interfaces touched:** none.

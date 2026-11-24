@@ -2011,7 +2011,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Rule 3 in checked runs too,** under the same condition. `kruskal` and `prim` would then get property tests. But a run's outcome would rest on the verifier's results, which no run's does today, and the search would run at every clause it reaches. That would be a further decision.
   - **More draws:** with rules 1–3, D88's 10,000 draws found no input for the other 3, which need two or more parameters to land in narrow ranges set by the `requires`.
 - **Cost:**
-  - **Inputs change:** rule 4 changes the draws for every B17-1 spec whose `requires` bounds an `i64` parameter. So L1's results, the witness examples and the pool's held-out inputs change for those specs, and they're recorded before and after. No recorded reward changes: the pool has no task yet, and the test set's held-out inputs are D118's, run unchecked.
+  - **Inputs change:** rule 4 changes the draws for every B17-1 spec whose `requires` bounds an `i64` parameter, or has a leading conjunct that's already false when one is reached, since such a draw now stops there. So L1's results, the witness examples and the pool's held-out inputs change for those specs, and they're recorded before and after. No recorded reward changes: the pool has no task yet, and the test set's held-out inputs are D118's, run unchecked.
   - **B17-1 is amended a third time,** to version 1.3, after D113 and D114.
   - **Step counts rise** where rule 1 applies, since such a quantifier is evaluated twice. No outcome D58 decides changes.
   - **The workbench is slower** where rule 3 searches, by up to 1,000 candidates each time an ∃ is evaluated, within a run's fuel.
