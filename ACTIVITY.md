@@ -3560,10 +3560,17 @@ WP11's pool, in Phase 2. The owner asked for AlgoVeri's problems to be ported. 1
 ## 2026-11-24 · D126 proposed: quantifiers over sequences
 - **What:** the owner asked for a draft of the decision the roadmap's second item from the pool's first ports needs. D126 lets the interpreter give a `(seq int)` or `(seq bool)` binder a finite range, where its guard's leading conjuncts bound the sequence's length, and its elements through a `forall` over its positions. It builds sequences shortest first and drops any that extends one a `forall` over positions rules out. D125's rule 1 also unfolds an ∃ whose body is one ghost-fn call.
 - **Settled in drafting:**
-  - **Which conjuncts prune:** a `forall` over x's positions whose guard mentions `(len x)` only as an upper bound and keeps every index it reads in range, with a body of comparisons. It can't fail, and it's false at every extension of a sequence where it's false, so skipping those hides nothing (D58).
-  - **The search's fuel** is its own, D59's default, as D125's rule 4 reads bounds. Running out leaves the binder unbounded, as today, so no unknown becomes a `limit`.
+  - **Which conjuncts prune:** a `forall` over x's positions whose guard D58 can read, with `(len x)` only as an upper bound and every index it reads kept in range, and a body of comparisons. It can't fail, and it's false at every extension of a sequence where it's false, so skipping those hides nothing (D58).
+  - **The search's fuel** is its own, D59's default for each reading of the range, with a step for each sequence built, as D125's rule 4 reads bounds. Running out, or a `forall` over positions that comes out neither true nor false, leaves the binder unbounded, as today, so no unknown becomes a `limit`.
   - **No `or`:** `linearsys_gf2`'s port writes `x[i] == 0 || x[i] == 1` as two comparisons instead.
-- **Counted for it,** by a sketch of the search at 8 elements: `house_robber` 55 points, `longest_increasing_subsequence` 256, `jump_game` 255, and `knapsack_01`, `bipartite_check` and `linearsys_gf2` 256 each. `k_smallest`'s permutations build 554,249 candidates, past the fuel.
+- **Codex's review** (`gpt-5.6-sol`) found the soundness argument right once tightened, the table's counts right, the five exclusions right, and no suite binder newly reached. It found 4 problems, all fixed:
+  - a `forall` over positions whose guard D58 can't read, such as one bounding `(+ i 1)`, would come out unknown, so G's sides are now D58's and each of its binders needs a finite range;
+  - the search's cost: an exact-length `(seq bool)` with nothing to prune built sequences without spending fuel, so each sequence built now costs a step, and the search gives up on anything but `true` or `false`;
+  - the search's order and scope, now stated: flattened guard order, bounds intersected, breadth first, and the same rule in D125's rewritten quantifiers;
+  - `jump_game`'s `if |path| < 1 then false else …` unfolds to an `if`, so its port writes it as a conjunction.
+
+  It also suggested Boolean masks for three of the witnesses, which would need only length and element bounds. That's now an alternative: it moves those specs further from their sources.
+- **Counted for it,** by a sketch of the search at 8 elements: `house_robber` 55 points, `longest_increasing_subsequence` 256, `jump_game` 255, and `knapsack_01`, `bipartite_check` and `linearsys_gf2` 256 each. `k_smallest`'s permutations build 554,249 sequences, past the fuel.
 - **Not reached:** `k_smallest`, `cycle_detection`, `topological_sort`, `knapsack_unbounded` and `max_matching`, and the ported path specs and `coin_change`, whose clauses stay unknown as now.
 - **Updated:** DECISIONS (D126) and the roadmap's decisions waiting.
 - **Not changed:** the code, the spec text and the suite, until D126 is accepted.
