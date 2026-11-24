@@ -3440,11 +3440,20 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
   3. the workbench searches for an unbounded ∃'s witness, up to 1,000 candidates, only in clauses the verifier proves defined;
   4. the property tests draw an `i64` parameter within the range its `requires` gives it.
 - **Settled in drafting:**
-  - **Rule 1's binder order** is the first binder, in declaration order, whose range is finite. Where declaration order works, that's the same order, so no quantifier D58 decides changes.
+  - **Rule 1 applies only where D58 finds one of a quantifier's binders with no finite range,** and the quantifier is then evaluated again, rewritten. So no quantifier D58 decides changes, and an unknown inner quantifier doesn't make every outer one evaluate twice. Its binder order is the first binder, in declaration order, whose range is finite.
   - **Rule 3's candidates and budget,** which the plan left open: one binder of type `int`, `bool` or a sequence of either, built from the integers in scope, shortest first, up to 1,000 a time.
   - **No recorded reward changes:** the reward's checked runs are on the pool's inputs only, and the pool has no task yet. The test set's held-out inputs are D118's, run unchecked (`gym/reward.py`).
   - **B17-0 stays at version 1.2,** since its text says nothing about checking (D102), and B17-1 becomes 1.3.
 - **Counted for it:** besides the ports, AlgoVeri's unported problems include 6 on graphs and 2 segment trees.
+- **Codex review** (`gpt-5.6-sol`), told not to read the secret: it checked the rules against D58 and the interpreter, and the claims against the specs and the reward. It found 6 problems, all fixed:
+  - **Rule 1 could turn an unknown into true:** a call with an unknown argument is unknown, but its unfolded body might not read the argument. It also skipped a ghost-fn's `decreases`. Rule 1 now needs no unknown argument and no `decreases`.
+  - **Lifting an ∃ isn't exact under D58's unknowns:** where its body is unknown at one value and true at another, the lifted form is unknown where the original is true. Codex confirmed this on the interpreter. So rule 1 now applies only where D58 finds one of a quantifier's binders with no finite range, which keeps every outcome D58 decides.
+  - **Rule 3's proof condition was vague.** It now names the goals: the clause's own, its calls' `requires`, and every goal of each ghost-fn it reaches, each counting for L2.
+  - **Rule 1's binder order** now says the binders not yet chosen are all unassigned, as the interpreter's `span` needs.
+  - **Rule 4 didn't say how an early drop uses the stream,** or what reading the bounds costs.
+  - **Two descriptions:** `query`'s `qr` can equal `high`, and the maximum-flow specs use `has_capacity`.
+  - It confirmed the other claims: the witness `[0]` for a one-vertex graph, `s` and `t` in `[0, size)`, `E-TERM-002`, no recorded reward changing, and the 6 and 2 unported problems.
+- **Ponytail:** no code changed, so there's nothing for it to cut.
 - **Updated:** DECISIONS (D125), the roadmap's decisions waiting and plan, and the README's WP4b row.
 - **Not changed:** the code, the spec text and the suite, until D125 is accepted.
 - **Interfaces touched:** none.
