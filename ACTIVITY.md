@@ -3458,3 +3458,12 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
 - **Updated:** DECISIONS (D125), the roadmap's decisions waiting and plan, and the README's WP4b row.
 - **Not changed:** the code, the spec text and the suite, until D125 is accepted.
 - **Interfaces touched:** none.
+
+## 2026-11-23 · The owner accepts D125
+
+WP4b and WP15. The owner accepted D125 on 2026-11-23, as drafted: a ghost-fn call in a guard unfolded where D58 finds a binder with no finite range, an equivalence under `forall` split, the workbench's search for an ∃'s witness, and integer parameters drawn within their `requires`' bounds. B17-1 becomes version 1.3.
+
+- **What follows:** the four rules in `b17c/interp.py` and `b17c/spec.py`, with their tests, and `docs/b17-1.md` §8 and §10. Before the change, L1's results on the suite are recorded, and after it every suite label, the Rust backend's runs and the interpreter's other results are checked unchanged, and WP11's entry checks are rerun on the 35 ports.
+- **D58, D88 and D121:** their headings name D125, which refines them.
+- **Updated:** DECISIONS (D125's status and the headings of D58, D88 and D121); the README's WP4b row; the roadmap's decisions waiting for the owner, accepted decisions and plan.
+- **Interfaces touched:** none.

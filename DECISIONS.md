@@ -563,7 +563,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Each check is one of §9's goals at a concrete state, so a contract outcome is a counterexample to that goal, named the way the verifier names it. Checking a lemma's claim where it's called gives WP16's witness examples something to run, and its proof stays the verifier's job. Memoizing ghost-fns changes no result and makes recursive specs such as `fib` linear to evaluate.
 - **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9.
 
-## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102)
+## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102 and D125)
 - **Date:** 2026-10-27
 - **Decision:**
   - **Guard:** a `forall`'s guard is G when its body is `(=> G P)`. An `exists`'s guard is its body, when that's an `and`. Nested `and`s are flattened into a list of conjuncts in evaluation order.
@@ -1046,7 +1046,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Every data value:** an LLRB tree recurses on `(option node)`, which isn't itself recursive, so `rank` must reach it too.
 - **Touches:** D57; D79; `docs/b17-1.md` §7, §8, §9.
 
-## D88 · The property-test generator · Accepted (refined by D120)
+## D88 · The property-test generator · Accepted (refined by D120 and D125)
 - **Date:** 2026-10-28
 - **Decision:**
   - **Generator:** SplitMix64. Its state starts at the first 16 hex digits after `spec0:` in the def's spec hash (D46), read as an unsigned 64-bit integer. `docs/b17-1.md` §10 gives the exact stream: the order of draws, how each value consumes it, and each type's smallest value.
@@ -1750,7 +1750,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A smaller limit of steps for tests,** to make the slow runs cheaper.
 - **Touches:** D57; D58; D59; D80; D88; D91; WP5; WP15; `b17c/verify.py`, `b17c/goals.py`, `b17c/interp.py`; `docs/b17-1.md` §10.
 
-## D121 · The spec workbench, WP4b · Accepted
+## D121 · The spec workbench, WP4b · Accepted (refined by D125)
 - **Date:** 2026-11-05
 - **Decision:** `b17c/spec.py` is the design spec's `mfl spec`. Each of its commands prints JSON, and exits 1 when it finds a problem.
   - **Vacuity checks:**
@@ -1944,7 +1944,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A slow call waits longer** before its retry.
 - **Touches:** D123; WP11; WP17: `gym/harness.py`, `gym/test_b17.py`.
 
-## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Proposed (refines D58, D88 and D121)
+## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Accepted (refines D58, D88 and D121)
 - **Date:** 2026-11-23
 - **Decision:** the interpreter, the property tests and the spec workbench take four rules. The plan is in the roadmap's Phase 1 work outside the gate, from a prototype on 2026-11-06 (ACTIVITY).
   - **1. A ghost-fn call in a guard is unfolded,** in both subsets. A conjunct of a quantifier's guard (D58) that calls a ghost-fn is replaced by the ghost-fn's body, with the arguments substituted for its parameters and the body's own binders renamed apart. That holds when:
