@@ -1,0 +1,55 @@
+(module bst_delete
+  (header
+    (purpose "Delete a value from a binary search tree.")
+    (invariants "The result is a search tree holding the old values but the deleted one.")
+    (failures "Allocation failure aborts."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (leaf) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn is_bst ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (leaf) true)
+      (case (node v l r)
+        (and (and (is_bst l) (is_bst r))
+             (and (forall ((x int)) (=> (contains (view l) x) (< x v)))
+                  (forall ((x int)) (=> (contains (view r) x) (> x v)))))))))
+  (spec delete
+    (params (t tree) (x i64))
+    (returns (out tree))
+    (requires (>= x 0) (is_bst t))
+    (ensures (is_bst out) (== (view out) (diff (view t) (iset-lit x))))
+    (effects alloc))
+  (spec join
+    (params (l tree) (r tree) (p i64))
+    (returns (out tree))
+    (requires
+      (is_bst l)
+      (is_bst r)
+      (forall ((y int)) (=> (contains (view l) y) (< y p)))
+      (forall ((y int)) (=> (contains (view r) y) (> y p))))
+    (ensures
+      (is_bst out)
+      (== (view out) (union (view l) (view r))))
+    (effects alloc))
+  (def join (decreases (rank l))
+    (body
+      (match l
+        (case (leaf) (return r))
+        (case (node a ll lr)
+          (block
+            (assert (== (view l) (union (union (view ll) (view lr)) (iset-lit a))))
+            (let ((j tree)) (call join lr r p))
+            (assert (contains (view l) a))
+            (return (node a ll j)))))))
+  (def delete (decreases (rank t))
+    (body
+      (match t
+        (case (leaf) (return (leaf)))
+        (case (node v l r)
+          (if (< x v)
+            (block (let ((l2 tree)) (call delete l x)) (return (node v l2 r)))
+            (if (> x v)
+              (block (let ((r2 tree)) (call delete r x)) (return (node v l r2)))
+              (block (let ((j tree)) (call join l r v)) (return j)))))))))

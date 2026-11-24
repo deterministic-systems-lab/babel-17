@@ -1,0 +1,50 @@
+(module splaytree_splay
+  (header
+    (purpose "Splay a nonempty binary search tree at a value, bringing the value to the root when the tree holds it.")
+    (invariants "The result is a nonempty search tree with the same values, whose root is the value when the tree holds it.")
+    (failures "Allocation failure aborts."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (leaf) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn is_bst ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (leaf) true)
+      (case (node v l r)
+        (and (and (is_bst l) (is_bst r))
+             (and (forall ((x int)) (=> (contains (view l) x) (< x v)))
+                  (forall ((x int)) (=> (contains (view r) x) (> x v)))))))))
+  (spec splay
+    (params (t tree) (x i64))
+    (returns (out tree))
+    (requires (is node t) (is_bst t))
+    (ensures
+      (is node out)
+      (is_bst out)
+      (== (view out) (view t))
+      (=> (contains (view t) x) (== (field out val) x))
+      (=> (not (contains (view t) x)) (contains (view out) (field out val))))
+    (effects alloc))
+  (def splay (decreases (rank t))
+    (body
+      (match t
+        (case (leaf) (return (leaf)))
+        (case (node v l r)
+          (if (== x v)
+            (return (node v l r))
+            (if (< x v)
+              (if (is leaf l)
+                (return (node v l r))
+                (block
+                  (let ((s tree)) (call splay l x))
+                  (match s
+                    (case (leaf) (return (node v (leaf) r)))
+                    (case (node a sl sr) (return (node a sl (node v sr r)))))))
+              (if (is leaf r)
+                (return (node v l r))
+                (block
+                  (let ((s2 tree)) (call splay r x))
+                  (match s2
+                    (case (leaf) (return (node v l (leaf))))
+                    (case (node b sl2 sr2) (return (node b (node v l sl2) sr2)))))))))))))
