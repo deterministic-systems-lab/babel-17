@@ -59,6 +59,30 @@ out = "\n".join(json.dumps(e) for e in says("```lisp\n(a 1)\n(b", " 2)\n") + say
                 + [{"type": "result", "result": "```lisp\n(c 3)\n```", "usage": {"input_tokens": 1, "output_tokens": 1}}])
 assert h.extract_code(h.parse_reply("claude", out)["text"], "b17") == "(a 1)\n(b 2)\n\n(c 3)"
 assert h.join_parts(['```lisp\n(a "```")\n', "```lisp\n(b)\n```"]) == '```lisp\n(a "```")\n\n(b)\n```'  # only fence lines count
+# A reply a safety classifier stopped is a failed call, not the agent's, and so is one another model
+# wrote (D124): a stop counted, a refusal stop reason on the result or a message, or a second model.
+result = lambda models, **kw: {"type": "result", "result": "", "usage": {"input_tokens": 1, "output_tokens": 1},
+                               "modelUsage": {m: {} for m in models}, **kw}
+code = says("```lisp\n(a 1)\n```")
+failed = {"safety classifier": [code + [result(["claude-opus-5-5"], safety_stops=1)],
+                                [{"type": "assistant", "message": {"content": [], "stop_reason": "refusal"}},
+                                 result(["claude-opus-5-5"], stop_reason="refusal")],
+                                [{"type": "assistant", "message": {"content": [], "stop_reason": "refusal"}}, result(["claude-opus-5-5"])]],
+          "another model": [code + [result(["claude-opus-5-5", "claude-opus-4-8"])]]}
+for why, cases in failed.items():
+    for events in cases:
+        try:
+            h.parse_reply("claude", "\n".join(map(json.dumps, events)))
+            raise AssertionError(events)
+        except RuntimeError as e:
+            assert why in str(e), (why, e)
+ok = code + [result(["claude-opus-5-5"], safety_stops=0, stop_reason="end_turn")]
+assert h.parse_reply("claude", "\n".join(map(json.dumps, ok)))["model"] == "claude-opus-5-5"
+
+# A failed call records Claude Code's message, though more than 500 characters of usage follow it.
+end = {"type": "result", "is_error": True, "result": "API Error: 529 Overloaded", "usage": {"x": "y" * 600}}
+h.CLIS["claude"], h.RETRY_WAITS = ["sh", "-c", f"echo '{json.dumps(end, separators=(',', ':'))}'; exit 1"], []
+assert h.call_cli("claude", "hi")["error"] == "exit 1: API Error: 529 Overloaded"
 
 # One attempt end to end: a wrong first reply, then a right one after the diagnostics.
 fake = Path(tempfile.mkdtemp()) / "fake.py"

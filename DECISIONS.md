@@ -1920,3 +1920,26 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Porting the first pool within WP11:** up to 62 ports would hold up WP11's done-when, which names no pool size.
   - **Waiting for compute before building WP11:** WP11 needs none, and the Phase 2 gate needs both.
 - **Touches:** D13; D21; D23; D24; D28; D29; D30; D31; D58; D65; D80; D88; D91; D98; D114; D117; D118; D121; D122; WP4b; WP7; WP11; WP17; `gym/`; `docs/roadmap.md`; `README.md`.
+
+## D124 · A reply a safety classifier stops is a failed call, and a call gets 45 minutes · Accepted
+- **Date:** 2026-11-20
+- **Decision:** the harness changes two settings, from WP11's baseline.
+  - **A reply a safety classifier stops is a failed call,** not the agent's, so `call_cli` retries it with a fresh call, and a resume retries it after that.
+    - **Claude Code's own handling is off.** Its two responses to a stop are disabled with `CLAUDE_CODE_DISABLE_REFUSAL_RETRY` and `CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK`. One continued the call once, telling the model not to write the stopped reply again, even reworded. The other had another model answer. A run's `meta.json` records them with the CLI's command.
+    - **A stop that gets past them still fails the call:** Claude Code's result counts it in `safety_stops`, or the result or a message has the stop reason `refusal`.
+  - **So does a reply another model wrote, for whatever reason:** the result names more than one model. Claude Code switches models for an overload or a missing model only to a configured fallback, which the harness doesn't set, so this should come only from a stop.
+  - **A call gets 45 minutes,** not 30. The backstop on a verification stays at 2 hours, as before.
+- **Why:**
+  - **The stops measured Claude Code's handling, not the model's work.** In the baseline, 8 of Claude's replies say a classifier stopped the previous response, and decline to write it again. Their words match the note Claude Code adds when it continues: not to produce that content again, even reworded. 5 were first replies that counted. 6 more replies record a second model, `claude-opus-4-8`, which fits Claude Code's fallback after a stop, though the records can't show the cause. A fresh call doesn't carry the instruction not to write the reply again.
+  - **47 of Claude's calls in the baseline timed out at 30 minutes,** 44 of them on the maximum-flow tasks, where replies are longest. One sample got no reply after its first round, its round-1 call failing all 21 tries, 17 of them on the timeout.
+- **Alternatives:**
+  - **Leaving Claude Code's handling on and detecting the replies:** the continuation costs a call, and its reply is shaped by the instruction it carries.
+  - **Detecting a stop by the reply's words,** as the baseline's 8 say it: `safety_stops` and the stop reason are Claude Code's own record of it.
+  - **Counting a stop as the agent's:** a run would then measure the classifier on these tasks, which the M3 comparison isn't about.
+  - **No limit on a call:** a call that hangs would hold up a run with no end.
+- **Cost:**
+  - **A run can't resume across it.** A run's settings pin the harness's hash.
+  - **Runs before it and after it differ** on the three tasks the classifier stopped. Claude's rerun of them under D124 is its baseline there.
+  - **A task the classifier always stops gets no reply,** and shows up as a sample with no attempt done, not as a 0.
+  - **A slow call waits longer** before its retry.
+- **Touches:** D123; WP11; WP17: `gym/harness.py`, `gym/test_b17.py`.

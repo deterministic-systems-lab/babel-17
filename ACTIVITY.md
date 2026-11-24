@@ -3333,3 +3333,102 @@ WP11. `gym/baseline.py` scores every reply of a harness run with `gym/reward.py`
 - **Not changed:** `b17c`, the harness, the manuals and the tasks.
 - **Updated:** the README's WP11 row, results table and notes on M3; the roadmap's date, recent work, critical path, Phase 2, M3's runs and open questions.
 - **Interfaces touched:** none.
+
+## 2026-11-23 · D124, and Claude's rerun of `prim` and the maximum-flow tasks
+
+WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as D124, and asked for a rerun of Claude on the three tasks where a safety classifier stopped replies. With the rerun in place, Claude's B17-1 baseline has all 42 samples and no stopped reply.
+
+- **D124:**
+  - **A reply a safety classifier stops is a failed call.** `call_cli` retries it with a fresh call, and a resume retries it after that.
+    - **Claude Code's own handling is off.** Claude Code 2.1.311 has two responses to a stop, now turned off with `CLAUDE_CODE_DISABLE_REFUSAL_RETRY` and `CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK`. One continues once, with a note telling the model not to produce the stopped content again, "even reworded", which are the words of the baseline's 8 refusals. The other has another model answer.
+    - **A stop that gets past them still fails the call:** the harness reads it from the result's `safety_stops` and a `refusal` stop reason.
+    - **So does a reply that names a second model,** whatever the reason.
+    - **A run's `meta.json` records the two switches** with the CLI's command.
+  - **A call gets 45 minutes,** not 30. A verification's backstop stays at 2 hours.
+  - **Found in Claude Code's code, not in a live stop:** the switches, the note's words, `safety_stops` and the stop reason. A live call's result shows `safety_stops` 0 and `stop_reason` `end_turn`.
+- **Codex review** (`gpt-5.6-sol`) confirmed from the CLI's code what the switches do. It also confirmed that the environment reaches the CLI, and checked D124's counts against the baseline's records. It found 1 problem, fixed:
+  - **The first draft took a second model, or a reply saying it was stopped, as proof of a stop.** A second model can in principle come from another cause, and a reply could say the words without one.
+  - **Now:** a second model fails the call as another model's reply, and the reply's words aren't read.
+  - **The run's first start** was stopped before it had recorded anything. It started again under the fix.
+- **Self-checks:** `gym/test_b17.py` now checks each way a stop shows, a second model and a clean result. It and `gym/test_harness.py` pass.
+- **Ponytail:** on the harness change, nothing to cut.
+- **The run:** `20261120T205327Z-claude`, Claude on `prim`, `edmond_karp` and `push_relabel`, 3 samples each, up to 8 rounds, from a clean tree at `f861289`, under Claude Code 2.1.311.
+  - **The first pass,** 20 to 22 November, finished 6 of the 9 samples. The other 3 ended in failed calls during network failures.
+  - **The first resume,** 22 to 23 November, finished 2 more. The last ended in failed calls once Claude Code's sign-in expired.
+  - **The second resume,** on the 23rd after the owner signed in again, finished it.
+  - **No stops:** no call failed on a safety stop or a second model. The harness fails any reply whose result counts one, so every recorded reply's result has `safety_stops` 0.
+  - **Retries:** 49 calls failed:
+    - 12 couldn't resolve the API server's address;
+    - 4 had the connection refused;
+    - 6 failed on the expired sign-in;
+    - 3 hit the 128k output limit;
+    - 2 timed out at 45 minutes;
+    - 22 exited with an error after a few output tokens. The record keeps only the last 500 characters of the output, which cut off their message. All 22 show `safety_stops` 0.
+  - **The longer timeout was needed once:** `edmond_karp` 3's round 1 timed out at 45 minutes, and its retry replied in about 37, counting the check.
+- **The results:** all 9 samples verified, and all 9 last replies are right on the held-out inputs, at 0.90.
+
+  | Task | Baseline, first reply → last | Rerun |
+  |---|---|---|
+  | `prim` | 0.30 → 0.90 | 0.43 → 0.90 |
+  | `edmond_karp` | 0.03 → 0.90, 2 samples | 0.02 → 0.90 |
+  | `push_relabel` | 0.07 → 0.90 | 0.13 → 0.90 |
+  | All three | 0.144 → 0.900, 8 samples | 0.194 → 0.900, 9 samples |
+
+  - **In round 1,** 1 of 9 verified, `prim` 1, against 1 of 8 in the baseline. The mean round to verify is 3.67, against 3.88.
+  - **Tokens per verified task** on the three: 613k, against 821k in the baseline and 265k in the run of all 14 ports under one prompt, the sixth.
+  - **The reward and the harness agree** on all 33 replies.
+- **Claude's B17-1 baseline with the rerun in place:** 42 samples, first-reply mean 0.566 and last-reply mean 0.895. Of the last replies, 40 are right and 2 only verified, the two `kruskal` programs that try every weight.
+  - **The same to three places** as the 41 samples recorded.
+  - **Tokens per verified task:** 245k, against 277k as recorded and 128k in the sixth run.
+- **What the stops cost:** less than the baseline's entry said.
+  - **Its first-reply mean without the 5 stopped samples, 0.644, went too far.** Dropping those samples treated the three tasks as if they'd score like the other eleven. Without stops, first replies on these tasks average 0.194.
+  - **So the stops cost Claude's mean first reward next to nothing,** and most of the rise in tokens has another cause.
+- **Where the rise is:** round 1 on the six graph tasks, where tokens per verified task are 480k with the rerun in place, against 212k in the sixth run.
+  - **Longer first replies.** The median round-1 reply in output tokens, sixth run → later:
+    - `edmond_karp`: 108k → 265k in the rerun;
+    - `push_relabel`: 113k → 237k in the rerun;
+    - `prim`: 103k → 125k in the rerun;
+    - `bellman_ford`: 100k → 128k in the baseline;
+    - `kruskal`: 102k → 141k in the baseline.
+  - **More replies over 128k,** which Claude Code continues in a second message: 1 of 55 replies in the sixth run, 15 of 150 in the baseline and 6 of 33 in the rerun.
+  - **Fewer first replies verify.** On the six graph tasks, 3 of 18 verified in round 1, with the rerun in place, against 9 of 18 in the sixth run. A Fisher test gives p about 0.075.
+  - **Little change elsewhere.** On the 8 tasks that aren't graphs, tokens per verified task are within about 5% of the sixth run's, and 21 of 24 first replies verified, against 23.
+  - **Not the checker.** Under today's `b17c`, all 18 of the sixth run's round-1 replies on the graph tasks get the verdicts they got then.
+  - **The same setup:** the prompt, the manual and its supplement, the model asked for, `--effort high` and Z3.
+  - **What differs:** Claude Code, 2.1.309 then and 2.1.311 since, and whatever the service changed under the same model name. Which of these it is isn't known.
+- **The audit (D118):** all 9 verified programs are `right` on 25 random valid inputs each. None ran out of steps.
+  - **By reading,** the 9:
+    - **Long literals:** none beyond the spec's capacity bound of 100,000, 10⁹ as `edmond_karp` 2's starting bottleneck, and 10⁸ as a bound on the flow's value in invariants, `decreases` clauses and `ensures`, all within i64.
+    - **`(assert false)`:** 4 uses, in two `prim` programs, each in a branch the proof shows can't be reached.
+  - **Which algorithms:**
+    - **`prim`:** all 3 are Prim's, scanning every edge for the lightest that leaves the tree, as in the baseline.
+    - **`edmond_karp`:** sample 2 is Edmonds–Karp, BFS augmenting by the bottleneck. Samples 1 and 3 find a path by rescanning until no label changes, and augment one unit at a time.
+    - **`push_relabel`:** none is push-relabel. Samples 1 and 3 find a path by BFS, and sample 2 by rescanning, and all three augment one unit at a time.
+  - **One unit at a time,** steps grow with the flow's value, and all 5 such programs finished within the audit's 500M steps.
+  - **Across all ten B17 runs,** 418 of the 431 audited programs gave the right answer every time, and the other 13 ran out of steps. None gave a wrong answer.
+- **What it says:**
+  - **Claude's B17-1 baseline now has every sample and no stopped reply,** with means of 0.566 and 0.895, as recorded.
+  - **The stops weren't why Claude's first replies on these tasks score low,** or why its tokens rose.
+  - **Since the sixth run, Claude's first replies on the graph tasks have grown longer and verify less often,** under the same prompt, model name and effort. The checker is ruled out. Claude Code's update and the service remain, and the records can't tell them apart.
+  - **45 minutes was needed once.**
+- **Proposed, not made:**
+  - **Record a failed call's message from Claude Code's result,** not the last 500 characters of its output, which cut off the cause of 22 of the 49 failures. It changes no verdict, but it changes the harness, so a run can't resume across it.
+  - **A test of the round-1 change:** the six graph tasks' round 1 under Claude Code 2.1.309 and 2.1.311, with more samples. It needs the older CLI installed again.
+- **Codex fact-check** (`gpt-5.6-sol`), told not to read the secret or run the audit, and it didn't. It recomputed the tables, means, token figures, medians, failure counts and the Fisher test from the records, and read the 9 programs. It found 2 errors, both fixed:
+  - the graph tasks' tokens per verified task with the rerun in place are 480k, not 481k;
+  - only `edmond_karp` 2 starts a bottleneck at 10⁹. The 10⁸ literals bound the flow's value in invariants, `decreases` clauses and `ensures`.
+  - It didn't rerun the re-verification of the sixth run's replies, and relied on its 18 of 18.
+- **Not changed:** `b17c`, the manuals and the tasks.
+- **Updated:** DECISIONS (D124); the README's notes on how the benchmark works, its results table and notes on M3; the roadmap's date, recent work, decisions, M3's runs and open questions.
+- **Interfaces touched:** none.
+
+## 2026-11-23 · A failed call records Claude Code's message
+- **What:** when Claude Code exits with an error, `call_cli` records the message from its result event, falling back to the last 500 characters of the output as before. The owner agreed to it on 2026-11-23, from D124's rerun.
+- **Why:** the result event carries the message ahead of more than 500 characters of usage, so the old record cut off the cause of 22 of the rerun's 49 failures.
+- **Checks:**
+  - `gym/test_b17.py` has a fake Claude Code that fails with a long result event, and the record keeps its message. It and `gym/test_harness.py` pass.
+  - **Codex's review** found one problem, fixed: a line with `"type":"result"` that wasn't a JSON object would have raised an error the retries don't catch, so only lines starting with `{` are read, as `parse_reply` reads them. Ponytail's review cut 2 lines from the test.
+  - A real call to Claude Code 2.1.311 with a model that doesn't exist recorded "There's an issue with the selected model (no-such-model-xyz)…". Its result event is 1,365 characters long.
+- **Cost:** it changes the harness, so a run can't resume across it. No verdict changes.
+- **Updated:** the roadmap's date, recent work and decisions waiting.
+- **Interfaces touched:** none.
