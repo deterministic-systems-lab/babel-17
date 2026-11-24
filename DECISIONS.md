@@ -1943,3 +1943,67 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A task the classifier always stops gets no reply,** and shows up as a sample with no attempt done, not as a 0.
   - **A slow call waits longer** before its retry.
 - **Touches:** D123; WP11; WP17: `gym/harness.py`, `gym/test_b17.py`.
+
+## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Proposed (refines D58, D88 and D121)
+- **Date:** 2026-11-23
+- **Decision:** the interpreter, the property tests and the spec workbench take four rules. The plan is in the roadmap's Phase 1 work outside the gate, from a prototype on 2026-11-06 (ACTIVITY).
+  - **1. A ghost-fn call in a guard is unfolded,** in both subsets. A conjunct of a quantifier's guard (D58) that calls a ghost-fn is replaced by the ghost-fn's body, with the arguments substituted for its parameters and the body's own binders renamed apart. That holds when:
+    - the ghost-fn isn't recursive and has no `requires`, which unfolding would skip;
+    - each argument is a variable or a binder, so unfolding skips, repeats or delays no evaluation that could fail.
+
+    A call the body brings into the guard is unfolded in turn, under the same conditions. B17 rejects mutual recursion (`E-TERM-002`), so this ends.
+    - **An ∃ in a `forall`'s guard becomes more binders of the `forall`:** `(forall (xs) (=> (and A (exists (ys) B) C) P))` is evaluated as `(forall (xs ys) (=> (and A B C) P))`. The first holds at every point exactly when the second does at every value of ys.
+    - **Binder order:** binders are fixed one at a time. The next is the first, in declaration order with lifted binders after the `forall`'s own, whose range is finite with the binders before it fixed. If none is, the quantifier is unknown, as under D58. Where declaration order gives every binder a finite range, this is that order, so no quantifier D58 decides changes. It amends D58's order, which lifted binders need: `has_edge`'s `i` bounds `v` and `w`, though it's declared after them.
+    - **What it reaches:** the bound on weights or capacities in all six graph specs, `(forall ((u int) (v int) (w int)) (=> (has_edge g u v w) …))`. `has_edge`'s body is an ∃ over `i` whose guard bounds `u` by `(len g)` and `i` by `(len (idx g u))`, and equates `v` and `w` with the parts of `u`'s `i`th edge. So the bound is evaluated once at each edge, as D58 already bounds a binder equated with a term.
+  - **2. An equivalence under `forall` is split,** in both subsets. `(forall (xs) (== A B))`, with A and B booleans, is evaluated as `(forall (xs) (=> A B))` and `(forall (xs) (=> B A))`, both evaluated whatever the first gives.
+    - **The condition:** every conjunct of A and of B is one that can't fail (D58, D102), with only xs unassigned.
+    - **The result:** false if either half is, otherwise unknown if either is, and otherwise true.
+    - **Why nothing is hidden:** a point a half skips makes its guard false at a conjunct that can't fail. The other side can't fail there either, so no skipped point could have been undefined.
+    - **What it reaches:** `is_segment_tree`'s `(forall ((k int)) (== (contains (view n) k) (and (<= (field n low) k) (< k (field n high)))))`.
+  - **3. The workbench searches for an ∃'s witness** when its `vacuity` check (D121) evaluates a `requires` on one of D88's inputs and meets an ∃ whose binder no guard bounds.
+    - **The candidates,** for an ∃ with one binder of type `int`, `bool`, or a sequence of either:
+      - for `int`: the integers in the values of the body's free variables, and 0, sorted, each once;
+      - for `bool`: `false`, then `true`;
+      - for a sequence: sequences of those, shortest first, then in lexicographic order.
+    - **The budget:** up to 1,000 candidates each time the ∃ is evaluated. Like a run's fuel (D59), it's a setting.
+    - **The result:** the first candidate at which the body is true makes the ∃ true. Running out of candidates leaves it unknown. So does a binder of another type, or more than one binder.
+    - **Only where no point it skips can be undefined:** D58 evaluates every point so that an undefined one is found, and stopping at a witness skips the rest. So the search runs only in a clause whose definedness goals the verifier proves, its own and those of every ghost-fn it calls. `kruskal`'s and `prim`'s connectivity clauses qualify: the verifier proves `nodes_have_path`'s and `path_follows_graph`'s 2 `BOUNDS` goals each.
+    - **Not in checked runs or property tests,** where the ∃ stays unknown. So `kruskal`'s and `prim`'s defs still get no property test.
+    - **What it reaches:** connectivity in `kruskal` and `prim`, `(forall ((u int) (v int)) (=> … (nodes_have_path g u v)))`, an ∃ over paths.
+  - **4. An integer parameter is drawn within its `requires`' bounds,** in B17-1's property tests (§10).
+    - **The bounds:** when a draw reaches an `i64` parameter at depth 0, the `requires`' clauses are read as one guard, their `and`s flattened in order, as D58 reads a guard. The parameters drawn so far are fixed, and the rest are unassigned binders. The leading conjuncts that can't fail bound the parameter, relations with later parameters included.
+    - **The draw:** the range is intersected with `i64`'s, and one word from the stream gives `lo + next() mod (hi − lo + 1)`.
+      - **An empty range** drops the draw, as a `requires` that fails does.
+      - **A parameter with no finite lower and upper bound** is drawn as now, and so is an `i64` inside a vector, tuple or data value.
+    - **What it reaches:** the maximum-flow specs' `s` and `t`, each in `[0, (size graph))`, and `query`'s `ql` and `qr`, within the tree's `[low, high)`. Drawn as now, they rarely land in range together.
+  - **Versions:** rules 1 and 2 join `docs/b17-1.md` §8's checking rules, and rule 4 changes §10's draws, so B17-1 becomes version 1.3.
+    - **B17-0's text says nothing about checking,** which D57 and D58 define for the tools (D102). So it stays at version 1.2, though rules 1 and 2 hold in both subsets, as D102 does.
+    - **Rule 3 is the workbench's own** (D121).
+  - **Done when:**
+    - all 40 of the suite's specs are shown satisfiable;
+    - rules 1–3 each have a test where they decide a quantifier and one where they leave it unknown, such as a ghost-fn with a `requires`, which isn't unfolded;
+    - rule 4 has golden draws for a fixed seed;
+    - every suite label, the Rust backend's differential runs and the interpreter's other results are unchanged;
+    - L1's results and refutations on the suite are recorded before and after, and WP11's entry checks are rerun on the 35 ports.
+- **Why:**
+  - **WP11's pool:** D123's entry checks need `vacuity` to show that a `requires` can hold (check 2), and D88's draws to give 25 held-out inputs (check 5). So no spec of these shapes can enter the pool. Besides the ports, AlgoVeri's unported problems include 6 more on graphs and 2 more on segment trees, whose specs this decision hasn't checked.
+  - **L1:** D88's property tests drop a draw whose `requires` is unknown, so they keep no input for the 7 defs, and L1 tests none of them.
+  - **The specs aren't vacuous:** the self-checks' 25 inputs to these defs meet every clause, checked by hand. The interpreter can't evaluate 10 of their clauses: the bound in all six graph specs, `is_segment_tree`'s equivalence, and connectivity in `kruskal` and `prim`.
+  - **The solver doesn't fill the gap:** under the encoding's quantified axioms, Z3 returns no model for any of the 40 specs.
+  - **The prototype**, on 2026-11-06:
+    - **With rules 1–3,** every `requires` clause of the 7 evaluated true on the self-checks' inputs. The draws then found an input for 4 of the 7, each a graph of one vertex with no edges.
+    - **With rule 4,** they found one for the other 3: a graph of two vertices with no edges and `s` 0 and `t` 1, for both maximum-flow specs, and a segment tree of one leaf at the top of `i64`'s range.
+    - **Codex's review of the plan** set the rules' conditions: which calls rule 1 unfolds and in what binder order, which sides rule 2 splits, rule 3 limited to the workbench and to clauses proved defined, and how rule 4's draw consumes the stream.
+  - **Each rule keeps D58's guarantee:** a skipped point makes a guard false at a conjunct that can't fail. For rule 3, it's that the verifier has proved the clause defined everywhere.
+- **Alternatives:**
+  - **An input the reviewer gives to `vacuity`:** it would show any `requires` can hold, by hand. But it gives the property tests and the pool's held-out inputs nothing, since those must be drawn. It stays the way to cover what the rules don't reach, as a further change.
+  - **Rewriting the specs for D58:** writing `has_edge`'s body into each bound would reach the six bounds. But it changes frozen ports away from AlgoVeri's shape, every new graph port would need the same, and connectivity has no such rewrite.
+  - **Rule 3 in checked runs too,** under the same condition. `kruskal` and `prim` would then get property tests. But a run's outcome would rest on the verifier's results, which no run's does today, and the search would run at every clause it reaches. That would be a further decision.
+  - **More draws:** with rules 1–3, D88's 10,000 draws found no input for the other 3, which need two or more parameters to land in narrow ranges set by the `requires`.
+- **Cost:**
+  - **Inputs change:** rule 4 changes the draws for every B17-1 spec whose `requires` bounds an `i64` parameter. So L1's results, the witness examples and the pool's held-out inputs change for those specs, and they're recorded before and after. No recorded reward changes: the pool has no task yet, and the test set's held-out inputs are D118's, run unchecked.
+  - **B17-1 is amended a third time,** to version 1.3, after D113 and D114.
+  - **Step counts** can change where rule 1 applies, though no outcome D58 decides does.
+  - **The workbench is slower** where rule 3 searches, by up to 1,000 candidates each time an ∃ is evaluated, within a run's fuel.
+  - **Not covered:** a `requires` whose inputs are all larger than the draws make, an ∃ whose witness is past the budget, and an ∃ with several binders or a binder of another type.
+- **Touches:** D57; D58; D59; D88; D102; D121; D123; WP4b; WP11; WP15; `docs/b17-1.md` status, §8, §10 and §14; `b17c/interp.py`, `b17c/spec.py`, `b17c/test_interp.py`, `b17c/test_spec.py`; `gym/pool-ports.jsonl`.

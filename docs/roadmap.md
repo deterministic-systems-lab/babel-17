@@ -199,6 +199,7 @@ All three items held, so Phase 1 began on 2026-10-28. Two pieces of Phase 0 that
 - **CI** runs eight `b17c` self-checks on Linux for every pull request. They include the core library's witnesses, the agent protocol's and the manual's checks that need no Z3, and the Rust backend's differential tests on rustc 1.99.1.
 
 ### Decisions waiting for the owner
+- **D125, proposed:** four rules for the 7 specs whose `requires` the spec workbench can't show can hold, which keep them out of WP11's pool and L1's tests ([below](#phase-1-work-outside-the-gate)). They amend B17-1 to version 1.3.
 - **One optional run:** more rounds for Codex on `dijkstra`, `bellman_ford` and `prim`, which wouldn't be a fair count against Dafny.
 - **From D124's rerun, a test of why Claude's first replies on the graph tasks changed:** their round 1 under Claude Code 2.1.309 and 2.1.311, with more samples. It needs the older CLI installed again.
 
@@ -251,7 +252,7 @@ Off the critical path, **WP7**, the backend that emits safe Rust, is done for B1
   - **Two causes:**
     - **The interpreter can't evaluate at least one clause of each,** 10 in all (D58, D102). The six graph specs bound weights or capacities with a quantifier whose guard calls a ghost-fn, `(=> (has_edge g u v w) …)`. `is_segment_tree` has an equivalence under `forall` with no guard. `kruskal` and `prim` also require a connected graph, an ∃ over paths. Z3 doesn't fill the gap: under the encoding's quantified axioms, it returns no model for any of the 40 specs.
     - **D88's draws rarely meet a `requires`,** even one the interpreter can evaluate. A random graph is mostly well formed only when it has no edges, and a random tree is almost never a segment tree.
-  - **The plan:** four changes. A prototype of them, on 2026-11-06, closed all 7.
+  - **The plan,** proposed as D125: four changes. A prototype of them, on 2026-11-06, closed all 7.
     1. **Unfold a ghost-fn call in a guard,** when the ghost-fn isn't recursive and has no `requires`, and each argument is a variable or a binder, so unfolding skips, repeats or delays no evaluation that could fail: its body, with the arguments substituted, replaces the call.
        - **An ∃ at the head of a `forall`'s unfolded guard** becomes one more `forall` binder, since `(=> (exists (i) C) P)` holds at every point exactly when `(=> C P)` does at every value of i.
        - **A binder that a leading conjunct equates to a term** takes that term's value, once the binders the term mentions have theirs. The conjunct can't fail, since the conjuncts before it keep the term defined (D58).

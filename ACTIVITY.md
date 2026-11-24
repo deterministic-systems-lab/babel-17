@@ -3432,3 +3432,19 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
 - **Cost:** it changes the harness, so a run can't resume across it. No verdict changes.
 - **Updated:** the roadmap's date, recent work and decisions waiting.
 - **Interfaces touched:** none.
+
+## 2026-11-23 · D125 proposed: the spec workbench's reach
+- **What:** the owner asked for a draft of the decision the roadmap's plan for the spec workbench's reach needs. D125 states its four rules, from the prototype of 2026-11-06, for the 7 specs whose `requires` the workbench can't show can hold:
+  1. a ghost-fn call in a quantifier's guard is unfolded, an ∃ in a `forall`'s guard becomes more binders, and binders are fixed in the first order that gives each a finite range;
+  2. an equivalence under `forall` is split into two implications;
+  3. the workbench searches for an unbounded ∃'s witness, up to 1,000 candidates, only in clauses the verifier proves defined;
+  4. the property tests draw an `i64` parameter within the range its `requires` gives it.
+- **Settled in drafting:**
+  - **Rule 1's binder order** is the first binder, in declaration order, whose range is finite. Where declaration order works, that's the same order, so no quantifier D58 decides changes.
+  - **Rule 3's candidates and budget,** which the plan left open: one binder of type `int`, `bool` or a sequence of either, built from the integers in scope, shortest first, up to 1,000 a time.
+  - **No recorded reward changes:** the reward's checked runs are on the pool's inputs only, and the pool has no task yet. The test set's held-out inputs are D118's, run unchecked (`gym/reward.py`).
+  - **B17-0 stays at version 1.2,** since its text says nothing about checking (D102), and B17-1 becomes 1.3.
+- **Counted for it:** besides the ports, AlgoVeri's unported problems include 6 on graphs and 2 segment trees.
+- **Updated:** DECISIONS (D125), the roadmap's decisions waiting and plan, and the README's WP4b row.
+- **Not changed:** the code, the spec text and the suite, until D125 is accepted.
+- **Interfaces touched:** none.
