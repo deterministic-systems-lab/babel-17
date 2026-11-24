@@ -1,0 +1,61 @@
+(module polymul_naive
+  (header
+    (purpose "Multiply two polynomials, given and returned as coefficient sequences, lowest degree first.")
+    (invariants "The result has one coefficient fewer than the inputs together, and coefficient k is the convolution sum of a and b at k.")
+    (failures "None. The precondition bounds every coefficient by 10^6 and the lengths by 1000, so every product and partial sum fits in i64. Allocation failure aborts."))
+  (ghost-fn coeffs_bounded ((s (seq int))) bool
+    (body (forall ((i int)) (=> (and (<= 0 i) (< i (len s))) (and (<= -1000000 (idx s i)) (<= (idx s i) 1000000))))))
+  (ghost-fn spec_convolution_sum ((a (seq int)) (b (seq int)) (k int) (current_i int)) int
+    (decreases (if (< current_i 0) 0 (+ current_i 1)))
+    (body (if (< current_i 0)
+            0
+            (+ (if (and (and (< current_i (len a)) (< (- k current_i) (len b))) (>= (- k current_i) 0))
+                   (* (idx a current_i) (idx b (- k current_i)))
+                   0)
+               (spec_convolution_sum a b k (- current_i 1))))))
+  (ghost-fn spec_poly_mul_coeff ((a (seq int)) (b (seq int)) (k int)) int
+    (body (spec_convolution_sum a b k k)))
+  (spec poly_multiply
+    (params (a (ref (slice i64))) (b (ref (slice i64))))
+    (returns (res (vec i64)))
+    (requires
+      (> (len a) 0)
+      (> (len b) 0)
+      (<= (+ (len a) (len b)) 1000)
+      (coeffs_bounded a)
+      (coeffs_bounded b))
+    (ensures
+      (== (len res) (- (+ (len a) (len b)) 1))
+      (forall ((k int)) (=> (and (<= 0 k) (< k (len res))) (== (idx res k) (spec_poly_mul_coeff a b k)))))
+    (effects alloc))
+  (lemma mul_bound (params (x int) (y int))
+    (requires (and (<= -1000000 x) (<= x 1000000)) (and (<= -1000000 y) (<= y 1000000)))
+    (ensures (and (<= -1000000000000 (* x y)) (<= (* x y) 1000000000000)))
+    (body))
+  (def poly_multiply
+    (body
+      (let n i64 (- (+ (len a) (len b)) 1))
+      (let-mut res (vec i64) (vec-new))
+      (let-mut d i64 0)
+      (while (< d n)
+        (invariant (and (<= 0 d) (<= d n)))
+        (invariant (== (len res) d))
+        (invariant (forall ((j int)) (=> (and (<= 0 j) (< j d)) (== (idx res j) (spec_poly_mul_coeff a b j)))))
+        (decreases (- n d))
+        (let-mut acc i64 0)
+        (let-mut i i64 0)
+        (while (<= i d)
+          (invariant (and (<= 0 i) (<= i (+ d 1))))
+          (invariant (and (<= (* -1000000000000 i) acc) (<= acc (* 1000000000000 i))))
+          (invariant (== acc (spec_convolution_sum a b d (- i 1))))
+          (decreases (- (+ d 1) i))
+          (if (and (< i (len a)) (< (- d i) (len b)))
+            (block
+              (call mul_bound (idx a i) (idx b (- d i)))
+              (set acc (+ acc (* (idx a i) (idx b (- d i))))))
+            (block))
+          (set i (+ i 1)))
+        (assert (== acc (spec_poly_mul_coeff a b d)))
+        (push res acc)
+        (set d (+ d 1)))
+      (return res))))
