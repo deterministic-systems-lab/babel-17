@@ -3452,6 +3452,7 @@ WP11, WP17. The owner accepted both harness changes WP11's baseline proposed, as
   - **Rule 1's binder order** now says the binders not yet chosen are all unassigned, as the interpreter's `span` needs.
   - **Rule 4 didn't say how an early drop uses the stream,** or what reading the bounds costs.
   - **Two descriptions:** `query`'s `qr` can equal `high`, and the maximum-flow specs use `has_capacity`.
+  - **Its re-check** confirmed the 6 fixed, rule 1's new trigger among them, and found 3 more in the wording, all fixed: rule 1's "no unknown argument" now excepts the quantifier's own binders, a lifted binder is renamed apart from every name in the rewritten quantifier, and rule 4's reading of the bounds has its own fuel, whose running out only ends the list.
   - It confirmed the other claims: the witness `[0]` for a one-vertex graph, `s` and `t` in `[0, size)`, `E-TERM-002`, no recorded reward changing, and the 6 and 2 unported problems.
 - **Ponytail:** no code changed, so there's nothing for it to cut.
 - **Updated:** DECISIONS (D125), the roadmap's decisions waiting and plan, and the README's WP4b row.
