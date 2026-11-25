@@ -1411,6 +1411,8 @@ class _Run:
         each length's survivors extended by each element in order. A sequence survives where every
         forall over x's positions in alls is true, and a sequence extending one where it's false is
         never built. None where one is neither true nor false, or the fuel runs out."""
+        if lens[1][x] is None and not alls and elems:
+            return None  # every sequence survives at every length, so the fuel would run out
         level, out, n = [()], [], 0
         self.fuel -= 1
         while True:
