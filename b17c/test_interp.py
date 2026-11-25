@@ -874,6 +874,11 @@ for clause, out in [("(forall ((h (seq int))) (=> (and (== (len h) 2) (forall ((
     m = f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures {clause})",
            extra=["(ghost-fn p () bool (requires (forall ((z int)) true)) (body true))"])
     unknown(go1(m, (), check=True), *([] if out is True else [out]))  # true here, as the def returns
+# ...nor does a set the outer run keeps as its predicate, whose members the reading leaves unknown.
+unknown(go1(f1("(a i64)", "(r i64)", "(ghost-let s (iset int) (iset-of ((z int)) (p))) (assert (forall ((h (seq bool)))"
+               " (=> (and (>= (len h) 1) (and (forall ((k int)) (=> (and (<= 0 k) (< k (len h))) (!= k k))) (contains s 0)))"
+               " false))) (return a)", extra=["(ghost-fn p () bool (requires (forall ((y int)) true)) (body true))"]),
+            5, check=True))
 # The forms the rules build are reported where the source's are: a run that runs out of steps
 # inside them stops at a node of the spec, never at one the source lacks.
 for m, a in [(f("(a (ref (slice i64)))", "(r bool)", "(return true)", clauses=f"(ensures {same})"), (1, 2)),

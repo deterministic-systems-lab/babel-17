@@ -132,8 +132,8 @@ class Pred:
     """A set built by iset-of, kept as its membership test, which gives a bool or UNKNOWN.
     Equality with it is unknown, and so is any value holding it in a set, map or multiset."""
 
-    def __init__(self, test):
-        self.test = test
+    def __init__(self, test, run):
+        self.test, self.run = test, run  # the run whose state testing a member uses
 
     def __eq__(self, other):
         if other is self:
@@ -1078,8 +1078,11 @@ class _Run:
         return UNKNOWN if v is None else self.member(*v)
 
     def member(self, s, y):
-        """Whether y is in sequence s, or in set s, or a key of map s."""
-        return s.test(y) if isinstance(s, Pred) else y in s
+        """Whether y is in sequence s, or in set s, or a key of map s. A set kept as its predicate
+        by another run, as D126's reading may meet, is unknown, so that no run spends another's state."""
+        if isinstance(s, Pred):
+            return s.test(y) if s.run is self else UNKNOWN
+        return y in s
 
     def e_multiset(self, x, env, g):
         s = self.eval(x.items[1], env, g)
@@ -1504,7 +1507,7 @@ class _Run:
                 return self.eval(body, {**snap, name: y}, True)
             finally:
                 self.frames, self.active, self.clause = saved
-        return Pred(test)
+        return Pred(test, self)
 
     def e_map_lit(self, x, env, g):
         v = [(self.eval(c.items[0], env, g), self.eval(c.items[1], env, g)) for c in x.items[1:]]
@@ -1521,10 +1524,10 @@ class _Run:
         if isinstance(a, frozenset) and isinstance(b, frozenset):
             return a | b if h == "union" else a - b if h == "diff" else a & b
         if h == "union":
-            return Pred(lambda y: _not(_and(_not(self.member(a, y)), _not(self.member(b, y)))))
+            return Pred(lambda y: _not(_and(_not(self.member(a, y)), _not(self.member(b, y)))), self)
         if h == "diff":
-            return Pred(lambda y: _and(self.member(a, y), _not(self.member(b, y))))
-        return Pred(lambda y: _and(self.member(a, y), self.member(b, y)))
+            return Pred(lambda y: _and(self.member(a, y), _not(self.member(b, y))), self)
+        return Pred(lambda y: _and(self.member(a, y), self.member(b, y)), self)
 
     def e_update(self, x, env, g):
         v = self.operands(x, env, g)
