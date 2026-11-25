@@ -1,0 +1,62 @@
+(module llrbt_rotateleft
+  (header
+    (purpose "Rotate a left-leaning red-black tree node left, so a red right child becomes the root and the old root its red left child.")
+    (invariants "The result is a search tree holding the same values, with the old root's color and black height, and a red left child.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (val i64) (is_red bool) (left (option node)) (right (option node))))
+  (ghost-fn view ((n node)) (iset int) (decreases (rank n))
+    (body
+      (union
+        (union
+          (match (field n left) (case (none) (iset-lit)) (case (some l) (view l)))
+          (match (field n right) (case (none) (iset-lit)) (case (some r) (view r))))
+        (iset-lit (field n val)))))
+  (ghost-fn is_bst ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (match (field n left)
+          (case (none) true)
+          (case (some l) (and (forall ((x int)) (=> (contains (view l) x) (< x (field n val)))) (is_bst l))))
+        (match (field n right)
+          (case (none) true)
+          (case (some r) (and (forall ((x int)) (=> (contains (view r) x) (> x (field n val)))) (is_bst r)))))))
+  (ghost-fn black_height ((n node)) int (decreases (rank n))
+    (body
+      (if (and (and (!= (match (field n left) (case (none) 1) (case (some l1) (black_height l1))) -1)
+                    (!= (match (field n right) (case (none) 1) (case (some r1) (black_height r1))) -1))
+               (== (match (field n left) (case (none) 1) (case (some l2) (black_height l2)))
+                   (match (field n right) (case (none) 1) (case (some r2) (black_height r2)))))
+        (if (not (field n is_red))
+          (+ (match (field n left) (case (none) 1) (case (some l3) (black_height l3))) 1)
+          (match (field n left) (case (none) 1) (case (some l4) (black_height l4))))
+        -1)))
+  (spec fixup_rotate_left
+    (params (n node))
+    (returns (res node))
+    (requires
+      (is_bst n)
+      (and (is some (field n right)) (field (field (field n right) value) is_red)))
+    (ensures
+      (is some (field res left))
+      (is_bst res)
+      (== (view res) (view n))
+      (== (black_height res) (black_height n))
+      (== (field res is_red) (field n is_red))
+      (field (field (field res left) value) is_red))
+    (effects alloc))
+  (def fixup_rotate_left
+    (body
+      (match n
+        (case (node v red a ro)
+          (match ro
+            (case (none) (return (node v red a (none))))
+            (case (some r)
+              (match r
+                (case (node rv rred b c)
+                  (block
+                    (assert (contains (view r) rv))
+                    (assert (< v rv))
+                    (ghost-let nl node (node v true a b))
+                    (assert (is_bst nl))
+                    (assert (forall ((x int)) (=> (contains (view nl) x) (< x rv))))
+                    (return (node rv red (some (node v true a b)) c))))))))))))

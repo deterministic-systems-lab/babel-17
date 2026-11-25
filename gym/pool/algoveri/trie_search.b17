@@ -1,0 +1,75 @@
+(module trie_search
+  (header
+    (purpose "Decide whether a trie whose nodes have 256 optional children holds a byte string.")
+    (invariants "The result is whether the key is in the trie's set of keys.")
+    (failures "None."))
+  (data node () (node (is_end bool) (children (vec (option node)))))
+  (ghost-fn is_empty ((n node)) bool (requires (== (len (field n children)) 256))
+    (body (and (not (field n is_end))
+               (forall ((i int)) (=> (and (<= 0 i) (< i 256)) (is none (idx (field n children) i)))))))
+  (ghost-fn well_formed ((n node)) bool (decreases (rank n))
+    (body (and (== (len (field n children)) 256)
+               (forall ((i int)) (=> (and (<= 0 i) (< i 256))
+                 (match (idx (field n children) i)
+                   (case (none) true)
+                   (case (some c) (and (well_formed c) (and (== (len (field c children)) 256) (not (is_empty c)))))))))))
+  (ghost-fn has_key ((n node) (key (seq int))) bool (decreases (len key))
+    (body (if (== (len key) 0)
+            (field n is_end)
+            (if (and (<= 0 (idx key 0)) (< (idx key 0) (len (field n children))))
+              (match (idx (field n children) (idx key 0))
+                (case (none) false)
+                (case (some c) (has_key c (drop key 1))))
+              false))))
+  (ghost-fn view ((n node)) (iset (seq int))
+    (body (iset-of ((key (seq int))) (has_key n key))))
+  (ghost-fn opt_view ((o (option node))) (iset (seq int))
+    (body (match o
+      (case (none) (iset-lit))
+      (case (some n) (view n)))))
+  (ghost-fn opt_well_formed ((o (option node))) bool
+    (body (match o
+      (case (none) true)
+      (case (some n) (and (well_formed n) (not (is_empty n)))))))
+  (spec search
+    (params (tree (option node)) (key (ref (slice i64))))
+    (returns (res bool))
+    (requires
+      (opt_well_formed tree)
+      (forall ((k int)) (=> (contains key k) (and (<= 0 k) (< k 256)))))
+    (ensures (== res (contains (opt_view tree) key)))
+    (effects))
+  (spec search_at
+    (params (n node) (key (ref (slice i64))) (i i64))
+    (returns (res bool))
+    (requires
+      (forall ((k int)) (=> (contains key k) (and (<= 0 k) (< k 256))))
+      (and (<= 0 i) (<= i (len key))))
+    (ensures (== res (has_key n (drop key i))))
+    (effects))
+  (def search_at (decreases (- (len key) i))
+    (body
+      (if (== i (len key))
+        (block (assert (== (len (drop key i)) 0)) (return (field n is_end)))
+        (block
+          (let c i64 (idx key i))
+          (assert (contains key c))
+          (assert (== (idx (drop key i) 0) c))
+          (assert (== (drop (drop key i) 1) (drop key (+ i 1))))
+          (if (< c (len (field n children)))
+            (block
+              (let-mut m node n)
+              (let child (option node) (replace (idx (field m children) c) (none)))
+              (match child
+                (case (none) (return false))
+                (case (some ch) (block (let ((r bool)) (call search_at ch key (+ i 1))) (return r)))))
+            (return false))))))
+  (def search
+    (body
+      (match tree
+        (case (none) (return false))
+        (case (some n)
+          (block
+            (assert (== (drop key 0) key))
+            (let ((r bool)) (call search_at n key 0))
+            (return r)))))))
