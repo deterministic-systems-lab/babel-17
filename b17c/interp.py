@@ -132,8 +132,8 @@ class Pred:
     """A set built by iset-of, kept as its membership test, which gives a bool or UNKNOWN.
     Equality with it is unknown, and so is any value holding it in a set, map or multiset."""
 
-    def __init__(self, test):
-        self.test = test
+    def __init__(self, test, run):
+        self.test, self.run = test, run  # the run whose state testing a member uses
 
     def __eq__(self, other):
         if other is self:
@@ -1078,8 +1078,11 @@ class _Run:
         return UNKNOWN if v is None else self.member(*v)
 
     def member(self, s, y):
-        """Whether y is in sequence s, or in set s, or a key of map s."""
-        return s.test(y) if isinstance(s, Pred) else y in s
+        """Whether y is in sequence s, or in set s, or a key of map s. A set kept as its predicate
+        by another run, as D126's reading may meet, is unknown, so that no run spends another's state."""
+        if isinstance(s, Pred):
+            return s.test(y) if s.run is self else UNKNOWN
+        return y in s
 
     def e_multiset(self, x, env, g):
         s = self.eval(x.items[1], env, g)
@@ -1101,26 +1104,26 @@ class _Run:
         q, binders, body = x.items[0].text, x.items[1].items, x.items[2]
         names = [b.items[0].text for b in binders]
         types = {b.items[0].text: b.items[1] for b in binders}
-        ints, bools = ({n for n in names if _print(types[n]) == t} for t in ("int", "bool"))
+        ints, bools, seqs = _kinds(names, types)
         if q == "forall":
             guard = body.items[1] if _head(body) == "=>" else None
         else:
             guard = body if _head(body) == "and" else None
         seen = [False, False, False]  # a point that decides the result; a point or range that's unknown; a binder with no finite range
-        self.points(q == "exists", names, ints, bools, [] if guard is None else _conjuncts(guard), body, dict(env), 0,
+        self.points(q == "exists", names, ints, bools, seqs, [] if guard is None else _conjuncts(guard), body, dict(env), 0,
                     seen)
         if seen[0]:
             return q == "exists"  # forall has a false point, or exists a true one
         if not seen[2]:
             return UNKNOWN if seen[1] else q == "forall"
         if q == "forall" and _head(body) == "==":
-            return self.split(names, ints, bools, body, env)
+            return self.split(names, ints, bools, seqs, body, env)
         v = self.unfolded(x, q, names, types, guard, body, env)
         if v is UNKNOWN and q == "exists" and self.search:
             return self.witness(x, env)
         return v
 
-    def points(self, want, names, ints, bools, guard, body, env, k, seen, adaptive=False):
+    def points(self, want, names, ints, bools, seqs, guard, body, env, k, seen, adaptive=False):
         """Evaluate body at every point, fixing the binders in order. Points after the result
         is decided are still evaluated, so that an undefined one is found (D58). Adaptive, the
         next binder is the first whose range is finite with those before it fixed (D125)."""
@@ -1133,7 +1136,7 @@ class _Run:
             return
         for j in range(k, len(names) if adaptive else k + 1):
             x = names[j]
-            values = (False, True) if x in bools else self.span(x, names[k:], ints, guard, env)
+            values = (False, True) if x in bools else self.span(x, names[k:], ints, guard, env, seqs)
             if values is not None:
                 names = names[:k] + [x] + names[k:j] + names[j + 1:]
                 break
@@ -1142,15 +1145,17 @@ class _Run:
             return
         for v in values:
             env[x] = v
-            self.points(want, names, ints, bools, guard, body, env, k + 1, seen, adaptive)
+            self.points(want, names, ints, bools, seqs, guard, body, env, k + 1, seen, adaptive)
 
     def unfolded(self, x, q, names, types, guard, body, env):
         """D125's rule 1: the guard's calls to a ghost-fn with no requires, measure or recursion, each
         argument a binder or a variable that isn't unknown, replaced by its body, and in a forall each
-        ∃ among the conjuncts made more binders, with binders fixed adaptively. Unknown if nothing unfolds."""
+        ∃ among the conjuncts made more binders, with binders fixed adaptively. Unknown if nothing unfolds.
+        An ∃'s body is its guard here even when it's one call (D126)."""
         unknown = tuple(sorted(n for n, v in env.items() if v is UNKNOWN))
         if (id(x), unknown) not in self.p.rewrites:
-            types, out, todo, changed = dict(types), [], [] if guard is None else _conjuncts(guard), False
+            todo = _conjuncts(body) if q == "exists" else [] if guard is None else _conjuncts(guard)
+            types, out, changed = dict(types), [], False
             while todo:
                 c = todo.pop(0)
                 fn = self.p.fns.get(c.items[0].text) if isinstance(c, Form) and isinstance(c.items[0], Sym) else None
@@ -1176,12 +1181,11 @@ class _Run:
         if r is None:
             return UNKNOWN
         names, types, out, new = r
-        ints, bools = ({n for n in names if _print(types[n]) == t} for t in ("int", "bool"))
         seen = [False, False, False]
-        self.points(q == "exists", names, ints, bools, out, new, dict(env), 0, seen, True)
+        self.points(q == "exists", names, *_kinds(names, types), out, new, dict(env), 0, seen, True)
         return q == "exists" if seen[0] else UNKNOWN if seen[1] else q == "forall"
 
-    def split(self, names, ints, bools, body, env):
+    def split(self, names, ints, bools, seqs, body, env):
         """D125's rule 2: (forall (xs) (== A B)), when every conjunct of A and B can't fail, as
         (forall (xs) (=> A B)) and (forall (xs) (=> B A)), each evaluated whatever the other gives."""
         a, b = body.items[1], body.items[2]
@@ -1191,7 +1195,7 @@ class _Run:
             self.p.rewrites["split", id(body)] = [self.p.copy(Form((Sym("=>"), p, c), body.pos), body) for p, c in ((a, b), (b, a))]
         seen = [False, False, False]
         for half in self.p.rewrites["split", id(body)]:
-            self.points(False, names, ints, bools, _conjuncts(half.items[1]), half, dict(env), 0, seen)
+            self.points(False, names, ints, bools, seqs, _conjuncts(half.items[1]), half, dict(env), 0, seen)
         return False if seen[0] else UNKNOWN if seen[1] else True
 
     def cant_fail(self, c, free, ints, env):
@@ -1232,19 +1236,44 @@ class _Run:
                 return True
         return UNKNOWN
 
-    def span(self, x, free, ints, guard, env):
+    def span(self, x, free, ints, guard, env, seqs=()):
         """The values the guard allows binder x, with the binders before it fixed in env: a
-        range or list, or None if it has no finite bounds (D58). Bounds come only from the
-        guard's leading conjuncts that can't fail, so a point they exclude makes the guard
-        false at a conjunct whose evaluation can't fail, and skipping it hides nothing. An int
-        binder is bounded by comparisons, and a binder of any type but bool by membership in a
-        finite collection (D102)."""
+        range or list, or None if it has no finite bounds (D58, D102). A sequence of int or bool
+        that those leave with no finite range is read again, in a run of its own, by D126."""
+        values = self.read(x, free, ints, guard, env)
+        if values is not None or x not in seqs:
+            return values
+        own = _Run(self.p, self.check, FUEL, self.depth)
+        own.soft = True
+        return own.read(x, free, ints, guard, env, seqs[x])
+
+    def read(self, x, free, ints, guard, env, elem=None):
+        """span's reading. Bounds come only from the guard's leading conjuncts that can't fail, so
+        a point they exclude makes the guard false at a conjunct whose evaluation can't fail, and
+        skipping it hides nothing. An int binder is bounded by comparisons, and a binder of any type
+        but bool by membership in a finite collection (D102). Given x's element type elem, x is a
+        sequence no membership bounds, bounded by its length and the foralls over its positions,
+        and searched (D126)."""
         lo = {n: None for n in free if n in ints}
         hi = dict(lo)
         steps = []  # (a, b, gap): a + gap <= b, between binders not yet fixed
         among = None  # the members x may take, in order
+        lens, alls, elems = ({x: 0}, {x: None}), [], ({x: None}, {x: None})  # D126's
         for c in guard:
             op = _head(c)
+            if elem is not None:
+                if op == "contains" and c.items[2] == Sym(x):
+                    return None  # D102's binder, not D126's
+                n = self.length(c, x, free, env)
+                if n is not None:
+                    _bound(*lens, x, *n)
+                    continue
+                n = self.positions(c, x, free, env)
+                if n is not None:
+                    alls.append(c)
+                    for o, v in n:
+                        _bound(*elems, x, o, v)
+                    continue
             if op == "contains" and isinstance(c.items[2], Sym) and c.items[2].text in free:
                 s = None if _mentions(c.items[1], free) else self.quiet(c.items[1], env)
                 if not isinstance(s, (tuple, frozenset, Map)):
@@ -1292,19 +1321,142 @@ class _Run:
                 if b in ints:
                     steps += _steps(a, op, b)
             elif type(b) is int:
-                if op in ("<", "<=", "=="):
-                    _tighten(hi, a, b - 1 if op == "<" else b, min)
-                if op in (">", ">=", "=="):
-                    _tighten(lo, a, b + 1 if op == ">" else b, max)
+                _bound(lo, hi, a, op, b)
             if not _settle(lo, hi, steps):
                 return range(0)  # no point passes the conjuncts so far, so later ones never run
         if not _settle(lo, hi, steps):
             return range(0)
         if among is not None:
             return [v for v in among if x not in lo or ((lo[x] is None or lo[x] <= v) and (hi[x] is None or v <= hi[x]))]
+        if elem is not None:
+            if lens[1][x] is not None and lens[0][x] > lens[1][x]:
+                return range(0)  # no length passes, so the guard holds nowhere
+            if elem == "bool":
+                return self.sequences(x, (False, True), lens, alls, env)
+            if None in (elems[0][x], elems[1][x]):
+                return None
+            return self.sequences(x, range(elems[0][x], elems[1][x] + 1), lens, alls, env)
         if x not in lo or lo[x] is None or hi[x] is None:
             return None
         return range(lo[x], hi[x] + 1)
+
+    def length(self, c, x, free, env):
+        """D126: conjunct c as a bound on x's length, (op, v) for (len x) op E, with E an integer
+        that mentions no binder in free and is defined here, of value v; else None."""
+        n = Form((Sym("len"), Sym(x)))
+        if _head(c) not in _FLIP or len(c.items) != 3 or n not in c.items[1:]:
+            return None
+        (a, b), op = c.items[1:], _head(c)
+        if b == n:
+            a, b, op = b, a, _FLIP[op]
+        v = None if _mentions(b, free) else self.quiet(b, env)
+        return (op, v) if type(v) is int else None
+
+    def positions(self, c, x, free, env):
+        """D126: conjunct c as a forall over x's positions, (forall (js) (=> G B)), which can't fail
+        and is false at every sequence extending one where it's false; else None. G compares js,
+        integers defined here and (len x), less a literal, as an inequality's greater side, so it gives
+        each of js a finite range at every length, and B compares sums and differences of reads of x
+        at j or j + a literal that G keeps in range, js and values defined here. Returns the bounds B
+        puts on every element, [(op, v)] for (idx x i) op v, where G gives its one binder i 0 to
+        (len x) - 1."""
+        if _head(c) != "forall" or _head(c.items[2]) != "=>" or any(_print(d.items[1]) != "int" for d in c.items[1].items):
+            return None
+        js, (when, then) = [d.items[0].text for d in c.items[1].items], c.items[2].items[1:]
+        hide = set(js) | set(free)
+        lo, hi, top, steps = dict.fromkeys(js), dict.fromkeys(js), dict.fromkeys(js), []  # top[j]: j <= (len x) + top[j]
+        narrow = False  # whether a conjunct of G may hold at fewer points than its bounds give
+
+        def value(s):  # a value defined here that mentions neither js nor a binder in free
+            return None if _mentions(s, hide) else self.quiet(s, env)
+
+        for e in _conjuncts(when):
+            if _head(e) not in _FLIP or len(e.items) != 3:
+                return None
+            sides = []
+            for s in e.items[1:]:
+                n = _less(s, x)
+                sides.append(("j", s.text) if isinstance(s, Sym) and s.text in js else ("len", -n) if n is not None
+                             else ("v", value(s)))
+                if sides[-1][0] == "v" and type(sides[-1][1]) is not int:
+                    return None
+            ((ka, a), (kb, b)), op = sides, _head(e)
+            if ka == "len" or ka == "v" and kb == "j":
+                ka, a, kb, b, op = kb, b, ka, a, _FLIP[op]
+            if ka == "len" or kb == "len" and op not in ("<", "<="):
+                return None  # (len x) only as an inequality's greater side
+            if op == "!=" or ka != "j":
+                narrow = True
+                continue
+            if kb == "len":
+                _tighten(top, a, b - (op == "<"), min)
+            elif kb == "j":
+                steps += _steps(a, op, b)
+                narrow = True
+            else:
+                _bound(lo, hi, a, op, b)
+        _settle(lo, hi, steps)
+        _settle(dict.fromkeys(js), top, steps)
+        if any(lo[j] is None or hi[j] is None and top[j] is None for j in js):
+            return None  # D58 reads no finite range for j at some length
+
+        def term(s):  # a sum or difference of reads of x that G keeps in range, js, and values defined here
+            if _head(s) in ("+", "-") and len(s.items) == 3:
+                return term(s.items[1]) and term(s.items[2])
+            if _head(s) == "idx" and s.items[1] == Sym(x):
+                j, d = s.items[2], Int(0)
+                if _head(j) == "+" and len(j.items) == 3:
+                    j, d = j.items[1:]
+                return (isinstance(j, Sym) and j.text in js and isinstance(d, Int) and lo[j.text] + d.value >= 0
+                        and top[j.text] is not None and top[j.text] + d.value <= -1)
+            return isinstance(s, Sym) and s.text in js or value(s) is not None
+
+        whole = len(js) == 1 and not narrow and lo[js[0]] == 0 and hi[js[0]] is None and top[js[0]] == -1
+        read = Form((Sym("idx"), Sym(x), Sym(js[0])))
+        elems = []
+        for e in _conjuncts(then):
+            if _head(e) not in _FLIP or len(e.items) != 3 or not (term(e.items[1]) and term(e.items[2])):
+                return None
+            (a, b), op = e.items[1:], _head(e)
+            if b == read:
+                a, b, op = b, a, _FLIP[op]
+            if whole and a == read and type(v := value(b)) is int:
+                elems.append((op, v))
+        return elems
+
+    def sequences(self, x, elems, lens, alls, env):
+        """D126's search, in this run of its own: x's points, breadth first from the empty sequence,
+        each length's survivors extended by each element in order. A sequence survives where every
+        forall over x's positions in alls is true, and a sequence extending one where it's false is
+        never built. None where one is neither true nor false, or the fuel runs out."""
+        if lens[1][x] is None and not alls and elems:
+            return None  # every sequence survives at every length, so the fuel would run out
+        level, out, n = [()], [], 0
+        self.fuel -= 1
+        while True:
+            keep = []
+            for s in level:
+                inner = {**env, x: s}
+                for c in alls:
+                    v = self.quiet(c, inner)
+                    if type(v) is not bool:
+                        return None
+                    if not v:
+                        break
+                else:
+                    keep.append(s)
+            if n >= lens[0][x]:
+                out += keep
+            if not keep or lens[1][x] is not None and n >= lens[1][x]:
+                return out
+            level = []
+            for s in keep:
+                for v in elems:
+                    self.fuel -= 1
+                    if self.fuel < 0:
+                        return None
+                    level.append(s + (v,))
+            n += 1
 
     # B17-1's expressions (docs/b17-1.md §7, §8).
 
@@ -1355,7 +1507,7 @@ class _Run:
                 return self.eval(body, {**snap, name: y}, True)
             finally:
                 self.frames, self.active, self.clause = saved
-        return Pred(test)
+        return Pred(test, self)
 
     def e_map_lit(self, x, env, g):
         v = [(self.eval(c.items[0], env, g), self.eval(c.items[1], env, g)) for c in x.items[1:]]
@@ -1372,10 +1524,10 @@ class _Run:
         if isinstance(a, frozenset) and isinstance(b, frozenset):
             return a | b if h == "union" else a - b if h == "diff" else a & b
         if h == "union":
-            return Pred(lambda y: _not(_and(_not(self.member(a, y)), _not(self.member(b, y)))))
+            return Pred(lambda y: _not(_and(_not(self.member(a, y)), _not(self.member(b, y)))), self)
         if h == "diff":
-            return Pred(lambda y: _and(self.member(a, y), _not(self.member(b, y))))
-        return Pred(lambda y: _and(self.member(a, y), self.member(b, y)))
+            return Pred(lambda y: _and(self.member(a, y), _not(self.member(b, y))), self)
+        return Pred(lambda y: _and(self.member(a, y), self.member(b, y)), self)
 
     def e_update(self, x, env, g):
         v = self.operands(x, env, g)
@@ -1654,6 +1806,31 @@ def _steps(x, op, y):
 
 def _tighten(bounds, x, v, pick):
     bounds[x] = v if bounds[x] is None else pick(bounds[x], v)
+
+
+def _bound(lo, hi, x, op, v):
+    """Tighten x's bounds by x op v, an integer, as D58 reads a comparison."""
+    if op in ("<", "<=", "=="):
+        _tighten(hi, x, v - 1 if op == "<" else v, min)
+    if op in (">", ">=", "=="):
+        _tighten(lo, x, v + 1 if op == ">" else v, max)
+
+
+def _less(s, x):
+    """n where s is (len x) less n, a non-negative literal, written (len x) or (- (len x) n); else None."""
+    n = Form((Sym("len"), Sym(x)))
+    if s == n:
+        return 0
+    if _head(s) == "-" and len(s.items) == 3 and s.items[1] == n and isinstance(s.items[2], Int) and s.items[2].value >= 0:
+        return s.items[2].value
+    return None
+
+
+def _kinds(names, types):
+    """A quantifier's int binders, its bool binders, and its sequences of int or bool with their element types."""
+    kinds = {n: _print(types[n]) for n in names}
+    return ({n for n in names if kinds[n] == "int"}, {n for n in names if kinds[n] == "bool"},
+            {n: kinds[n][5:-1] for n in names if kinds[n] in ("(seq int)", "(seq bool)")})
 
 
 def _nodes(x):

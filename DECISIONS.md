@@ -563,7 +563,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Each check is one of §9's goals at a concrete state, so a contract outcome is a counterexample to that goal, named the way the verifier names it. Checking a lemma's claim where it's called gives WP16's witness examples something to run, and its proof stays the verifier's job. Memoizing ghost-fns changes no result and makes recursive specs such as `fib` linear to evaluate.
 - **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9.
 
-## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102 and D125)
+## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102, D125 and D126)
 - **Date:** 2026-10-27
 - **Decision:**
   - **Guard:** a `forall`'s guard is G when its body is `(=> G P)`. An `exists`'s guard is its body, when that's an `and`. Nested `and`s are flattened into a list of conjuncts in evaluation order.
@@ -1317,7 +1317,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A toolchain per subset:** that duplicates every tool.
 - **Touches:** D44; D65; D98; interface 4; WP2; WP3; WP5; WP7; WP8; WP15; M3.
 
-## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted (refines D58)
+## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted (refines D58; refined by D126)
 - **Date:** 2026-10-29
 - **Decision:** D58 gains one kind of conjunct that can't fail and gives bounds, in both subsets.
   - **The conjunct:** `(contains E x)`, where x is an unassigned binder, E mentions no unassigned binder, and E is defined here, with a finite set, a sequence or a map as its value.
@@ -1944,7 +1944,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A slow call waits longer** before its retry.
 - **Touches:** D123; WP11; WP17: `gym/harness.py`, `gym/test_b17.py`.
 
-## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Accepted (refines D58, D88 and D121)
+## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Accepted (refines D58, D88 and D121; refined by D126)
 - **Date:** 2026-11-23
 - **Decision:** the interpreter, the property tests and the spec workbench take four rules. The plan is in the roadmap's Phase 1 work outside the gate, from a prototype on 2026-11-06 (ACTIVITY).
   - **1. A ghost-fn call in a guard is unfolded,** in both subsets. A conjunct of a quantifier's guard (D58) that calls a ghost-fn is replaced by the ghost-fn's body, with the arguments substituted for its parameters and the body's own binders renamed apart. That holds when:
@@ -2017,3 +2017,70 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The workbench is slower** where rule 3 searches, by up to 1,000 candidates each time an ∃ is evaluated, within a run's fuel.
   - **Not covered:** a `requires` whose inputs are all larger than the draws make, an ∃ whose witness is past the budget, and an ∃ with several binders or a binder of another type.
 - **Touches:** D57; D58; D59; D88; D102; D121; D123; WP4b; WP11; WP15; `docs/b17-1.md` status, §8, §10 and §14; `b17c/interp.py`, `b17c/spec.py`, `b17c/test_interp.py`, `b17c/test_spec.py`; `gym/pool-ports.jsonl`.
+
+## D126 · A quantifier over a sequence of integers or booleans ranges over the sequences its guard bounds · Accepted (refines D58, D102 and D125)
+- **Date:** 2026-11-24
+- **Decision:** in B17-1, the interpreter gives a binder of type `(seq int)` or `(seq bool)` a finite range where its guard's leading conjuncts bound the sequence's length and elements. Today such a quantifier is unknown unless membership bounds it (D102).
+  - **The binder:** x, in a `forall` or `exists`, that D58's and D102's reading leaves with no finite range, read again by this rule. A membership conjunct `(contains E x)` among the leading conjuncts leaves x to D102 alone. A binder of any other sequence type, such as a sequence of sequences or of tuples, is unknown as now.
+  - **Where it applies:** wherever D58 reads x's range, in D58's binder order or in a quantifier D125 rewrote, in that one's, with the binders already fixed and the rest unassigned. The guard's conjuncts are read flattened and in order, as D58 reads them. In reading x's range only, two more kinds of conjunct can't fail. They bound only x, so no other binder's range changes.
+    - **A length bound:** `(op (len x) E)` or `(op E (len x))`, with op a comparison and E an expression that mentions no unassigned binder and is defined here. It bounds x's length as D58 bounds an `int` binder, and `!=` bounds nothing, as in D58. The length is at least 0 in any case.
+    - **A `forall` over x's positions:** `(forall (js) (=> G B))`, where x is the only unassigned binder it mentions besides js, and:
+      - each of js is an `int`;
+      - G is an `and` of comparisons. Each side is one of js, an integer literal, an expression that mentions neither js nor an unassigned binder and is defined here, or `(len x)` or `(len x)` less a non-negative literal. Those last two appear only as the greater side of an inequality, as in `(< i (len x))` or `(> (len x) i)`;
+      - D58 reads a finite range off G for each of js, at every length of x;
+      - B is an `and` of comparisons, each side a sum or difference of reads `(idx x e)`, js, integer literals, and expressions that mention neither js nor an unassigned binder and are defined here. Each e is one of js, or one of js plus an integer literal, and G keeps it within 0 and `(len x)` − 1 at every length of x;
+      - x appears only in those places.
+
+      It can't fail: D58 bounds each of js, so the `forall` evaluates to `true` or `false` at every sequence, and every index it reads is in range. And it's false at every sequence that extends one where it's false. `(len x)` is only an upper bound in G, so a longer sequence admits every point a shorter one does, and the elements read at those points are unchanged.
+  - **The elements' range:** for `(seq bool)`, `false` then `true`. For `(seq int)`, the integers within every bound from a one-binder `forall` over x's positions whose G gives its binder i the range 0 to `(len x)` − 1. Its B's comparisons between `(idx x i)` and expressions that mention neither i nor an unassigned binder bound every element, read as D58 bounds an `int` binder. They're taken in ascending order. With no finite lower and upper bound, x has no finite range, as now.
+  - **The search:** breadth first, from the empty sequence. Each length's survivors, in order, are extended by each element value, in order. A sequence survives when every `forall` over x's positions among the leading conjuncts is `true` at it, evaluated in guard order, and it's dropped at the first that's `false`. The survivors whose length the length bounds admit are x's points, in the order built. The search ends after the greatest length the bounds admit, or at the first length with no survivor.
+    - **Its fuel:** each reading of x's range has D59's default fuel, 1,000,000 steps. Each sequence built costs a step, and each evaluation its steps.
+    - **Shared with nothing:** the reading's evaluations have their own fuel, ghost-fn memo and call depth, which it discards when it ends, and they're quiet, as D125's rule 4 reads bounds, so they record no goal, outcome or unchecked clause. A set built by `iset-of` outside the reading, kept as its predicate (D113), tests no member in it: its membership is unknown there. So a run's steps and L1's tested goals are what the points' own evaluations make them.
+    - **Giving up:** running out of that fuel, or a `forall` over positions that comes out other than `true` or `false`, leaves x with no finite range, as now. So D58's, D102's and D125's outcomes stand, and D125's rules apply as they do today. With no upper length bound and no `forall` over positions, every sequence survives at every length, so the search gives up at once, as it would on running out.
+    - **The points cost the run's fuel,** as any quantifier's do (D59), and each is evaluated as D58 evaluates a point.
+  - **Why it hides nothing:** a sequence the search skips has a length the length bounds rule out, or an element outside the elements' range, or extends a sequence at which a `forall` over x's positions is false. In each case the guard is false at a leading conjunct that can't fail, which is D58's condition for skipping a point.
+  - **D125's rule 1, in its re-evaluation only, also unfolds an ∃ whose body is one ghost-fn call:** the call is the guard's one conjunct, under rule 1's conditions, and the ∃'s body becomes the unfolded conjuncts, as for an ∃ whose body is an `and`. D58's first reading is unchanged: it reads a guard off an ∃'s body only when that's an `and`. `bipartite_check`'s `(exists ((colors (seq bool))) (is_valid_coloring g colors))` and `jump_game`'s path are one call.
+  - **What it reaches:** 6 of the 11 AlgoVeri problems that state their result with a quantifier over sequences. Counted by a sketch of the search at the draws' largest size, 8 elements (D88):
+
+    | Problem | Binder | Bounded by | Sequences built | Points |
+    |---|---|---|---|---|
+    | `house_robber` | the houses robbed, `(seq int)` | each in [0, n), each at least 2 past the one before | 441 | 55 |
+    | `longest_increasing_subsequence` | the indices, `(seq int)` | each in [0, n), increasing | 2,049 | 256 |
+    | `jump_game` | the path, `(seq int)` | each in [0, n), increasing, at least 1 long | 2,049 | 255 |
+    | `knapsack_01` | the items taken, `(seq bool)` | n long | 511 | 256 |
+    | `bipartite_check` | the colouring, `(seq bool)` | n long | 511 | 256 |
+    | `linearsys_gf2` | a solution, `(seq int)` | as long as a row, each 0 or 1 | 511 | 256 |
+
+    Their ports shape the specs for it, each saying what its Dafny source says:
+    - **Rule 1's arguments:** a predicate is passed binders and variables, such as `nums` for `house_robber`'s `is_valid_robbery` rather than `(len nums)`, so that rule 1 unfolds it.
+    - **`jump_game`:** `is_valid_jump_path`'s `if |path| < 1 then false else …` becomes one conjunction, in this order: the `forall` keeping each element in [0, n), the `forall` that each step moves forward, `(>= (len path) 1)`, the two endpoints, and last the `forall` that each step is within reach. Dafny's step clause is split in two for it, since `path[i+1] <= path[i] + nums[path[i]]` reads `nums` at an element, which might fail.
+    - **`linearsys_gf2`:** `x[i] == 0 || x[i] == 1` is written `0 <= x[i] <= 1`, the same over integers, since an `or` bounds nothing (D58).
+  - **What it doesn't reach:**
+    - **`k_smallest`:** at 8 elements a permutation's search builds 554,249 sequences, each costing a step and its evaluations, past its fuel. And the sorted sequence is bounded only through an ∃ in its guard, which rule 1 lifts only from a `forall`'s.
+    - **`cycle_detection`, `topological_sort`** and the ported path specs, `bfs`, `dijkstra`, `bellman_ford`, and `kruskal`'s and `prim`'s connectivity: a path's elements are bounded only through `has_edge`, a call, and a graph with a cycle has paths of every length.
+    - **`knapsack_unbounded`** and the ported `coin_change`: no conjunct bounds a count from above.
+    - **`max_matching`:** it quantifies over sets of pairs, with a `forall` inside an `exists`.
+    - **Sequences of other types,** such as `edmond_karp`'s and `push_relabel`'s flows and `kruskal`'s edge lists.
+  - **Versions:** the rule joins `docs/b17-1.md` §8, so B17-1 becomes version 1.4. B17-0's binders are `int` or `bool` (D68), so it stays at version 1.2.
+  - **Done when:**
+    - the rule has tests: a quantifier over each kind of sequence that it decides; one it leaves unknown because a `forall` over positions reads an index its guard doesn't keep in range; and one whose search runs out of fuel;
+    - every suite label, the Rust backend's differential runs and the interpreter's other results are unchanged, or each change is listed. None of the suite's sequence binders meets the conditions, so none is expected;
+    - the six problems are ported to `gym/pool/algoveri/` with reference defs, and their entry checks are recorded. On each input check 5 keeps, every `ensures` clause is decided. Whether each enters rests on its other checks and on D88's draws: `linearsys_gf2`'s `requires` asks for a matrix of 0s and 1s, which the draws rarely make.
+- **Why:**
+  - **WP11's pool:** 11 of the 39 AlgoVeri problems that pose no test problem state their result with a quantifier over sequences. The interpreter leaves such a clause unknown, so no reference's output is shown right and none can pass check 5 (D123). The reward's 0.90 tier would be out of reach on them too.
+  - **The draws are small:** D88 draws vectors of at most 8 elements, so where the guard bounds a sequence by the input's size, it admits few: at most 256 points in each of the six.
+  - **Sound by D58's argument:** the search skips only sequences at which the guard is false at a leading conjunct that can't fail.
+  - **D125's rule 3 doesn't cover it:** it searches sequences of `int` or `bool` for an ∃'s witness, but in the workbench only, stopping at the first, in clauses the verifier proves defined. Check 5's checked runs evaluate every point.
+- **Alternatives:**
+  - **A reference checker for each task,** as D118 wrote for the test set. It would cover all 11, but each needs writing and review, and D123 chose the spec as the pool's reference so that tasks need none. It stays the way to cover what this rule doesn't, as a further decision.
+  - **Every sequence up to a length,** such as the draws' 8, without reading the guard: a longer sequence the guard admits would be skipped, so a `forall` could be called true where it's false. D102 rejected enumerating whole types for the same reason.
+  - **Length and element bounds only,** with no `forall` over positions to prune: enough for the three over booleans or 0s and 1s. But the other three would search every sequence of up to 8 elements, each in [0, 8): 19,173,961 of them.
+  - **Boolean masks for the witnesses,** which Codex's review suggested: `house_robber`'s houses, `longest_increasing_subsequence`'s indices and `jump_game`'s path written as an n-long `(seq bool)` of the positions chosen. All six then need only length and element bounds, with no `forall` over positions to prune and at most 256 points each. But those three specs would state their witness differently from their sources, with ghost-fns to read the choice back, so each port says more that its review must check, and a later spec over indices or paths would need the same rewrite.
+  - **Stopping at a witness in checked runs,** as rule 3 does in the workbench, in clauses the verifier proves defined. With a search of paths through `has_edge`, it would reach `cycle_detection` and `topological_sort` on a graph with a cycle. But a run's outcome would then rest on the verifier's results, which D125 left to a further decision.
+- **Cost:**
+  - **B17-1 is amended a fourth time,** to version 1.4, after D113, D114 and D125.
+  - **Checked runs take more steps** where a quantifier newly has a range: up to 256 points in each of the six's clauses at 8 elements, besides the search's own fuel.
+  - **Results change** only where a sequence binder newly has a range. A clause unknown before may be decided, or may meet an undefined point, which is reported as D58 reports one.
+  - **Ports shape their specs,** as above, each saying what its Dafny source says.
+  - **Not covered:** the 5 problems above, and vericoding's 17, whose specs this decision hasn't checked.
+- **Touches:** D58; D59; D68; D88; D102; D123; D125; WP11; WP15; `docs/b17-1.md` status, §8 and §14; `b17c/interp.py`, `b17c/test_interp.py`; `gym/pool/algoveri/`, `gym/pool.jsonl`.

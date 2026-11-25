@@ -1,0 +1,108 @@
+(module house_robber
+  (header
+    (purpose "Find the most loot from houses in a row, robbing no two adjacent ones.")
+    (invariants "The result is at least every valid robbery's loot, and some valid robbery's loot equals it.")
+    (failures "None. The precondition keeps every robbery's loot in i64."))
+  (ghost-fn total_loot ((houses (seq int)) (nums (seq int))) int
+    (decreases (len houses))
+    (body (if (== (len houses) 0)
+            0
+            (+ (if (and (<= 0 (idx houses 0)) (< (idx houses 0) (len nums))) (idx nums (idx houses 0)) 0)
+               (total_loot (drop houses 1) nums)))))
+  (ghost-fn is_valid_robbery ((houses (seq int)) (nums (seq int))) bool
+    (body (and (forall ((i int)) (=> (and (<= 0 i) (< i (len houses))) (and (<= 0 (idx houses i)) (< (idx houses i) (len nums)))))
+               (forall ((i int)) (=> (and (<= 0 i) (< i (- (len houses) 1))) (>= (idx houses (+ i 1)) (+ (idx houses i) 2)))))))
+  (spec rob
+    (params (nums (ref (slice i64))))
+    (returns (max_amount i64))
+    (requires
+      (<= (len nums) 100)
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (>= (idx nums i) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (<= (idx nums i) 10000))))
+    (ensures
+      (>= max_amount 0)
+      (forall ((houses (seq int))) (=> (is_valid_robbery houses nums) (<= (total_loot houses nums) max_amount)))
+      (exists ((houses (seq int))) (and (is_valid_robbery houses nums) (== (total_loot houses nums) max_amount))))
+    (effects alloc))
+  (ghost-fn all_below ((h (seq int)) (b int)) bool
+    (body (forall ((k int)) (=> (and (<= 0 k) (< k (len h))) (< (idx h k) b)))))
+  (ghost-fn loot_cap ((nums (seq int)) (b int) (m int)) bool
+    (body (forall ((h (seq int))) (=> (and (is_valid_robbery h nums) (all_below h b)) (<= (total_loot h nums) m)))))
+  (lemma loot_snoc (params (h (seq int)) (x int) (nums (seq int)))
+    (ensures (== (total_loot (concat h (seq-lit x)) nums)
+                 (+ (total_loot h nums) (if (and (<= 0 x) (< x (len nums))) (idx nums x) 0))))
+    (decreases (len h))
+    (body
+      (if (== (len h) 0)
+        (assert (== (drop (concat h (seq-lit x)) 1) (seq-lit)))
+        (block
+          (assert (== (drop (concat h (seq-lit x)) 1) (concat (drop h 1) (seq-lit x))))
+          (call loot_snoc (drop h 1) x nums)))))
+  (lemma snoc_valid (params (h (seq int)) (x int) (nums (seq int)))
+    (requires (is_valid_robbery h nums) (all_below h (- x 1)) (and (<= 0 x) (< x (len nums))))
+    (ensures (is_valid_robbery (concat h (seq-lit x)) nums) (all_below (concat h (seq-lit x)) (+ x 1)))
+    (body))
+  (lemma loot_empty (params (nums (seq int)) (b int) (h (seq int)))
+    (requires (<= b 0) (is_valid_robbery h nums) (all_below h b))
+    (ensures (== (total_loot h nums) 0))
+    (body
+      (if (> (len h) 0) (assert (and (>= (idx h 0) 0) (< (idx h 0) b))) (block))))
+  (lemma loot_step (params (nums (seq int)) (i int) (prev int) (cur int) (m int) (h (seq int)))
+    (requires
+      (and (<= 0 i) (< i (len nums)))
+      (and (<= 0 prev) (<= prev cur))
+      (loot_cap nums (- i 1) prev)
+      (loot_cap nums i cur)
+      (and (<= cur m) (<= (+ prev (idx nums i)) m))
+      (is_valid_robbery h nums)
+      (all_below h (+ i 1)))
+    (ensures (<= (total_loot h nums) m))
+    (body
+      (if (== (len h) 0)
+        (assert (== (total_loot h nums) 0))
+        (if (< (idx h (- (len h) 1)) i)
+          (assert (all_below h i))
+          (block
+            (call law_take_step h (- (len h) 1))
+            (call law_take_all h)
+            (call loot_snoc (take h (- (len h) 1)) i nums)
+            (assert (is_valid_robbery (take h (- (len h) 1)) nums))
+            (assert (all_below (take h (- (len h) 1)) (- i 1))))))))
+  (lemma loot_final (params (nums (seq int)) (cur int) (h (seq int)))
+    (requires (loot_cap nums (len nums) cur) (is_valid_robbery h nums))
+    (ensures (<= (total_loot h nums) cur))
+    (body (assert (all_below h (len nums)))))
+  (def rob
+    (body
+      (let-mut prev i64 0)
+      (let-mut cur i64 0)
+      (ghost-let-mut wp (seq int) (seq-lit))
+      (ghost-let-mut wc (seq int) (seq-lit))
+      (forall ((h (seq int))) (call loot_empty nums -1 h))
+      (forall ((h (seq int))) (call loot_empty nums 0 h))
+      (let-mut i i64 0)
+      (while (< i (len nums))
+        (invariant (and (<= 0 i) (<= i (len nums))))
+        (invariant (and (and (<= 0 prev) (<= prev cur)) (<= cur (* 10000 i))))
+        (invariant (and (is_valid_robbery wp nums) (and (all_below wp (- i 1)) (== (total_loot wp nums) prev))))
+        (invariant (and (is_valid_robbery wc nums) (and (all_below wc i) (== (total_loot wc nums) cur))))
+        (invariant (and (loot_cap nums (- i 1) prev) (loot_cap nums i cur)))
+        (decreases (- (len nums) i))
+        (let robbed i64 (+ prev (idx nums i)))
+        (if (> robbed cur)
+          (block
+            (forall ((h (seq int))) (call loot_step nums i prev cur robbed h))
+            (call loot_snoc wp i nums)
+            (call snoc_valid wp i nums)
+            (ghost-let owc (seq int) wc)
+            (ghost-set wc (concat wp (seq-lit i)))
+            (ghost-set wp owc)
+            (set prev cur)
+            (set cur robbed))
+          (block
+            (forall ((h (seq int))) (call loot_step nums i prev cur cur h))
+            (ghost-set wp wc)
+            (set prev cur)))
+        (set i (+ i 1)))
+      (forall ((h (seq int))) (call loot_final nums cur h))
+      (return cur))))

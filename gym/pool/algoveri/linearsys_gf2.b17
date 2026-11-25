@@ -1,0 +1,83 @@
+(module linearsys_gf2
+  (header
+    (purpose "Solve a linear system over GF(2), the integers modulo 2, or report that it has no solution.")
+    (invariants "A returned vector solves the system; none means no binary vector of the right length does.")
+    (failures "Allocation failure aborts."))
+  (ghost-fn add_gf2 ((a int) (b int)) int
+    (body (% (+ a b) 2)))
+  (ghost-fn mul_gf2 ((a int) (b int)) int
+    (body (% (* a b) 2)))
+  (ghost-fn is_binary_vector ((v (seq int))) bool
+    (body (forall ((i int)) (=> (and (<= 0 i) (< i (len v))) (and (<= 0 (idx v i)) (<= (idx v i) 1))))))
+  (ghost-fn is_binary_matrix ((m (seq (seq int))) (rows int) (cols int)) bool
+    (body (and (== (len m) rows)
+               (and (forall ((i int)) (=> (and (<= 0 i) (< i rows)) (== (len (idx m i)) cols)))
+                    (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i rows)) (and (<= 0 j) (< j cols)))
+                                                  (or (== (idx (idx m i) j) 0) (== (idx (idx m i) j) 1))))))))
+  (ghost-fn spec_dot_product_gf2 ((row (seq int)) (x (seq int)) (k int)) int
+    (decreases (if (< k 0) 0 (+ k 1)))
+    (body (if (< k 0)
+            0
+            (if (and (< k (len row)) (< k (len x)))
+              (add_gf2 (mul_gf2 (idx row k) (idx x k)) (spec_dot_product_gf2 row x (- k 1)))
+              (spec_dot_product_gf2 row x (- k 1))))))
+  (ghost-fn pow2 ((k int)) int
+    (requires (>= k 0))
+    (decreases k)
+    (body (if (== k 0) 1 (* 2 (pow2 (- k 1))))))
+  (ghost-fn is_solution ((a (seq (seq int))) (b (seq int)) (x (seq int))) bool
+    (body (and (== (len a) (len b))
+          (and (> (len a) 0)
+          (and (== (len x) (len (idx a 0)))
+          (and (is_binary_vector x)
+               (forall ((i int)) (=> (and (<= 0 i) (< i (len a))) (== (spec_dot_product_gf2 (idx a i) x (- (len x) 1)) (idx b i))))))))))
+  (spec solve_linear_system_gf2
+    (params (matrix (ref (slice (vec i64)))) (b (ref (slice i64))))
+    (returns (res (option (vec i64))))
+    (requires
+      (> (len matrix) 0)
+      (> (len (idx matrix 0)) 0)
+      (== (len matrix) (len b))
+      (<= (len matrix) 100)
+      (<= (len (idx matrix 0)) 100)
+      (is_binary_matrix matrix (len matrix) (len (idx matrix 0)))
+      (is_binary_vector b))
+    (ensures
+      (match res
+        (case (none) (forall ((x (seq int))) (=> (and (== (len x) (len (idx matrix 0))) (is_binary_vector x)) (not (is_solution matrix b x)))))
+        (case (some x) (is_solution matrix b x))))
+    (effects alloc))
+  (def solve_linear_system_gf2
+    (body
+      (let rows i64 (len matrix))
+      (let cols i64 (len (idx matrix 0)))
+      (let-mut cand (vec i64) (seq-build cols (fn (j) 0)))
+      (let-mut done bool false)
+      (ghost-let-mut left int (pow2 cols))
+      (while (not done)
+        (decreases left)
+        (let-mut ok bool true)
+        (let-mut i i64 0)
+        (while (< i rows)
+          (invariant (and (<= 0 i) (<= i rows)))
+          (decreases (- rows i))
+          (let-mut s i64 0)
+          (let-mut j i64 0)
+          (while (< j cols)
+            (invariant (and (<= 0 j) (<= j cols)))
+            (invariant (and (<= 0 s) (<= s 1)))
+            (decreases (- cols j))
+            (set s (% (+ s (* (idx (idx matrix i) j) (idx cand j))) 2))
+            (set j (+ j 1)))
+          (if (!= s (idx b i)) (set ok false) (block))
+          (set i (+ i 1)))
+        (if ok (return (some cand)) (block))
+        (let-mut k i64 0)
+        (while (and (< k cols) (== (idx cand k) 1))
+          (invariant (and (<= 0 k) (<= k cols)))
+          (decreases (- cols k))
+          (set-idx cand k 0)
+          (set k (+ k 1)))
+        (if (< k cols) (set-idx cand k 1) (set done true))
+        (ghost-set left (- left 1)))
+      (return (none)))))

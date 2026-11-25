@@ -1,0 +1,75 @@
+(module bipartite_check
+  (header
+    (purpose "Find a 2-colouring of a directed graph in which no edge joins two vertices of the same colour, or report that none exists.")
+    (invariants "A returned colouring is valid; none means no valid colouring exists.")
+    (failures "Allocation failure aborts."))
+  (data graph () (graph (adj (vec (vec i64)))))
+  (ghost-fn well_formed ((g graph)) bool
+    (body (forall ((u int) (i int))
+      (=> (and (and (<= 0 u) (< u (len (field g adj)))) (and (<= 0 i) (< i (len (idx (field g adj) u)))))
+          (and (<= 0 (idx (idx (field g adj) u) i)) (< (idx (idx (field g adj) u) i) (len (field g adj))))))))
+  (ghost-fn size ((g graph)) int
+    (body (len (field g adj))))
+  (ghost-fn has_edge ((g graph) (u int) (v int)) bool
+    (body (exists ((i int))
+      (and (and (and (<= 0 u) (< u (len (field g adj)))) (and (<= 0 i) (< i (len (idx (field g adj) u)))))
+           (== (idx (idx (field g adj) u) i) v)))))
+  (ghost-fn is_valid_coloring ((g graph) (colors (seq bool))) bool
+    (body (and (== (len colors) (size g))
+               (forall ((u int) (v int))
+                 (=> (has_edge g u v)
+                     (and (and (<= 0 u) (< u (len colors)))
+                          (and (and (<= 0 v) (< v (len colors))) (!= (idx colors u) (idx colors v)))))))))
+  (ghost-fn is_bipartite ((g graph)) bool
+    (body (exists ((colors (seq bool))) (is_valid_coloring g colors))))
+  (spec check_bipartite
+    (params (g graph))
+    (returns (res (option (vec bool))))
+    (requires (well_formed g))
+    (ensures
+      (match res
+        (case (none) (not (is_bipartite g)))
+        (case (some colors) (is_valid_coloring g colors))))
+    (effects alloc))
+  (def check_bipartite
+    (body
+      (let n i64 (len (field g adj)))
+      (let-mut color (vec i64) (seq-build n (fn (j) -1)))
+      (let-mut s i64 0)
+      (while (< s n)
+        (invariant (and (<= 0 s) (<= s n)))
+        (invariant (== (len color) n))
+        (decreases (- n s))
+        (if (== (idx color s) -1)
+          (block
+            (set-idx color s 0)
+            (let-mut queue (vec i64) (vec-new))
+            (push queue s)
+            (let-mut head i64 0)
+            (while (< head (len queue))
+              (invariant (and (<= 0 head) (and (<= head (len queue)) (<= (len queue) n))))
+              (invariant (== (len color) n))
+              (decreases (- n head))
+              (let u i64 (idx queue head))
+              (let-mut a i64 0)
+              (while (< a n)
+                (invariant (and (<= 0 a) (<= a n)))
+                (decreases (- n a))
+                (let-mut e i64 0)
+                (while (< e (len (idx (field g adj) a)))
+                  (invariant (<= 0 e))
+                  (decreases (- (len (idx (field g adj) a)) e))
+                  (let b i64 (idx (idx (field g adj) a) e))
+                  (if (or (== a u) (== b u))
+                    (block
+                      (let v i64 (if (== a u) b a))
+                      (if (== (idx color v) -1)
+                        (block (set-idx color v (- 1 (idx color u))) (push queue v))
+                        (if (== (idx color v) (idx color u)) (return (none)) (block))))
+                    (block))
+                  (set e (+ e 1)))
+                (set a (+ a 1)))
+              (set head (+ head 1))))
+          (block))
+        (set s (+ s 1)))
+      (return (some (seq-build n (fn (j) (== (idx color j) 1))))))))

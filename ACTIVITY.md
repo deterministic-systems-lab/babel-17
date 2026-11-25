@@ -3556,3 +3556,88 @@ WP11's pool, in Phase 2. The owner asked for AlgoVeri's problems to be ported. 1
 - **For the owner:** bounds on the two primality specs, the 11 specs over sequences, draws that miss, and mutants for a result built in one expression. They're in the roadmap's decisions waiting.
 - **Updated:** `gym/harness.py`, `gym/split.py`, `gym/pool.py`, `gym/test_split.py`, `gym/pool/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-24 · D126 proposed: quantifiers over sequences
+- **What:** the owner asked for a draft of the decision the roadmap's second item from the pool's first ports needs. D126 lets the interpreter give a `(seq int)` or `(seq bool)` binder a finite range, where its guard's leading conjuncts bound the sequence's length, and its elements through a `forall` over its positions. It builds sequences shortest first and drops any that extends one a `forall` over positions rules out. D125's rule 1 also unfolds an ∃ whose body is one ghost-fn call.
+- **Settled in drafting:**
+  - **Which conjuncts prune:** a `forall` over x's positions whose guard D58 can read, with `(len x)` only as an upper bound and every index it reads kept in range, and a body of comparisons. It can't fail, and it's false at every extension of a sequence where it's false, so skipping those hides nothing (D58).
+  - **The search's fuel** is its own, D59's default for each reading of the range, with a step for each sequence built, as D125's rule 4 reads bounds. Running out, or a `forall` over positions that comes out neither true nor false, leaves the binder unbounded, as today, so no unknown becomes a `limit`.
+  - **No `or`:** `linearsys_gf2`'s port writes `x[i] == 0 || x[i] == 1` as two comparisons instead.
+- **Codex's review** (`gpt-5.6-sol`) found the soundness argument right once tightened, the table's counts right, the five exclusions right, and no suite binder newly reached. It found 4 problems, all fixed:
+  - a `forall` over positions whose guard D58 can't read, such as one bounding `(+ i 1)`, would come out unknown, so G's sides are now D58's and each of its binders needs a finite range;
+  - the search's cost: an exact-length `(seq bool)` with nothing to prune built sequences without spending fuel, so each sequence built now costs a step, and the search gives up on anything but `true` or `false`;
+  - the search's order and scope, now stated: flattened guard order, bounds intersected, breadth first, and the same rule in D125's rewritten quantifiers;
+  - `jump_game`'s `if |path| < 1 then false else …` unfolds to an `if`, so its port writes it as a conjunction.
+
+  It also suggested Boolean masks for three of the witnesses, which would need only length and element bounds. That's now an alternative: it moves those specs further from their sources.
+- **Codex's re-check** found the four fixed but for one part of the second: the search's evaluations could share the run's ghost-fn memo, changing a run's steps and L1's tested goals. They now have their own memo and call depth too.
+- **Counted for it,** by a sketch of the search at 8 elements: `house_robber` 55 points, `longest_increasing_subsequence` 256, `jump_game` 255, and `knapsack_01`, `bipartite_check` and `linearsys_gf2` 256 each. `k_smallest`'s permutations build 554,249 sequences, past the fuel.
+- **Not reached:** `k_smallest`, `cycle_detection`, `topological_sort`, `knapsack_unbounded` and `max_matching`, and the ported path specs and `coin_change`, whose clauses stay unknown as now.
+- **Updated:** DECISIONS (D126) and the roadmap's decisions waiting.
+- **Not changed:** the code, the spec text and the suite, until D126 is accepted.
+- **Interfaces touched:** none.
+
+## 2026-11-24 · The owner accepts D126
+
+WP11 and WP15. The owner accepted D126 on 2026-11-24, as drafted: a quantifier over a `(seq int)` or `(seq bool)` ranges over the sequences its guard bounds by length and by `forall`s over its positions, found by a breadth-first search with its own fuel, and D125's rule 1 also unfolds an ∃ whose body is one call. B17-1 becomes version 1.4.
+
+- **What follows:** the rule in `b17c/interp.py`, with its tests, and `docs/b17-1.md` §8 and §14. After it, every suite label, the Rust backend's runs and the interpreter's other results are checked unchanged against the code before it, and the six problems it reaches are ported to the pool.
+- **D58, D102 and D125:** their headings name D126, which refines them.
+- **Interfaces touched:** none.
+
+## 2026-11-25 · D126 built: quantifiers over sequences
+
+WP11 and WP15. D126 is built in `b17c/interp.py`, and `docs/b17-1.md` is version 1.4. The six AlgoVeri problems it reaches are ported to `gym/pool/algoveri/`, and four of them enter the pool, all four to train on. The pool has 12 tasks, from 18 ports: 9 to train on and 3 held out.
+
+- **The rule, as built:**
+  - **`_Run.span`** reads a binder's range as before, by D58 and D102. Where that leaves a `(seq int)` or `(seq bool)` binder with no finite range, it reads it again in a `_Run` of its own, with D59's default fuel, its own memo and call depth, and quiet evaluations. A membership conjunct on the binder among the leading ones leaves it to D102, as before.
+  - **`_Run.length`** reads a bound on `(len x)`, and **`_Run.positions`** a `forall` over x's positions, under D126's conditions. Element bounds come only from a one-binder `forall` whose guard is exactly 0 to `(len x)` − 1. A `!=`, a comparison with no binder, or a step between two binders makes it prune without bounding elements.
+  - **`_Run.sequences`** is the search: breadth first, a step for each sequence built, and a sequence dropped at the first `forall` over positions that's false at it. Anything but `true` or `false` gives up. With no upper length bound and no `forall` over positions it gives up at once, since every sequence would survive until the fuel ran out.
+  - **`_Run.unfolded`** reads an ∃'s body as its guard even when it's one call.
+  - **A set built by `iset-of`** tests members only on the run that made it. The reading, a run of its own, meets the outer run's sets, and their members are unknown there.
+- **Tests,** in `b17c/test_interp.py`:
+  - **Decided:** houses robbed, each in [0, 8) and at least 2 past the one before. A `forall` over them is decided true and false, and an ∃ of a robbery at least 4 long true and one at least 5 long false, through a ghost-fn rule 1 unfolds. A `(seq bool)` ∃ is decided true at exact length 8 and false where its body can't hold.
+  - **Unknown:** a `forall` over positions whose guard lets an index reach `(len h)`; a search over every sequence of 0s and 1s, with no upper length, which runs out of its own fuel and not the run's 10,000 steps; and a `forall` that bounds only some positions, so that `(seq-lit 0 1)` isn't skipped.
+  - **Codex's cases:** a length no sequence has makes the guard hold nowhere. A sequence that membership bounds is D102's, unknown as before. The reading's own calls record no unchecked clause, and neither does an `iset-of` set's test.
+- **Done-when, item by item:**
+  - **The tests** above.
+  - **Unchanged:** all 17 self-checks pass on the final code, with every suite label. The Rust backend's 12,926 differential runs match, the same count as before. Compared against the commit before the rule, `8cf892a`:
+    - L1's property tests on the 40 defs of the suite's accept programs keep the same inputs and evaluate and refute the same goals;
+    - the workbench's record on the 35 accept programs, vacuity and verification levels, is the same;
+    - the checked runs that `test_interp.py` records for B17-1's accept programs, 50 cases, leave the same 271 clauses unchecked.
+  - **The six ports,** each with a reference def, and their entry checks recorded in `gym/pool.jsonl`:
+
+    | Port | Goals | Mutants | Enters |
+    |---|---|---|---|
+    | `house_robber` | 62 | 17: 16 by test, 1 survivor | yes |
+    | `longest_increasing_subsequence` | 144 | 33: 30 by test, 1 by the verifier, 2 survivors | yes |
+    | `jump_game` | 59 | 24: 20 by test, 1 by the verifier, 3 survivors | yes |
+    | `knapsack_01` | 208 | 24: 23 by test, 1 survivor | yes |
+    | `bipartite_check` | 55, 10 not proved | not run | no, on check 3 |
+    | `linearsys_gf2` | 57, 8 not proved | not run | no, on checks 2, 3 and 5 |
+
+    No survivor's output differs on the tests' inputs.
+  - **Every `ensures` decided:** check 5 keeps 25 inputs for each of the first five, and on each the reference's checked run decides every clause true. `linearsys_gf2`'s draws keep 1 of 25, so check 5 stops before triage. On 20 binary systems of up to 8 by 8, its reference's `ensures` is decided true on all 20. Before D126, the 9 whose answer is `none` were undecided, since that arm's `forall` was unknown.
+- **The entry checks under the secret,** on all 53 ports in 8 processes, in 92 minutes: the 35's results and the first 12 pool ports' are unchanged.
+- **How the ports were made:**
+  - **The six were ported first,** each spec from its Dafny source, with references that ran but didn't verify. Under a made-up key, check 5 passed on all but `linearsys_gf2`.
+  - **Four agents,** each in its own worktree and told not to read the secret, made `house_robber`'s, `jump_game`'s, `knapsack_01`'s and `longest_increasing_subsequence`'s references verify: ghost witnesses and induction lemmas for the bound and the witness. `knapsack_01`'s is a DP over suffixes, proved against a recursive best value. Their worktrees came from `main`, which has no `gym/pool/`, so they worked on copies, reviewed before they were brought over.
+  - **`bipartite_check`'s and `linearsys_gf2`'s** were left unproved. `bipartite_check`'s `none` arm needs a proof that no colouring exists, from an odd cycle the BFS finds, and `linearsys_gf2`'s binary counter needs its termination and its exhaustiveness proved.
+- **The specs say what their Dafny sources say,** but for §11's types, and for D126's shaping: `house_robber`'s predicate takes `nums` rather than its length, `jump_game`'s `if` is one conjunction with its step clause in two, and `linearsys_gf2`'s `is_binary_vector` reads `0 <= x[i] <= 1`. Beyond those:
+  - **`bipartite_check`'s parameter is `g`,** since `graph` is its data type's constructor, which no parameter may be named (D82).
+  - **Each `match`** names `none` before `some`, in declaration order (D81), where Dafny names `Some` first.
+  - **`linearsys_gf2`** leaves out `to_int_vec` and `to_int_mat`, identities its spec never uses.
+  - **`linearsys_gf2`'s `%`:** Codex pointed out that B17's truncates where Dafny's is Euclidean, so `add_gf2(-1, 0)` is -1 here and 1 there. It's kept: the `requires` and `is_binary_vector` give every call 0s and 1s, so no input the spec admits sees a difference.
+- **Draws that miss:** under made-up keys, D88's kept draws are mostly trivial. Of 100, `knapsack_01`'s have no items in 93, since its two vectors must be the same length, `bipartite_check`'s graphs no vertex in 87, `house_robber`'s no house in 62, and `jump_game`'s one index in 66. `longest_increasing_subsequence`'s spread from 0 to 8.
+- **Codex's review of the code** (`gpt-5.6-sol`), told not to read the secret or run `pool.py`, found 4 problems, all fixed:
+  - **A `forall` over some positions** bounded every element: `(!= k 1)` in its guard was skipped, so `(seq-lit 0 1)` was never built and a false clause came out true. Element bounds now need a guard of exactly every position.
+  - **The reading's other evaluations** used the outer run's fuel, memo and depth, and could record an unchecked clause. The whole reading now runs on its own.
+  - **A length range with no length** came out unknown for a `(seq int)` with no element bounds. It now holds nowhere.
+  - **A membership conjunct after a length bound** was reached where it wasn't before, changing a D102 outcome. D58's and D102's reading now runs first, as before, and a membership on the binder leaves it to D102.
+- **Codex's re-check** found the 4 fixed and one more: a set built by `iset-of` in the outer run still ran its test there, so the reading could record an unchecked clause through it. Fixed as above, with a test.
+- **Codex's review of the six specs** against their Dafny sources found all faithful, with the one note on `%` above.
+- **Ponytail:** nothing to cut.
+- **D126's text and §8:** the reading runs where D58's and D102's leave the binder unbounded, a membership on it leaves it to D102, an `iset-of` set from outside tests no member in it, and a search with nothing to bound or prune it gives up at once, which ends as running out would.
+- **Codex's fact-check of this entry,** the roadmap, the README and D126's text (`gpt-5.6-sol`), told not to read the secret, against the records and the code: no problem found.
+- **Updated:** DECISIONS (D126's status and text, and the headings of D58, D102 and D125); `docs/b17-1.md`'s status, §8 and §14; `gym/pool/algoveri/`, `gym/pool.jsonl`; the README's status, WP11 row and docs table; the roadmap's date, B17-1's version, recent work, decisions waiting, accepted decisions, critical path and Phase 2.
+- **Interfaces touched:** none.

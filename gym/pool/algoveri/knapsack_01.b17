@@ -1,0 +1,142 @@
+(module knapsack_01
+  (header
+    (purpose "Find the most value from items, each taken at most once, whose weights fit in a capacity.")
+    (invariants "The result is at least every valid strategy's value, and some valid strategy's value equals it.")
+    (failures "Allocation failure aborts."))
+  (ghost-fn total_weight ((selected (seq bool)) (weights (seq int))) int
+    (requires (<= (len selected) (len weights)))
+    (decreases (len selected))
+    (body (if (== (len selected) 0)
+            0
+            (+ (if (idx selected 0) (idx weights 0) 0) (total_weight (drop selected 1) (drop weights 1))))))
+  (ghost-fn total_value ((selected (seq bool)) (values (seq int))) int
+    (requires (<= (len selected) (len values)))
+    (decreases (len selected))
+    (body (if (== (len selected) 0)
+            0
+            (+ (if (idx selected 0) (idx values 0) 0) (total_value (drop selected 1) (drop values 1))))))
+  (ghost-fn is_valid_strategy ((selected (seq bool)) (weights (seq int)) (capacity int)) bool
+    (body (and (== (len selected) (len weights)) (<= (total_weight selected weights) capacity))))
+  (spec solve_knapsack_01
+    (params (weights (ref (slice i64))) (values (ref (slice i64))) (capacity i64))
+    (returns (max_val i64))
+    (requires
+      (== (len weights) (len values))
+      (<= (len weights) 100)
+      (and (<= 0 capacity) (<= capacity 1000))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len weights))) (and (<= 0 (idx weights i)) (<= (idx weights i) 1000))))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len values))) (and (<= 0 (idx values i)) (<= (idx values i) 1000)))))
+    (ensures
+      (>= max_val 0)
+      (forall ((selected (seq bool))) (=> (is_valid_strategy selected weights capacity) (<= (total_value selected values) max_val)))
+      (exists ((selected (seq bool))) (and (is_valid_strategy selected weights capacity) (== (total_value selected values) max_val))))
+    (effects alloc))
+  (ghost-fn max ((a int) (b int)) int
+    (body (if (> a b) a b)))
+  (ghost-fn best ((ws (seq int)) (vs (seq int)) (c int)) int
+    (requires (<= (len ws) (len vs)))
+    (decreases (len ws))
+    (body
+      (if (== (len ws) 0)
+        0
+        (if (<= (idx ws 0) c)
+          (max (best (drop ws 1) (drop vs 1) c) (+ (idx vs 0) (best (drop ws 1) (drop vs 1) (- c (idx ws 0)))))
+          (best (drop ws 1) (drop vs 1) c)))))
+  (lemma best_step (params (ws (seq int)) (vs (seq int)) (i int) (c int))
+    (requires (== (len ws) (len vs)) (and (<= 0 i) (< i (len ws))))
+    (ensures
+      (== (best (drop ws i) (drop vs i) c)
+          (if (<= (idx ws i) c)
+            (max (best (drop ws (+ i 1)) (drop vs (+ i 1)) c)
+                 (+ (idx vs i) (best (drop ws (+ i 1)) (drop vs (+ i 1)) (- c (idx ws i)))))
+            (best (drop ws (+ i 1)) (drop vs (+ i 1)) c))))
+    (body
+      (assert (== (drop (drop ws i) 1) (drop ws (+ i 1))))
+      (assert (== (drop (drop vs i) 1) (drop vs (+ i 1))))
+      (assert (== (idx (drop ws i) 0) (idx ws i)))
+      (assert (== (idx (drop vs i) 0) (idx vs i)))))
+  (lemma tw_nonneg (params (sel (seq bool)) (ws (seq int)))
+    (requires
+      (<= (len sel) (len ws))
+      (forall ((k int)) (=> (and (<= 0 k) (< k (len ws))) (<= 0 (idx ws k)))))
+    (ensures (>= (total_weight sel ws) 0))
+    (decreases (len sel))
+    (body (if (> (len sel) 0) (call tw_nonneg (drop sel 1) (drop ws 1)) (block))))
+  (lemma upper (params (sel (seq bool)) (ws (seq int)) (vs (seq int)) (c int))
+    (requires
+      (== (len sel) (len ws))
+      (== (len ws) (len vs))
+      (forall ((k int)) (=> (and (<= 0 k) (< k (len ws))) (<= 0 (idx ws k))))
+      (<= (total_weight sel ws) c))
+    (ensures (<= (total_value sel vs) (best ws vs c)))
+    (decreases (len sel))
+    (body
+      (if (> (len sel) 0)
+        (block
+          (call tw_nonneg (drop sel 1) (drop ws 1))
+          (if (idx sel 0)
+            (call upper (drop sel 1) (drop ws 1) (drop vs 1) (- c (idx ws 0)))
+            (call upper (drop sel 1) (drop ws 1) (drop vs 1) c)))
+        (block))))
+  (lemma cons (params (b bool) (s (seq bool)))
+    (ensures
+      (== (len (concat (seq-lit b) s)) (+ (len s) 1))
+      (== (idx (concat (seq-lit b) s) 0) b)
+      (== (drop (concat (seq-lit b) s) 1) s))
+    (body))
+  (lemma attain (params (ws (seq int)) (vs (seq int)) (c int))
+    (requires (== (len ws) (len vs)) (>= c 0))
+    (ensures (exists ((sel (seq bool))) (and (is_valid_strategy sel ws c) (== (total_value sel vs) (best ws vs c)))))
+    (decreases (len ws))
+    (body
+      (if (== (len ws) 0)
+        (block
+          (ghost-let s0 (seq bool) (seq-lit))
+          (assert (is_valid_strategy s0 ws c)))
+        (if (and (<= (idx ws 0) c)
+                 (> (+ (idx vs 0) (best (drop ws 1) (drop vs 1) (- c (idx ws 0)))) (best (drop ws 1) (drop vs 1) c)))
+          (block
+            (call attain (drop ws 1) (drop vs 1) (- c (idx ws 0)))
+            (obtain ((s1 (seq bool)))
+              (and (is_valid_strategy s1 (drop ws 1) (- c (idx ws 0)))
+                   (== (total_value s1 (drop vs 1)) (best (drop ws 1) (drop vs 1) (- c (idx ws 0))))))
+            (ghost-let s2 (seq bool) (concat (seq-lit true) s1))
+            (call cons true s1)
+            (assert (== (total_weight s2 ws) (+ (idx ws 0) (total_weight s1 (drop ws 1)))))
+            (assert (is_valid_strategy s2 ws c))
+            (assert (== (total_value s2 vs) (best ws vs c))))
+          (block
+            (call attain (drop ws 1) (drop vs 1) c)
+            (obtain ((s3 (seq bool)))
+              (and (is_valid_strategy s3 (drop ws 1) c)
+                   (== (total_value s3 (drop vs 1)) (best (drop ws 1) (drop vs 1) c))))
+            (ghost-let s4 (seq bool) (concat (seq-lit false) s3))
+            (call cons false s3)
+            (assert (== (total_weight s4 ws) (total_weight s3 (drop ws 1))))
+            (assert (is_valid_strategy s4 ws c))
+            (assert (== (total_value s4 vs) (best ws vs c))))))))
+  (def solve_knapsack_01
+    (body
+      (let n i64 (len weights))
+      (let-mut prev (vec i64) (seq-build (+ capacity 1) (fn (z) 0)))
+      (let-mut i i64 n)
+      (while (> i 0)
+        (invariant (and (<= 0 i) (<= i n)))
+        (invariant (== (len prev) (+ capacity 1)))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (<= k capacity))
+          (and (== (idx prev k) (best (drop weights i) (drop values i) k))
+               (and (<= 0 (idx prev k)) (<= (idx prev k) (* 1000 (- n i))))))))
+        (decreases i)
+        (let j i64 (- i 1))
+        (let w i64 (idx weights j))
+        (let v i64 (idx values j))
+        (forall ((x int)) (call best_step weights values j x))
+        (let cur (vec i64) (seq-build (+ capacity 1) (fn (y)
+          (if (and (<= w y) (> (+ v (idx prev (- y w))) (idx prev y))) (+ v (idx prev (- y w))) (idx prev y)))))
+        (set prev cur)
+        (set i j))
+      (assert (== (drop weights 0) weights))
+      (assert (== (drop values 0) values))
+      (forall ((sel (seq bool))) (call upper sel weights values capacity))
+      (call attain weights values capacity)
+      (return (idx prev capacity)))))
