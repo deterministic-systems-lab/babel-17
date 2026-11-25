@@ -1,0 +1,213 @@
+(module ternarysearchtree_delete
+  (header
+    (purpose "Delete a byte string from a ternary search tree, pruning the nodes it leaves useless.")
+    (invariants "The result is a pruned, well-formed tree, or none, holding the old keys but the deleted one.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (val i64) (is_end bool) (left (option node)) (mid (option node)) (right (option node))))
+  (ghost-fn is_empty ((n node)) bool
+    (body (and (not (field n is_end))
+               (and (is none (field n left)) (and (is none (field n mid)) (is none (field n right)))))))
+  (ghost-fn keys ((o (option node)) (p (seq int)) (lo int) (hi int)) (iset (seq int)) (decreases (rank o))
+    (body (match o
+      (case (none) (iset-lit))
+      (case (some n)
+        (union
+          (union
+            (keys (field n left) p lo (if (< (field n val) hi) (field n val) hi))
+            (keys (field n right) p (if (> (field n val) lo) (field n val) lo) hi))
+          (if (and (< lo (field n val)) (< (field n val) hi))
+            (union
+              (keys (field n mid) (concat p (seq-lit (field n val))) -9223372036854775809 9223372036854775808)
+              (if (field n is_end) (iset-lit (concat p (seq-lit (field n val)))) (iset-lit)))
+            (iset-lit)))))))
+  (ghost-fn view ((n node)) (iset (seq int))
+    (body (keys (some n) (seq-lit) -9223372036854775809 9223372036854775808)))
+  (ghost-fn well_formed ((n node)) bool (decreases (rank n))
+    (body (and (and (<= 0 (field n val)) (< (field n val) 256))
+      (and (match (field n left)
+             (case (none) true)
+             (case (some l) (and (and (well_formed l) (not (is_empty l)))
+               (forall ((s (seq int))) (=> (contains (view l) s) (and (> (len s) 0) (< (idx s 0) (field n val))))))))
+        (and (match (field n right)
+               (case (none) true)
+               (case (some r) (and (and (well_formed r) (not (is_empty r)))
+                 (forall ((s (seq int))) (=> (contains (view r) s) (and (> (len s) 0) (> (idx s 0) (field n val))))))))
+             (match (field n mid)
+               (case (none) true)
+               (case (some m) (and (well_formed m) (not (is_empty m))))))))))
+  (ghost-fn opt_view ((o (option node))) (iset (seq int))
+    (body (match o (case (none) (iset-lit)) (case (some n) (view n)))))
+  (ghost-fn opt_well_formed ((o (option node))) bool
+    (body (match o (case (none) true) (case (some n) (and (well_formed n) (not (is_empty n)))))))
+  (spec delete
+    (params (tree (option node)) (key (ref (slice i64))))
+    (returns (res (option node)))
+    (requires
+      (opt_well_formed tree)
+      (forall ((k int)) (=> (contains key k) (and (<= 0 k) (< k 256)))))
+    (ensures
+      (opt_well_formed res)
+      (== (opt_view res) (diff (opt_view tree) (iset-lit key))))
+    (effects alloc))
+  (ghost-fn hk ((o (option node)) (k (seq int))) bool (decreases (rank o))
+    (body (match o
+      (case (none) false)
+      (case (some n)
+        (if (== (len k) 0)
+          false
+          (if (< (idx k 0) (field n val))
+            (hk (field n left) k)
+            (if (> (idx k 0) (field n val))
+              (hk (field n right) k)
+              (if (== (len k) 1) (field n is_end) (hk (field n mid) (drop k 1))))))))))
+  (lemma hk_range (params (o (option node)) (k (seq int)))
+    (requires (hk o k))
+    (ensures (> (len k) 0) (< -9223372036854775809 (idx k 0)) (< (idx k 0) 9223372036854775808))
+    (decreases (rank o))
+    (body
+      (match o
+        (case (none) (block))
+        (case (some n)
+          (if (< (idx k 0) (field n val))
+            (call hk_range (field n left) k)
+            (if (> (idx k 0) (field n val)) (call hk_range (field n right) k) (block)))))))
+  (lemma snoc_eq (params (y (seq int)) (p (seq int)) (v int))
+    (ensures (== (== y (concat p (seq-lit v)))
+                 (and (== (len y) (+ (len p) 1)) (and (== (take y (len p)) p) (== (idx y (len p)) v)))))
+    (body
+      (if (== (len y) (+ (len p) 1))
+        (block
+          (assert (forall ((j int)) (=> (and (<= 0 j) (< j (len p))) (== (idx (take y (len p)) j) (idx y j)))))
+          (assert (forall ((j int)) (=> (and (<= 0 j) (< j (len p))) (== (idx (concat p (seq-lit v)) j) (idx p j)))))
+          (assert (== (idx (concat p (seq-lit v)) (len p)) v)))
+        (block))))
+  (lemma keys_hk (params (o (option node)) (p (seq int)) (lo int) (hi int) (y (seq int)))
+    (ensures (== (contains (keys o p lo hi) y)
+                 (and (> (len y) (len p))
+                   (and (== (take y (len p)) p)
+                     (and (and (< lo (idx y (len p))) (< (idx y (len p)) hi)) (hk o (drop y (len p))))))))
+    (decreases (rank o))
+    (body
+      (match o
+        (case (none) (block))
+        (case (some n)
+          (block
+            (call keys_hk (field n left) p lo (if (< (field n val) hi) (field n val) hi) y)
+            (call keys_hk (field n right) p (if (> (field n val) lo) (field n val) lo) hi y)
+            (call keys_hk (field n mid) (concat p (seq-lit (field n val))) -9223372036854775809 9223372036854775808 y)
+            (if (> (len y) (len p))
+              (block
+                (assert (== (idx (drop y (len p)) 0) (idx y (len p))))
+                (call snoc_eq y p (field n val))
+                (if (> (len y) (+ (len p) 1))
+                  (block
+                    (assert (== (drop (drop y (len p)) 1) (drop y (+ (len p) 1))))
+                    (call snoc_eq (take y (+ (len p) 1)) p (field n val))
+                    (assert (== (take (take y (+ (len p) 1)) (len p)) (take y (len p))))
+                    (assert (== (idx (take y (+ (len p) 1)) (len p)) (idx y (len p))))
+                    (if (hk (field n mid) (drop y (+ (len p) 1)))
+                      (call hk_range (field n mid) (drop y (+ (len p) 1)))
+                      (block)))
+                  (block)))
+              (block)))))))
+  (lemma drop_eq (params (y (seq int)) (k (seq int)) (i int))
+    (requires (and (<= 0 i) (< i (len k))))
+    (ensures (== (== y (drop k i))
+                 (and (and (> (len y) 0) (== (idx y 0) (idx k i))) (== (drop y 1) (drop k (+ i 1))))))
+    (body
+      (if (and (and (> (len y) 0) (== (idx y 0) (idx k i))) (== (drop y 1) (drop k (+ i 1))))
+        (assert (forall ((j int)) (=> (and (<= 1 j) (< j (len y))) (== (idx y j) (idx (drop y 1) (- j 1))))))
+        (block))
+      (assert (forall ((j int)) (=> (and (<= 1 j) (< j (- (len k) i))) (== (idx (drop k i) j) (idx (drop k (+ i 1)) (- j 1))))))))
+  (lemma view_hk (params (o (option node)) (k (seq int)))
+    (ensures (== (contains (opt_view o) k) (hk o k)))
+    (body
+      (match o
+        (case (none) (block))
+        (case (some n)
+          (block
+            (call keys_hk o (seq-lit) -9223372036854775809 9223372036854775808 k)
+            (assert (== (contains (opt_view o) k) (contains (keys o (seq-lit) -9223372036854775809 9223372036854775808) k)))
+            (if (> (len k) 0)
+              (block (assert (== (drop k 0) k)) (assert (== (take k 0) (seq-lit))))
+              (block))
+            (if (hk o k) (call hk_range o k) (block)))))))
+  (lemma wf_node (params (v i64) (e bool) (l (option node)) (m (option node)) (r (option node)))
+    (requires
+      (and (<= 0 v) (< v 256))
+      (opt_well_formed l)
+      (opt_well_formed m)
+      (opt_well_formed r)
+      (forall ((s (seq int))) (=> (contains (opt_view l) s) (and (> (len s) 0) (< (idx s 0) v))))
+      (forall ((s (seq int))) (=> (contains (opt_view r) s) (and (> (len s) 0) (> (idx s 0) v)))))
+    (ensures (well_formed (node v e l m r)))
+    (body))
+  (spec prune
+    (params (v i64) (e bool) (l (option node)) (m (option node)) (r (option node)))
+    (returns (res (option node)))
+    (ensures (== res (if (and (not e) (and (is none l) (and (is none m) (is none r)))) (none) (some (node v e l m r)))))
+    (effects alloc))
+  (def prune
+    (body
+      (if (and (not e) (and (is none l) (and (is none m) (is none r))))
+        (return (none))
+        (return (some (node v e l m r))))))
+  (spec delete_at
+    (params (tree (option node)) (key (ref (slice i64))) (i i64))
+    (returns (res (option node)))
+    (requires
+      (opt_well_formed tree)
+      (and (<= 0 i) (< i (len key))))
+    (ensures
+      (opt_well_formed res)
+      (forall ((y (seq int))) (== (hk res y) (and (hk tree y) (!= y (drop key i))))))
+    (effects alloc))
+  (def delete_at (decreases (rank tree))
+    (body
+      (match tree
+        (case (none) (return (none)))
+        (case (some n)
+          (match n
+            (case (node v e l m r)
+              (block
+                (let c i64 (idx key i))
+                (forall ((y (seq int))) (call drop_eq y key i))
+                (if (< c v)
+                  (block
+                    (forall ((s (seq int))) (call view_hk l s))
+                    (assert (forall ((s (seq int))) (=> (contains (opt_view l) s) (and (> (len s) 0) (< (idx s 0) v)))))
+                    (let ((l2 (option node))) (call delete_at l key i))
+                    (forall ((s (seq int))) (call view_hk l2 s))
+                    (assert (forall ((s (seq int))) (=> (contains (opt_view l2) s) (and (> (len s) 0) (< (idx s 0) v)))))
+                    (call wf_node v e l2 m r)
+                    (let ((a (option node))) (call prune v e l2 m r))
+                    (return a))
+                  (if (> c v)
+                    (block
+                      (forall ((s (seq int))) (call view_hk r s))
+                      (assert (forall ((s (seq int))) (=> (contains (opt_view r) s) (and (> (len s) 0) (> (idx s 0) v)))))
+                      (let ((r2 (option node))) (call delete_at r key i))
+                      (forall ((s (seq int))) (call view_hk r2 s))
+                      (assert (forall ((s (seq int))) (=> (contains (opt_view r2) s) (and (> (len s) 0) (> (idx s 0) v)))))
+                      (call wf_node v e l m r2)
+                      (let ((b (option node))) (call prune v e l m r2))
+                      (return b))
+                    (if (== (+ i 1) (len key))
+                      (block
+                        (assert (== (len (drop key (+ i 1))) 0))
+                        (let ((d (option node))) (call prune v false l m r))
+                        (return d))
+                      (block
+                        (let ((m2 (option node))) (call delete_at m key (+ i 1)))
+                        (let ((f (option node))) (call prune v e l m2 r))
+                        (return f))))))))))))
+  (def delete
+    (body
+      (forall ((y (seq int))) (call view_hk tree y))
+      (if (== (len key) 0)
+        (return tree)
+        (block
+          (assert (== (drop key 0) key))
+          (let ((res (option node))) (call delete_at tree key 0))
+          (forall ((y (seq int))) (call view_hk res y))
+          (return res))))))
