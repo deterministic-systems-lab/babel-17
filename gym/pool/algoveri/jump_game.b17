@@ -1,0 +1,36 @@
+(module jump_game
+  (header
+    (purpose "Decide whether the last index can be reached from the first, jumping from each index at most its value forward.")
+    (invariants "The result is true exactly when some valid jump path exists.")
+    (failures "None."))
+  (ghost-fn is_valid_jump_path ((path (seq int)) (nums (seq int))) bool
+    (body (and (forall ((i int)) (=> (and (<= 0 i) (< i (len path))) (and (<= 0 (idx path i)) (< (idx path i) (len nums)))))
+          (and (forall ((i int)) (=> (and (<= 0 i) (< i (- (len path) 1))) (> (idx path (+ i 1)) (idx path i))))
+          (and (>= (len path) 1)
+          (and (== (idx path 0) 0)
+          (and (== (idx path (- (len path) 1)) (- (len nums) 1))
+               (forall ((i int)) (=> (and (<= 0 i) (< i (- (len path) 1)))
+                                     (<= (idx path (+ i 1)) (+ (idx path i) (idx nums (idx path i)))))))))))))
+  (spec can_jump
+    (params (nums (ref (slice i64))))
+    (returns (reachable bool))
+    (requires
+      (> (len nums) 0)
+      (<= (len nums) 10000)
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (>= (idx nums i) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (<= (idx nums i) 10000))))
+    (ensures (== reachable (exists ((path (seq int))) (is_valid_jump_path path nums))))
+    (effects))
+  (def can_jump
+    (body
+      (let n i64 (len nums))
+      (let-mut reach i64 0)
+      (let-mut i i64 0)
+      (while (and (< i n) (<= i reach))
+        (invariant (and (<= 0 i) (<= i n)))
+        (invariant (and (<= 0 reach) (<= reach 20000)))
+        (decreases (- n i))
+        (let r i64 (+ i (idx nums i)))
+        (if (> r reach) (set reach r) (block))
+        (set i (+ i 1)))
+      (return (>= reach (- n 1))))))

@@ -1,0 +1,40 @@
+(module house_robber
+  (header
+    (purpose "Find the most loot from houses in a row, robbing no two adjacent ones.")
+    (invariants "The result is at least every valid robbery's loot, and some valid robbery's loot equals it.")
+    (failures "None. The precondition keeps every robbery's loot in i64."))
+  (ghost-fn total_loot ((houses (seq int)) (nums (seq int))) int
+    (decreases (len houses))
+    (body (if (== (len houses) 0)
+            0
+            (+ (if (and (<= 0 (idx houses 0)) (< (idx houses 0) (len nums))) (idx nums (idx houses 0)) 0)
+               (total_loot (drop houses 1) nums)))))
+  (ghost-fn is_valid_robbery ((houses (seq int)) (nums (seq int))) bool
+    (body (and (forall ((i int)) (=> (and (<= 0 i) (< i (len houses))) (and (<= 0 (idx houses i)) (< (idx houses i) (len nums)))))
+               (forall ((i int)) (=> (and (<= 0 i) (< i (- (len houses) 1))) (>= (idx houses (+ i 1)) (+ (idx houses i) 2)))))))
+  (spec rob
+    (params (nums (ref (slice i64))))
+    (returns (max_amount i64))
+    (requires
+      (<= (len nums) 100)
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (>= (idx nums i) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (<= (idx nums i) 10000))))
+    (ensures
+      (>= max_amount 0)
+      (forall ((houses (seq int))) (=> (is_valid_robbery houses nums) (<= (total_loot houses nums) max_amount)))
+      (exists ((houses (seq int))) (and (is_valid_robbery houses nums) (== (total_loot houses nums) max_amount))))
+    (effects alloc))
+  (def rob
+    (body
+      (let-mut prev i64 0)
+      (let-mut cur i64 0)
+      (let-mut i i64 0)
+      (while (< i (len nums))
+        (invariant (and (<= 0 i) (<= i (len nums))))
+        (invariant (and (and (<= 0 prev) (<= prev cur)) (<= cur (* 10000 i))))
+        (decreases (- (len nums) i))
+        (let robbed i64 (+ prev (idx nums i)))
+        (set prev cur)
+        (if (> robbed cur) (set cur robbed) (block))
+        (set i (+ i 1)))
+      (return cur))))

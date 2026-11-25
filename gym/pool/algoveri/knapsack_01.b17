@@ -1,0 +1,55 @@
+(module knapsack_01
+  (header
+    (purpose "Find the most value from items, each taken at most once, whose weights fit in a capacity.")
+    (invariants "The result is at least every valid strategy's value, and some valid strategy's value equals it.")
+    (failures "Allocation failure aborts."))
+  (ghost-fn total_weight ((selected (seq bool)) (weights (seq int))) int
+    (requires (<= (len selected) (len weights)))
+    (decreases (len selected))
+    (body (if (== (len selected) 0)
+            0
+            (+ (if (idx selected 0) (idx weights 0) 0) (total_weight (drop selected 1) (drop weights 1))))))
+  (ghost-fn total_value ((selected (seq bool)) (values (seq int))) int
+    (requires (<= (len selected) (len values)))
+    (decreases (len selected))
+    (body (if (== (len selected) 0)
+            0
+            (+ (if (idx selected 0) (idx values 0) 0) (total_value (drop selected 1) (drop values 1))))))
+  (ghost-fn is_valid_strategy ((selected (seq bool)) (weights (seq int)) (capacity int)) bool
+    (body (and (== (len selected) (len weights)) (<= (total_weight selected weights) capacity))))
+  (spec solve_knapsack_01
+    (params (weights (ref (slice i64))) (values (ref (slice i64))) (capacity i64))
+    (returns (max_val i64))
+    (requires
+      (== (len weights) (len values))
+      (<= (len weights) 100)
+      (and (<= 0 capacity) (<= capacity 1000))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len weights))) (and (<= 0 (idx weights i)) (<= (idx weights i) 1000))))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len values))) (and (<= 0 (idx values i)) (<= (idx values i) 1000)))))
+    (ensures
+      (>= max_val 0)
+      (forall ((selected (seq bool))) (=> (is_valid_strategy selected weights capacity) (<= (total_value selected values) max_val)))
+      (exists ((selected (seq bool))) (and (is_valid_strategy selected weights capacity) (== (total_value selected values) max_val))))
+    (effects alloc))
+  (def solve_knapsack_01
+    (body
+      (let n i64 (len weights))
+      (let-mut dp (vec i64) (seq-build (+ capacity 1) (fn (c) 0)))
+      (let-mut i i64 0)
+      (while (< i n)
+        (invariant (and (<= 0 i) (<= i n)))
+        (invariant (== (len dp) (+ capacity 1)))
+        (invariant (forall ((c int)) (=> (and (<= 0 c) (<= c capacity)) (and (<= 0 (idx dp c)) (<= (idx dp c) (* 1000 i))))))
+        (decreases (- n i))
+        (let w i64 (idx weights i))
+        (let-mut c i64 capacity)
+        (while (>= c w)
+          (invariant (and (<= -1 c) (<= c capacity)))
+          (invariant (== (len dp) (+ capacity 1)))
+          (invariant (forall ((d int)) (=> (and (<= 0 d) (<= d capacity)) (and (<= 0 (idx dp d)) (<= (idx dp d) (* 1000 (+ i 1)))))))
+          (decreases (+ c 1))
+          (let cand i64 (+ (idx dp (- c w)) (idx values i)))
+          (if (> cand (idx dp c)) (set-idx dp c cand) (block))
+          (set c (- c 1)))
+        (set i (+ i 1)))
+      (return (idx dp capacity)))))
