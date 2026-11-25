@@ -3638,5 +3638,6 @@ WP11 and WP15. D126 is built in `b17c/interp.py`, and `docs/b17-1.md` is version
 - **Codex's review of the six specs** against their Dafny sources found all faithful, with the one note on `%` above.
 - **Ponytail:** nothing to cut.
 - **D126's text and §8:** the reading runs where D58's and D102's leave the binder unbounded, a membership on it leaves it to D102, an `iset-of` set from outside tests no member in it, and a search with nothing to bound or prune it gives up at once, which ends as running out would.
+- **Codex's fact-check of this entry,** the roadmap, the README and D126's text (`gpt-5.6-sol`), told not to read the secret, against the records and the code: no problem found.
 - **Updated:** DECISIONS (D126's status and text, and the headings of D58, D102 and D125); `docs/b17-1.md`'s status, §8 and §14; `gym/pool/algoveri/`, `gym/pool.jsonl`; the README's status, WP11 row and docs table; the roadmap's date, B17-1's version, recent work, decisions waiting, accepted decisions, critical path and Phase 2.
 - **Interfaces touched:** none.
