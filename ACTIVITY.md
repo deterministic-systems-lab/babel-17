@@ -3646,12 +3646,12 @@ WP11 and WP15. D126 is built in `b17c/interp.py`, and `docs/b17-1.md` is version
 
 WP11's pool, in Phase 2. With D126 merged, 12 more of AlgoVeri's problems are ported, each a B17-1 module in `gym/pool/algoveri/` with a reference def that verifies. D123's entry checks have run on them under the secret, in 12 minutes, with the results in `gym/pool.jsonl`. 7 enter: 6 to train on, and 1 that the split's slice holds out. The pool has 19 tasks from 30 ports, 15 to train on and 4 held out.
 
-- **Which problems:** of AlgoVeri's 21 unported problems that pose no test problem, these 12 were the ones the interpreter might decide: five on left-leaning red-black trees, two on segment trees, two on tries and three on ternary search trees. The rest wait:
+- **Which problems:** of AlgoVeri's 20 unported problems that pose no test problem, these 12 were the ones the interpreter might decide: five on left-leaning red-black trees, two on segment trees, two on tries and three on ternary search trees. The rest wait:
   - `dfs` and `scc_tarjan` on reachability, an ∃ over paths that only `has_edge` bounds, which keeps `bfs` out too;
   - `sieve_method` on the owner's bound;
   - the 5 sequence specs D126 doesn't reach.
 
-  `bfs` is the suite's. So every AlgoVeri problem that poses no test problem is now ported or waits on a decision or a further rule.
+  `bfs` is ported in the suite. So every AlgoVeri problem that poses no test problem is now ported or waits on a decision or a further rule.
 - **How:** five agents ported them, each in its own worktree, told not to read the secret, with D123's checks run under a made-up key. Each first wrote the spec with a plain reference and ran checks 1, 2 and 5, and wrote a proof only where those passed. Each port was reviewed against its source before it was brought over.
 - **They enter:**
 
@@ -3671,7 +3671,7 @@ WP11's pool, in Phase 2. With D126 merged, 12 more of AlgoVeri's problems are po
   - **`segmenttree_build`, on check 5:** `build(l, r)` requires only `0 <= l < r`, so D125's draws can make r - l nearly as large as `i64` allows, and on 17 of 25 inputs building the tree runs out of 20M steps. With a bound on r it would enter, which is the owner's call, as for `trial_division_naive`.
   - **`segmenttree_modify`, on check 5:** D88's random trees meet `is_segment_tree` too rarely, keeping 9 of 25 inputs.
 - **The specs say what their Dafny sources say,** but for §11's types, ensures that are top-level `and`s split into clauses, and these:
-  - **Renamed:** a parameter named after its constructor, `node`, is `n` or `t` (D82). Dafny's `contains` is `has_key` in the tries, since `contains` is B17's membership operator. `segmenttree_modify`'s method is `modify`, AlgoVeri's own name for it, since `update` is reserved, and its `idx` is `index`.
+  - **Renamed:** a parameter named after its constructor, `node`, is `n` or `t`, or `o` where it's an `option` (D82). Dafny's `contains` is `has_key` in the tries, since `contains` is B17's membership operator. `segmenttree_modify`'s method is `modify`, AlgoVeri's own name for it, since `update` is reserved, and its `idx` is `index`.
   - **`var` bindings written out:** the red-black trees' `black_height` and `satisfies_red_props` repeat each binding inline, since a ghost-fn has no let-expression.
   - **Left out:** the three red-black tree node operations leave out `satisfies_red_props` and `is_llrbt`, which their specs never use.
   - **The trie's `well_formed`** adds the child's 256 children before `is_empty`, whose `requires` needs it. `well_formed` of the child already implies it. This is copied from the suite's `trie_insert`.
@@ -3684,6 +3684,7 @@ WP11's pool, in Phase 2. With D126 merged, 12 more of AlgoVeri's problems are po
   - 95 to 98 ternary search trees are empty;
   - 72 to 77 red-black trees are empty, and none has more than 3 nodes.
 - **Codex's review** (`gpt-5.6-sol`) of the other ten posed specs against their sources, told not to read the secret, found all ten faithful. It checked `keys` against Dafny's view on every case, malformed trees and the bounds just outside `i64` included, and found `view_hk` true for every tree. The segment trees' posed items are the suite's `segmenttree_query`'s, byte for byte, and their sources' preambles are the same.
+- **Codex's fact-check of this entry,** the roadmap and the README, against the records: 2 problems, both fixed, the count of unported problems, 20 not 21, and the renamed parameters, which include `o`.
 - **For the owner:** a bound on `segmenttree_build`'s range, draws that build valid trees and tries, and mutants for a def that builds its result in one expression. They're in the roadmap's decisions waiting.
 - **Updated:** `gym/pool/algoveri/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path, reach and Phase 2.
 - **Interfaces touched:** none.
