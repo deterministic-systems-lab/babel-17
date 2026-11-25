@@ -563,7 +563,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 - **Why:** Each check is one of §9's goals at a concrete state, so a contract outcome is a counterexample to that goal, named the way the verifier names it. Checking a lemma's claim where it's called gives WP16's witness examples something to run, and its proof stays the verifier's job. Memoizing ghost-fns changes no result and makes recursive specs such as `fib` linear to evaluate.
 - **Touches:** WP15; WP16; `docs/b17-0.md` §7, §9.
 
-## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102 and D125)
+## D58 · A quantifier is evaluated only over a range read off its guard · Accepted (refined by D102, D125 and D126)
 - **Date:** 2026-10-27
 - **Decision:**
   - **Guard:** a `forall`'s guard is G when its body is `(=> G P)`. An `exists`'s guard is its body, when that's an `and`. Nested `and`s are flattened into a list of conjuncts in evaluation order.
@@ -1317,7 +1317,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A toolchain per subset:** that duplicates every tool.
 - **Touches:** D44; D65; D98; interface 4; WP2; WP3; WP5; WP7; WP8; WP15; M3.
 
-## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted (refines D58)
+## D102 · Membership in a finite collection bounds a quantifier's binder · Accepted (refines D58; refined by D126)
 - **Date:** 2026-10-29
 - **Decision:** D58 gains one kind of conjunct that can't fail and gives bounds, in both subsets.
   - **The conjunct:** `(contains E x)`, where x is an unassigned binder, E mentions no unassigned binder, and E is defined here, with a finite set, a sequence or a map as its value.
@@ -1944,7 +1944,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **A slow call waits longer** before its retry.
 - **Touches:** D123; WP11; WP17: `gym/harness.py`, `gym/test_b17.py`.
 
-## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Accepted (refines D58, D88 and D121)
+## D125 · Four rules for the specs whose `requires` the workbench can't show can hold · Accepted (refines D58, D88 and D121; refined by D126)
 - **Date:** 2026-11-23
 - **Decision:** the interpreter, the property tests and the spec workbench take four rules. The plan is in the roadmap's Phase 1 work outside the gate, from a prototype on 2026-11-06 (ACTIVITY).
   - **1. A ghost-fn call in a guard is unfolded,** in both subsets. A conjunct of a quantifier's guard (D58) that calls a ghost-fn is replaced by the ghost-fn's body, with the arguments substituted for its parameters and the body's own binders renamed apart. That holds when:
@@ -2021,7 +2021,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
 ## D126 · A quantifier over a sequence of integers or booleans ranges over the sequences its guard bounds · Accepted (refines D58, D102 and D125)
 - **Date:** 2026-11-24
 - **Decision:** in B17-1, the interpreter gives a binder of type `(seq int)` or `(seq bool)` a finite range where its guard's leading conjuncts bound the sequence's length and elements. Today such a quantifier is unknown unless membership bounds it (D102).
-  - **The binder:** x, in a `forall` or `exists`, with no membership conjunct bounding it. A binder of any other sequence type, such as a sequence of sequences or of tuples, is unknown as now.
+  - **The binder:** x, in a `forall` or `exists`, that D58's and D102's reading leaves with no finite range, read again by this rule. A membership conjunct `(contains E x)` among the leading conjuncts leaves x to D102 alone. A binder of any other sequence type, such as a sequence of sequences or of tuples, is unknown as now.
   - **Where it applies:** wherever D58 reads x's range, in D58's binder order or in a quantifier D125 rewrote, in that one's, with the binders already fixed and the rest unassigned. The guard's conjuncts are read flattened and in order, as D58 reads them. In reading x's range only, two more kinds of conjunct can't fail. They bound only x, so no other binder's range changes.
     - **A length bound:** `(op (len x) E)` or `(op E (len x))`, with op a comparison and E an expression that mentions no unassigned binder and is defined here. It bounds x's length as D58 bounds an `int` binder, and `!=` bounds nothing, as in D58. The length is at least 0 in any case.
     - **A `forall` over x's positions:** `(forall (js) (=> G B))`, where x is the only unassigned binder it mentions besides js, and:
@@ -2035,8 +2035,8 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **The elements' range:** for `(seq bool)`, `false` then `true`. For `(seq int)`, the integers within every bound from a one-binder `forall` over x's positions whose G gives its binder i the range 0 to `(len x)` − 1. Its B's comparisons between `(idx x i)` and expressions that mention neither i nor an unassigned binder bound every element, read as D58 bounds an `int` binder. They're taken in ascending order. With no finite lower and upper bound, x has no finite range, as now.
   - **The search:** breadth first, from the empty sequence. Each length's survivors, in order, are extended by each element value, in order. A sequence survives when every `forall` over x's positions among the leading conjuncts is `true` at it, evaluated in guard order, and it's dropped at the first that's `false`. The survivors whose length the length bounds admit are x's points, in the order built. The search ends after the greatest length the bounds admit, or at the first length with no survivor.
     - **Its fuel:** each reading of x's range has D59's default fuel, 1,000,000 steps. Each sequence built costs a step, and each evaluation its steps.
-    - **Shared with nothing:** the reading's evaluations have their own fuel, ghost-fn memo and call depth, which it discards when it ends, and they're quiet, as D125's rule 4 reads bounds, so they record no goal, outcome or unchecked clause. So a run's steps and L1's tested goals are what the points' own evaluations make them.
-    - **Giving up:** running out of that fuel, or a `forall` over positions that comes out other than `true` or `false`, leaves x with no finite range, as now. So D58's, D102's and D125's outcomes stand, and D125's rules apply as they do today.
+    - **Shared with nothing:** the reading's evaluations have their own fuel, ghost-fn memo and call depth, which it discards when it ends, and they're quiet, as D125's rule 4 reads bounds, so they record no goal, outcome or unchecked clause. A set built by `iset-of` outside the reading, kept as its predicate (D113), tests no member in it: its membership is unknown there. So a run's steps and L1's tested goals are what the points' own evaluations make them.
+    - **Giving up:** running out of that fuel, or a `forall` over positions that comes out other than `true` or `false`, leaves x with no finite range, as now. So D58's, D102's and D125's outcomes stand, and D125's rules apply as they do today. With no upper length bound and no `forall` over positions, every sequence survives at every length, so the search gives up at once, as it would on running out.
     - **The points cost the run's fuel,** as any quantifier's do (D59), and each is evaluated as D58 evaluates a point.
   - **Why it hides nothing:** a sequence the search skips has a length the length bounds rule out, or an element outside the elements' range, or extends a sequence at which a `forall` over x's positions is false. In each case the guard is false at a leading conjunct that can't fail, which is D58's condition for skipping a point.
   - **D125's rule 1, in its re-evaluation only, also unfolds an ∃ whose body is one ghost-fn call:** the call is the guard's one conjunct, under rule 1's conditions, and the ∃'s body becomes the unfolded conjuncts, as for an ∃ whose body is an `and`. D58's first reading is unchanged: it reads a guard off an ∃'s body only when that's an `and`. `bipartite_check`'s `(exists ((colors (seq bool))) (is_valid_coloring g colors))` and `jump_game`'s path are one call.
