@@ -1235,27 +1235,37 @@ class _Run:
 
     def span(self, x, free, ints, guard, env, seqs=()):
         """The values the guard allows binder x, with the binders before it fixed in env: a
-        range or list, or None if it has no finite bounds (D58). Bounds come only from the
-        guard's leading conjuncts that can't fail, so a point they exclude makes the guard
-        false at a conjunct whose evaluation can't fail, and skipping it hides nothing. An int
-        binder is bounded by comparisons, a binder of any type but bool by membership in a
-        finite collection (D102), and a sequence of int or bool by its length and the foralls
-        over its positions, searched (D126)."""
+        range or list, or None if it has no finite bounds (D58, D102). A sequence of int or bool
+        that those leave with no finite range is read again, in a run of its own, by D126."""
+        values = self.read(x, free, ints, guard, env)
+        if values is not None or x not in seqs:
+            return values
+        own = _Run(self.p, self.check, FUEL, self.depth)
+        own.soft = True
+        return own.read(x, free, ints, guard, env, seqs[x])
+
+    def read(self, x, free, ints, guard, env, elem=None):
+        """span's reading. Bounds come only from the guard's leading conjuncts that can't fail, so
+        a point they exclude makes the guard false at a conjunct whose evaluation can't fail, and
+        skipping it hides nothing. An int binder is bounded by comparisons, and a binder of any type
+        but bool by membership in a finite collection (D102). Given x's element type elem, x is a
+        sequence no membership bounds, bounded by its length and the foralls over its positions,
+        and searched (D126)."""
         lo = {n: None for n in free if n in ints}
         hi = dict(lo)
         steps = []  # (a, b, gap): a + gap <= b, between binders not yet fixed
         among = None  # the members x may take, in order
-        if x in seqs:  # D126: its own run, so the reading's evaluations cost the run nothing
-            own, lens, alls, elems = _Run(self.p, self.check, FUEL, self.depth), ({x: 0}, {x: None}), [], ({x: None}, {x: None})
-            own.soft = True
+        lens, alls, elems = ({x: 0}, {x: None}), [], ({x: None}, {x: None})  # D126's
         for c in guard:
             op = _head(c)
-            if x in seqs:
-                n = own.length(c, x, free, env)
+            if elem is not None:
+                if op == "contains" and c.items[2] == Sym(x):
+                    return None  # D102's binder, not D126's
+                n = self.length(c, x, free, env)
                 if n is not None:
                     _bound(*lens, x, *n)
                     continue
-                n = own.positions(c, x, free, env)
+                n = self.positions(c, x, free, env)
                 if n is not None:
                     alls.append(c)
                     for o, v in n:
@@ -1315,12 +1325,14 @@ class _Run:
             return range(0)
         if among is not None:
             return [v for v in among if x not in lo or ((lo[x] is None or lo[x] <= v) and (hi[x] is None or v <= hi[x]))]
-        if x in seqs:
-            if seqs[x] == "bool":
-                return own.sequences(x, (False, True), lens, alls, env)
+        if elem is not None:
+            if lens[1][x] is not None and lens[0][x] > lens[1][x]:
+                return range(0)  # no length passes, so the guard holds nowhere
+            if elem == "bool":
+                return self.sequences(x, (False, True), lens, alls, env)
             if None in (elems[0][x], elems[1][x]):
                 return None
-            return own.sequences(x, range(elems[0][x], elems[1][x] + 1), lens, alls, env)
+            return self.sequences(x, range(elems[0][x], elems[1][x] + 1), lens, alls, env)
         if x not in lo or lo[x] is None or hi[x] is None:
             return None
         return range(lo[x], hi[x] + 1)
@@ -1350,6 +1362,7 @@ class _Run:
         js, (when, then) = [d.items[0].text for d in c.items[1].items], c.items[2].items[1:]
         hide = set(js) | set(free)
         lo, hi, top, steps = dict.fromkeys(js), dict.fromkeys(js), dict.fromkeys(js), []  # top[j]: j <= (len x) + top[j]
+        narrow = False  # whether a conjunct of G may hold at fewer points than its bounds give
 
         def value(s):  # a value defined here that mentions neither js nor a binder in free
             return None if _mentions(s, hide) else self.quiet(s, env)
@@ -1370,11 +1383,13 @@ class _Run:
             if ka == "len" or kb == "len" and op not in ("<", "<="):
                 return None  # (len x) only as an inequality's greater side
             if op == "!=" or ka != "j":
+                narrow = True
                 continue
             if kb == "len":
                 _tighten(top, a, b - (op == "<"), min)
             elif kb == "j":
                 steps += _steps(a, op, b)
+                narrow = True
             else:
                 _bound(lo, hi, a, op, b)
         _settle(lo, hi, steps)
@@ -1393,7 +1408,7 @@ class _Run:
                         and top[j.text] is not None and top[j.text] + d.value <= -1)
             return isinstance(s, Sym) and s.text in js or value(s) is not None
 
-        whole = len(js) == 1 and lo[js[0]] == 0 and hi[js[0]] is None and top[js[0]] == -1
+        whole = len(js) == 1 and not narrow and lo[js[0]] == 0 and hi[js[0]] is None and top[js[0]] == -1
         read = Form((Sym("idx"), Sym(x), Sym(js[0])))
         elems = []
         for e in _conjuncts(then):

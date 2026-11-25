@@ -862,6 +862,18 @@ for elem in ["(and (<= (len h) 2) (forall ((k int)) (=> (and (<= 0 k) (<= k (len
              "(forall ((k int)) (=> (and (<= 0 k) (< k (len h))) (and (<= 0 (idx h k)) (< (idx h k) 2))))"]:
     unknown(go1(f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures (forall ((h (seq int))) (=> {elem} true)))"),
                 (), check=True, fuel=10_000), "POST")
+# A forall that bounds only some positions bounds no element, here (seq-lit 0 1)'s 1. A length
+# no sequence has makes the guard hold nowhere. A sequence that membership bounds is D102's, as
+# before. And the reading's own evaluations record nothing: p's requires is unknown.
+for clause, out in [("(forall ((h (seq int))) (=> (and (== (len h) 2) (forall ((k int)) (=> (and (and (<= 0 k) (< k (len h)))"
+                     " (!= k 1)) (and (<= 0 (idx h k)) (< (idx h k) 1))))) (== (idx h 1) 0)))", "POST"),
+                    ("(forall ((h (seq int))) (=> (< (len h) 0) false))", True),
+                    ("(forall ((s (seq int))) (=> (and (== (len s) 1) (contains (seq-lit (seq-lit 0)) s)) false))", "POST"),
+                    ("(forall ((h (seq bool))) (=> (and (>= (len h) 1) (and (forall ((k int)) (=> (and (<= 0 k) (< k (len h)))"
+                     " (!= k k))) (p))) false))", True)]:
+    m = f1("(a (vec i64))", "(r bool)", "(return true)", clauses=f"(ensures {clause})",
+           extra=["(ghost-fn p () bool (requires (forall ((z int)) true)) (body true))"])
+    unknown(go1(m, (), check=True), *([] if out is True else [out]))  # true here, as the def returns
 # The forms the rules build are reported where the source's are: a run that runs out of steps
 # inside them stops at a node of the spec, never at one the source lacks.
 for m, a in [(f("(a (ref (slice i64)))", "(r bool)", "(return true)", clauses=f"(ensures {same})"), (1, 2)),
