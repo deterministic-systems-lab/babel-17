@@ -2018,7 +2018,7 @@ D1–D11 come from the design spec, *MFL: A Machine-First Language — Design Sp
   - **Not covered:** a `requires` whose inputs are all larger than the draws make, an ∃ whose witness is past the budget, and an ∃ with several binders or a binder of another type.
 - **Touches:** D57; D58; D59; D88; D102; D121; D123; WP4b; WP11; WP15; `docs/b17-1.md` status, §8, §10 and §14; `b17c/interp.py`, `b17c/spec.py`, `b17c/test_interp.py`, `b17c/test_spec.py`; `gym/pool-ports.jsonl`.
 
-## D126 · A quantifier over a sequence of integers or booleans ranges over the sequences its guard bounds · Proposed (refines D58, D102 and D125)
+## D126 · A quantifier over a sequence of integers or booleans ranges over the sequences its guard bounds · Accepted (refines D58, D102 and D125)
 - **Date:** 2026-11-24
 - **Decision:** in B17-1, the interpreter gives a binder of type `(seq int)` or `(seq bool)` a finite range where its guard's leading conjuncts bound the sequence's length and elements. Today such a quantifier is unknown unless membership bounds it (D102).
   - **The binder:** x, in a `forall` or `exists`, with no membership conjunct bounding it. A binder of any other sequence type, such as a sequence of sequences or of tuples, is unknown as now.
