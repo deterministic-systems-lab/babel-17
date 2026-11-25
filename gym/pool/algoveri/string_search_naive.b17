@@ -1,0 +1,55 @@
+(module string_search_naive
+  (header
+    (purpose "Find every position at which a needle occurs in a haystack.")
+    (invariants "Every returned index is non-negative and a match, and every match is returned.")
+    (failures "Allocation failure aborts."))
+  (ghost-fn matches_at ((haystack (seq int)) (needle (seq int)) (start_index int)) bool
+    (body (and (and (<= 0 start_index) (<= (+ start_index (len needle)) (len haystack)))
+               (forall ((i int)) (=> (and (<= 0 i) (< i (len needle))) (== (idx haystack (+ start_index i)) (idx needle i)))))))
+  (spec naive_search
+    (params (haystack (ref (slice i64))) (needle (ref (slice i64))))
+    (returns (indices (vec i64)))
+    (requires
+      (< (len haystack) 1000000)
+      (< (len needle) 1000000))
+    (ensures
+      (forall ((k int)) (=> (and (<= 0 k) (< k (len indices))) (>= (idx indices k) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len indices))) (matches_at haystack needle (idx indices i))))
+      (forall ((i int))
+        (=> (and (and (<= 0 i) (<= i (- (len haystack) (len needle)))) (matches_at haystack needle i))
+            (exists ((k int)) (and (and (<= 0 k) (< k (len indices))) (== (idx indices k) i))))))
+    (effects alloc))
+  (def naive_search
+    (body
+      (let n i64 (len haystack))
+      (let m i64 (len needle))
+      (let-mut indices (vec i64) (vec-new))
+      (if (> m n) (return indices) (block))
+      (let-mut i i64 0)
+      (ghost-let-mut w (seq int) (seq-lit))
+      (while (<= i (- n m))
+        (invariant (and (<= 0 i) (<= i (+ (- n m) 1))))
+        (invariant (<= (len indices) i))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (< k (len indices))) (>= (idx indices k) 0))))
+        (invariant (forall ((k int)) (=> (and (<= 0 k) (< k (len indices))) (matches_at haystack needle (idx indices k)))))
+        (invariant (== (len w) i))
+        (invariant (forall ((p int))
+          (=> (and (and (<= 0 p) (< p i)) (matches_at haystack needle p))
+              (and (and (<= 0 (idx w p)) (< (idx w p) (len indices))) (== (idx indices (idx w p)) p)))))
+        (decreases (- (+ (- n m) 1) i))
+        (let-mut j i64 0)
+        (while (and (< j m) (== (idx haystack (+ i j)) (idx needle j)))
+          (invariant (and (<= 0 j) (<= j m)))
+          (invariant (forall ((t int)) (=> (and (<= 0 t) (< t j)) (== (idx haystack (+ i t)) (idx needle t)))))
+          (decreases (- m j))
+          (set j (+ j 1)))
+        (if (== j m)
+          (block
+            (assert (matches_at haystack needle i))
+            (ghost-set w (concat w (seq-lit (len indices))))
+            (push indices i))
+          (block
+            (assert (not (matches_at haystack needle i)))
+            (ghost-set w (concat w (seq-lit 0)))))
+        (set i (+ i 1)))
+      (return indices))))

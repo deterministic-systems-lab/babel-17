@@ -1,0 +1,52 @@
+(module bracket_matching
+  (header
+    (purpose "Decide whether the brackets in a sequence of character codes match, where 40 is ( and 41 is ) and every other code is neutral.")
+    (invariants "The result is true exactly when the total weight is 0 and no prefix has negative weight.")
+    (failures "None. The precondition bounds the length by 10^6, so the running balance fits in i64."))
+  (ghost-fn char_weight ((c int)) int
+    (body (if (== c 40) 1 (if (== c 41) -1 0))))
+  (ghost-fn total_weight ((s (seq int))) int
+    (decreases (len s))
+    (body (if (== (len s) 0) 0 (+ (char_weight (idx s 0)) (total_weight (drop s 1))))))
+  (ghost-fn valid_prefix_weights ((s (seq int))) bool
+    (body (forall ((i int)) (=> (and (<= 0 i) (<= i (len s))) (>= (total_weight (take s i)) 0)))))
+  (ghost-fn is_matched ((s (seq int))) bool
+    (body (and (== (total_weight s) 0) (valid_prefix_weights s))))
+  (spec bracket_match
+    (params (s (ref (slice i64))))
+    (returns (res bool))
+    (requires (<= (len s) 1000000))
+    (ensures (== res (is_matched s)))
+    (effects))
+  (lemma weight_snoc (params (t (seq int)) (x int))
+    (ensures (== (total_weight (concat t (seq-lit x))) (+ (total_weight t) (char_weight x))))
+    (decreases (len t))
+    (body
+      (if (== (len t) 0)
+        (assert (== (drop (concat t (seq-lit x)) 1) (seq-lit)))
+        (block
+          (assert (== (drop (concat t (seq-lit x)) 1) (concat (drop t 1) (seq-lit x))))
+          (call weight_snoc (drop t 1) x)))))
+  (def bracket_match
+    (body
+      (let-mut bal i64 0)
+      (let-mut i i64 0)
+      (while (< i (len s))
+        (invariant (and (<= 0 i) (<= i (len s))))
+        (invariant (and (<= 0 bal) (<= bal i)))
+        (invariant (== bal (total_weight (take s i))))
+        (invariant (forall ((j int)) (=> (and (<= 0 j) (<= j i)) (>= (total_weight (take s j)) 0))))
+        (decreases (- (len s) i))
+        (call law_take_step s i)
+        (call weight_snoc (take s i) (idx s i))
+        (if (== (idx s i) 40)
+          (set bal (+ bal 1))
+          (if (== (idx s i) 41) (set bal (- bal 1)) (block)))
+        (if (< bal 0)
+          (block
+            (assert (< (total_weight (take s (+ i 1))) 0))
+            (return false))
+          (block))
+        (set i (+ i 1)))
+      (call law_take_all s)
+      (return (== bal 0)))))

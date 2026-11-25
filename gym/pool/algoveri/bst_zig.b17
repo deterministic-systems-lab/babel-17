@@ -1,0 +1,47 @@
+(module bst_zig
+  (header
+    (purpose "Rotate a binary search tree right at its root, so the root's left child becomes the root.")
+    (invariants "The result is a search tree holding the same values, rooted at the old left child, whose right child is the old root.")
+    (failures "Allocation failure aborts."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (leaf) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn is_bst ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (leaf) true)
+      (case (node v l r)
+        (and (and (is_bst l) (is_bst r))
+             (and (forall ((x int)) (=> (contains (view l) x) (< x v)))
+                  (forall ((x int)) (=> (contains (view r) x) (> x v)))))))))
+  (spec zig
+    (params (t tree))
+    (returns (res tree))
+    (requires (is node t) (is node (field t left)) (is_bst t))
+    (ensures
+      (is_bst res)
+      (== (view res) (view t))
+      (is node res)
+      (== (field res val) (field (field t left) val))
+      (is node (field res right))
+      (== (field (field res right) val) (field t val)))
+    (effects alloc))
+  (def zig
+    (body
+      (match t
+        (case (leaf) (return (leaf)))
+        (case (node v l r)
+          (match l
+            (case (leaf) (return (leaf)))
+            (case (node lv ll lr)
+              (block
+                (assert (forall ((x int)) (=> (contains (view lr) x) (contains (view l) x))))
+                (assert (contains (view l) lv))
+                (assert (< lv v))
+                (assert (forall ((x int)) (=> (contains (view r) x) (> x lv))))
+                (assert (forall ((x int)) (=> (contains (view lr) x) (> x lv))))
+                (let out tree (node v lr r))
+                (assert (is_bst out))
+                (assert (forall ((x int)) (=> (contains (view out) x) (> x lv))))
+                (return (node lv ll out))))))))))

@@ -1,0 +1,56 @@
+(module bst_zigzag
+  (header
+    (purpose "Rotate a binary search tree left at the root's left child and then right at the root, so the left child's right child becomes the root.")
+    (invariants "The result is a search tree holding the same values, rooted at the old root's left child's right child.")
+    (failures "Allocation failure aborts."))
+  (data tree () (leaf) (node (val i64) (left tree) (right tree)))
+  (ghost-fn view ((t tree)) (iset int) (decreases (rank t))
+    (body (match t
+      (case (leaf) (iset-lit))
+      (case (node v l r) (union (union (view l) (view r)) (iset-lit v))))))
+  (ghost-fn is_bst ((t tree)) bool (decreases (rank t))
+    (body (match t
+      (case (leaf) true)
+      (case (node v l r)
+        (and (and (is_bst l) (is_bst r))
+             (and (forall ((x int)) (=> (contains (view l) x) (< x v)))
+                  (forall ((x int)) (=> (contains (view r) x) (> x v)))))))))
+  (spec zig_zag
+    (params (g tree))
+    (returns (res tree))
+    (requires (is node g) (is node (field g left)) (is node (field (field g left) right)) (is_bst g))
+    (ensures
+      (is_bst res)
+      (== (view res) (view g))
+      (is node res)
+      (== (field res val) (field (field (field g left) right) val)))
+    (effects alloc))
+  (def zig_zag
+    (body
+      (match g
+        (case (leaf) (return (leaf)))
+        (case (node gv p gr)
+          (match p
+            (case (leaf) (return (leaf)))
+            (case (node pv pl c)
+              (match c
+                (case (leaf) (return (leaf)))
+                (case (node cv cl cr)
+                  (block
+                    (assert (forall ((y int)) (=> (contains (view c) y) (contains (view p) y))))
+                    (assert (forall ((y int)) (=> (contains (view cl) y) (contains (view c) y))))
+                    (assert (forall ((y int)) (=> (contains (view cr) y) (contains (view c) y))))
+                    (assert (contains (view c) cv))
+                    (assert (< pv cv))
+                    (assert (contains (view p) cv))
+                    (assert (< cv gv))
+                    (assert (forall ((y int)) (=> (contains (view cl) y) (> y pv))))
+                    (assert (forall ((y int)) (=> (contains (view cr) y) (< y gv))))
+                    (assert (forall ((y int)) (=> (contains (view pl) y) (< y cv))))
+                    (assert (forall ((y int)) (=> (contains (view gr) y) (> y cv))))
+                    (assert (is_bst (node pv pl cl)))
+                    (assert (forall ((y int)) (=> (contains (view (node pv pl cl)) y) (< y cv))))
+                    (let out tree (node gv cr gr))
+                    (assert (is_bst out))
+                    (assert (forall ((y int)) (=> (contains (view out) y) (> y cv))))
+                    (return (node cv (node pv pl cl) out))))))))))))
