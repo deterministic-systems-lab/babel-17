@@ -1,0 +1,55 @@
+(module segmenttree_build
+  (header
+    (purpose "Build a range-maximum segment tree over a range of indices, with every value 0.")
+    (invariants "The result is a segment tree over exactly the range, whose every index maps to 0.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (val i64) (low i64) (high i64) (left (option node)) (right (option node))))
+  (ghost-fn view ((n node)) (map int int) (decreases (rank n))
+    (body
+      (if (and (is none (field n left)) (is none (field n right)))
+        (map-lit ((field n low) (field n val)))
+        (union
+          (match (field n left) (case (none) (map-lit)) (case (some l) (view l)))
+          (match (field n right) (case (none) (map-lit)) (case (some r) (view r)))))))
+  (ghost-fn is_segment_tree ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (and (and (<= 0 (field n low)) (< (field n low) (field n high))) (<= 0 (field n val)))
+        (and
+          (match (field n left)
+            (case (none) (match (field n right)
+              (case (none) (== (field n high) (+ (field n low) 1)))
+              (case (some extra) false)))
+            (case (some l) (match (field n right)
+              (case (none) false)
+              (case (some r)
+                (and
+                  (and (and (== (field l low) (field n low)) (== (field l high) (/ (+ (field n low) (field n high)) 2)))
+                       (and (== (field r low) (/ (+ (field n low) (field n high)) 2)) (== (field r high) (field n high))))
+                  (and (and (is_segment_tree l) (is_segment_tree r))
+                       (== (field n val) (if (> (field l val) (field r val)) (field l val) (field r val)))))))))
+          (and
+            (forall ((k int)) (== (contains (view n) k) (and (<= (field n low) k) (< k (field n high)))))
+            (forall ((k int)) (=> (contains (view n) k) (<= (lookup (view n) k) (field n val)))))))))
+  (spec build
+    (params (l i64) (r i64))
+    (returns (res node))
+    (requires (and (<= 0 l) (< l r)))
+    (ensures
+      (is_segment_tree res)
+      (== (field res low) l)
+      (== (field res high) r)
+      (forall ((k int)) (=> (and (<= l k) (< k r)) (and (contains (view res) k) (== (lookup (view res) k) 0)))))
+    (effects alloc))
+  (def build (decreases (- r l))
+    (body
+      (if (== (+ l 1) r)
+        (return (node 0 l r (none) (none)))
+        (block
+          (let mid i64 (+ l (/ (- r l) 2)))
+          (let ((a node)) (call build l mid))
+          (let ((b node)) (call build mid r))
+          (let av i64 (field a val))
+          (let bv i64 (field b val))
+          (let top i64 (if (> av bv) av bv))
+          (return (node top l r (some a) (some b))))))))

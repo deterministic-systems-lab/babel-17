@@ -1,0 +1,71 @@
+(module segmenttree_modify
+  (header
+    (purpose "Set the value at one index of a range-maximum segment tree, returning a new tree by path copying.")
+    (invariants "The result is a segment tree over the same range, holding the new value at the index and the old values elsewhere.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (val i64) (low i64) (high i64) (left (option node)) (right (option node))))
+  (ghost-fn view ((n node)) (map int int) (decreases (rank n))
+    (body
+      (if (and (is none (field n left)) (is none (field n right)))
+        (map-lit ((field n low) (field n val)))
+        (union
+          (match (field n left) (case (none) (map-lit)) (case (some l) (view l)))
+          (match (field n right) (case (none) (map-lit)) (case (some r) (view r)))))))
+  (ghost-fn is_segment_tree ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (and (and (<= 0 (field n low)) (< (field n low) (field n high))) (<= 0 (field n val)))
+        (and
+          (match (field n left)
+            (case (none) (match (field n right)
+              (case (none) (== (field n high) (+ (field n low) 1)))
+              (case (some extra) false)))
+            (case (some l) (match (field n right)
+              (case (none) false)
+              (case (some r)
+                (and
+                  (and (and (== (field l low) (field n low)) (== (field l high) (/ (+ (field n low) (field n high)) 2)))
+                       (and (== (field r low) (/ (+ (field n low) (field n high)) 2)) (== (field r high) (field n high))))
+                  (and (and (is_segment_tree l) (is_segment_tree r))
+                       (== (field n val) (if (> (field l val) (field r val)) (field l val) (field r val)))))))))
+          (and
+            (forall ((k int)) (== (contains (view n) k) (and (<= (field n low) k) (< k (field n high)))))
+            (forall ((k int)) (=> (contains (view n) k) (<= (lookup (view n) k) (field n val)))))))))
+  (spec modify
+    (params (t node) (index i64) (v i64))
+    (returns (res node))
+    (requires (>= v 0) (is_segment_tree t) (and (<= (field t low) index) (< index (field t high))))
+    (ensures
+      (is_segment_tree res)
+      (== (field res low) (field t low))
+      (== (field res high) (field t high))
+      (== (view res) (update (view t) index v)))
+    (effects alloc))
+  (def modify (decreases (rank t))
+    (body
+      (let-mut m node t)
+      (let lo i64 (field m low))
+      (let hi i64 (field m high))
+      (let lc (option node) (replace (field m left) (none)))
+      (let rc (option node) (replace (field m right) (none)))
+      (match lc
+        (case (none) (return (node v lo hi (none) (none))))
+        (case (some a)
+          (match rc
+            (case (none) (return (node v lo hi (none) (none))))
+            (case (some b)
+              (block
+                (let mid i64 (+ lo (/ (- hi lo) 2)))
+                (if (< index mid)
+                  (block
+                    (let ((a2 node)) (call modify a index v))
+                    (let av i64 (field a2 val))
+                    (let bv i64 (field b val))
+                    (let top i64 (if (> av bv) av bv))
+                    (return (node top lo hi (some a2) (some b))))
+                  (block
+                    (let ((b2 node)) (call modify b index v))
+                    (let av2 i64 (field a val))
+                    (let bv2 i64 (field b2 val))
+                    (let top2 i64 (if (> av2 bv2) av2 bv2))
+                    (return (node top2 lo hi (some a) (some b2)))))))))))))
