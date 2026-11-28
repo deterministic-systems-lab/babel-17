@@ -1,0 +1,32 @@
+(module modp
+  (header
+    (purpose "Compute 2 to the power n, modulo p, by square-and-multiply.")
+    (invariants "The result is in [0, p) and equals 2^n mod p.")
+    (failures "None. The precondition keeps every product of two residues mod p in i64."))
+  (ghost-fn power ((base int) (exp int)) int
+    (requires (>= exp 0))
+    (decreases exp)
+    (body (if (== exp 0) 1 (* base (power base (- exp 1))))))
+  (spec modp
+    (params (n i64) (p i64))
+    (returns (result i64))
+    (requires
+      (>= n 0)
+      (> p 0)
+      (in_i64 (* (- p 1) (- p 1))))
+    (ensures
+      (>= result 0)
+      (< result p)
+      (== result (% (power 2 n) p)))
+    (effects))
+  (def modp
+    (body
+      (let-mut r i64 (% 1 p))
+      (let-mut b i64 (% 2 p))
+      (let-mut e i64 n)
+      (while (> e 0)
+        (decreases e)
+        (if (== (% e 2) 1) (set r (% (* r b) p)) (block))
+        (set b (% (* b b) p))
+        (set e (/ e 2)))
+      (return r))))

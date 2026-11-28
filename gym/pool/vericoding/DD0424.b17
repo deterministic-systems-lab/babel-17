@@ -1,0 +1,26 @@
+(module swap
+  (header
+    (purpose "Exchange elements i and j of a vector.")
+    (invariants "The result is the input with element i replaced by the input's element j and then element j by the input's element i, so it has the same length and multiset.")
+    (failures "None. The precondition keeps i and j within the vector."))
+  (ghost-fn valid_permut ((a (seq int)) (b (seq int))) bool
+    (requires (== (len a) (len b)))
+    (body (== (multiset a) (multiset b))))
+  (spec swap
+    (params (a (vec i64)) (i i64) (j i64))
+    (returns (r (vec i64)))
+    (requires
+      (and (<= 0 i) (< i (len a)))
+      (and (<= 0 j) (< j (len a))))
+    (ensures
+      (== (len r) (len a))
+      (== r (seq_update (seq_update a i (idx a j)) j (idx a i)))
+      (valid_permut r a))
+    (effects))
+  (def swap
+    (body
+      (let-mut v (vec i64) a)
+      (let t i64 (idx v i))
+      (set-idx v i (idx v j))
+      (set-idx v j t)
+      (return v))))

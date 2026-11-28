@@ -1,0 +1,48 @@
+(module max_profit
+  (header
+    (purpose "Return the largest profit from buying on one day and selling on a later day, or 0 when no trade gains.")
+    (invariants "The result is non-negative, and it is 0 for no prices, or the profit of some trade that doesn't lose, or the prices strictly fall.")
+    (failures "None. Prices are non-negative, so every difference of two fits in i64."))
+  (spec max_profit
+    (params (prices (ref (slice i64))))
+    (returns (result i64))
+    (requires
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len prices))) (>= (idx prices i) 0))))
+    (ensures
+      (>= result 0)
+      (or
+        (or
+          (and (== result 0) (== (len prices) 0))
+          (exists ((i int) (j int)) (and (and (and (and (<= 0 i) (< i j)) (< j (len prices))) (>= (idx prices j) (idx prices i))) (== (- (idx prices j) (idx prices i)) result))))
+        (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i j)) (< j (len prices))) (< (idx prices j) (idx prices i))))))
+    (effects))
+  (def max_profit
+    (body
+      (if (== (len prices) 0) (return 0) (block))
+      (let-mut best i64 0)
+      (let-mut found bool false)
+      (let-mut bi i64 0)
+      (let-mut bj i64 0)
+      (let-mut lo i64 (idx prices 0))
+      (let-mut li i64 0)
+      (let-mut k i64 1)
+      (while (< k (len prices))
+        (invariant (and (<= 1 k) (<= k (len prices))))
+        (invariant (and (and (<= 0 li) (< li k)) (== lo (idx prices li))))
+        (invariant (forall ((q int)) (=> (and (<= 0 q) (< q k)) (<= lo (idx prices q)))))
+        (invariant (>= best 0))
+        (invariant (=> found (and (and (and (<= 0 bi) (< bi bj)) (< bj k)) (and (>= (idx prices bj) (idx prices bi)) (== (- (idx prices bj) (idx prices bi)) best)))))
+        (invariant (=> (not found) (forall ((a int) (b int)) (=> (and (and (<= 0 a) (< a b)) (< b k)) (< (idx prices b) (idx prices a))))))
+        (decreases (- (len prices) k))
+        (let x i64 (idx prices k))
+        (if (>= x lo)
+          (if (or (not found) (> (- x lo) best))
+            (block (set best (- x lo)) (set bi li) (set bj k) (set found true))
+            (block))
+          (block (set lo x) (set li k)))
+        (set k (+ k 1)))
+      (if found
+        (block
+          (assert (and (and (and (and (<= 0 bi) (< bi bj)) (< bj (len prices))) (>= (idx prices bj) (idx prices bi))) (== (- (idx prices bj) (idx prices bi)) best)))
+          (return best))
+        (return best)))))

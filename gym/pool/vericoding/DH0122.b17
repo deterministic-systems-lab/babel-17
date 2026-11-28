@@ -1,0 +1,43 @@
+(module maximum
+  (header
+    (purpose "Return the k largest elements of a sequence, sorted in ascending order.")
+    (invariants "The result has k elements, is sorted, and holds only values of the input.")
+    (failures "None. The precondition bounds the length by 1000 and every value by 1000. Allocation failure aborts."))
+  (spec maximum
+    (params (s (ref (slice i64))) (k i64))
+    (returns (result (vec i64)))
+    (requires
+      (and (<= 1 k) (<= k (len s)))
+      (and (<= 1 (len s)) (<= (len s) 1000))
+      (forall ((x int)) (=> (contains s x) (and (<= -1000 x) (<= x 1000)))))
+    (ensures
+      (== (len result) k)
+      (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i j)) (< j k)) (<= (idx result i) (idx result j))))
+      (forall ((x int)) (=> (contains result x) (contains s x))))
+    (effects alloc))
+  (def maximum
+    (body
+      (let-mut v (vec i64) (seq-build (len s) (fn (t) (idx s t))))
+      (let-mut i i64 0)
+      (while (< i (len v))
+        (invariant (and (<= 0 i) (<= i (len v))))
+        (invariant (== (len v) (len s)))
+        (invariant (sorted (take v i)))
+        (invariant (forall ((p int)) (=> (and (<= 0 p) (< p (len v))) (contains s (idx v p)))))
+        (decreases (- (len v) i))
+        (let-mut j i64 i)
+        (while (and (> j 0) (> (idx v (- j 1)) (idx v j)))
+          (invariant (and (<= 0 j) (<= j i)))
+          (invariant (== (len v) (len s)))
+          (invariant (forall ((p int)) (=> (and (<= 0 p) (< p (len v))) (contains s (idx v p)))))
+          (invariant (forall ((p int) (q int)) (=> (and (and (<= 0 p) (< p q)) (and (<= q i) (!= q j))) (<= (idx v p) (idx v q)))))
+          (invariant (forall ((q int)) (=> (and (< j q) (<= q i)) (<= (idx v j) (idx v q)))))
+          (decreases j)
+          (let tmp i64 (idx v (- j 1)))
+          (set-idx v (- j 1) (idx v j))
+          (set-idx v j tmp)
+          (set j (- j 1)))
+        (set i (+ i 1)))
+      (let off i64 (- (len v) k))
+      (let r (vec i64) (seq-build k (fn (t2) (idx v (+ off t2)))))
+      (return r))))
