@@ -1,7 +1,7 @@
 (module max_profit
   (header
-    (purpose "Return the profit of a trade, buying on one day and selling on a later day, as the invariants allow.")
-    (invariants "The result is non-negative, and it is 0 for no prices, or the profit of some trade that doesn't lose, or the prices strictly fall.")
+    (purpose "Return the profit of some trade that doesn't lose, buying on one day and selling on a later day, or any non-negative value when every later price is lower.")
+    (invariants "The result is non-negative, and either it is 0 and there are no prices, or it is the profit of some trade that doesn't lose, or every later price is lower than every earlier one, as when there are fewer than two prices, and then it may be any value.")
     (failures "None. Prices are non-negative, so every difference of two fits in i64."))
   (spec max_profit
     (params (prices (ref (slice i64))))
