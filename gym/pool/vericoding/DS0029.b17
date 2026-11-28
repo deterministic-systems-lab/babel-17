@@ -1,6 +1,6 @@
 (module lcm_int
   (header
-    (purpose "Compute the least common multiple of the absolute values of two non-zero integers.")
+    (purpose "Return a non-negative common multiple of two non-zero integers.")
     (invariants "The result is non-negative and a multiple of both a and b.")
     (failures "None. The precondition keeps |a|, |b| and their product in i64."))
   (ghost-fn abs ((x int)) int

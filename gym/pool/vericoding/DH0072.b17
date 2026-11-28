@@ -1,7 +1,7 @@
 (module strange_sort_list_helper
   (header
-    (purpose "Sort a list, and interleave the sorted list's smallest and largest remaining elements: first, last, second, second last, and so on.")
-    (invariants "The sorted list is a permutation of the input, and the strange list's even positions read the sorted list from the front and its odd positions from the back.")
+    (purpose "Return a permutation of a list, and the permutation interleaved: its first, last, second, second last element, and so on.")
+    (invariants "sorted_seq is a permutation of the input, and strange's even positions read sorted_seq from the front and its odd positions from the back.")
     (failures "Allocation failure aborts."))
   (spec strange_sort_list_helper
     (params (s (ref (slice i64))))

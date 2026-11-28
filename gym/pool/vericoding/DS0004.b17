@@ -1,6 +1,6 @@
 (module argsort
   (header
-    (purpose "Return the indices that would sort an array: the index of its smallest element first, then the next, and so on.")
+    (purpose "Return a vector as long as an array, whose entries that are indices of the array index its elements in ascending order.")
     (invariants "The result is as long as the array, and among its entries that are indices of the array, the elements they index are in order.")
     (failures "Allocation failure aborts."))
   (spec argsort

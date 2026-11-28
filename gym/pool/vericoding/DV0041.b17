@@ -1,6 +1,6 @@
 (module max_profit
   (header
-    (purpose "Return the largest profit from buying on one day and selling on a later day, or 0 when no trade gains.")
+    (purpose "Return the profit of a trade, buying on one day and selling on a later day, as the invariants allow.")
     (invariants "The result is non-negative, and it is 0 for no prices, or the profit of some trade that doesn't lose, or the prices strictly fall.")
     (failures "None. Prices are non-negative, so every difference of two fits in i64."))
   (spec max_profit

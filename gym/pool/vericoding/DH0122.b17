@@ -1,6 +1,6 @@
 (module maximum
   (header
-    (purpose "Return the k largest elements of a sequence, sorted in ascending order.")
+    (purpose "Return k of a sequence's values, sorted in ascending order.")
     (invariants "The result has k elements, is sorted, and holds only values of the input.")
     (failures "None. The precondition bounds the length by 1000 and every value by 1000. Allocation failure aborts."))
   (spec maximum

@@ -1,6 +1,6 @@
 (module partition_evens_odds
   (header
-    (purpose "Split a sequence of naturals into the even ones and the odd ones, each kept in input order.")
+    (purpose "Return two vectors of naturals, the first all even and the second all odd.")
     (invariants "Every element of the first result is a natural that is even, and every element of the second a natural that is odd.")
     (failures "None. Allocation failure aborts."))
   (spec partition_evens_odds

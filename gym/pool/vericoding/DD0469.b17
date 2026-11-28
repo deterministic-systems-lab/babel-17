@@ -1,6 +1,6 @@
 (module remove_element
   (header
-    (purpose "Remove every occurrence of val from a vector of at most 100 elements: move the other elements to the front, in order, and return their count.")
+    (purpose "Return a vector as long as the input, of at most 100 elements, and an index i such that no element at a position strictly between 0 and i equals val, when i is within the vector.")
     (invariants "The result vector has the input's length, and no element strictly between position 0 and position i equals val when i is within it.")
     (failures "None. The precondition bounds the length by 100 and the elements and val by small non-negative values, so every count and index fits in i64."))
   (spec remove_element
