@@ -1,0 +1,330 @@
+(module llrbt_delete
+  (header
+    (purpose "Delete a value from a left-leaning red-black tree.")
+    (invariants "The result is empty or a left-leaning red-black tree, whose root may be red, holding the old values but the deleted one.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (val i64) (is_red bool) (left (option node)) (right (option node))))
+  (ghost-fn view ((n node)) (iset int) (decreases (rank n))
+    (body
+      (union
+        (union
+          (match (field n left) (case (none) (iset-lit)) (case (some l) (view l)))
+          (match (field n right) (case (none) (iset-lit)) (case (some r) (view r))))
+        (iset-lit (field n val)))))
+  (ghost-fn is_bst ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (match (field n left)
+          (case (none) true)
+          (case (some l) (and (forall ((x int)) (=> (contains (view l) x) (< x (field n val)))) (is_bst l))))
+        (match (field n right)
+          (case (none) true)
+          (case (some r) (and (forall ((y int)) (=> (contains (view r) y) (> y (field n val)))) (is_bst r)))))))
+  (ghost-fn black_height ((n node)) int (decreases (rank n))
+    (body
+      (if (and (and (!= (match (field n left) (case (none) 1) (case (some l1) (black_height l1))) -1)
+                    (!= (match (field n right) (case (none) 1) (case (some r1) (black_height r1))) -1))
+               (== (match (field n left) (case (none) 1) (case (some l2) (black_height l2)))
+                   (match (field n right) (case (none) 1) (case (some r2) (black_height r2)))))
+        (if (not (field n is_red))
+          (+ (match (field n left) (case (none) 1) (case (some l3) (black_height l3))) 1)
+          (match (field n left) (case (none) 1) (case (some l4) (black_height l4))))
+        -1)))
+  (ghost-fn satisfies_red_props ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (and
+          (and
+            (match (field n left) (case (none) true) (case (some l) (satisfies_red_props l)))
+            (match (field n right) (case (none) true) (case (some r) (satisfies_red_props r))))
+          (match (field n right) (case (none) true) (case (some r2) (not (field r2 is_red)))))
+        (match (field n left)
+          (case (none) true)
+          (case (some l2)
+            (if (field l2 is_red)
+              (match (field l2 left) (case (none) true) (case (some ll) (not (field ll is_red))))
+              true))))))
+  (ghost-fn is_llrbt ((n node)) bool
+    (body (and (and (is_bst n) (!= (black_height n) -1)) (satisfies_red_props n))))
+  (ghost-fn is_llrbt_opt ((tree (option node))) bool
+    (body (match tree (case (none) true) (case (some n) (is_llrbt n)))))
+  (ghost-fn view_opt ((tree (option node))) (iset int)
+    (body (match tree (case (none) (iset-lit)) (case (some n) (view n)))))
+  (spec delete
+    (params (tree (option node)) (v i64))
+    (returns (res (option node)))
+    (requires (is_llrbt_opt tree))
+    (ensures
+      (== (view_opt res) (diff (view_opt tree) (iset-lit v)))
+      (is_llrbt_opt res))
+    (effects alloc))
+
+  (spec insert
+    (params (tree (option node)) (v i64))
+    (returns (res node))
+    (requires (is_llrbt_opt tree))
+    (ensures
+      (== (view res) (union (view_opt tree) (iset-lit v)))
+      (is_llrbt res))
+    (effects alloc))
+
+  (ghost-fn red_opt ((o (option node))) bool
+    (body (match o (case (none) false) (case (some q) (field q is_red)))))
+  (ghost-fn strict ((n node)) bool
+    (body (not (and (field n is_red) (red_opt (field n left))))))
+  (ghost-fn strict_opt ((o (option node))) bool
+    (body (match o (case (none) true) (case (some q) (strict q)))))
+  (ghost-fn bh_opt ((o (option node))) int
+    (body (match o (case (none) 1) (case (some q) (black_height q)))))
+  (ghost-fn below ((s (iset int)) (b int)) bool
+    (body (forall ((z int)) (=> (contains s z) (< z b)))))
+  (ghost-fn above ((s (iset int)) (b int)) bool
+    (body (forall ((z int)) (=> (contains s z) (> z b)))))
+  (ghost-fn red_left_opt ((o (option node))) bool
+    (body (match o (case (none) false) (case (some q) (red_opt (field q left))))))
+  (lemma bh_pos (params (n node))
+    (ensures (or (== (black_height n) -1) (>= (black_height n) 1)))
+    (decreases (rank n))
+    (body
+      (match n (case (node v c l r)
+        (block
+          (match l (case (none) (block)) (case (some l1) (call bh_pos l1)))
+          (match r (case (none) (block)) (case (some r1) (call bh_pos r1))))))))
+  (lemma vw (params (n node))
+    (ensures (== (view n) (union (union (view_opt (field n left)) (view_opt (field n right))) (iset-lit (field n val)))))
+    (body))
+  (lemma parts (params (n node))
+    (requires (is_llrbt n))
+    (ensures
+      (is_llrbt_opt (field n left))
+      (is_llrbt_opt (field n right))
+      (below (view_opt (field n left)) (field n val))
+      (above (view_opt (field n right)) (field n val))
+      (== (bh_opt (field n left)) (bh_opt (field n right)))
+      (not (red_opt (field n right)))
+      (=> (red_opt (field n left)) (not (red_left_opt (field n left))))
+      (== (black_height n) (+ (bh_opt (field n left)) (if (field n is_red) 0 1)))
+      (strict_opt (field n left))
+      (strict_opt (field n right)))
+    (body
+      (match n (case (node v c l r)
+        (match l
+          (case (none) (match r (case (none) (block)) (case (some r1) (block))))
+          (case (some l1) (match r (case (none) (block)) (case (some r2) (block)))))))))
+  (lemma join (params (n node))
+    (requires
+      (is_llrbt_opt (field n left))
+      (is_llrbt_opt (field n right))
+      (below (view_opt (field n left)) (field n val))
+      (above (view_opt (field n right)) (field n val))
+      (== (bh_opt (field n left)) (bh_opt (field n right)))
+      (not (red_opt (field n right)))
+      (=> (red_opt (field n left)) (not (red_left_opt (field n left)))))
+    (ensures
+      (is_llrbt n)
+      (== (black_height n) (+ (bh_opt (field n left)) (if (field n is_red) 0 1))))
+    (body
+      (match n (case (node v c l r)
+        (match l
+          (case (none) (match r (case (none) (block (assert (is_bst n)) (assert (!= (black_height n) -1)) (assert (satisfies_red_props n)))) (case (some r1) (block (assert (is_llrbt r1)) (block (assert (is_bst n)) (assert (!= (black_height n) -1)) (assert (satisfies_red_props n)))))))
+          (case (some l1) (match r (case (none) (block (assert (is_llrbt l1)) (block (assert (is_bst n)) (assert (!= (black_height n) -1)) (assert (satisfies_red_props n))))) (case (some r2) (block (call bh_pos l1) (assert (is_llrbt l1)) (assert (is_llrbt r2)) (assert (is_bst n)) (assert (!= (black_height n) -1)) (assert (satisfies_red_props n)))))))))))
+  (spec ins
+    (params (t (option node)) (x i64))
+    (returns (r node))
+    (requires (is_llrbt_opt t) (strict_opt t))
+    (ensures
+      (== (view r) (union (view_opt t) (iset-lit x)))
+      (is_llrbt r)
+      (== (black_height r) (bh_opt t))
+      (=> (not (red_opt t)) (strict r)))
+    (effects alloc))
+  (def ins (decreases (rank t))
+    (body
+      (match t
+        (case (none) (block (call vw (node x true (none) (none))) (call join (node x true (none) (none))) (return (node x true (none) (none)))))
+        (case (some h)
+          (block
+          (call vw h) (call parts h)
+          (match h
+            (case (node hv hc hl hr)
+              (if (< x hv)
+                (block
+                  (let ((l2 node)) (call ins hl x))
+                  (call vw l2) (call parts l2)
+                  (match l2
+                    (case (node lv lc ll lr)
+                      (match ll
+                        (case (none)
+                          (block
+                            (call vw (node hv hc (some l2) hr)) (call join (node hv hc (some l2) hr))
+                            (return (node hv hc (some (node lv lc (none) lr)) hr))))
+                        (case (some lln)
+                          (block
+                          (call vw lln) (call parts lln)
+                          (match lln
+                            (case (node av ac al ar)
+                              (if (and lc ac)
+                                (block
+                                  (assert (below (view l2) hv))
+                                  (assert (contains (view l2) lv))
+                                  (assert (< lv hv))
+                                  (assert (above (view_opt hr) lv))
+                                  (call vw (node av false al ar)) (call join (node av false al ar))
+                                  (call vw (node hv false lr hr)) (call join (node hv false lr hr))
+                                  (call vw (node lv true (some (node av false al ar)) (some (node hv false lr hr)))) (call join (node lv true (some (node av false al ar)) (some (node hv false lr hr))))
+                                  (return (node lv true (some (node av false al ar)) (some (node hv false lr hr)))))
+                                (block
+                                  (call vw (node hv hc (some l2) hr)) (call join (node hv hc (some l2) hr))
+                                  (return (node hv hc (some (node lv lc (some (node av ac al ar)) lr)) hr))))))))))))
+                (if (> x hv)
+                  (block
+                    (let ((r2 node)) (call ins hr x))
+                    (call vw r2) (call parts r2)
+                    (match r2
+                      (case (node rv rc rl rr)
+                        (if rc
+                          (block
+                          (assert (above (view r2) hv))
+                          (assert (contains (view r2) rv))
+                          (assert (< hv rv))
+                          (match hl
+                            (case (none)
+                              (block
+                                (call vw (node hv true (none) rl)) (call join (node hv true (none) rl))
+                                (call vw (node rv hc (some (node hv true (none) rl)) rr)) (call join (node rv hc (some (node hv true (none) rl)) rr))
+                                (return (node rv hc (some (node hv true (none) rl)) rr))))
+                            (case (some ln)
+                              (block
+                              (call vw ln) (call parts ln)
+                              (match ln
+                                (case (node bv bc bl br)
+                                  (if bc
+                                    (block
+                                      (call vw (node bv false bl br)) (call join (node bv false bl br))
+                                      (call vw (node rv false rl rr)) (call join (node rv false rl rr))
+                                      (call vw (node hv true (some (node bv false bl br)) (some (node rv false rl rr)))) (call join (node hv true (some (node bv false bl br)) (some (node rv false rl rr))))
+                                      (return (node hv true (some (node bv false bl br)) (some (node rv false rl rr)))))
+                                    (block
+                                      (call vw (node hv true (some ln) rl)) (call join (node hv true (some ln) rl))
+                                      (call vw (node rv hc (some (node hv true (some ln) rl)) rr)) (call join (node rv hc (some (node hv true (some ln) rl)) rr))
+                                      (return (node rv hc (some (node hv true (some (node bv bc bl br)) rl)) rr))))))))))
+                          (block
+                            (call vw (node hv hc hl (some r2))) (call join (node hv hc hl (some r2)))
+                            (return (node hv hc hl (some (node rv rc rl rr)))))))))
+                  (return (node hv hc hl hr)))))))))))
+  (def insert
+    (body
+      (match tree
+        (case (none) (block (call vw (node v true (none) (none))) (call join (node v true (none) (none))) (return (node v true (none) (none)))))
+        (case (some h)
+          (block
+          (call vw h) (call parts h)
+          (match h
+            (case (node hv hc hl hr)
+              (if (< v hv)
+                (block
+                  (let ((l2 node)) (call ins hl v))
+                  (call vw l2) (call parts l2)
+                  (match l2
+                    (case (node lv lc ll lr)
+                      (match ll
+                        (case (none)
+                          (block
+                            (call vw (node hv hc (some l2) hr)) (call join (node hv hc (some l2) hr))
+                            (return (node hv hc (some (node lv lc (none) lr)) hr))))
+                        (case (some lln)
+                          (block
+                          (call vw lln) (call parts lln)
+                          (match lln
+                            (case (node av ac al ar)
+                              (if (and lc ac)
+                                (block
+                                  (assert (below (view l2) hv))
+                                  (assert (contains (view l2) lv))
+                                  (assert (< lv hv))
+                                  (assert (above (view_opt hr) lv))
+                                  (call vw (node av false al ar)) (call join (node av false al ar))
+                                  (call vw (node hv false lr hr)) (call join (node hv false lr hr))
+                                  (call vw (node lv true (some (node av false al ar)) (some (node hv false lr hr)))) (call join (node lv true (some (node av false al ar)) (some (node hv false lr hr))))
+                                  (return (node lv true (some (node av false al ar)) (some (node hv false lr hr)))))
+                                (block
+                                  (call vw (node hv hc (some l2) hr)) (call join (node hv hc (some l2) hr))
+                                  (return (node hv hc (some (node lv lc (some (node av ac al ar)) lr)) hr))))))))))))
+                (if (> v hv)
+                  (block
+                    (let ((r2 node)) (call ins hr v))
+                    (call vw r2) (call parts r2)
+                    (match r2
+                      (case (node rv rc rl rr)
+                        (if rc
+                          (block
+                          (assert (above (view r2) hv))
+                          (assert (contains (view r2) rv))
+                          (assert (< hv rv))
+                          (match hl
+                            (case (none)
+                              (block
+                                (call vw (node hv true (none) rl)) (call join (node hv true (none) rl))
+                                (call vw (node rv hc (some (node hv true (none) rl)) rr)) (call join (node rv hc (some (node hv true (none) rl)) rr))
+                                (return (node rv hc (some (node hv true (none) rl)) rr))))
+                            (case (some ln)
+                              (block
+                              (call vw ln) (call parts ln)
+                              (match ln
+                                (case (node bv bc bl br)
+                                  (if bc
+                                    (block
+                                      (call vw (node bv false bl br)) (call join (node bv false bl br))
+                                      (call vw (node rv false rl rr)) (call join (node rv false rl rr))
+                                      (call vw (node hv true (some (node bv false bl br)) (some (node rv false rl rr)))) (call join (node hv true (some (node bv false bl br)) (some (node rv false rl rr))))
+                                      (return (node hv true (some (node bv false bl br)) (some (node rv false rl rr)))))
+                                    (block
+                                      (call vw (node hv true (some ln) rl)) (call join (node hv true (some ln) rl))
+                                      (call vw (node rv hc (some (node hv true (some ln) rl)) rr)) (call join (node rv hc (some (node hv true (some ln) rl)) rr))
+                                      (return (node rv hc (some (node hv true (some (node bv bc bl br)) rl)) rr))))))))))
+                          (block
+                            (call vw (node hv hc hl (some r2))) (call join (node hv hc hl (some r2)))
+                            (return (node hv hc hl (some (node rv rc rl rr)))))))))
+                  (return (node hv hc hl hr)))))))))))
+  (spec addall
+    (params (src (option node)) (acc (option node)))
+    (returns (out (option node)))
+    (requires (is_llrbt_opt acc))
+    (ensures
+      (== (view_opt out) (union (view_opt acc) (view_opt src)))
+      (is_llrbt_opt out))
+    (effects alloc))
+  (def addall (decreases (rank src))
+    (body
+      (match src
+        (case (none) (return acc))
+        (case (some n)
+          (block
+            (call vw n)
+            (match n
+              (case (node nv nc nl nr)
+                (block
+                  (let ((a1 (option node))) (call addall nl acc))
+                  (let ((a2 (option node))) (call addall nr a1))
+                  (let ((a3 node)) (call insert a2 nv))
+                  (return (some a3))))))))))
+  (def delete (decreases (rank tree))
+    (body
+      (match tree
+        (case (none) (return (none)))
+        (case (some n)
+          (block
+            (call vw n)
+            (call parts n)
+            (match n
+              (case (node nv nc nl nr)
+                (block
+                  (let ((dl (option node))) (call delete nl v))
+                  (let ((dr (option node))) (call delete nr v))
+                  (let ((m (option node))) (call addall dr dl))
+                  (if (== nv v)
+                    (return m)
+                    (block
+                      (let ((r1 node)) (call insert m nv))
+                      (return (some r1))))))))))))
+)

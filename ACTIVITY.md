@@ -3641,3 +3641,50 @@ WP11 and WP15. D126 is built in `b17c/interp.py`, and `docs/b17-1.md` is version
 - **Codex's fact-check of this entry,** the roadmap, the README and D126's text (`gpt-5.6-sol`), told not to read the secret, against the records and the code: no problem found.
 - **Updated:** DECISIONS (D126's status and text, and the headings of D58, D102 and D125); `docs/b17-1.md`'s status, §8 and §14; `gym/pool/algoveri/`, `gym/pool.jsonl`; the README's status, WP11 row and docs table; the roadmap's date, B17-1's version, recent work, decisions waiting, accepted decisions, critical path and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-25 · The pool's third batch: trees and tries
+
+WP11's pool, in Phase 2. With D126 merged, 12 more of AlgoVeri's problems are ported, each a B17-1 module in `gym/pool/algoveri/` with a reference def that verifies. D123's entry checks have run on them under the secret, in 12 minutes, with the results in `gym/pool.jsonl`. 7 enter: 6 to train on, and 1 that the split's slice holds out. The pool has 19 tasks from 30 ports, 15 to train on and 4 held out.
+
+- **Which problems:** of AlgoVeri's 20 unported problems that pose no test problem, these 12 were the ones the interpreter might decide: five on left-leaning red-black trees, two on segment trees, two on tries and three on ternary search trees. The rest wait:
+  - `dfs` and `scc_tarjan` on reachability, an ∃ over paths that only `has_edge` bounds, which keeps `bfs` out too;
+  - `sieve_method` on the owner's bound;
+  - the 5 sequence specs D126 doesn't reach.
+
+  `bfs` is ported in the suite. So every AlgoVeri problem that poses no test problem is now ported or waits on a decision or a further rule.
+- **How:** five agents ported them, each in its own worktree, told not to read the secret, with D123's checks run under a made-up key. Each first wrote the spec with a plain reference and ran checks 1, 2 and 5, and wrote a proof only where those passed. Each port was reviewed against its source before it was brought over.
+- **They enter:**
+
+  | Port | Goals | Mutants |
+  |---|---|---|
+  | `llrbt_insert` | 328 | 8: 7 by test, 1 by the verifier |
+  | `llrbt_delete` | 350 | 2 by test |
+  | `trie_search` | 38 | 2 by the verifier |
+  | `trie_delete` | 118 | 2 by test |
+  | `ternarysearchtree_search` | 101 | 2 by test |
+  | `ternarysearchtree_insert` | 154 | 2 by test |
+  | `ternarysearchtree_delete` | 149 | 6 by test |
+
+  No mutant survives in any of them.
+- **Out:**
+  - **`llrbt_rotateleft`, `llrbt_rotateright` and `llrbt_flipcolor`, on check 4:** each reference returns its tree as one constructor expression, so `mutants` has nothing to change, as with `bst_zig`. They verify, with 28, 28 and 36 goals, and keep 25 inputs.
+  - **`segmenttree_build`, on check 5:** `build(l, r)` requires only `0 <= l < r`, so D125's draws can make r - l nearly as large as `i64` allows, and on 17 of 25 inputs building the tree runs out of 20M steps. With a bound on r it would enter, which is the owner's call, as for `trial_division_naive`.
+  - **`segmenttree_modify`, on check 5:** D88's random trees meet `is_segment_tree` too rarely, keeping 9 of 25 inputs.
+- **The specs say what their Dafny sources say,** but for §11's types, ensures that are top-level `and`s split into clauses, and these:
+  - **Renamed:** a parameter named after its constructor, `node`, is `n` or `t`, or `o` where it's an `option` (D82). Dafny's `contains` is `has_key` in the tries, since `contains` is B17's membership operator. `segmenttree_modify`'s method is `modify`, AlgoVeri's own name for it, since `update` is reserved, and its `idx` is `index`.
+  - **`var` bindings written out:** the red-black trees' `black_height` and `satisfies_red_props` repeat each binding inline, since a ghost-fn has no let-expression.
+  - **Left out:** the three red-black tree node operations leave out `satisfies_red_props` and `is_llrbt`, which their specs never use.
+  - **The trie's `well_formed`** adds the child's 256 children before `is_empty`, whose `requires` needs it. `well_formed` of the child already implies it. This is copied from the suite's `trie_insert`.
+  - **The ternary search tree's view is a finite set.** Dafny's is a comprehension over `contains`. B17 keeps such a set as its predicate, and its equality with another set is unknown (D113), so check 5 couldn't decide insert's and delete's `ensures`. So the view is built by a ghost-fn `keys`, a union routed by the same comparisons as `contains`. A lemma in the hidden solution, `view_hk`, proves its membership equal to Dafny's `contains`, transliterated, for every tree, well-formed or not. A model sees `keys` in the posed spec, not `contains`.
+  - **The tries keep Dafny's comprehension.** Their equality is decided only on the empty trie, which is the only trie the draws keep, as below.
+- **A reference def needn't be the algorithm the source names** (D30): `llrbt_delete`'s deletes from both subtrees, merges them by reinserting one into the other, and reinserts the root unless it's the value deleted.
+- **A def that only calls a helper** gives `mutants` little to change. `llrbt_insert`'s and `llrbt_delete`'s each do their root's step themselves, comparisons and branches that tests kill when mutated. The ternary search tree's and trie's defs call a helper on a key index, and get 2 to 6 mutants each.
+- **Draws that miss:** under made-up keys, of 100 kept draws:
+  - every trie is empty, since a node needs 256 children and D88's vectors have at most 8. So the held-out tier tests the tries only on the empty trie;
+  - 95 to 98 ternary search trees are empty;
+  - 72 to 77 red-black trees are empty, and none has more than 3 nodes.
+- **Codex's review** (`gpt-5.6-sol`) of the other ten posed specs against their sources, told not to read the secret, found all ten faithful. It checked `keys` against Dafny's view on every case, malformed trees and the bounds just outside `i64` included, and found `view_hk` true for every tree. The segment trees' posed items are the suite's `segmenttree_query`'s, byte for byte, and their sources' preambles are the same.
+- **Codex's fact-check of this entry,** the roadmap and the README, against the records: 2 problems, both fixed, the count of unported problems, 20 not 21, and the renamed parameters, which include `o`.
+- **For the owner:** a bound on `segmenttree_build`'s range, draws that build valid trees and tries, and mutants for a def that builds its result in one expression. They're in the roadmap's decisions waiting.
+- **Updated:** `gym/pool/algoveri/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path, reach and Phase 2.
+- **Interfaces touched:** none.

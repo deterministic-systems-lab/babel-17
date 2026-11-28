@@ -1,0 +1,63 @@
+(module llrbt_flipcolor
+  (header
+    (purpose "Flip the colors of a left-leaning red-black tree node and its two children, whose color differs from the node's.")
+    (invariants "The result holds the same values, is a search tree exactly when the node was, keeps its black height, and has the node's and its left child's colors toggled.")
+    (failures "Allocation failure aborts."))
+  (data node () (node (val i64) (is_red bool) (left (option node)) (right (option node))))
+  (ghost-fn view ((n node)) (iset int) (decreases (rank n))
+    (body
+      (union
+        (union
+          (match (field n left) (case (none) (iset-lit)) (case (some l) (view l)))
+          (match (field n right) (case (none) (iset-lit)) (case (some r) (view r))))
+        (iset-lit (field n val)))))
+  (ghost-fn is_bst ((n node)) bool (decreases (rank n))
+    (body
+      (and
+        (match (field n left)
+          (case (none) true)
+          (case (some l) (and (forall ((x int)) (=> (contains (view l) x) (< x (field n val)))) (is_bst l))))
+        (match (field n right)
+          (case (none) true)
+          (case (some r) (and (forall ((x int)) (=> (contains (view r) x) (> x (field n val)))) (is_bst r)))))))
+  (ghost-fn black_height ((n node)) int (decreases (rank n))
+    (body
+      (if (and (and (!= (match (field n left) (case (none) 1) (case (some l1) (black_height l1))) -1)
+                    (!= (match (field n right) (case (none) 1) (case (some r1) (black_height r1))) -1))
+               (== (match (field n left) (case (none) 1) (case (some l2) (black_height l2)))
+                   (match (field n right) (case (none) 1) (case (some r2) (black_height r2)))))
+        (if (not (field n is_red))
+          (+ (match (field n left) (case (none) 1) (case (some l3) (black_height l3))) 1)
+          (match (field n left) (case (none) 1) (case (some l4) (black_height l4))))
+        -1)))
+  (spec flip_colors
+    (params (n node))
+    (returns (res node))
+    (requires
+      (and (is some (field n left)) (is some (field n right)))
+      (!= (field n is_red) (field (field (field n left) value) is_red))
+      (== (field (field (field n left) value) is_red) (field (field (field n right) value) is_red)))
+    (ensures
+      (is some (field res left))
+      (is some (field res right))
+      (== (view res) (view n))
+      (== (is_bst res) (is_bst n))
+      (== (black_height res) (black_height n))
+      (!= (field res is_red) (field n is_red))
+      (!= (field (field (field res left) value) is_red) (field (field (field n left) value) is_red)))
+    (effects alloc))
+  (def flip_colors
+    (body
+      (match n
+        (case (node v red lo ro)
+          (match lo
+            (case (none) (return (node v red (none) ro)))
+            (case (some l)
+              (match ro
+                (case (none) (return (node v red (some l) (none))))
+                (case (some r)
+                  (match l
+                    (case (node lv lred la lb)
+                      (match r
+                        (case (node rv rred ra rb)
+                          (return (node v (not red) (some (node lv (not lred) la lb)) (some (node rv (not rred) ra rb)))))))))))))))))
