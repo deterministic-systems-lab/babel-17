@@ -1,0 +1,30 @@
+(module best_time_to_buy_and_sell_stock
+  (header
+    (purpose "Return a value at least the profit of every trade, buying on one day and selling on a later day.")
+    (invariants "The result is at least the profit of every trade, prices[j] - prices[i] for i < j.")
+    (failures "None. The precondition bounds each price by 0 and 10000, so every profit fits in i64."))
+  (spec best_time_to_buy_and_sell_stock
+    (params (prices (ref (slice i64))))
+    (returns (max_profit i64))
+    (requires
+      (and (<= 1 (len prices)) (<= (len prices) 100000))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len prices))) (and (<= 0 (idx prices i)) (<= (idx prices i) 10000)))))
+    (ensures
+      (forall ((i int) (j int)) (=> (and (and (<= 0 i) (< i j)) (< j (len prices))) (>= max_profit (- (idx prices j) (idx prices i))))))
+    (effects))
+  (def best_time_to_buy_and_sell_stock
+    (body
+      (let-mut best i64 0)
+      (let-mut lo i64 (idx prices 0))
+      (let-mut k i64 1)
+      (while (< k (len prices))
+        (invariant (and (<= 1 k) (<= k (len prices))))
+        (invariant (and (<= 0 lo) (<= lo 10000)))
+        (invariant (forall ((q int)) (=> (and (<= 0 q) (< q k)) (<= lo (idx prices q)))))
+        (invariant (forall ((a int) (b int)) (=> (and (and (<= 0 a) (< a b)) (< b k)) (>= best (- (idx prices b) (idx prices a))))))
+        (decreases (- (len prices) k))
+        (let x i64 (idx prices k))
+        (if (> (- x lo) best) (set best (- x lo)) (block))
+        (if (< x lo) (set lo x) (block))
+        (set k (+ k 1)))
+      (return best))))

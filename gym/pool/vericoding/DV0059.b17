@@ -1,0 +1,30 @@
+(module partition_evens_odds
+  (header
+    (purpose "Return two vectors of naturals, the first all even and the second all odd.")
+    (invariants "Every element of the first result is a natural that is even, and every element of the second a natural that is odd.")
+    (failures "None. Allocation failure aborts."))
+  (spec partition_evens_odds
+    (params (nums (ref (slice i64))))
+    (returns (evens (vec i64)) (odds (vec i64)))
+    (requires (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (>= (idx nums i) 0))))
+    (ensures
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len evens))) (>= (idx evens i) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len odds))) (>= (idx odds i) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len evens))) (== (% (idx evens i) 2) 0)))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len odds))) (== (% (idx odds i) 2) 1))))
+    (effects alloc))
+  (def partition_evens_odds
+    (body
+      (let-mut evens (vec i64) (vec-new))
+      (let-mut odds (vec i64) (vec-new))
+      (let-mut i i64 0)
+      (while (< i (len nums))
+        (invariant (and (<= 0 i) (<= i (len nums))))
+        (invariant (<= (+ (len evens) (len odds)) i))
+        (invariant (forall ((p int)) (=> (and (<= 0 p) (< p (len evens))) (and (>= (idx evens p) 0) (== (% (idx evens p) 2) 0)))))
+        (invariant (forall ((p int)) (=> (and (<= 0 p) (< p (len odds))) (and (>= (idx odds p) 0) (== (% (idx odds p) 2) 1)))))
+        (decreases (- (len nums) i))
+        (let x i64 (idx nums i))
+        (if (== (% x 2) 0) (push evens x) (push odds x))
+        (set i (+ i 1)))
+      (return evens odds))))

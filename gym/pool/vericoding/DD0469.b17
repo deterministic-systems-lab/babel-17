@@ -1,0 +1,34 @@
+(module remove_element
+  (header
+    (purpose "Return a vector as long as the input, of at most 100 elements, and an index i such that no element at a position strictly between 0 and i equals val, when i is within the vector.")
+    (invariants "The result vector has the input's length, and no element strictly between position 0 and position i equals val when i is within it.")
+    (failures "None. The precondition bounds the length by 100 and the elements and val by small non-negative values, so every count and index fits in i64."))
+  (spec remove_element
+    (params (nums (vec i64)) (val i64))
+    (returns (r (vec i64)) (i i64))
+    (requires
+      (and (<= 0 (len nums)) (<= (len nums) 100))
+      (forall ((i int)) (=> (and (<= 0 i) (< i (len nums))) (and (<= 0 (idx nums i)) (<= (idx nums i) 50))))
+      (and (<= 0 val) (<= val 100)))
+    (ensures
+      (== (len r) (len nums))
+      (forall ((j int)) (=> (and (and (< 0 j) (< j i)) (< i (len r))) (!= (idx r j) val))))
+    (effects))
+  (def remove_element
+    (body
+      (let-mut v (vec i64) nums)
+      (let-mut k i64 0)
+      (let-mut p i64 0)
+      (while (< p (len v))
+        (invariant (and (and (<= 0 k) (<= k p)) (<= p (len v))))
+        (invariant (== (len v) (len nums)))
+        (invariant (forall ((q int)) (=> (and (<= 0 q) (< q k)) (!= (idx v q) val))))
+        (invariant (forall ((q int)) (=> (and (<= p q) (< q (len v))) (== (idx v q) (idx nums q)))))
+        (decreases (- (len v) p))
+        (if (!= (idx v p) val)
+          (block
+            (set-idx v k (idx v p))
+            (set k (+ k 1)))
+          (block))
+        (set p (+ p 1)))
+      (return v k))))

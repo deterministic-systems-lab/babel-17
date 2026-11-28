@@ -3688,3 +3688,59 @@ WP11's pool, in Phase 2. With D126 merged, 12 more of AlgoVeri's problems are po
 - **For the owner:** a bound on `segmenttree_build`'s range, draws that build valid trees and tries, and mutants for a def that builds its result in one expression. They're in the roadmap's decisions waiting.
 - **Updated:** `gym/pool/algoveri/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path, reach and Phase 2.
 - **Interfaces touched:** none.
+
+## 2026-11-27 · The pool's first vericoding batch
+
+WP11's pool, in Phase 2, grows from vericoding's Dafny tasks, as D123 orders. 17 ports are in `gym/pool/vericoding/`, each a B17-1 module in a file named by its vericoding ID, with a reference def that verifies. D123's entry checks have run on them under the secret, with the results in `gym/pool.jsonl`. 9 enter: 8 to train on, and 1 that the split's slice holds out. The pool has 28 tasks from 47 ports, 23 to train on and 5 held out.
+
+- **Which tasks:** the harness's 17 vericoding problems that pose no test problem, posed by 22 of its tasks. Three aren't ported: `DD0172` is `DD0170` under another name, `DH0038` is `DH0030`, and `DD0378` is `DD0469` without its `requires`. Of the other 19, 17 are added and 2 set aside, below.
+- **Weak specs:** 9 of the 19 say less than their intent, the description vericoding gives or, for the five with none or only "Process input.", the method's name. A constant, an empty result or the input itself meets 8 of them, and any trade's profit meets `max_profit`. On 4 of them, the Dafny that verified, by one or two of the nine 2025 models vericoding ran, returns that answer: `LcmInt` and `BubbleSort` return 0, `strange_sort_list_helper` its input unsorted, and `maximum` k copies of its first element. The ports keep these specs as written. Their reference defs do what the intent says, so check 4 can show the gap: a mutant that verifies and answers differently is an answer the spec allows and its intent doesn't. A trivial reference would pass check 4 without testing the spec, which the first batch's rotations ruled out.
+- **How:** five agents ported them, each in its own worktree, told not to read the secret, with D123's checks run under a made-up key. Each wrote the spec with a plain reference first and ran checks 1, 2 and 5, writing a proof only where those passed. The checks under the secret agree with the made-up key's on every port.
+- **They enter:**
+
+  | Port | Goals | Mutants |
+  |---|---|---|
+  | `swap` (`DD0424`) | 12 | 2 by test |
+  | `intersect1d` (`DT0550`) | 95 | 10 by test |
+  | `contains_duplicate` (`DD0463`) | 30 | 16: 15 by test, 1 survives with the same output |
+  | `lcm_int` (`DS0029`) | 84 | 13: 9 by test, 4 survive with the same output |
+  | `if_power_of_four` (`DV0013`) | 46 | 12: 11 by test, 1 by the verifier |
+  | `sort_seq_pred` (`DH0030`) | 107 | 21: 20 by test, 1 survives with the same output |
+  | `sort_third` (`DH0031`) | 84 | 31: 30 by test, 1 survives with the same output |
+  | `compute_count` (`DD0170`) | 23 | 19 by test |
+  | `count_non_zero` (`DT0562`) | 54 | 17 by test |
+
+  `sort_seq_pred` and `sort_third` pose the same problem, `sort_by_mask`, so the split holds both out or neither.
+- **`lcm_int` enters with a weak spec:** `return 0` meets it, as the model's Dafny does, but none of its 13 mutants survives with a different answer, so check 4 can't show it. It's in the pool by D123's rules, and in the decisions waiting.
+- **Out on check 4:** the other 8 weak specs. Every surviving mutant whose output differs gives an answer the Dafny spec allows:
+  - `bubble_sort` (`DD0373`): 4, counting equal pairs too, counting pairs in order, or returning 0;
+  - `remove_element` (`DD0469`): 2, both returning i = 0;
+  - `best_time_to_buy_and_sell_stock` (`DD0462`): 3, two bounds above the best profit and -1 on a single price, where the spec's `forall` is vacuous;
+  - `max_profit` (`DV0041`): 2, a positive result where no trade gains;
+  - `maximum` (`DH0122`): 2, sorted values from s that aren't the k largest;
+  - `partition_evens_odds` (`DV0059`): 2, no evens or no odds;
+  - `strange_sort_list_helper` (`DH0072`): 2, a permutation left unsorted;
+  - `argsort` (`DS0004`): 2, one with tied elements' indices in another order, which an argsort may return too, and one with an index repeated, which it may not.
+- **Set aside, not added:**
+  - **`counting_bits` (`DD0464`):** its reference verifies, with 52 goals, but check 5 runs out of steps on all 25 inputs. n goes up to 100,000, and a checked run evaluates the loop's invariant after every pass, a `forall` over the prefix built so far, so the run costs about 22n² steps. With n at most 960 it passes. Check 4 didn't finish in 30 minutes, since each mutant's tests draw inputs that run a million steps before they're dropped. The spec also leaves element 0 free.
+  - **`modp` (`DH0051`):** check 5 reaches D59's call-depth limit of 1000 on 8 of 25 inputs, evaluating `power(2, n)` in the `ensures`. With n at most 998 it passes. Its reference, square-and-multiply, runs correctly but isn't proved, since check 5 failed first.
+
+  Both wait on the owner's bound, as `sieve_method` does. They're kept outside the repository until then.
+- **The specs say what their Dafny sources say,** but for §11's types, D60's ranges, and these:
+  - **Arrays:** one the method modifies, whose final contents an `ensures` reads, is an owned vector in and a vector out, with a clause that they're the same length, since a Dafny array keeps its length: `swap`'s and `remove_element`'s. One modified that no `ensures` reads is read-only: `bubble_sort`'s `a` and `compute_count`'s `b`. A `nat` result has an `ensures` that it's at least 0, per element for `partition_evens_odds`.
+  - **Renamed:** `sorted` is a core-library ghost-fn, so a result of that name is `sorted_seq`. `swap` leaves out its preamble's unused `sorted`.
+  - **Ranges:** `lcm_int` requires |a|·|b| to fit in i64, the step its reference computes, and `bubble_sort` that n(n − 1)/2 does, for a count of inversions. Codex notes that `bubble_sort`'s excludes more than it must: an array of 4,294,967,297 zeros has no inversions.
+  - **A bound for checked runs:** `if_power_of_four`'s `exists m` gains m < 32 in its guard, since 4^32 exceeds every i64, so no witness is larger. Without it the interpreter leaves all 25 inputs undecided.
+  - **`strange_sort_list_helper`'s odd guard** `i % 2 == 1` is `(!= (% i 2) 0)` under 0 ≤ i, which means the same. Written as Dafny's, the spec's own bounds goal comes back unknown.
+  - **Division:** every `/` and `%` in a posed spec has operands that are at least 0, or tests a remainder against 0, so B17's truncation agrees with Dafny's Euclidean division. `partition_evens_odds`'s `ensures` that every odd is at least 0 makes `% 2 == 1` agree.
+  - **`contains_duplicate`'s result** is true exactly when the values are distinct, as Dafny states it, against its name. Its header says so.
+- **Headers say what the spec says:** a model sees the header, and the reward checks the spec. So 9 headers that described the intent are rewritten, `lcm_int`'s from "the least common multiple" to "a non-negative common multiple".
+- **Draws:** under made-up keys, of 100 kept draws, n is a power of four in 15 for `if_power_of_four`, a value repeats in 15 for `contains_duplicate`, the inputs share a value in 34 for `intersect1d`, an element is 0 in 14 for `count_non_zero`, count_index is above 0 in 15 for `compute_count`, and gcd(a, b) is above 1 in 19 for `lcm_int`.
+- **Codex's reviews** (`gpt-5.6-sol`), told not to read the secret, found every posed spec faithful. Beyond the ranges above, they found:
+  - 9 headers that promised more than their specs, all fixed;
+  - `modp`'s range on p excludes more than its steps need, as at n = 0 and p the largest i64. It's left, since `modp` is set aside.
+- **Codex's fact-check of this entry,** the roadmap and the README, against the records: 9 problems, 7 fixed, among them the count of specs, which tasks have a description, and what `lcm_int`'s record shows of its mutants. The other 2 asked for records the repository doesn't hold: how the agents worked, which this entry records, and `counting_bits`' 52 goals, rechecked outside it: its reference verifies under every seed.
+- **No compiler or harness code changed:** the batch adds ports and records.
+- **For the owner:** what to do with weak specs, whether to leave them out, strengthen them from their intent as D123 has FVAPPS's ports do, or admit them with their survivors listed as allowed; `lcm_int`, which enters with one; and bounds on `counting_bits`' and `modp`'s n. They're in the roadmap's decisions waiting.
+- **Updated:** `gym/pool/vericoding/`, `gym/pool.jsonl`; the README's status and WP11 row; the roadmap's recent work, decisions waiting, critical path and Phase 2.
+- **Interfaces touched:** none.
