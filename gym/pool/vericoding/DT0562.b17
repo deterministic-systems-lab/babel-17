@@ -1,0 +1,51 @@
+(module count_non_zero
+  (header
+    (purpose "Count the non-zero values in a sequence of integers.")
+    (invariants "The result is count_non_zero_elements(a), so it is between 0 and the length, 0 when every element is zero, the length when none is, positive when one isn't zero, and less than the length when one is.")
+    (failures "None."))
+  (ghost-fn all_zero ((s (seq int))) bool
+    (body (forall ((i int)) (=> (and (<= 0 i) (< i (len s))) (== (idx s i) 0)))))
+  (ghost-fn all_non_zero ((s (seq int))) bool
+    (body (forall ((i int)) (=> (and (<= 0 i) (< i (len s))) (!= (idx s i) 0)))))
+  (ghost-fn exists_non_zero ((s (seq int))) bool
+    (body (exists ((i int)) (and (and (<= 0 i) (< i (len s))) (!= (idx s i) 0)))))
+  (ghost-fn exists_zero ((s (seq int))) bool
+    (body (exists ((i int)) (and (and (<= 0 i) (< i (len s))) (== (idx s i) 0)))))
+  (ghost-fn count_non_zero_elements ((s (seq int))) int
+    (decreases (len s))
+    (body (if (== (len s) 0)
+            0
+            (+ (if (!= (idx s 0) 0) 1 0) (count_non_zero_elements (drop s 1))))))
+  (spec count_non_zero
+    (params (a (ref (slice i64))))
+    (returns (count i64))
+    (ensures
+      (>= count 0)
+      (<= count (len a))
+      (=> (== (len a) 0) (== count 0))
+      (=> (all_zero a) (== count 0))
+      (=> (all_non_zero a) (== count (len a)))
+      (=> (exists_non_zero a) (> count 0))
+      (=> (exists_zero a) (< count (len a)))
+      (== count (count_non_zero_elements a)))
+    (effects))
+  (def count_non_zero
+    (body
+      (let-mut c i64 0)
+      (let-mut i i64 (len a))
+      (while (> i 0)
+        (invariant (and (<= 0 i) (<= i (len a))))
+        (invariant (and (<= 0 c) (<= c (- (len a) i))))
+        (invariant (== c (count_non_zero_elements (drop a i))))
+        (invariant (=> (forall ((k int)) (=> (and (<= i k) (< k (len a))) (== (idx a k) 0))) (== c 0)))
+        (invariant (=> (forall ((k int)) (=> (and (<= i k) (< k (len a))) (!= (idx a k) 0))) (== c (- (len a) i))))
+        (invariant (=> (exists ((k int)) (and (and (<= i k) (< k (len a))) (!= (idx a k) 0))) (> c 0)))
+        (invariant (=> (exists ((k int)) (and (and (<= i k) (< k (len a))) (== (idx a k) 0))) (< c (- (len a) i))))
+        (decreases i)
+        (set i (- i 1))
+        (assert (== (drop (drop a i) 1) (drop a (+ i 1))))
+        (assert (== (count_non_zero_elements (drop a i))
+                    (+ (if (!= (idx a i) 0) 1 0) (count_non_zero_elements (drop a (+ i 1))))))
+        (if (!= (idx a i) 0) (set c (+ c 1)) (block)))
+      (assert (== (drop a 0) a))
+      (return c))))
